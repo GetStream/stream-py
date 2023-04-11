@@ -71,7 +71,9 @@ chat_instance = client.chat
 To generate a JWT token for user authentication with role and call ID support, use the `client.create_user_token` method:
 
 ```python
-token = client.create_user_token("admin-user", call_cids=[call.cid], role="admin")
+#token = client.create_user_token("admin-user", call_cids=[call.cid], role="admin")
+
+token = client.create_user_token("admin-user", expiration=timedelta(hours=1))
 ```
 
 ## License
@@ -81,3 +83,6 @@ This project is licensed under the [MIT License](LICENSE).
 ## Contributing
 
 Contributions are welcome! Please read the [contributing guidelines](CONTRIBUTING.md) to get started.
+
+
+docker run --rm -v "${PWD}:/local" ghcr.io/getstream/openapi-generator:master generate -i https://raw.githubusercontent.com/GetStream/protocol/main/openapi/video-openapi.yaml -g python -o /local/out/python
