@@ -20,7 +20,7 @@ import uuid  # noqa: F401
 
 import frozendict  # noqa: F401
 
-from openapi_client import schemas  # noqa: F401
+from model import schemas  # noqa: F401
 
 
 class UpdatedCallPermissionsEvent(
@@ -219,5 +219,5 @@ class UpdatedCallPermissionsEvent(
         )
 
 
-from openapi_client.model.own_capability import OwnCapability
-from openapi_client.model.user_response import UserResponse
+from model.own_capability import OwnCapability
+from model.user_response import UserResponse

@@ -20,7 +20,7 @@ import uuid  # noqa: F401
 
 import frozendict  # noqa: F401
 
-from openapi_client import schemas  # noqa: F401
+from model import schemas  # noqa: F401
 
 class UpdateCallMembersResponse(
     schemas.DictBase, schemas.NoneBase, schemas.Schema, schemas.NoneFrozenDictMixin
@@ -143,4 +143,4 @@ class UpdateCallMembersResponse(
             **kwargs,
         )
 
-from openapi_client.model.member_response import MemberResponse
+from model.member_response import MemberResponse

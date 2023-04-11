@@ -20,7 +20,7 @@ import uuid  # noqa: F401
 
 import frozendict  # noqa: F401
 
-from openapi_client import schemas  # noqa: F401
+from model import schemas  # noqa: F401
 
 
 class ListCallTypeResponse(
@@ -169,4 +169,4 @@ class ListCallTypeResponse(
         )
 
 
-from openapi_client.model.call_type_response import CallTypeResponse
+from model.call_type_response import CallTypeResponse

@@ -3,6 +3,10 @@
 # Run the docker command to generate Python code
 docker run --rm -v "${PWD}:/local" ghcr.io/getstream/openapi-generator:master generate -i https://raw.githubusercontent.com/GetStream/protocol/main/openapi/video-openapi.yaml -g python -o /local/out/python
 
+
+# delete previous model
+rm -rf stream/model
+
 # Remove unnecessary files and folders
 rm -rf out/python/docs
 rm -rf out/python/test
@@ -16,6 +20,28 @@ rm out/python/.gitignore
 
 # Move the generated models to the models folder within your project
 mv out/python/openapi_client/model stream/
+# move schemas.py
+mv out/python/openapi_client/schemas.py stream/model/
+
+# move configuration.py
+mv out/python/openapi_client/configuration.py stream/model
+
+# move exceptions
+mv out/python/openapi_client/exceptions.py stream/model
 
 # Remove the remaining out folder
 rm -rf out
+
+# replace "from openapi_client.model.(.*) import (.*)" with "from model.\1 import \2"
+poetry run grep -rlE 'from openapi_client.model.(.*) import (.*)' stream/model | xargs -I {} sed -i '' -e 's/from openapi_client.model.\(.*\) import \(.*\)/from model.\1 import \2/g' {}
+# replace "from openapi_client import schemas" with "from model import schemas"
+poetry run grep -rlE 'from openapi_client import schemas' stream/model | xargs -I {} sed -i '' -e 's/from openapi_client import schemas/from model import schemas/g' {}
+
+# replace "from openapi_client.configuration import configuration" with "from model import configuration"
+poetry run grep -rlE 'from openapi_client.configuration import configuration' stream/model | xargs -I {} sed -i '' -e 's/from openapi_client.configuration import configuration/from model import configuration/g' {}
+
+# replace "from openapi_client.exceptions import (ApiTypeError,ApiValueError)" with "from model import (ApiTypeError,ApiValueError)"
+poetry run grep -rlE 'from openapi_client.exceptions import (ApiTypeError,ApiValueError)' stream/model | xargs -I {} sed -i '' -e 's/from openapi_client.exceptions import (ApiTypeError,ApiValueError)/from model import (ApiTypeError,ApiValueError)/g' {}
+
+# format code
+poetry run black stream/model

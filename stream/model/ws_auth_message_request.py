@@ -20,7 +20,7 @@ import uuid  # noqa: F401
 
 import frozendict  # noqa: F401
 
-from openapi_client import schemas  # noqa: F401
+from model import schemas  # noqa: F401
 
 
 class WSAuthMessageRequest(
@@ -166,5 +166,5 @@ class WSAuthMessageRequest(
         )
 
 
-from openapi_client.model.connect_user_details_request import ConnectUserDetailsRequest
-from openapi_client.model.device_fields_request import DeviceFieldsRequest
+from model.connect_user_details_request import ConnectUserDetailsRequest
+from model.device_fields_request import DeviceFieldsRequest

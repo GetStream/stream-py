@@ -20,7 +20,7 @@ import uuid  # noqa: F401
 
 import frozendict  # noqa: F401
 
-from openapi_client import schemas  # noqa: F401
+from model import schemas  # noqa: F401
 
 
 class VideoEvent(
@@ -158,26 +158,22 @@ class VideoEvent(
         )
 
 
-from openapi_client.model.blocked_user_event import BlockedUserEvent
-from openapi_client.model.call_accepted_event import CallAcceptedEvent
-from openapi_client.model.call_created_event import CallCreatedEvent
-from openapi_client.model.call_ended_event import CallEndedEvent
-from openapi_client.model.call_member_added_event import CallMemberAddedEvent
-from openapi_client.model.call_member_removed_event import CallMemberRemovedEvent
-from openapi_client.model.call_member_updated_event import CallMemberUpdatedEvent
-from openapi_client.model.call_member_updated_permission_event import (
-    CallMemberUpdatedPermissionEvent,
-)
-from openapi_client.model.call_reaction_event import CallReactionEvent
-from openapi_client.model.call_recording_started_event import CallRecordingStartedEvent
-from openapi_client.model.call_recording_stopped_event import CallRecordingStoppedEvent
-from openapi_client.model.call_rejected_event import CallRejectedEvent
-from openapi_client.model.call_updated_event import CallUpdatedEvent
-from openapi_client.model.connected_event import ConnectedEvent
-from openapi_client.model.custom_video_event import CustomVideoEvent
-from openapi_client.model.health_check_event import HealthCheckEvent
-from openapi_client.model.permission_request_event import PermissionRequestEvent
-from openapi_client.model.unblocked_user_event import UnblockedUserEvent
-from openapi_client.model.updated_call_permissions_event import (
-    UpdatedCallPermissionsEvent,
-)
+from model.blocked_user_event import BlockedUserEvent
+from model.call_accepted_event import CallAcceptedEvent
+from model.call_created_event import CallCreatedEvent
+from model.call_ended_event import CallEndedEvent
+from model.call_member_added_event import CallMemberAddedEvent
+from model.call_member_removed_event import CallMemberRemovedEvent
+from model.call_member_updated_event import CallMemberUpdatedEvent
+from model.call_member_updated_permission_event import CallMemberUpdatedPermissionEvent
+from model.call_reaction_event import CallReactionEvent
+from model.call_recording_started_event import CallRecordingStartedEvent
+from model.call_recording_stopped_event import CallRecordingStoppedEvent
+from model.call_rejected_event import CallRejectedEvent
+from model.call_updated_event import CallUpdatedEvent
+from model.connected_event import ConnectedEvent
+from model.custom_video_event import CustomVideoEvent
+from model.health_check_event import HealthCheckEvent
+from model.permission_request_event import PermissionRequestEvent
+from model.unblocked_user_event import UnblockedUserEvent
+from model.updated_call_permissions_event import UpdatedCallPermissionsEvent

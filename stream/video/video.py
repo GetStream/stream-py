@@ -11,6 +11,7 @@ from stream.model.query_calls_response import QueryCallsResponse
 from stream.model.create_call_type_request import CreateCallTypeRequest
 from stream.model.get_or_create_call_request import GetOrCreateCallRequest
 from stream.model.get_or_create_call_response import GetOrCreateCallResponse
+from stream.model.call_request import CallRequest
 from stream.video.call import Call
 
 
@@ -59,5 +60,6 @@ class Video(BaseClient):
         )
         return GetOrCreateCallResponse(**response.json())
 
-    def call(self, calltype: str, callid: str, data: dict):
+    def call(self, calltype: str, callid: str, data: CallRequest)->Call:
         self.currentCall = Call(self.stream, calltype, callid, data)
+        return self.currentCall

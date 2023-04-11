@@ -20,7 +20,7 @@ import uuid  # noqa: F401
 
 import frozendict  # noqa: F401
 
-from openapi_client import schemas  # noqa: F401
+from model import schemas  # noqa: F401
 
 
 class ConnectedEvent(
@@ -179,4 +179,4 @@ class ConnectedEvent(
         )
 
 
-from openapi_client.model.own_user_response import OwnUserResponse
+from model.own_user_response import OwnUserResponse

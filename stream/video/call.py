@@ -1,13 +1,14 @@
 from stream.model.get_or_create_call_response import GetOrCreateCallResponse
+from stream.model.call_request import CallRequest
 from stream.stream import Stream
 
 
 class Call:
-    def __init__(self, stream: Stream, call_type: str, call_id: str, data: dict):
+    def __init__(self, stream: Stream, call_type: str, call_id: str, data: CallRequest):
         self.stream = stream
         self.call_type = call_type
         self.call_id = call_id
-        self.data = data
+        self.call = data
         self.members = None
         self.blocked_users = None
 

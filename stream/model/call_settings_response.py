@@ -20,7 +20,7 @@ import uuid  # noqa: F401
 
 import frozendict  # noqa: F401
 
-from openapi_client import schemas  # noqa: F401
+from model import schemas  # noqa: F401
 
 
 class CallSettingsResponse(schemas.DictSchema):
@@ -301,12 +301,12 @@ class CallSettingsResponse(schemas.DictSchema):
         )
 
 
-from openapi_client.model.audio_settings import AudioSettings
-from openapi_client.model.backstage_settings import BackstageSettings
-from openapi_client.model.broadcast_settings import BroadcastSettings
-from openapi_client.model.geofence_settings import GeofenceSettings
-from openapi_client.model.record_settings import RecordSettings
-from openapi_client.model.ring_settings import RingSettings
-from openapi_client.model.screensharing_settings import ScreensharingSettings
-from openapi_client.model.transcription_settings import TranscriptionSettings
-from openapi_client.model.video_settings import VideoSettings
+from model.audio_settings import AudioSettings
+from model.backstage_settings import BackstageSettings
+from model.broadcast_settings import BroadcastSettings
+from model.geofence_settings import GeofenceSettings
+from model.record_settings import RecordSettings
+from model.ring_settings import RingSettings
+from model.screensharing_settings import ScreensharingSettings
+from model.transcription_settings import TranscriptionSettings
+from model.video_settings import VideoSettings

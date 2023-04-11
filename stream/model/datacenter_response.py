@@ -20,7 +20,7 @@ import uuid  # noqa: F401
 
 import frozendict  # noqa: F401
 
-from openapi_client import schemas  # noqa: F401
+from model import schemas  # noqa: F401
 
 
 class DatacenterResponse(schemas.DictSchema):
@@ -171,4 +171,4 @@ class DatacenterResponse(schemas.DictSchema):
         )
 
 
-from openapi_client.model.coordinates import Coordinates
+from model.coordinates import Coordinates
