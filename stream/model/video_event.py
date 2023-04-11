@@ -34,54 +34,52 @@ class VideoEvent(
     The discriminator object for all websocket events, you should use this to map event payloads to their own type
     """
 
-
     class MetaOapg:
-        
         @staticmethod
         def discriminator():
             return {
-                'type': {
-                    'BlockedUserEvent': BlockedUserEvent,
-                    'CallAcceptedEvent': CallAcceptedEvent,
-                    'CallCreatedEvent': CallCreatedEvent,
-                    'CallEndedEvent': CallEndedEvent,
-                    'CallMemberAddedEvent': CallMemberAddedEvent,
-                    'CallMemberRemovedEvent': CallMemberRemovedEvent,
-                    'CallMemberUpdatedEvent': CallMemberUpdatedEvent,
-                    'CallMemberUpdatedPermissionEvent': CallMemberUpdatedPermissionEvent,
-                    'CallReactionEvent': CallReactionEvent,
-                    'CallRecordingStartedEvent': CallRecordingStartedEvent,
-                    'CallRecordingStoppedEvent': CallRecordingStoppedEvent,
-                    'CallRejectedEvent': CallRejectedEvent,
-                    'CallUpdatedEvent': CallUpdatedEvent,
-                    'ConnectedEvent': ConnectedEvent,
-                    'CustomVideoEvent': CustomVideoEvent,
-                    'HealthCheckEvent': HealthCheckEvent,
-                    'PermissionRequestEvent': PermissionRequestEvent,
-                    'UnblockedUserEvent': UnblockedUserEvent,
-                    'UpdatedCallPermissionsEvent': UpdatedCallPermissionsEvent,
-                    'call.accepted': CallAcceptedEvent,
-                    'call.blocked_user': BlockedUserEvent,
-                    'call.created': CallCreatedEvent,
-                    'call.ended': CallEndedEvent,
-                    'call.member_added': CallMemberAddedEvent,
-                    'call.member_removed': CallMemberRemovedEvent,
-                    'call.member_updated': CallMemberUpdatedEvent,
-                    'call.permission_request': PermissionRequestEvent,
-                    'call.permissions_updated': UpdatedCallPermissionsEvent,
-                    'call.reaction_new': CallReactionEvent,
-                    'call.recording_started': CallRecordingStartedEvent,
-                    'call.recording_stopped': CallRecordingStoppedEvent,
-                    'call.rejected': CallRejectedEvent,
-                    'call.unblocked_user': UnblockedUserEvent,
-                    'call.updated': CallUpdatedEvent,
-                    'call.updated_permission': CallMemberUpdatedPermissionEvent,
-                    'connection.ok': ConnectedEvent,
-                    'custom': CustomVideoEvent,
-                    'health.check': HealthCheckEvent,
+                "type": {
+                    "BlockedUserEvent": BlockedUserEvent,
+                    "CallAcceptedEvent": CallAcceptedEvent,
+                    "CallCreatedEvent": CallCreatedEvent,
+                    "CallEndedEvent": CallEndedEvent,
+                    "CallMemberAddedEvent": CallMemberAddedEvent,
+                    "CallMemberRemovedEvent": CallMemberRemovedEvent,
+                    "CallMemberUpdatedEvent": CallMemberUpdatedEvent,
+                    "CallMemberUpdatedPermissionEvent": CallMemberUpdatedPermissionEvent,
+                    "CallReactionEvent": CallReactionEvent,
+                    "CallRecordingStartedEvent": CallRecordingStartedEvent,
+                    "CallRecordingStoppedEvent": CallRecordingStoppedEvent,
+                    "CallRejectedEvent": CallRejectedEvent,
+                    "CallUpdatedEvent": CallUpdatedEvent,
+                    "ConnectedEvent": ConnectedEvent,
+                    "CustomVideoEvent": CustomVideoEvent,
+                    "HealthCheckEvent": HealthCheckEvent,
+                    "PermissionRequestEvent": PermissionRequestEvent,
+                    "UnblockedUserEvent": UnblockedUserEvent,
+                    "UpdatedCallPermissionsEvent": UpdatedCallPermissionsEvent,
+                    "call.accepted": CallAcceptedEvent,
+                    "call.blocked_user": BlockedUserEvent,
+                    "call.created": CallCreatedEvent,
+                    "call.ended": CallEndedEvent,
+                    "call.member_added": CallMemberAddedEvent,
+                    "call.member_removed": CallMemberRemovedEvent,
+                    "call.member_updated": CallMemberUpdatedEvent,
+                    "call.permission_request": PermissionRequestEvent,
+                    "call.permissions_updated": UpdatedCallPermissionsEvent,
+                    "call.reaction_new": CallReactionEvent,
+                    "call.recording_started": CallRecordingStartedEvent,
+                    "call.recording_stopped": CallRecordingStoppedEvent,
+                    "call.rejected": CallRejectedEvent,
+                    "call.unblocked_user": UnblockedUserEvent,
+                    "call.updated": CallUpdatedEvent,
+                    "call.updated_permission": CallMemberUpdatedPermissionEvent,
+                    "connection.ok": ConnectedEvent,
+                    "custom": CustomVideoEvent,
+                    "health.check": HealthCheckEvent,
                 }
             }
-        
+
         @classmethod
         @functools.lru_cache()
         def one_of(cls):
@@ -114,19 +112,51 @@ class VideoEvent(
                 UpdatedCallPermissionsEvent,
             ]
 
-
     def __new__(
         cls,
-        *_args: typing.Union[dict, frozendict.frozendict, str, date, datetime, uuid.UUID, int, float, decimal.Decimal, bool, None, list, tuple, bytes, io.FileIO, io.BufferedReader, ],
+        *_args: typing.Union[
+            dict,
+            frozendict.frozendict,
+            str,
+            date,
+            datetime,
+            uuid.UUID,
+            int,
+            float,
+            decimal.Decimal,
+            bool,
+            None,
+            list,
+            tuple,
+            bytes,
+            io.FileIO,
+            io.BufferedReader,
+        ],
         _configuration: typing.Optional[schemas.Configuration] = None,
-        **kwargs: typing.Union[schemas.AnyTypeSchema, dict, frozendict.frozendict, str, date, datetime, uuid.UUID, int, float, decimal.Decimal, None, list, tuple, bytes],
-    ) -> 'VideoEvent':
+        **kwargs: typing.Union[
+            schemas.AnyTypeSchema,
+            dict,
+            frozendict.frozendict,
+            str,
+            date,
+            datetime,
+            uuid.UUID,
+            int,
+            float,
+            decimal.Decimal,
+            None,
+            list,
+            tuple,
+            bytes,
+        ],
+    ) -> "VideoEvent":
         return super().__new__(
             cls,
             *_args,
             _configuration=_configuration,
             **kwargs,
         )
+
 
 from openapi_client.model.blocked_user_event import BlockedUserEvent
 from openapi_client.model.call_accepted_event import CallAcceptedEvent
@@ -135,7 +165,9 @@ from openapi_client.model.call_ended_event import CallEndedEvent
 from openapi_client.model.call_member_added_event import CallMemberAddedEvent
 from openapi_client.model.call_member_removed_event import CallMemberRemovedEvent
 from openapi_client.model.call_member_updated_event import CallMemberUpdatedEvent
-from openapi_client.model.call_member_updated_permission_event import CallMemberUpdatedPermissionEvent
+from openapi_client.model.call_member_updated_permission_event import (
+    CallMemberUpdatedPermissionEvent,
+)
 from openapi_client.model.call_reaction_event import CallReactionEvent
 from openapi_client.model.call_recording_started_event import CallRecordingStartedEvent
 from openapi_client.model.call_recording_stopped_event import CallRecordingStoppedEvent
@@ -146,4 +178,6 @@ from openapi_client.model.custom_video_event import CustomVideoEvent
 from openapi_client.model.health_check_event import HealthCheckEvent
 from openapi_client.model.permission_request_event import PermissionRequestEvent
 from openapi_client.model.unblocked_user_event import UnblockedUserEvent
-from openapi_client.model.updated_call_permissions_event import UpdatedCallPermissionsEvent
+from openapi_client.model.updated_call_permissions_event import (
+    UpdatedCallPermissionsEvent,
+)
