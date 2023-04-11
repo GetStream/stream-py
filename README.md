@@ -83,6 +83,3 @@ This project is licensed under the [MIT License](LICENSE).
 ## Contributing
 
 Contributions are welcome! Please read the [contributing guidelines](CONTRIBUTING.md) to get started.
-
-
-docker run --rm -v "${PWD}:/local" ghcr.io/getstream/openapi-generator:master generate -i https://raw.githubusercontent.com/GetStream/protocol/main/openapi/video-openapi.yaml -g python -o /local/out/python
