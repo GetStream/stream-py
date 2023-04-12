@@ -68,12 +68,18 @@ chat_instance = client.chat
 
 ### User Authentication
 
-To generate a JWT token for user authentication with role and call ID support, use the `client.create_user_token` method:
+To generate a JWT token for user authentication with role and call ID support, use the `client.create_token` method:
 
 ```python
-#token = client.create_user_token("admin-user", call_cids=[call.cid], role="admin")
+token = client.create_token("admin-user", call_cids=[call.cid], role="admin")
+```
 
-token = client.create_user_token("admin-user", expiration=timedelta(hours=1))
+### Cli for signing tokens
+
+You can sign tokens by running
+
+```sh
+poetry run create-token --api-key API_KEY --api-secret API_SECRET --user-id USER_ID [--expiration EXPIRATION]
 ```
 
 ## License

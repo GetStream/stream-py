@@ -7,3 +7,5 @@ stream/sync/__pycache__
 stream/async_/__pycache__
 stream/video/sync/__pycache__
 stream/model/__pycache__/
+stream/cli/__pycache__
+stream/cli/__pycache__

@@ -1,4 +1,5 @@
 import time
+from typing import List
 
 import jwt
 
@@ -12,10 +13,10 @@ class BaseStream:
 
     def create_token(
         self,
-        user_id=None,
-        channel_cids=None,
-        call_cids=None,
-        role=None,
+        user_id:str=None,
+        channel_cids: List[str]= None,
+        call_cids: List[str]= None,
+        role:str=None,
         expiration=None,
     ):
         now = int(time.time())
