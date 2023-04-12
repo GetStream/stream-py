@@ -1,28 +1,15 @@
 import httpx
+from stream.config import BaseConfig
 
-from stream.version import VERSION
 
-
-class BaseClient:
-    def __init__(self, api_key, base_url, token, anonymous=False):
-        self.anonymous = anonymous
-        headers = {}
-        if token is not None:
-            headers["Authorization"] = token
-        headers["stream-auth-type"] = self._get_auth_type()
-        headers["X-Stream-Client"] = self._get_user_agent()
-        self.client = httpx.Client(
-            base_url=base_url, headers=headers, params={"api_key": api_key}
+class BaseClient(BaseConfig):
+    def __init__(self, api_key, base_url=None, anonymous=False, token=None):
+        super().__init__(
+            api_key=api_key, base_url=base_url, anonymous=anonymous, token=token
         )
-
-    def _get_user_agent(self):
-        return f"stream-python-client-{VERSION}"
-
-    def _get_auth_type(self):
-        if self.anonymous:
-            return "anonymous"
-        else:
-            return "jwt"
+        self.client = httpx.Client(
+            base_url=self.base_url, headers=self.headers, params=self.params
+        )
 
     def get(self, path, *args, **kwargs):
         with self.client as client:
