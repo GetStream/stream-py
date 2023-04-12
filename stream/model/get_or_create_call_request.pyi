@@ -20,7 +20,7 @@ import uuid  # noqa: F401
 
 import frozendict  # noqa: F401
 
-from model import schemas  # noqa: F401
+from stream.model import schemas  # noqa: F401
 
 class GetOrCreateCallRequest(
     schemas.DictBase, schemas.NoneBase, schemas.Schema, schemas.NoneFrozenDictMixin
@@ -140,4 +140,4 @@ class GetOrCreateCallRequest(
             **kwargs,
         )
 
-from model.call_request import CallRequest
+from stream.model.call_request import CallRequest

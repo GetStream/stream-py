@@ -20,7 +20,7 @@ import uuid  # noqa: F401
 
 import frozendict  # noqa: F401
 
-from model import schemas  # noqa: F401
+from stream.model import schemas  # noqa: F401
 
 
 class CreateCallTypeResponse(
@@ -283,4 +283,4 @@ class CreateCallTypeResponse(
         )
 
 
-from model.call_settings_response import CallSettingsResponse
+from stream.model.call_settings_response import CallSettingsResponse

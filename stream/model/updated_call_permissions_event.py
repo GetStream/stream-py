@@ -20,7 +20,7 @@ import uuid  # noqa: F401
 
 import frozendict  # noqa: F401
 
-from model import schemas  # noqa: F401
+from stream.model import schemas  # noqa: F401
 
 
 class UpdatedCallPermissionsEvent(
@@ -219,5 +219,5 @@ class UpdatedCallPermissionsEvent(
         )
 
 
-from model.own_capability import OwnCapability
-from model.user_response import UserResponse
+from stream.model.own_capability import OwnCapability
+from stream.model.user_response import UserResponse

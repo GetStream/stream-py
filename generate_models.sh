@@ -32,8 +32,8 @@ mv out/python/openapi_client/exceptions.py stream/model
 # Remove the remaining out folder
 rm -rf out
 
-# replace "from openapi_client.model.(.*) import (.*)" with "from model.\1 import \2"
-poetry run grep -rlE 'from openapi_client.model.(.*) import (.*)' stream/model | xargs -I {} sed -i '' -e 's/from openapi_client.model.\(.*\) import \(.*\)/from model.\1 import \2/g' {}
+# replace "from openapi_client.model.(.*) import (.*)" with "from stream.model.\1 import \2"
+poetry run grep -rlE 'from openapi_client.model.(.*) import (.*)' stream/model | xargs -I {} sed -i '' -e 's/from openapi_client.model.\(.*\) import \(.*\)/from stream.model.\1 import \2/g' {}
 # replace "from openapi_client import schemas" with "from model import schemas"
 poetry run grep -rlE 'from openapi_client import schemas' stream/model | xargs -I {} sed -i '' -e 's/from openapi_client import schemas/from model import schemas/g' {}
 

@@ -20,7 +20,7 @@ import uuid  # noqa: F401
 
 import frozendict  # noqa: F401
 
-from model import schemas  # noqa: F401
+from stream.model import schemas  # noqa: F401
 
 class ConnectedEvent(
     schemas.DictBase, schemas.NoneBase, schemas.Schema, schemas.NoneFrozenDictMixin
@@ -157,4 +157,4 @@ class ConnectedEvent(
             **kwargs,
         )
 
-from model.own_user_response import OwnUserResponse
+from stream.model.own_user_response import OwnUserResponse

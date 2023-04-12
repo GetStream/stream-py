@@ -20,7 +20,7 @@ import uuid  # noqa: F401
 
 import frozendict  # noqa: F401
 
-from model import schemas  # noqa: F401
+from stream.model import schemas  # noqa: F401
 
 
 class CallUpdatedEvent(
@@ -263,4 +263,4 @@ class CallUpdatedEvent(
         )
 
 
-from model.call_response import CallResponse
+from stream.model.call_response import CallResponse

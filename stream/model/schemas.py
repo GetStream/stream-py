@@ -22,11 +22,11 @@ import uuid
 from dateutil.parser.isoparser import isoparser, _takes_ascii
 import frozendict
 
-from model.exceptions import (
+from stream.model.exceptions import (
     ApiTypeError,
     ApiValueError,
 )
-from model.configuration import (
+from stream.model.configuration import (
     Configuration,
 )
 

@@ -20,7 +20,7 @@ import uuid  # noqa: F401
 
 import frozendict  # noqa: F401
 
-from model import schemas  # noqa: F401
+from stream.model import schemas  # noqa: F401
 
 
 class CallRequest(schemas.DictSchema):
@@ -312,6 +312,6 @@ class CallRequest(schemas.DictSchema):
         )
 
 
-from model.call_settings_request import CallSettingsRequest
-from model.member_request import MemberRequest
-from model.user_request import UserRequest
+from stream.model.call_settings_request import CallSettingsRequest
+from stream.model.member_request import MemberRequest
+from stream.model.user_request import UserRequest

@@ -20,7 +20,7 @@ import uuid  # noqa: F401
 
 import frozendict  # noqa: F401
 
-from model import schemas  # noqa: F401
+from stream.model import schemas  # noqa: F401
 
 
 class QueryCallsRequest(
@@ -301,4 +301,4 @@ class QueryCallsRequest(
         )
 
 
-from model.sort_param_request import SortParamRequest
+from stream.model.sort_param_request import SortParamRequest

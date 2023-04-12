@@ -20,7 +20,7 @@ import uuid  # noqa: F401
 
 import frozendict  # noqa: F401
 
-from model import schemas  # noqa: F401
+from stream.model import schemas  # noqa: F401
 
 class ListRecordingsResponse(
     schemas.DictBase, schemas.NoneBase, schemas.Schema, schemas.NoneFrozenDictMixin
@@ -143,4 +143,4 @@ class ListRecordingsResponse(
             **kwargs,
         )
 
-from model.call_recording import CallRecording
+from stream.model.call_recording import CallRecording

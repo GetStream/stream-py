@@ -20,7 +20,7 @@ import uuid  # noqa: F401
 
 import frozendict  # noqa: F401
 
-from model import schemas  # noqa: F401
+from stream.model import schemas  # noqa: F401
 
 
 class BroadcastSettings(schemas.DictSchema):
@@ -145,4 +145,4 @@ class BroadcastSettings(schemas.DictSchema):
         )
 
 
-from model.hls_settings import HLSSettings
+from stream.model.hls_settings import HLSSettings

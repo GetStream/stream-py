@@ -20,7 +20,7 @@ import uuid  # noqa: F401
 
 import frozendict  # noqa: F401
 
-from model import schemas  # noqa: F401
+from stream.model import schemas  # noqa: F401
 
 class JoinCallResponse(
     schemas.DictBase, schemas.NoneBase, schemas.Schema, schemas.NoneFrozenDictMixin
@@ -255,7 +255,7 @@ class JoinCallResponse(
             **kwargs,
         )
 
-from model.call_response import CallResponse
-from model.datacenter_response import DatacenterResponse
-from model.member_response import MemberResponse
-from model.user_response import UserResponse
+from stream.model.call_response import CallResponse
+from stream.model.datacenter_response import DatacenterResponse
+from stream.model.member_response import MemberResponse
+from stream.model.user_response import UserResponse

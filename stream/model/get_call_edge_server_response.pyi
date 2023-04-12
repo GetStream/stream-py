@@ -20,7 +20,7 @@ import uuid  # noqa: F401
 
 import frozendict  # noqa: F401
 
-from model import schemas  # noqa: F401
+from stream.model import schemas  # noqa: F401
 
 class GetCallEdgeServerResponse(
     schemas.DictBase, schemas.NoneBase, schemas.Schema, schemas.NoneFrozenDictMixin
@@ -223,7 +223,7 @@ class GetCallEdgeServerResponse(
             **kwargs,
         )
 
-from model.call_response import CallResponse
-from model.credentials import Credentials
-from model.member_response import MemberResponse
-from model.user_response import UserResponse
+from stream.model.call_response import CallResponse
+from stream.model.credentials import Credentials
+from stream.model.member_response import MemberResponse
+from stream.model.user_response import UserResponse

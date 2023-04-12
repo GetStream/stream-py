@@ -20,7 +20,7 @@ import uuid  # noqa: F401
 
 import frozendict  # noqa: F401
 
-from model import schemas  # noqa: F401
+from stream.model import schemas  # noqa: F401
 
 class GetEdgesResponse(
     schemas.DictBase, schemas.NoneBase, schemas.Schema, schemas.NoneFrozenDictMixin
@@ -143,4 +143,4 @@ class GetEdgesResponse(
             **kwargs,
         )
 
-from model.edge_response import EdgeResponse
+from stream.model.edge_response import EdgeResponse

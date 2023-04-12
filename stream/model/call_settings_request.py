@@ -20,7 +20,7 @@ import uuid  # noqa: F401
 
 import frozendict  # noqa: F401
 
-from model import schemas  # noqa: F401
+from stream.model import schemas  # noqa: F401
 
 
 class CallSettingsRequest(schemas.DictSchema):
@@ -274,11 +274,11 @@ class CallSettingsRequest(schemas.DictSchema):
         )
 
 
-from model.audio_settings_request import AudioSettingsRequest
-from model.backstage_settings_request import BackstageSettingsRequest
-from model.geofence_settings_request import GeofenceSettingsRequest
-from model.record_settings_request import RecordSettingsRequest
-from model.ring_settings_request import RingSettingsRequest
-from model.screensharing_settings_request import ScreensharingSettingsRequest
-from model.transcription_settings_request import TranscriptionSettingsRequest
-from model.video_settings_request import VideoSettingsRequest
+from stream.model.audio_settings_request import AudioSettingsRequest
+from stream.model.backstage_settings_request import BackstageSettingsRequest
+from stream.model.geofence_settings_request import GeofenceSettingsRequest
+from stream.model.record_settings_request import RecordSettingsRequest
+from stream.model.ring_settings_request import RingSettingsRequest
+from stream.model.screensharing_settings_request import ScreensharingSettingsRequest
+from stream.model.transcription_settings_request import TranscriptionSettingsRequest
+from stream.model.video_settings_request import VideoSettingsRequest

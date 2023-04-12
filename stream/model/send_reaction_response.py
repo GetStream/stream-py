@@ -20,7 +20,7 @@ import uuid  # noqa: F401
 
 import frozendict  # noqa: F401
 
-from model import schemas  # noqa: F401
+from stream.model import schemas  # noqa: F401
 
 
 class SendReactionResponse(
@@ -145,4 +145,4 @@ class SendReactionResponse(
         )
 
 
-from model.reaction_response import ReactionResponse
+from stream.model.reaction_response import ReactionResponse

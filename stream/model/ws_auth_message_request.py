@@ -20,7 +20,7 @@ import uuid  # noqa: F401
 
 import frozendict  # noqa: F401
 
-from model import schemas  # noqa: F401
+from stream.model import schemas  # noqa: F401
 
 
 class WSAuthMessageRequest(
@@ -166,5 +166,5 @@ class WSAuthMessageRequest(
         )
 
 
-from model.connect_user_details_request import ConnectUserDetailsRequest
-from model.device_fields_request import DeviceFieldsRequest
+from stream.model.connect_user_details_request import ConnectUserDetailsRequest
+from stream.model.device_fields_request import DeviceFieldsRequest

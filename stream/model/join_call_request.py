@@ -20,7 +20,7 @@ import uuid  # noqa: F401
 
 import frozendict  # noqa: F401
 
-from model import schemas  # noqa: F401
+from stream.model import schemas  # noqa: F401
 
 
 class JoinCallRequest(
@@ -206,4 +206,4 @@ class JoinCallRequest(
         )
 
 
-from model.call_request import CallRequest
+from stream.model.call_request import CallRequest

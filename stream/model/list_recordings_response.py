@@ -20,7 +20,7 @@ import uuid  # noqa: F401
 
 import frozendict  # noqa: F401
 
-from model import schemas  # noqa: F401
+from stream.model import schemas  # noqa: F401
 
 
 class ListRecordingsResponse(
@@ -163,4 +163,4 @@ class ListRecordingsResponse(
         )
 
 
-from model.call_recording import CallRecording
+from stream.model.call_recording import CallRecording

@@ -1,0 +1,9 @@
+stream/__pycache__
+stream/chat/__pycache__
+stream/video/__pycache__
+stream/chat/sync/__pycache__
+stream/chat/async_/__pycache__
+stream/sync/__pycache__
+stream/async_/__pycache__
+stream/video/sync/__pycache__
+stream/model/__pycache__/

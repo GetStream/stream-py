@@ -20,7 +20,7 @@ import uuid  # noqa: F401
 
 import frozendict  # noqa: F401
 
-from model import schemas  # noqa: F401
+from stream.model import schemas  # noqa: F401
 
 
 class PermissionRequestEvent(
@@ -229,4 +229,4 @@ class PermissionRequestEvent(
         )
 
 
-from model.user_response import UserResponse
+from stream.model.user_response import UserResponse

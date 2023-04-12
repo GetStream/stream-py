@@ -20,7 +20,7 @@ import uuid  # noqa: F401
 
 import frozendict  # noqa: F401
 
-from model import schemas  # noqa: F401
+from stream.model import schemas  # noqa: F401
 
 class UpdateCallResponse(
     schemas.DictBase, schemas.NoneBase, schemas.Schema, schemas.NoneFrozenDictMixin
@@ -128,4 +128,4 @@ class UpdateCallResponse(
             **kwargs,
         )
 
-from model.call_response import CallResponse
+from stream.model.call_response import CallResponse
