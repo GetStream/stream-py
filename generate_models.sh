@@ -35,13 +35,13 @@ rm -rf out
 # replace "from openapi_client.model.(.*) import (.*)" with "from stream.model.\1 import \2"
 poetry run grep -rlE 'from openapi_client.model.(.*) import (.*)' stream/model | xargs -I {} sed -i '' -e 's/from openapi_client.model.\(.*\) import \(.*\)/from stream.model.\1 import \2/g' {}
 # replace "from openapi_client import schemas" with "from model import schemas"
-poetry run grep -rlE 'from openapi_client import schemas' stream/model | xargs -I {} sed -i '' -e 's/from openapi_client import schemas/from model import schemas/g' {}
+poetry run grep -rlE 'from openapi_client import schemas' stream/model | xargs -I {} sed -i '' -e 's/from openapi_client import schemas/from stream.model import schemas/g' {}
 
 # replace "from openapi_client.configuration import configuration" with "from model import configuration"
-poetry run grep -rlE 'from openapi_client.configuration import configuration' stream/model | xargs -I {} sed -i '' -e 's/from openapi_client.configuration import configuration/from model import configuration/g' {}
+poetry run grep -rlE 'from openapi_client.configuration import configuration' stream/model | xargs -I {} sed -i '' -e 's/from openapi_client.configuration import configuration/from stream.model import configuration/g' {}
 
 # replace "from openapi_client.exceptions import (ApiTypeError,ApiValueError)" with "from model import (ApiTypeError,ApiValueError)"
-poetry run grep -rlE 'from openapi_client.exceptions import (ApiTypeError,ApiValueError)' stream/model | xargs -I {} sed -i '' -e 's/from openapi_client.exceptions import (ApiTypeError,ApiValueError)/from model import (ApiTypeError,ApiValueError)/g' {}
+poetry run grep -rlE 'from openapi_client.exceptions import (ApiTypeError,ApiValueError)' stream/model | xargs -I {} sed -i '' -e 's/from openapi_client.exceptions import (ApiTypeError,ApiValueError)/from stream.model import (ApiTypeError,ApiValueError)/g' {}
 
 # format code
 poetry run black stream/model
