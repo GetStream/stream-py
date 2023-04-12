@@ -11,15 +11,18 @@ class BaseStream:
         self.api_secret = api_secret
 
     def create_token(
-        self, user_id, channel_cids=None, call_cids=None, role=None, expiration=None
+        self,
+        user_id=None,
+        channel_cids=None,
+        call_cids=None,
+        role=None,
+        expiration=None,
     ):
         now = int(time.time())
 
         claims = {
-            "iss": f"stream-video-python@{VERSION}",  # Replace with your library version
-            "sub": f"user/{user_id}",
+            "iss": f"stream-video-python@{VERSION}",  # Replace with your library versio
             "iat": now,
-            "user_id": user_id,
         }
 
         if channel_cids is not None:
@@ -30,6 +33,12 @@ class BaseStream:
 
         if role is not None:
             claims["role"] = role
+
+        if user_id is not None:
+            claims["user_id"] = user_id
+            claims["sub"] = (f"user/{user_id}",)
+        else:
+            claims["sub"] = "server-side"
 
         if expiration is not None:
             claims["exp"] = now + int(expiration.total_seconds())

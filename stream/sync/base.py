@@ -4,8 +4,7 @@ from stream.version import VERSION
 
 
 class BaseClient:
-    def __init__(self, api_key, base_url, token=None, anonymous=False):
-        print(base_url)
+    def __init__(self, api_key, base_url, token, anonymous=False):
         self.anonymous = anonymous
         headers = {}
         if token is not None:

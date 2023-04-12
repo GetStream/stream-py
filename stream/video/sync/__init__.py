@@ -18,9 +18,7 @@ class VideoClient(BaseClient):
 
     def edges(self) -> GetEdgesResponse:
         response = self.get("/edges")
-        print(response)
         json = response.json()
-        print(json)
         return GetEdgesResponse(json)
 
     def create_call_type(self, data: CreateCallTypeRequest) -> CreateCallTypeResponse:
@@ -33,7 +31,8 @@ class VideoClient(BaseClient):
 
     def list_call_types(self) -> ListCallTypeResponse:
         response = self.get("/calltypes")
-        return ListCallTypeResponse(**response.json())
+        json = response.json()
+        return ListCallTypeResponse(json)
 
     def update_call_type(
         self, name: str, data: UpdateCallTypeRequest
