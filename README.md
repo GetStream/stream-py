@@ -76,10 +76,23 @@ token = client.create_token("admin-user", call_cids=[call.cid], role="admin")
 
 ### Cli for signing tokens
 
-You can sign tokens by running
+You can sign tokens by running the cli
 
 ```sh
 poetry run create-token --api-key API_KEY --api-secret API_SECRET --user-id USER_ID [--expiration EXPIRATION]
+```
+
+Or you can use docker
+First, build the image
+
+```sh
+docker build -t stream-py .
+```
+
+Then run the container
+
+```sh
+docker run -it --rm stream-py --api-key API_KEY --api-secret API_SECRET
 ```
 
 ## License
