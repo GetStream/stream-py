@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "stream-sdks"
+name = "getstream"
 version = "0.1.0"
 description = ""
 authors = ["sachaarbonel <sacha.arbonel@hotmail.fr>"]
@@ -17,7 +17,7 @@ click = "^8.1.3"
 black = "^23.3.0"
 
 [tool.poetry.scripts]
-create-token = "stream-sdks.cli:create_token"
+create-token = "getstream.cli:create_token"
 
 [tool.poetry.group.dev.dependencies]
 python-dateutil = "^2.8.2"

@@ -1,5 +1,5 @@
-from stream_sdks.model.call_type_response import CallTypeResponse
-from stream_sdks.sync import Stream
+from getstream.model.call_type_response import CallTypeResponse
+from getstream.sync import Stream
 
 client = Stream(
     api_key="your-api-key",

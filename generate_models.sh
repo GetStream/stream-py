@@ -19,29 +19,29 @@ rm out/python/.gitignore
 # mkdir -p stream/models
 
 # Move the generated models to the models folder within your project
-mv out/python/openapi_client/model stream_sdks/
+mv out/python/openapi_client/model getstream/
 # move schemas.py
-mv out/python/openapi_client/schemas.py stream_sdks/model/
+mv out/python/openapi_client/schemas.py getstream/model/
 
 # move configuration.py
-mv out/python/openapi_client/configuration.py stream_sdks/model
+mv out/python/openapi_client/configuration.py getstream/model
 
 # move exceptions
-mv out/python/openapi_client/exceptions.py stream_sdks/model
+mv out/python/openapi_client/exceptions.py getstream/model
 
 # Remove the remaining out folder
 rm -rf out
 
 # replace "from openapi_client.model.(.*) import (.*)" with "from stream.model.\1 import \2"
-poetry run grep -rlE 'from openapi_client.model.(.*) import (.*)' stream_sdks/model | xargs -I {} sed -i '' -e 's/from openapi_client.model.\(.*\) import \(.*\)/from stream_sdks.model.\1 import \2/g' {}
+poetry run grep -rlE 'from openapi_client.model.(.*) import (.*)' getstream/model | xargs -I {} sed -i '' -e 's/from openapi_client.model.\(.*\) import \(.*\)/from getstream.model.\1 import \2/g' {}
 # replace "from openapi_client import schemas" with "from model import schemas"
-poetry run grep -rlE 'from openapi_client import schemas' stream_sdks/model | xargs -I {} sed -i '' -e 's/from openapi_client import schemas/from stream_sdks.model import schemas/g' {}
+poetry run grep -rlE 'from openapi_client import schemas' getstream/model | xargs -I {} sed -i '' -e 's/from openapi_client import schemas/from getstream.model import schemas/g' {}
 
 # replace "from openapi_client.configuration import configuration" with "from model import configuration"
-poetry run grep -rlE 'from openapi_client.configuration import configuration' stream_sdks/model | xargs -I {} sed -i '' -e 's/from openapi_client.configuration import configuration/from stream_sdks.model import configuration/g' {}
+poetry run grep -rlE 'from openapi_client.configuration import configuration' getstream/model | xargs -I {} sed -i '' -e 's/from openapi_client.configuration import configuration/from getstream.model import configuration/g' {}
 
 # replace "from openapi_client.exceptions import (ApiTypeError,ApiValueError)" with "from model import (ApiTypeError,ApiValueError)"
-poetry run grep -rlE 'from openapi_client.exceptions import (ApiTypeError,ApiValueError)' stream_sdks/model | xargs -I {} sed -i '' -e 's/from openapi_client.exceptions import (ApiTypeError,ApiValueError)/from stream_sdks.model import (ApiTypeError,ApiValueError)/g' {}
+poetry run grep -rlE 'from openapi_client.exceptions import (ApiTypeError,ApiValueError)' getstream/model | xargs -I {} sed -i '' -e 's/from openapi_client.exceptions import (ApiTypeError,ApiValueError)/from getstream.model import (ApiTypeError,ApiValueError)/g' {}
 
 # format code
-poetry run black stream_sdks/model
+poetry run black getstream/model
