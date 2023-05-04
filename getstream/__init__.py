@@ -37,7 +37,7 @@ class BaseStream:
 
         if user_id is not None:
             claims["user_id"] = user_id
-            claims["sub"] = (f"user/{user_id}",)
+            claims["sub"] = f"user/{user_id}"
         else:
             claims["sub"] = "server-side"
 
