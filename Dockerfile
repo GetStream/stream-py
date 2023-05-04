@@ -19,7 +19,7 @@ RUN poetry config virtualenvs.create false && \
 COPY . .
 
 # Make sure the 'stream' package can be imported in the container
-RUN python -c 'import stream'
+RUN python -c 'import getstream'
 
 # Set the entrypoint for the CLI
 ENTRYPOINT ["poetry", "run", "create-token"]
