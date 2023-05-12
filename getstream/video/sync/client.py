@@ -67,7 +67,8 @@ class VideoClient(BaseClient):
     def list_call_types(self) -> ListCallTypeResponse:
         response = self.get("/calltypes")
         json = response.json()
-        return ListCallTypeResponse(json)
+        return json
+        # return ListCallTypeResponse(json)
 
     def update_call_type(
         self, name: str, data: UpdateCallTypeRequest
