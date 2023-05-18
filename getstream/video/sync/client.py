@@ -60,7 +60,7 @@ class VideoClient(BaseClient):
         response = self.post("/calltypes", json=data)
         return response.json()
 
-    def get_call_type(self, name: str)
+    def get_call_type(self, name: str):
         response = self.get(f"/calltypes/{name}")
         return response.json()
 
