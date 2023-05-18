@@ -23,7 +23,7 @@ Replace `stream` with the actual package name you'll use when publishing your li
 To get started, you need to import the `Stream` class from the library and create a new instance with your API key and secret:
 
 ```python
-from stream import Stream
+from getstream import Stream
 
 client = Stream(api_key="your_api_key", api_secret="your_api_secret")
 ```
