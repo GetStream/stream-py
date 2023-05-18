@@ -52,38 +52,35 @@ class VideoClient(BaseClient):
     def get_edge_server(
         self, calltype: str, callid: str, data: GetCallEdgeServerRequest
     ) -> GetCallEdgeServerResponse:
-        response = self.get(f"/calls/{calltype}/{callid}/get_edge_server", data=data)
+        response = self.get(f"/calls/{calltype}/{callid}/get_edge_server", json=data)
         json = response.json()
         return GetEdgesResponse(json)
 
-    def create_call_type(self, data: CreateCallTypeRequest) -> CreateCallTypeResponse:
-        response = self.post("/calltypes", data=data)
-        return CreateCallTypeResponse(**response.json())
+    def create_call_type(self, data) -> CreateCallTypeResponse:
+        response = self.post("/calltypes", json=data)
+        return response.json()
 
-    def get_call_type(self, name: str) -> GetCallTypeResponse:
+    def get_call_type(self, name: str)
         response = self.get(f"/calltypes/{name}")
-        return GetCallTypeResponse(**response.json())
+        return response.json()
 
-    def list_call_types(self) -> ListCallTypeResponse:
+    def list_call_types(self):
         response = self.get("/calltypes")
         json = response.json()
         return json
-        # return ListCallTypeResponse(json)
 
-    def update_call_type(
-        self, name: str, data: UpdateCallTypeRequest
-    ) -> UpdateCallTypeResponse:
-        response = self.put(f"/calltypes/{name}", data=data)
-        return UpdateCallTypeResponse(**response.json())
+    def update_call_type(self, name: str, data):
+        response = self.put(f"/calltypes/{name}", json=data)
+        return response.json()
 
     def query_calls(self, data: QueryCallsRequest) -> QueryCallsResponse:
-        response = self.post("/calls", data=data)
+        response = self.post("/calls", json=data)
         return QueryCallsResponse(**response.json())
 
     def block_user(
         self, calltype: str, callid: str, data: BlockUserRequest
     ) -> BlockUserResponse:
-        response = self.post(f"/call/{calltype}/{callid}/block", data=data)
+        response = self.post(f"/call/{calltype}/{callid}/block", json=data)
         return BlockUserResponse(**response.json())
 
     def end_call(self, calltype: str, callid: str) -> EndCallResponse:
@@ -103,7 +100,11 @@ class VideoClient(BaseClient):
     ) -> JoinCallResponse:
         response = self.post(f"/call/{calltype}/{callid}/join", data=data)
         return JoinCallResponse(**response.json())
-
+    
+    def delete_call_type(self, name: str):
+        response = self.delete(f"/calltypes/{name}")
+        return response.json()
+    
     def delete_recording(
         self, calltype: str, callid: str, sessionid: str, recordingid: str
     ):
@@ -127,25 +128,25 @@ class VideoClient(BaseClient):
     def query_members(
         self, calltype: str, callid: str, data: QueryMembersRequest
     ) -> QueryMembersResponse:
-        response = self.post(f"/call/{calltype}/{callid}/members", data=data)
+        response = self.post(f"/call/{calltype}/{callid}/members", json=data)
         return QueryMembersResponse(**response.json())
 
     def request_permission(
         self, calltype: str, callid: str, data: RequestPermissionRequest
     ) -> RequestPermissionResponse:
-        response = self.post(f"/call/{calltype}/{callid}/request_permission", data=data)
+        response = self.post(f"/call/{calltype}/{callid}/request_permission", json=data)
         return RequestPermissionResponse(**response.json())
 
     def send_event(
         self, calltype: str, callid: str, data: SendEventRequest
     ) -> SendEventResponse:
-        response = self.post(f"/call/{calltype}/{callid}/event", data=data)
+        response = self.post(f"/call/{calltype}/{callid}/event", json=data)
         return SendEventResponse(**response.json())
 
     def send_reaction(
         self, calltype: str, callid: str, data: SendReactionRequest
     ) -> SendReactionResponse:
-        response = self.post(f"/call/{calltype}/{callid}/reaction", data=data)
+        response = self.post(f"/call/{calltype}/{callid}/reaction", json=data)
         return SendReactionResponse(**response.json())
 
     def start_recording(self, calltype: str, callid: str):
@@ -179,31 +180,31 @@ class VideoClient(BaseClient):
     def unblock_user(
         self, calltype: str, callid: str, data: UnblockUserRequest
     ) -> UnblockUserResponse:
-        response = self.post(f"/call/{calltype}/{callid}/unblock", data=data)
+        response = self.post(f"/call/{calltype}/{callid}/unblock", json=data)
         return UnblockUserResponse(**response.json())
 
     def update_members(
         self, calltype: str, callid: str, data: UpdateCallMembersRequest
     ) -> UpdateCallMembersResponse:
-        response = self.put(f"/call/{calltype}/{callid}/members", data=data)
+        response = self.put(f"/call/{calltype}/{callid}/members", json=data)
         return UpdateCallMembersResponse(**response.json())
 
     def update_call(
         self, calltype: str, callid: str, data: UpdateCallRequest
     ) -> UpdateCallResponse:
-        response = self.put(f"/call/{calltype}/{callid}", data=data)
+        response = self.put(f"/call/{calltype}/{callid}", json=data)
         return UpdateCallResponse(**response.json())
 
     def update_user_permissions(
         self, calltype: str, callid: str, data: UpdateUserPermissionsRequest
     ) -> UpdateUserPermissionsResponse:
-        response = self.put(f"/call/{calltype}/{callid}/permissions", data=data)
+        response = self.put(f"/call/{calltype}/{callid}/permissions", json=data)
         return UpdateUserPermissionsResponse(**response.json())
 
     def get_or_create_call(
         self, calltype: str, callid: str, data: GetOrCreateCallRequest
     ) -> GetOrCreateCallResponse:
-        response = self.post(f"/calls/{calltype}/{callid}", data=data)
+        response = self.post(f"/calls/{calltype}/{callid}", json=data)
         return GetOrCreateCallResponse(**response.json())
 
     # def call(self, calltype: str, callid: str, data: CallRequest)->Call:
