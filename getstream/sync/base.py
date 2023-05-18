@@ -10,19 +10,24 @@ class BaseClient(BaseConfig):
         self.client = httpx.Client(
             base_url=self.base_url, headers=self.headers, params=self.params
         )
+        
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
 
     def get(self, path, *args, **kwargs):
-        with self.client as client:
-            return client.get(path, *args, **kwargs)
+        return self.client.get(path, *args, **kwargs)
 
     def post(self, path, *args, **kwargs):
-        with self.client as client:
-            return client.post(path, *args, **kwargs)
+        return self.client.post(path, *args, **kwargs)
 
     def put(self, path, *args, **kwargs):
-        with self.client as client:
-            return client.put(path, *args, **kwargs)
+        return self.client.put(path, *args, **kwargs)
 
     def delete(self, path, *args, **kwargs):
-        with self.client as client:
-            return client.delete(path, *args, **kwargs)
+        return self.client.delete(path, *args, **kwargs)
+
+    def close(self):
+        self.client.close()
