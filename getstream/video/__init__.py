@@ -1,0 +1,1 @@
+from getstream.video.sync.client import VideoClient
