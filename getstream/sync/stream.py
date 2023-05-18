@@ -4,7 +4,7 @@ from getstream.video import VideoClient
 
 
 class Stream(BaseStream):
-    def __init__(self, api_key: str, api_secret: str, token=None):
+    def __init__(self, api_key: str, api_secret: str, token=None,timeout=None,user_agent=None):
         super().__init__(api_key, api_secret)
         if token is None:
             token = self.create_token()
@@ -12,6 +12,8 @@ class Stream(BaseStream):
             api_key=api_key,
             base_url="https://video.stream-io-api.com/video",
             token=token,
+            timeout=timeout,
+            user_agent=user_agent
         )
         self.chat = ChatClient(
             api_key=api_key, base_url="https://chat.stream-io-api.com", token=token
