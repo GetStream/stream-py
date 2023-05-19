@@ -56,7 +56,7 @@ class VideoClient(BaseClient):
         json = response.json()
         return GetEdgesResponse(json)
 
-    def create_call_type(self, data) -> CreateCallTypeResponse:
+    def create_call_type(self, data):
         response = self.post("/calltypes", json=data)
         return response.json()
 
