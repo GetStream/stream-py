@@ -6,7 +6,7 @@ authors = ["sachaarbonel <sacha.arbonel@hotmail.fr>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.8.10"
+python = "^3.8.0"
 httpx = "^0.19.0"
 pyjwt = "^2.6.0"
 
