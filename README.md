@@ -1,4 +1,4 @@
-# Stream Client Library
+# Stream Video Client Library
 
 The Stream Client Library provides a simple way to interact with the Stream API for managing video and chat services. This Python library makes it easy to create, manage, and authenticate video calls and chat sessions programmatically.
 
@@ -13,7 +13,7 @@ The Stream Client Library provides a simple way to interact with the Stream API 
 To install the Stream Client Library, run the following command:
 
 ```sh
-pip install stream
+pip install getstream
 ```
 
 Replace `stream` with the actual package name you'll use when publishing your library.
@@ -93,6 +93,11 @@ Then run the container
 
 ```sh
 docker run -it --rm stream-py --api-key API_KEY --api-secret API_SECRET
+```
+
+Or use the published one 
+```sh
+docker run -it --rm ghcr.io/getstream/stream-py:main --api-key API_KEY --api-secret API_SECRET --user-id
 ```
 
 ## License
