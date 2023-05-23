@@ -19,5 +19,5 @@ def client():
 
 def test_video_client_initialization(client):
     assert client.api_key == VIDEO_API_KEY
-    assert client.base_url == BASE_URL
+    assert client.video_base_url == BASE_URL
     assert client.timeout == TIMEOUT
