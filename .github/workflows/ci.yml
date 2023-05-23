@@ -33,7 +33,7 @@ jobs:
       run: poetry install
 
     - name: Run tests
-      run: poetry run pytest test_integration.py
+      run: poetry run pytest tests/test_integration.py
       env:
         VIDEO_API_KEY: ${{ secrets.VIDEO_API_KEY }}
         VIDEO_API_SECRET: ${{ secrets.VIDEO_API_SECRET }}
