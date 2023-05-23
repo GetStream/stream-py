@@ -1,13 +1,22 @@
-from getstream.model.call_type_response import CallTypeResponse
-from getstream.sync import Stream
 
-client = Stream(
-    api_key="your-api-key",
-    api_secret="your-secret",
-)
+import os
+import pytest
 
-print(client.create_token(role="admin"))
-call_types: CallTypeResponse = client.video.list_call_types().call_types
+from getstream.video.sync.client import VideoClient
 
-for type in call_types:
-    print(type)
+
+VIDEO_API_KEY = os.environ.get("VIDEO_API_KEY")
+BASE_URL = "https://video.stream-io-api.com/video"
+VIDEO_API_SECRET = os.environ.get("VIDEO_API_SECRET")
+TIMEOUT = 6
+USER_AGENT = "getstream-python-client"
+
+@pytest.fixture(scope="module")
+def client():
+    return VideoClient(VIDEO_API_KEY, BASE_URL, TIMEOUT, USER_AGENT)
+
+def test_video_client_initialization(client):
+    assert client.api_key == VIDEO_API_KEY
+    assert client.base_url == BASE_URL
+    assert client.timeout == TIMEOUT
+    assert client.user_agent == USER_AGENT
