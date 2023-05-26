@@ -1,5 +1,5 @@
 import click
-from getstream.sync import Stream
+from getstream import Stream
 from datetime import timedelta
 
 
