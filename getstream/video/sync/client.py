@@ -38,6 +38,7 @@ from getstream.model.update_call_type_response import UpdateCallTypeResponse
 from getstream.model.update_user_permissions_request import UpdateUserPermissionsRequest
 from getstream.model.update_user_permissions_response import UpdateUserPermissionsResponse
 from getstream.sync.base import BaseClient
+from getstream.video.exceptions import VideoCallTypeBadRequest
 
 
 class VideoClient(BaseClient):
@@ -58,19 +59,43 @@ class VideoClient(BaseClient):
 
     def create_call_type(self, data):
         response = self.post("/calltypes", json=data)
+        if response.status_code == 400:
+            error_json = response.json()
+            message = error_json.pop("message", None)
+            code = error_json.pop("code", None)
+            status_code = error_json.pop("StatusCode", None)
+            raise VideoCallTypeBadRequest(message=message, code = code,status_code=status_code)
         return response.json()
 
     def get_call_type(self, name: str):
         response = self.get(f"/calltypes/{name}")
+        if response.status_code == 400:
+            error_json = response.json()
+            message = error_json.pop("message", None)
+            code = error_json.pop("code", None)
+            status_code = error_json.pop("StatusCode", None)
+            raise VideoCallTypeBadRequest(message=message, code = code,status_code=status_code)
         return response.json()
 
     def list_call_types(self):
         response = self.get("/calltypes")
+        if response.status_code == 400:
+            error_json = response.json()
+            message = error_json.pop("message", None)
+            code = error_json.pop("code", None)
+            status_code = error_json.pop("StatusCode", None)
+            raise VideoCallTypeBadRequest(message=message, code = code,status_code=status_code)
         json = response.json()
         return json
 
     def update_call_type(self, name: str, data):
         response = self.put(f"/calltypes/{name}", json=data)
+        if response.status_code == 400:
+            error_json = response.json()
+            message = error_json.pop("message", None)
+            code = error_json.pop("code", None)
+            status_code = error_json.pop("StatusCode", None)
+            raise VideoCallTypeBadRequest(message=message, code = code,status_code=status_code)
         return response.json()
 
     def query_calls(self, data: QueryCallsRequest) -> QueryCallsResponse:
@@ -103,6 +128,12 @@ class VideoClient(BaseClient):
     
     def delete_call_type(self, name: str):
         response = self.delete(f"/calltypes/{name}")
+        if response.status_code == 400:
+            error_json = response.json()
+            message = error_json.pop("message", None)
+            code = error_json.pop("code", None)
+            status_code = error_json.pop("StatusCode", None)
+            raise VideoCallTypeBadRequest(message=message, code = code,status_code=status_code)
         return response.json()
     
     def delete_recording(
