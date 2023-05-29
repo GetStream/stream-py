@@ -8,20 +8,6 @@ BASE_URL = "https://video.stream-io-api.com/video"
 VIDEO_API_SECRET = os.environ.get("VIDEO_API_SECRET")
 TIMEOUT = 6
 
-@pytest.fixture(scope="module")
-def client():
-    return Stream(
-    api_key=VIDEO_API_KEY,
-    api_secret=VIDEO_API_SECRET,
-    timeout=TIMEOUT,
-    video_base_url=BASE_URL,
-    )
-
-def test_video_client_initialization(client):
-    assert client.api_key == VIDEO_API_KEY
-    assert client.api_secret == VIDEO_API_SECRET
-    assert client.video.base_url == BASE_URL
-    assert client.video.timeout == TIMEOUT
 
 
 def create_call_type_data():
@@ -69,6 +55,21 @@ def create_call_type_data():
         },
     }
 
+
+@pytest.fixture(scope="module")
+def client():
+    return Stream(
+    api_key=VIDEO_API_KEY,
+    api_secret=VIDEO_API_SECRET,
+    timeout=TIMEOUT,
+    video_base_url=BASE_URL,
+    )
+
+def test_video_client_initialization(client):
+    assert client.api_key == VIDEO_API_KEY
+    assert client.api_secret == VIDEO_API_SECRET
+    assert client.video.base_url == BASE_URL
+    assert client.video.timeout == TIMEOUT
 
 
 def test_create_call_type(client):
