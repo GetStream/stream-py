@@ -75,6 +75,7 @@ def test_video_client_initialization(client):
 def test_create_call_type(client):
     data = create_call_type_data()
     response = client.video.create_call_type(data)
+    print(response)
     assert response['name'] == "example_calltype3"
     assert "settings" in response
 
