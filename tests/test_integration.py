@@ -22,3 +22,92 @@ def test_video_client_initialization(client):
     assert client.api_secret == VIDEO_API_SECRET
     assert client.video.base_url == BASE_URL
     assert client.video.timeout == TIMEOUT
+
+
+def create_call_type_data():
+    return {
+        "name": "example_calltype3",
+        "settings": {
+            "audio": {
+                "access_request_enabled": True,
+                "opus_dtx_enabled": True,
+            },
+            "recording": {
+                "audio_only": True,
+                "mode": "available",
+                "quality": "audio-only",
+            },
+            "backstage": {
+                "enabled": True,
+            },
+            "broadcasting": {
+                "enabled": True,
+                "hls": {
+                    "auto_on": True,
+                    "enabled": True,
+                    "quality_tracks": ["audio-only", "360p", "480p", "720p", "1080p", "1440p"],
+                },
+            },
+            "screensharing": {
+                "access_request_enabled": True,
+                "enabled": True,
+            },
+            "transcription": {
+                "closed_caption_mode": "available",
+                "mode": "available",
+            },
+            "video": {
+                "access_request_enabled": True,
+                "enabled": True,
+                "camera_facing": "front",
+                "target_resolution": {
+                    "bitrate": 240,
+                    "height": 240,
+                    "width": 1000,
+                },
+            },
+        },
+    }
+
+
+
+def test_create_call_type(client):
+    data = create_call_type_data()
+    response = client.video.create_call_type(data)
+    assert response['name'] == "example_calltype3"
+    assert "settings" in response
+
+def test_update_call_type(client):
+    name = "example_calltype3"
+    updated_data = {
+        "settings": {
+            "audio": {
+                "access_request_enabled": False,
+            },
+            "recording": {
+                "audio_only": False,
+            },
+        },
+    }
+    response = client.video.update_call_type(name, updated_data)
+    
+    assert response["settings"]["audio"]["access_request_enabled"] == False
+    assert response["settings"]["recording"]["audio_only"] == False
+
+def test_get_call_type(client):
+    name = "example_calltype3"
+    response = client.video.get_call_type(name)
+ 
+    assert response["name"] == "example_calltype3"
+
+
+def test_list_call_types(client):
+    response = client.video.list_call_types()
+    keys = response["call_types"].keys()
+    assert "example_calltype3" in keys
+
+
+def test_delete_call_type(client):
+    response = client.video.delete_call_type("example_calltype3")
+
+    assert "duration" in response
