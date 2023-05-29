@@ -1,42 +1,4 @@
-from getstream.model.block_user_request import BlockUserRequest
-from getstream.model.block_user_response import BlockUserResponse
-from getstream.model.create_call_type_request import CreateCallTypeRequest
-from getstream.model.create_call_type_response import CreateCallTypeResponse
-from getstream.model.end_call_response import EndCallResponse
-from getstream.model.get_call_edge_server_request import GetCallEdgeServerRequest
-from getstream.model.get_call_edge_server_response import GetCallEdgeServerResponse
-from getstream.model.get_call_response import GetCallResponse
-from getstream.model.get_call_type_response import GetCallTypeResponse
-from getstream.model.get_edges_response import GetEdgesResponse
-from getstream.model.get_or_create_call_request import GetOrCreateCallRequest
-from getstream.model.get_or_create_call_response import GetOrCreateCallResponse
-from getstream.model.go_live_response import GoLiveResponse
-from getstream.model.join_call_request import JoinCallRequest
-from getstream.model.join_call_response import JoinCallResponse
-from getstream.model.list_call_type_response import ListCallTypeResponse
-from getstream.model.list_recordings_response import ListRecordingsResponse
-from getstream.model.mute_users_request import MuteUsersRequest
-from getstream.model.mute_users_response import MuteUsersResponse
-from getstream.model.query_calls_request import QueryCallsRequest
-from getstream.model.query_calls_response import QueryCallsResponse
-from getstream.model.query_members_request import QueryMembersRequest
-from getstream.model.query_members_response import QueryMembersResponse
-from getstream.model.request_permission_request import RequestPermissionRequest
-from getstream.model.request_permission_response import RequestPermissionResponse
-from getstream.model.send_event_request import SendEventRequest
-from getstream.model.send_event_response import SendEventResponse
-from getstream.model.send_reaction_request import SendReactionRequest
-from getstream.model.send_reaction_response import SendReactionResponse
-from getstream.model.unblock_user_request import UnblockUserRequest
-from getstream.model.unblock_user_response import UnblockUserResponse
-from getstream.model.update_call_members_request import UpdateCallMembersRequest
-from getstream.model.update_call_members_response import UpdateCallMembersResponse
-from getstream.model.update_call_request import UpdateCallRequest
-from getstream.model.update_call_response import UpdateCallResponse
-from getstream.model.update_call_type_request import UpdateCallTypeRequest
-from getstream.model.update_call_type_response import UpdateCallTypeResponse
-from getstream.model.update_user_permissions_request import UpdateUserPermissionsRequest
-from getstream.model.update_user_permissions_response import UpdateUserPermissionsResponse
+
 from getstream.sync.base import BaseClient
 from getstream.video.exceptions import VideoCallTypeBadRequest
 
@@ -45,17 +7,17 @@ class VideoClient(BaseClient):
     def __init__(self, api_key: str, base_url, token,timeout,user_agent):
         super().__init__(api_key=api_key, base_url=base_url, token=token,timeout=timeout,user_agent=user_agent)
 
-    def edges(self) -> GetEdgesResponse:
+    def edges(self):
         response = self.get("/edges")
         json = response.json()
-        return GetEdgesResponse(json)
+        return json
 
     def get_edge_server(
-        self, calltype: str, callid: str, data: GetCallEdgeServerRequest
-    ) -> GetCallEdgeServerResponse:
+        self, calltype: str, callid: str, data
+    ) :
         response = self.get(f"/calls/{calltype}/{callid}/get_edge_server", json=data)
         json = response.json()
-        return GetEdgesResponse(json)
+        return json
 
     def create_call_type(self, data):
         response = self.post("/calltypes", json=data)
@@ -98,33 +60,33 @@ class VideoClient(BaseClient):
             raise VideoCallTypeBadRequest(message=message, code = code,status_code=status_code)
         return response.json()
 
-    def query_calls(self, data: QueryCallsRequest) -> QueryCallsResponse:
+    def query_calls(self, data):
         response = self.post("/calls", json=data)
-        return QueryCallsResponse(**response.json())
+        return response.json()
 
     def block_user(
-        self, calltype: str, callid: str, data: BlockUserRequest
-    ) -> BlockUserResponse:
+        self, calltype: str, callid: str,data
+    ):
         response = self.post(f"/call/{calltype}/{callid}/block", json=data)
-        return BlockUserResponse(**response.json())
+        return response.json()
 
-    def end_call(self, calltype: str, callid: str) -> EndCallResponse:
+    def end_call(self, calltype: str, callid: str) :
         response = self.post(f"/call/{calltype}/{callid}/mark_ended")
-        return EndCallResponse(**response.json())
+        return response.json()
 
-    def get_call(self, calltype: str, callid: str) -> GetCallResponse:
+    def get_call(self, calltype: str, callid: str):
         response = self.get(f"/call/{calltype}/{callid}")
-        return GetCallResponse(**response.json())
+        return response.json()
 
-    def go_live(self, calltype: str, callid: str) -> GoLiveResponse:
+    def go_live(self, calltype: str, callid: str):
         response = self.post(f"/call/{calltype}/{callid}/go_live")
-        return GoLiveResponse(**response.json())
+        return response.json()
 
     def join_call(
-        self, calltype: str, callid: str, data: JoinCallRequest
-    ) -> JoinCallResponse:
+        self, calltype: str, callid: str, data
+    ):
         response = self.post(f"/call/{calltype}/{callid}/join", data=data)
-        return JoinCallResponse(**response.json())
+        return response.json()
     
     def delete_call_type(self, name: str):
         response = self.delete(f"/calltypes/{name}")
@@ -146,39 +108,39 @@ class VideoClient(BaseClient):
 
     def list_recordings(
         self, calltype: str, callid: str, sessionid: str
-    ) -> ListRecordingsResponse:
+    ):
         response = self.get(f"/call/{calltype}/{callid}/{sessionid}/recordings")
-        return ListRecordingsResponse(**response.json())
+        return response.json()
 
     def mute_users(
-        self, calltype: str, callid: str, data: MuteUsersRequest
-    ) -> MuteUsersResponse:
+        self, calltype: str, callid: str, data
+    ) :
         response = self.post(f"/call/{calltype}/{callid}/mute_users", data=data)
-        return MuteUsersResponse(**response.json())
+        return response.json()
 
     def query_members(
-        self, calltype: str, callid: str, data: QueryMembersRequest
-    ) -> QueryMembersResponse:
+        self, calltype: str, callid: str, data
+    ) :
         response = self.post(f"/call/{calltype}/{callid}/members", json=data)
-        return QueryMembersResponse(**response.json())
+        return response.json()
 
     def request_permission(
-        self, calltype: str, callid: str, data: RequestPermissionRequest
-    ) -> RequestPermissionResponse:
+        self, calltype: str, callid: str, data
+    ) :
         response = self.post(f"/call/{calltype}/{callid}/request_permission", json=data)
-        return RequestPermissionResponse(**response.json())
+        return response.json()
 
     def send_event(
-        self, calltype: str, callid: str, data: SendEventRequest
-    ) -> SendEventResponse:
+        self, calltype: str, callid: str, data
+    ) :
         response = self.post(f"/call/{calltype}/{callid}/event", json=data)
-        return SendEventResponse(**response.json())
+        return response.json()
 
     def send_reaction(
-        self, calltype: str, callid: str, data: SendReactionRequest
-    ) -> SendReactionResponse:
+        self, calltype: str, callid: str, data
+    ) :
         response = self.post(f"/call/{calltype}/{callid}/reaction", json=data)
-        return SendReactionResponse(**response.json())
+        return response.json()
 
     def start_recording(self, calltype: str, callid: str):
         response = self.post(f"/call/{calltype}/{callid}/start_recording")
@@ -209,34 +171,34 @@ class VideoClient(BaseClient):
         return response.json()
 
     def unblock_user(
-        self, calltype: str, callid: str, data: UnblockUserRequest
-    ) -> UnblockUserResponse:
+        self, calltype: str, callid: str, data
+    ) :
         response = self.post(f"/call/{calltype}/{callid}/unblock", json=data)
-        return UnblockUserResponse(**response.json())
+        return response.json()
 
     def update_members(
-        self, calltype: str, callid: str, data: UpdateCallMembersRequest
-    ) -> UpdateCallMembersResponse:
+        self, calltype: str, callid: str, data
+    ) :
         response = self.put(f"/call/{calltype}/{callid}/members", json=data)
-        return UpdateCallMembersResponse(**response.json())
+        return response.json()
 
     def update_call(
-        self, calltype: str, callid: str, data: UpdateCallRequest
-    ) -> UpdateCallResponse:
+        self, calltype: str, callid: str, data
+    ) :
         response = self.put(f"/call/{calltype}/{callid}", json=data)
-        return UpdateCallResponse(**response.json())
+        return response.json()
 
     def update_user_permissions(
-        self, calltype: str, callid: str, data: UpdateUserPermissionsRequest
-    ) -> UpdateUserPermissionsResponse:
+        self, calltype: str, callid: str, data
+    ) :
         response = self.put(f"/call/{calltype}/{callid}/permissions", json=data)
-        return UpdateUserPermissionsResponse(**response.json())
+        return response.json()
 
     def get_or_create_call(
-        self, calltype: str, callid: str, data: GetOrCreateCallRequest
-    ) -> GetOrCreateCallResponse:
+        self, calltype: str, callid: str, data
+    ) :
         response = self.post(f"/calls/{calltype}/{callid}", json=data)
-        return GetOrCreateCallResponse(**response.json())
+        return response.json()
 
     # def call(self, calltype: str, callid: str, data: CallRequest)->Call:
     #     self.currentCall = Call(self.stream, calltype, callid, data)
