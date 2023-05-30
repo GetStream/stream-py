@@ -1,5 +1,9 @@
 
+from datetime import datetime, timedelta
 import os
+
+import jwt
+from getstream.version import VERSION
 import pytest
 from getstream import Stream
 
@@ -8,6 +12,7 @@ BASE_URL = "https://video.stream-io-api.com/video"
 VIDEO_API_SECRET = os.environ.get("VIDEO_API_SECRET")
 TIMEOUT = 6
 
+CALL_ID = "c1b0e1e0-9f1b-4c7d-8c3a-9e8a5f0e6b6c"
 
 
 def create_call_type_data():
@@ -72,6 +77,8 @@ def test_video_client_initialization(client):
     assert client.video.timeout == TIMEOUT
 
 
+
+
 def test_create_call_type(client):
     data = create_call_type_data()
     response = client.video.create_call_type(data)
@@ -113,3 +120,13 @@ def test_delete_call_type(client):
     response = client.video.delete_call_type("example_calltype3")
 
     assert "duration" in response
+
+def test_create_token(client):
+    token = client.create_token()
+    assert token is not None
+    #decode claims
+
+    decoded = jwt.decode(token, VIDEO_API_SECRET, algorithms=["HS256"])
+    assert decoded["iss"] == f"stream-video-python@{VERSION}"
+    assert decoded["sub"] == "server-side"
+    assert decoded["iat"] is not None

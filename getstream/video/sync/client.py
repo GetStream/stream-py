@@ -197,7 +197,7 @@ class VideoClient(BaseClient):
     def get_or_create_call(
         self, calltype: str, callid: str, data
     ) :
-        response = self.post(f"/calls/{calltype}/{callid}", json=data)
+        response = self.post(f"/call/{calltype}/{callid}", json=data)
         return response.json()
 
     # def call(self, calltype: str, callid: str, data: CallRequest)->Call:
