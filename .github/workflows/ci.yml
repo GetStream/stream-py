@@ -10,6 +10,7 @@ on:
 
 jobs:
   test:
+    environment: ci
     runs-on: ubuntu-latest
     steps:
     - name: Check out repo
