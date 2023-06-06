@@ -1,4 +1,3 @@
-
 from datetime import datetime, timedelta
 import os
 
@@ -36,7 +35,14 @@ def create_call_type_data():
                 "hls": {
                     "auto_on": True,
                     "enabled": True,
-                    "quality_tracks": ["audio-only", "360p", "480p", "720p", "1080p", "1440p"],
+                    "quality_tracks": [
+                        "audio-only",
+                        "360p",
+                        "480p",
+                        "720p",
+                        "1080p",
+                        "1440p",
+                    ],
                 },
             },
             "screensharing": {
@@ -64,11 +70,12 @@ def create_call_type_data():
 @pytest.fixture(scope="module")
 def client():
     return Stream(
-    api_key=VIDEO_API_KEY,
-    api_secret=VIDEO_API_SECRET,
-    timeout=TIMEOUT,
-    video_base_url=BASE_URL,
+        api_key=VIDEO_API_KEY,
+        api_secret=VIDEO_API_SECRET,
+        timeout=TIMEOUT,
+        video_base_url=BASE_URL,
     )
+
 
 def test_video_client_initialization(client):
     assert client.api_key == VIDEO_API_KEY
@@ -77,14 +84,13 @@ def test_video_client_initialization(client):
     assert client.video.timeout == TIMEOUT
 
 
-
-
 def test_create_call_type(client):
     data = create_call_type_data()
     response = client.video.create_call_type(data)
     print(response)
-    assert response['name'] == "example_calltype3"
+    assert response["name"] == "example_calltype3"
     assert "settings" in response
+
 
 def test_update_call_type(client):
     name = "example_calltype3"
@@ -99,14 +105,15 @@ def test_update_call_type(client):
         },
     }
     response = client.video.update_call_type(name, updated_data)
-    
+
     assert response["settings"]["audio"]["access_request_enabled"] == False
     assert response["settings"]["recording"]["audio_only"] == False
+
 
 def test_get_call_type(client):
     name = "example_calltype3"
     response = client.video.get_call_type(name)
- 
+
     assert response["name"] == "example_calltype3"
 
 
@@ -121,10 +128,11 @@ def test_delete_call_type(client):
 
     assert "duration" in response
 
+
 def test_create_token(client):
     token = client.create_token()
     assert token is not None
-    #decode claims
+    # decode claims
 
     decoded = jwt.decode(token, VIDEO_API_SECRET, algorithms=["HS256"])
     assert decoded["iss"] == f"stream-video-python@{VERSION}"

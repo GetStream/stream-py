@@ -3,14 +3,30 @@ from getstream.config import BaseConfig
 
 
 class BaseClient(BaseConfig):
-    def __init__(self, api_key, base_url=None, anonymous=False, token=None,timeout=None,user_agent=None):
+    def __init__(
+        self,
+        api_key,
+        base_url=None,
+        anonymous=False,
+        token=None,
+        timeout=None,
+        user_agent=None,
+    ):
         super().__init__(
-            api_key=api_key, base_url=base_url, anonymous=anonymous, token=token, timeout=timeout,user_agent=user_agent
+            api_key=api_key,
+            base_url=base_url,
+            anonymous=anonymous,
+            token=token,
+            timeout=timeout,
+            user_agent=user_agent,
         )
         self.client = httpx.Client(
-            base_url=self.base_url, headers=self.headers, params=self.params, timeout=httpx.Timeout(self.timeout)
+            base_url=self.base_url,
+            headers=self.headers,
+            params=self.params,
+            timeout=httpx.Timeout(self.timeout),
         )
-        
+
     def __enter__(self):
         return self
 

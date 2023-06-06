@@ -1,20 +1,23 @@
-
 from getstream.sync.base import BaseClient
 from getstream.video.exceptions import VideoCallTypeBadRequest
 
 
 class VideoClient(BaseClient):
-    def __init__(self, api_key: str, base_url, token,timeout,user_agent):
-        super().__init__(api_key=api_key, base_url=base_url, token=token,timeout=timeout,user_agent=user_agent)
+    def __init__(self, api_key: str, base_url, token, timeout, user_agent):
+        super().__init__(
+            api_key=api_key,
+            base_url=base_url,
+            token=token,
+            timeout=timeout,
+            user_agent=user_agent,
+        )
 
     def edges(self):
         response = self.get("/edges")
         json = response.json()
         return json
 
-    def get_edge_server(
-        self, calltype: str, callid: str, data
-    ) :
+    def get_edge_server(self, calltype: str, callid: str, data):
         response = self.get(f"/calls/{calltype}/{callid}/get_edge_server", json=data)
         json = response.json()
         return json
@@ -26,7 +29,9 @@ class VideoClient(BaseClient):
             message = error_json.pop("message", None)
             code = error_json.pop("code", None)
             status_code = error_json.pop("StatusCode", None)
-            raise VideoCallTypeBadRequest(message=message, code = code,status_code=status_code)
+            raise VideoCallTypeBadRequest(
+                message=message, code=code, status_code=status_code
+            )
         return response.json()
 
     def get_call_type(self, name: str):
@@ -36,7 +41,9 @@ class VideoClient(BaseClient):
             message = error_json.pop("message", None)
             code = error_json.pop("code", None)
             status_code = error_json.pop("StatusCode", None)
-            raise VideoCallTypeBadRequest(message=message, code = code,status_code=status_code)
+            raise VideoCallTypeBadRequest(
+                message=message, code=code, status_code=status_code
+            )
         return response.json()
 
     def list_call_types(self):
@@ -46,7 +53,9 @@ class VideoClient(BaseClient):
             message = error_json.pop("message", None)
             code = error_json.pop("code", None)
             status_code = error_json.pop("StatusCode", None)
-            raise VideoCallTypeBadRequest(message=message, code = code,status_code=status_code)
+            raise VideoCallTypeBadRequest(
+                message=message, code=code, status_code=status_code
+            )
         json = response.json()
         return json
 
@@ -57,20 +66,20 @@ class VideoClient(BaseClient):
             message = error_json.pop("message", None)
             code = error_json.pop("code", None)
             status_code = error_json.pop("StatusCode", None)
-            raise VideoCallTypeBadRequest(message=message, code = code,status_code=status_code)
+            raise VideoCallTypeBadRequest(
+                message=message, code=code, status_code=status_code
+            )
         return response.json()
 
     def query_calls(self, data):
         response = self.post("/calls", json=data)
         return response.json()
 
-    def block_user(
-        self, calltype: str, callid: str,data
-    ):
+    def block_user(self, calltype: str, callid: str, data):
         response = self.post(f"/call/{calltype}/{callid}/block", json=data)
         return response.json()
 
-    def end_call(self, calltype: str, callid: str) :
+    def end_call(self, calltype: str, callid: str):
         response = self.post(f"/call/{calltype}/{callid}/mark_ended")
         return response.json()
 
@@ -82,12 +91,10 @@ class VideoClient(BaseClient):
         response = self.post(f"/call/{calltype}/{callid}/go_live")
         return response.json()
 
-    def join_call(
-        self, calltype: str, callid: str, data
-    ):
+    def join_call(self, calltype: str, callid: str, data):
         response = self.post(f"/call/{calltype}/{callid}/join", data=data)
         return response.json()
-    
+
     def delete_call_type(self, name: str):
         response = self.delete(f"/calltypes/{name}")
         if response.status_code == 400:
@@ -95,9 +102,11 @@ class VideoClient(BaseClient):
             message = error_json.pop("message", None)
             code = error_json.pop("code", None)
             status_code = error_json.pop("StatusCode", None)
-            raise VideoCallTypeBadRequest(message=message, code = code,status_code=status_code)
+            raise VideoCallTypeBadRequest(
+                message=message, code=code, status_code=status_code
+            )
         return response.json()
-    
+
     def delete_recording(
         self, calltype: str, callid: str, sessionid: str, recordingid: str
     ):
@@ -106,39 +115,27 @@ class VideoClient(BaseClient):
         )
         return response.json()
 
-    def list_recordings(
-        self, calltype: str, callid: str, sessionid: str
-    ):
+    def list_recordings(self, calltype: str, callid: str, sessionid: str):
         response = self.get(f"/call/{calltype}/{callid}/{sessionid}/recordings")
         return response.json()
 
-    def mute_users(
-        self, calltype: str, callid: str, data
-    ) :
+    def mute_users(self, calltype: str, callid: str, data):
         response = self.post(f"/call/{calltype}/{callid}/mute_users", data=data)
         return response.json()
 
-    def query_members(
-        self, calltype: str, callid: str, data
-    ) :
+    def query_members(self, calltype: str, callid: str, data):
         response = self.post(f"/call/{calltype}/{callid}/members", json=data)
         return response.json()
 
-    def request_permission(
-        self, calltype: str, callid: str, data
-    ) :
+    def request_permission(self, calltype: str, callid: str, data):
         response = self.post(f"/call/{calltype}/{callid}/request_permission", json=data)
         return response.json()
 
-    def send_event(
-        self, calltype: str, callid: str, data
-    ) :
+    def send_event(self, calltype: str, callid: str, data):
         response = self.post(f"/call/{calltype}/{callid}/event", json=data)
         return response.json()
 
-    def send_reaction(
-        self, calltype: str, callid: str, data
-    ) :
+    def send_reaction(self, calltype: str, callid: str, data):
         response = self.post(f"/call/{calltype}/{callid}/reaction", json=data)
         return response.json()
 
@@ -170,33 +167,23 @@ class VideoClient(BaseClient):
         response = self.post(f"/call/{calltype}/{callid}/stop_live")
         return response.json()
 
-    def unblock_user(
-        self, calltype: str, callid: str, data
-    ) :
+    def unblock_user(self, calltype: str, callid: str, data):
         response = self.post(f"/call/{calltype}/{callid}/unblock", json=data)
         return response.json()
 
-    def update_members(
-        self, calltype: str, callid: str, data
-    ) :
+    def update_members(self, calltype: str, callid: str, data):
         response = self.put(f"/call/{calltype}/{callid}/members", json=data)
         return response.json()
 
-    def update_call(
-        self, calltype: str, callid: str, data
-    ) :
+    def update_call(self, calltype: str, callid: str, data):
         response = self.put(f"/call/{calltype}/{callid}", json=data)
         return response.json()
 
-    def update_user_permissions(
-        self, calltype: str, callid: str, data
-    ) :
+    def update_user_permissions(self, calltype: str, callid: str, data):
         response = self.put(f"/call/{calltype}/{callid}/permissions", json=data)
         return response.json()
 
-    def get_or_create_call(
-        self, calltype: str, callid: str, data
-    ) :
+    def get_or_create_call(self, calltype: str, callid: str, data):
         response = self.post(f"/call/{calltype}/{callid}", json=data)
         return response.json()
 
