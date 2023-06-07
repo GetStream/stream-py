@@ -142,7 +142,7 @@ def test_create_token(client):
 
 def test_get_or_create_call(client):
   
-    calltype_name = "audio_room"
+    calltype_name = "default"
     call_request_data = {
         "data": {"created_by_id":"sacha@getstream.io", "settings_override": {
             "audio": {
@@ -163,3 +163,16 @@ def test_get_or_create_call(client):
 
     assert response["call"]["settings"]["audio"]["access_request_enabled"] == False
     assert response["call"]["settings"]["recording"]["audio_only"] == False
+
+
+
+def test_start_broadcasting(client):
+    calltype = "default"
+    response = client.video.start_broadcasting(callid=CALL_ID,calltype=calltype)
+    assert "duration" in response
+    
+
+def test_stop_broadcasting(client):
+    calltype = "default"
+    response = client.video.stop_broadcasting(callid=CALL_ID,calltype=calltype)
+    assert "duration" in response
