@@ -12,7 +12,8 @@ BASE_URL = "https://video.stream-io-api.com/video"
 VIDEO_API_SECRET = os.environ.get("VIDEO_API_SECRET")
 TIMEOUT = 6
 
-CALL_ID = str(uuid.uuid4()) 
+CALL_ID = str(uuid.uuid4())
+
 
 def create_call_type_data():
     return {
@@ -139,40 +140,30 @@ def test_create_token(client):
     assert decoded["iat"] is not None
 
 
-
 def test_get_or_create_call(client):
-  
     calltype_name = "default"
     call_request_data = {
-        "data": {"created_by_id":"sacha@getstream.io", "settings_override": {
-            "audio": {
-                "access_request_enabled": False
-            }
+        "data": {
+            "created_by_id": "sacha@getstream.io",
+            "settings_override": {"audio": {"access_request_enabled": False}},
         },
-        },
-        "members": [
-            {
-                "role": "speaker",
-                "user_id": "sacha@getstream.io"
-            }
-        ],
-       
-     
+        "members": [{"role": "speaker", "user_id": "sacha@getstream.io"}],
     }
-    response = client.video.get_or_create_call(calltype=calltype_name,callid=CALL_ID,data=call_request_data)
+    response = client.video.get_or_create_call(
+        calltype=calltype_name, callid=CALL_ID, data=call_request_data
+    )
 
     assert response["call"]["settings"]["audio"]["access_request_enabled"] == False
     assert response["call"]["settings"]["recording"]["audio_only"] == False
 
 
-
 def test_start_broadcasting(client):
     calltype = "default"
-    response = client.video.start_broadcasting(callid=CALL_ID,calltype=calltype)
+    response = client.video.start_broadcasting(callid=CALL_ID, calltype=calltype)
     assert "duration" in response
-    
+
 
 def test_stop_broadcasting(client):
     calltype = "default"
-    response = client.video.stop_broadcasting(callid=CALL_ID,calltype=calltype)
+    response = client.video.stop_broadcasting(callid=CALL_ID, calltype=calltype)
     assert "duration" in response
