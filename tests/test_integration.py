@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 import os
+import uuid
 
 import jwt
 from getstream.version import VERSION
@@ -11,8 +12,7 @@ BASE_URL = "https://video.stream-io-api.com/video"
 VIDEO_API_SECRET = os.environ.get("VIDEO_API_SECRET")
 TIMEOUT = 6
 
-CALL_ID = "c1b0e1e0-9f1b-4c7d-8c3a-9e8a5f0e6b6c"
-
+CALL_ID = str(uuid.uuid4()) 
 
 def create_call_type_data():
     return {
@@ -132,9 +132,34 @@ def test_delete_call_type(client):
 def test_create_token(client):
     token = client.create_token()
     assert token is not None
-    # decode claims
 
     decoded = jwt.decode(token, VIDEO_API_SECRET, algorithms=["HS256"])
     assert decoded["iss"] == f"stream-video-python@{VERSION}"
     assert decoded["sub"] == "server-side"
     assert decoded["iat"] is not None
+
+
+
+def test_get_or_create_call(client):
+  
+    calltype_name = "audio_room"
+    call_request_data = {
+        "data": {"created_by_id":"sacha@getstream.io", "settings_override": {
+            "audio": {
+                "access_request_enabled": False
+            }
+        },
+        },
+        "members": [
+            {
+                "role": "speaker",
+                "user_id": "sacha@getstream.io"
+            }
+        ],
+       
+     
+    }
+    response = client.video.get_or_create_call(calltype=calltype_name,callid=CALL_ID,data=call_request_data)
+
+    assert response["call"]["settings"]["audio"]["access_request_enabled"] == False
+    assert response["call"]["settings"]["recording"]["audio_only"] == False
