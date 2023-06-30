@@ -18,29 +18,30 @@ class Call:
 
     def update_user_permissions(self, data):
         return self._client.update_user_permissions(self._call_type, self._callid, data)
-    
+
     def update_call_members(self, data):
         return self._client.update_call_members(self._call_type, self._callid, data)
-    
+
     def unblock_user(self, data):
         return self._client.unblock_user(self._call_type, self._callid, data)
-    
+
     def stop_live(self):
         return self._client.stop_live(self._call_type, self._callid)
-    
-    def query_recordings(self,  sessionid: str):
+
+    def query_recordings(self, sessionid: str):
         return self._client.query_recordings(self._call_type, self._callid, sessionid)
-    
-    def delete_recording(
-        self, sessionid: str, recordingid: str):
-        return self._client.delete_recording(self._call_type, self._callid, sessionid, recordingid)
-    
+
+    def delete_recording(self, sessionid: str, recordingid: str):
+        return self._client.delete_recording(
+            self._call_type, self._callid, sessionid, recordingid
+        )
+
     def mute_users(self, data):
         return self._client.mute_users(self._call_type, self._callid, data)
-    
+
     def query_members(self, data):
         return self._client.query_members(self._call_type, self._callid, data)
-        
+
     def request_permissions(self, data):
         return self._client.request_permissions(self._call_type, self._callid, data)
 
@@ -67,7 +68,7 @@ class Call:
 
     def stop_broadcasting(self):
         return self._client.stop_broadcasting(self._call_type, self._callid)
-        
+
     def block_user(self, data):
         return self._client.block_user(self._call_type, self._callid, data)
 

@@ -12,7 +12,7 @@ class VideoClient(BaseClient):
             timeout=timeout,
             user_agent=user_agent,
         )
-        
+
     def call(self, call_type: str, callid: str):
         return Call(self, call_type, callid)
 
@@ -118,31 +118,29 @@ class VideoClient(BaseClient):
             f"/call/{call_type}/{callid}/{sessionid}/recordings/{recordingid}"
         )
         return response.json()
-    
-    def add_device(self, id, push_provider, push_provider_name=None, user_id=None, voip_token=None):
-        data = {
-            'id': id,
-            'push_provider': push_provider,
-            'voip_token': voip_token
-        }
+
+    def add_device(
+        self, id, push_provider, push_provider_name=None, user_id=None, voip_token=None
+    ):
+        data = {"id": id, "push_provider": push_provider, "voip_token": voip_token}
         if user_id is not None:
-            data.update({'user_id': user_id})
+            data.update({"user_id": user_id})
         if push_provider_name is not None:
-            data.update({'push_provider_name': push_provider_name})
+            data.update({"push_provider_name": push_provider_name})
         response = self.post("/devices", json=data)
         return response.json()
-    
+
     def add_voip_device(self, id, push_provider, push_provider_name=None, user_id=None):
         self.add_device(id, push_provider, push_provider_name, user_id, voip_token=True)
 
     def get_devices(self):
         response = self.get("/devices")
         return response.json()
-    
+
     def remove_device(self, data):
         response = self.delete("/devices", json=data)
         return response.json()
-    
+
     def query_recordings(self, call_type: str, callid: str, sessionid: str):
         response = self.get(f"/call/{call_type}/{callid}/{sessionid}/recordings")
         return response.json()
@@ -150,13 +148,15 @@ class VideoClient(BaseClient):
     def mute_users(self, call_type: str, callid: str, data):
         response = self.post(f"/call/{call_type}/{callid}/mute_users", data=data)
         return response.json()
-    
+
     def query_members(self, call_type: str, callid: str, data):
         response = self.post(f"/call/{call_type}/{callid}/members", json=data)
         return response.json()
 
     def request_permissions(self, call_type: str, callid: str, data):
-        response = self.post(f"/call/{call_type}/{callid}/request_permission", json=data)
+        response = self.post(
+            f"/call/{call_type}/{callid}/request_permission", json=data
+        )
         return response.json()
 
     def send_custom_event(self, call_type: str, callid: str, data):
