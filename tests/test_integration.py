@@ -106,8 +106,8 @@ def test_update_call_type(client):
     }
     response = client.video.update_call_type(name, updated_data)
 
-    assert response["settings"]["audio"]["access_request_enabled"] == False
-    assert response["settings"]["recording"]["audio_only"] == False
+    assert response["settings"]["audio"]["access_request_enabled"] is False
+    assert response["settings"]["recording"]["audio_only"] is False
 
 
 def test_get_call_type(client):
@@ -152,8 +152,8 @@ def test_get_or_create_call(client):
         call_type=calltype_name, callid=CALL_ID, data=call_request_data
     )
 
-    assert response["call"]["settings"]["audio"]["access_request_enabled"] == False
-    assert response["call"]["settings"]["recording"]["audio_only"] == False
+    assert response["call"]["settings"]["audio"]["access_request_enabled"] is False
+    assert response["call"]["settings"]["recording"]["audio_only"] is False
 
 
 def test_start_broadcasting(client):
