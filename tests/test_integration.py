@@ -99,6 +99,7 @@ def test_update_call_type(client):
         "settings": {
             "audio": {
                 "access_request_enabled": False,
+                "default_device": "speaker",
             },
             "recording": {
                 "audio_only": False,
