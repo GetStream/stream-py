@@ -32,7 +32,10 @@ jobs:
         
     - name: Install dependencies
       run: poetry install
-
+      
+    - name: Run linting check
+      run: poetry run flake8
+      
     - name: Check Black formatting
       run: poetry run black --check .
 
