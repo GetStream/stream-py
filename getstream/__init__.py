@@ -1,1 +1,1 @@
-from getstream.sync.stream import Stream
+from getstream.sync.stream import Stream # noqa: F401
