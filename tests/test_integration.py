@@ -19,6 +19,7 @@ def create_call_type_data():
         "name": "example_calltype3",
         "settings": {
             "audio": {
+                "default_device": "speaker",
                 "access_request_enabled": True,
                 "opus_dtx_enabled": True,
             },
