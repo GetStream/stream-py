@@ -143,15 +143,13 @@ def test_create_token(client):
 
 def test_get_or_create_call(client):
     calltype_name = "default"
-    call_request_data = {
-        "data": {
-            "created_by_id": "sacha@getstream.io",
-            "settings_override": {"audio": {"access_request_enabled": False}},
-        },
-        "members": [{"role": "speaker", "user_id": "sacha@getstream.io"}],
+    data = {
+        "created_by_id": "sacha@getstream.io",
+        "settings_override": {"audio": {"access_request_enabled": False}},
     }
+    members = [{"role": "speaker", "user_id": "sacha@getstream.io"}]
     response = client.video.get_or_create_call(
-        call_type=calltype_name, callid=CALL_ID, data=call_request_data
+        call_type=calltype_name, callid=CALL_ID, data=data, members=members
     )
 
     assert response["call"]["settings"]["audio"]["access_request_enabled"] is False

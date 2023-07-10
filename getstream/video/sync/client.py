@@ -198,20 +198,27 @@ class VideoClient(BaseClient):
         response = self.post(f"/call/{call_type}/{callid}/unblock", json=data)
         return response.json()
 
-    def update_call_members(self, call_type: str, callid: str, data):
+    def update_call_members(self, call_type: str, callid: str, members: list = None):
+        data = {"update_members": members}
         response = self.put(f"/call/{call_type}/{callid}/members", json=data)
         return response.json()
 
     def update_call(self, call_type: str, callid: str, data):
-        response = self.put(f"/call/{call_type}/{callid}", json=data)
+        request_data = {"data": data}
+        response = self.put(f"/call/{call_type}/{callid}", json=request_data)
         return response.json()
 
     def update_user_permissions(self, call_type: str, callid: str, data):
         response = self.put(f"/call/{call_type}/{callid}/permissions", json=data)
         return response.json()
 
-    def get_or_create_call(self, call_type: str, callid: str, data):
-        response = self.post(f"/call/{call_type}/{callid}", json=data)
+    def get_or_create_call(
+        self, call_type: str, callid: str, data: dict, members: list = None
+    ):
+        request_data = {"data": data}
+        if members is not None:
+            request_data.update({"members": members})
+        response = self.post(f"/call/{call_type}/{callid}", json=request_data)
         return response.json()
 
 
@@ -221,20 +228,24 @@ class Call:
         self._call_type = call_type
         self._callid = callid
 
-    def create(self, data):
-        return self._client.get_or_create_call(self._call_type, self._callid, data)
+    def create(self, data: dict, members: list = None):
+        return self._client.get_or_create_call(
+            self._call_type, self._callid, data, members
+        )
 
     def get(self):
         return self._client.get_call(self._call_type, self._callid)
 
-    def update(self, data):
+    def update(self, data: dict):
         return self._client.update_call(self._call_type, self._callid, data)
 
     def update_user_permissions(self, data):
         return self._client.update_user_permissions(self._call_type, self._callid, data)
 
-    def update_call_members(self, data):
-        return self._client.update_call_members(self._call_type, self._callid, data)
+    def update_call_members(self, data, members: list = None):
+        return self._client.update_call_members(
+            self._call_type, self._callid, data, members
+        )
 
     def unblock_user(self, data):
         return self._client.unblock_user(self._call_type, self._callid, data)
