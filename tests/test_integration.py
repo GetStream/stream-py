@@ -149,7 +149,7 @@ def test_get_or_create_call(client):
     }
     members = [{"role": "speaker", "user_id": "sacha@getstream.io"}]
     response = client.video.get_or_create_call(
-        call_type=calltype_name, callid=CALL_ID, data=data, members=members
+        call_type=calltype_name, call_id=CALL_ID, data=data, members=members
     )
 
     assert response["call"]["settings"]["audio"]["access_request_enabled"] is False
@@ -158,11 +158,11 @@ def test_get_or_create_call(client):
 
 def test_start_broadcasting(client):
     call_type = "default"
-    response = client.video.start_broadcasting(callid=CALL_ID, call_type=call_type)
+    response = client.video.start_broadcasting(call_id=CALL_ID, call_type=call_type)
     assert "duration" in response
 
 
 def test_stop_broadcasting(client):
     call_type = "default"
-    response = client.video.stop_broadcasting(callid=CALL_ID, call_type=call_type)
+    response = client.video.stop_broadcasting(call_id=CALL_ID, call_type=call_type)
     assert "duration" in response
