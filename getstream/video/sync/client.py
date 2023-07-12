@@ -140,7 +140,9 @@ class VideoClient(BaseClient):
         response = self.delete("/devices", json=data)
         return response.json()
 
-    def query_recordings(self, call_type: str, call_id: str, session_id: str):
+    def query_recordings(self, call_type: str, call_id: str, session_id: str = None):
+        if session_id is None:
+            response = self.get(f"/call/{call_type}/{call_id}/recordings")
         response = self.get(f"/call/{call_type}/{call_id}/{session_id}/recordings")
         return response.json()
 
@@ -255,7 +257,7 @@ class Call:
     def stop_live(self):
         return self._client.stop_live(self._call_type, self._call_id)
 
-    def query_recordings(self, session_id: str):
+    def query_recordings(self, session_id: str = None):
         return self._client.query_recordings(self._call_type, self._call_id, session_id)
 
     def delete_recording(self, session_id: str, recordingid: str):
