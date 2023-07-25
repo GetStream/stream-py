@@ -466,86 +466,202 @@ class VideoClient(BaseClient):
 
 class Call:
     def __init__(self, client: VideoClient, call_type: str, call_id: str):
+        """
+        Initializes Call with VideoClient instance
+        :param client: An instance of VideoClient class
+        :param call_type: A string representing the call type
+        :param call_id: A string representing a unique call identifier
+        """
         self._client = client
         self._call_type = call_type
         self._call_id = call_id
 
     def create(self, data: dict, members: list = None):
+        """
+        Creates a call with given data and members
+        :param data: A dictionary with call details
+        :param members: A list of members to be included in the call
+        :return: Response from the create call API
+        """
         return self._client.get_or_create_call(
             self._call_type, self._call_id, data, members
         )
 
     def get(self):
+        """
+        Retrieves the call based on call type and id
+        :return: Response from the get call API
+        """
         return self._client.get_call(self._call_type, self._call_id)
 
     def update(self, data: dict):
+        """
+        Updates the call with given data
+        :param data: A dictionary with updated call details
+        :return: Response from the update call API
+        """
         return self._client.update_call(self._call_type, self._call_id, data)
 
     def update_user_permissions(self, data):
+        """
+        Updates permissions of the user in the call
+        :param data: A dictionary with permission details
+        :return: Response from the update user permissions API
+        """
         return self._client.update_user_permissions(
             self._call_type, self._call_id, data
         )
 
-    def update_call_members(self, data, members: list = None):
-        return self._client.update_call_members(
-            self._call_type, self._call_id, data, members
-        )
+    def update_call_members(self, members: list = None):
+        """
+        Updates members of the call
+        :param members: A list of new members to be included in the call
+        :return: Response from the update call members API
+        """
+        return self._client.update_call_members(self._call_type, self._call_id, members)
 
     def unblock_user(self, data):
+        """
+        Unblocks user from the call
+        :param data: A dictionary with user details
+        :return: Response from the unblock user API
+        """
         return self._client.unblock_user(self._call_type, self._call_id, data)
 
     def stop_live(self):
+        """
+        Stops live call
+        :return: Response from the stop live API
+        """
         return self._client.stop_live(self._call_type, self._call_id)
 
     def query_recordings(self, session_id: str = None):
+        """
+        Executes a query to retrieve recordings of the call
+        :param session_id: A string representing a unique session identifier
+        :return: Response from the query recordings API
+        """
         return self._client.query_recordings(self._call_type, self._call_id, session_id)
 
     def delete_recording(self, session_id: str, recordingid: str):
+        """
+        Deletes specific recording of the call
+        :param session_id: A string representing a unique session identifier
+        :param recordingid: A string representing a unique recording identifier
+        :return: Response from the delete recording API
+        """
         return self._client.delete_recording(
             self._call_type, self._call_id, session_id, recordingid
         )
 
     def mute_users(self, data):
+        """
+        Mute users in the call
+        :param data: A dictionary with user details
+        :return: Response from the mute users API
+        """
         return self._client.mute_users(self._call_type, self._call_id, data)
 
     def query_members(self, data):
+        """
+        Executes a query to retrieve members of the call
+        :param data: A dictionary with query details
+        :return: Response from the query members API
+        """
         return self._client.query_members(self._call_type, self._call_id, data)
 
     def request_permissions(self, data):
+        """
+        Requests permissions for the call
+        :param data: A dictionary with permission details
+        :return: Response from the request permissions API
+        """
         return self._client.request_permissions(self._call_type, self._call_id, data)
 
     def send_custom_event(self, data):
+        """
+        Sends a custom event for the call
+        :param data: A dictionary with event details
+        :return: Response from the send custom event API
+        """
         return self._client.send_custom_event(self._call_type, self._call_id, data)
 
     def send_reaction(self, data):
+        """
+        Sends a reaction for the call
+        :param data: A dictionary with reaction details
+        :return: Response from the send
+        """
         return self._client.send_reaction(self._call_type, self._call_id, data)
 
     def start_recording(self):
+        """
+        Starts recording for the call
+        :return: Response from the start recording API
+        """
         return self._client.start_recording(self._call_type, self._call_id)
 
     def start_trancription(self):
+        """
+        Starts transcription for the call
+        :return: Response from the start transcription API
+        """
         return self._client.start_trancription(self._call_type, self._call_id)
 
     def start_broadcasting(self):
+        """
+        Starts broadcasting for the call
+        :return: Response from the start broadcasting API
+        """
         return self._client.start_broadcasting(self._call_type, self._call_id)
 
     def stop_recording(self):
+        """
+        Stops recording for the call
+        :return: Response from the stop recording API
+        """
         return self._client.stop_recording(self._call_type, self._call_id)
 
     def stop_transcription(self):
+        """
+        Stops transcription for the call
+        :return: Response from the stop transcription API
+        """
         return self._client.stop_transcription(self._call_type, self._call_id)
 
     def stop_broadcasting(self):
+        """
+        Stops broadcasting for the call
+        :return: Response from the stop broadcasting API
+        """
         return self._client.stop_broadcasting(self._call_type, self._call_id)
 
     def block_user(self, data):
+        """
+        Blocks user in the call
+        :param data: A dictionary with user details
+        :return: Response from the block user API
+        """
         return self._client.block_user(self._call_type, self._call_id, data)
 
     def end_call(self):
+        """
+        Ends the call
+        :return: Response from the end call API
+        """
         return self._client.end_call(self._call_type, self._call_id)
 
     def go_live(self):
+        """
+        Makes the call go live
+        :return: Response from the go live API
+        """
         return self._client.go_live(self._call_type, self._call_id)
 
     def join(self, data):
+        """
+        Joins the call
+        :param data: A dictionary with user details
+        :return: Response from the join call API
+        """
         return self._client.join_call(self._call_type, self._call_id, data)
