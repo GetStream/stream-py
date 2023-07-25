@@ -4,6 +4,14 @@ from getstream.video.exceptions import VideoCallTypeBadRequest
 
 class VideoClient(BaseClient):
     def __init__(self, api_key: str, base_url, token, timeout, user_agent):
+        """
+        Initializes VideoClient with BaseClient instance
+        :param api_key: A string representing the client's API key
+        :param base_url: A string representing the base uniform resource locator
+        :param token: A string instance representing the client's token
+        :param timeout: A number representing the time limit for a request
+        :param user_agent: A string representing the user agent
+        """
         super().__init__(
             api_key=api_key,
             base_url=base_url,
@@ -13,19 +21,41 @@ class VideoClient(BaseClient):
         )
 
     def call(self, call_type: str, call_id: str):
+        """
+        Returns instance of Call class
+        :param call_type: A string representing the call type
+        :param call_id: A string representing a unique call identifier
+        :return: Instance of Call class
+        """
         return Call(self, call_type, call_id)
 
     def edges(self):
+        """
+        Retrieves edges from the server
+        :return: json object with response
+        """
         response = self.get("/edges")
         json = response.json()
         return json
 
     def get_edge_server(self, call_type: str, call_id: str, data):
+        """
+        Retrieves specific edge server
+        :param call_type: A string representing the call type
+        :param call_id: A string representing a unique call identifier
+        :param data: A dictionary with additional call details
+        :return: json object with response
+        """
         response = self.get(f"/calls/{call_type}/{call_id}/get_edge_server", json=data)
         json = response.json()
         return json
 
     def create_call_type(self, data):
+        """
+        Creates a new call type
+        :param data: A dictionary with details about the call type
+        :return: json object with response
+        """
         response = self.post("/calltypes", json=data)
         if response.status_code == 400:
             error_json = response.json()
@@ -38,6 +68,11 @@ class VideoClient(BaseClient):
         return response.json()
 
     def get_call_type(self, name: str):
+        """
+        Retrieves specific call type
+        :param name: A string representing the name of the call type
+        :return: json object with response
+        """
         response = self.get(f"/calltypes/{name}")
         if response.status_code == 400:
             error_json = response.json()
@@ -50,6 +85,10 @@ class VideoClient(BaseClient):
         return response.json()
 
     def list_call_types(self):
+        """
+        Returns a list with all call types of the client
+        :return: json object with response
+        """
         response = self.get("/calltypes")
         if response.status_code == 400:
             error_json = response.json()
@@ -63,6 +102,12 @@ class VideoClient(BaseClient):
         return json
 
     def update_call_type(self, name: str, data):
+        """
+        Updates specific call type
+        :param name: A string representing the name of the call type
+        :param data: A dictionary with details about the call type
+        :return: json object with response
+        """
         response = self.put(f"/calltypes/{name}", json=data)
         if response.status_code == 400:
             error_json = response.json()
@@ -75,30 +120,72 @@ class VideoClient(BaseClient):
         return response.json()
 
     def query_calls(self, data):
+        """
+        Executes a query about specific call
+        :param data: A dictionary with additional call details
+        :return: json object with response
+        """
         response = self.post("/calls", json=data)
         return response.json()
 
     def block_user(self, call_type: str, call_id: str, data):
+        """
+        Blocks user in specific call
+        :param call_type: A string representing the call type
+        :param call_id: A string representing a unique call identifier
+        :param data: A dictionary with additional call details
+        :return: json object with response
+        """
         response = self.post(f"/call/{call_type}/{call_id}/block", json=data)
         return response.json()
 
     def end_call(self, call_type: str, call_id: str):
+        """
+        Ends specific call
+        :param call_type: A string representing the call type
+        :param call_id: A string representing a unique call identifier
+        :return: json object with response
+        """
         response = self.post(f"/call/{call_type}/{call_id}/mark_ended")
         return response.json()
 
     def get_call(self, call_type: str, call_id: str):
+        """
+        Retrieves specific call
+        :param call_type: A string representing the call type
+        :param call_id: A string representing a unique call identifier
+        :return: json object with response
+        """
         response = self.get(f"/call/{call_type}/{call_id}")
         return response.json()
 
     def go_live(self, call_type: str, call_id: str):
+        """
+        Makes specific call go live
+        :param call_type: A string representing the call type
+        :param call_id: A string representing a unique call identifier
+        :return: json object with response
+        """
         response = self.post(f"/call/{call_type}/{call_id}/go_live")
         return response.json()
 
     def join_call(self, call_type: str, call_id: str, data):
+        """
+        Joins specific call
+        :param call_type: A string representing the call type
+        :param call_id: A string representing a unique call identifier
+        :param data: A dictionary with additional call details
+        :return: json object with response
+        """
         response = self.post(f"/call/{call_type}/{call_id}/join", data=data)
         return response.json()
 
     def delete_call_type(self, name: str):
+        """
+        Deletes specific call type
+        :param name: A string representing the name of the call type
+        :return: json object with response
+        """
         response = self.delete(f"/calltypes/{name}")
         if response.status_code == 400:
             error_json = response.json()
@@ -113,6 +200,14 @@ class VideoClient(BaseClient):
     def delete_recording(
         self, call_type: str, call_id: str, session_id: str, recordingid: str
     ):
+        """
+        Deletes specific recording of a call
+        :param call_type: A string representing the call type
+        :param call_id: A string representing a unique call identifier
+        :param session_id: A string representing a unique session identifier
+        :param recordingid: A string representing a unique recording identifier
+        :return: json object with response
+        """
         response = self.delete(
             f"/call/{call_type}/{call_id}/{session_id}/recordings/{recordingid}"
         )
@@ -121,6 +216,15 @@ class VideoClient(BaseClient):
     def add_device(
         self, id, push_provider, push_provider_name=None, user_id=None, voip_token=None
     ):
+        """
+        Adds device to the client
+        :param id: A string representing device identifier
+        :param push_provider: An instance representing the push provider
+        :param push_provider_name: A string representing the name of the push provider
+        :param user_id: A string representing a unique user identifier
+        :param voip_token: A string representing the Voice Over IP token
+        :return: json object with response
+        """
         data = {"id": id, "push_provider": push_provider, "voip_token": voip_token}
         if user_id is not None:
             data.update({"user_id": user_id})
@@ -130,9 +234,20 @@ class VideoClient(BaseClient):
         return response.json()
 
     def add_voip_device(self, id, push_provider, push_provider_name=None, user_id=None):
+        """
+        Adds Voice Over IP device to the client
+        :param id: A string representing device identifier
+        :param push_provider: An instance representing the push provider
+        :param push_provider_name: A string representing the name of the push provider
+        :param user_id: A string representing a unique user identifier
+        """
         self.add_device(id, push_provider, push_provider_name, user_id, voip_token=True)
 
     def get_devices(self):
+        """
+        Retrieves all devices of the client
+        :return: json object with response
+        """
         response = self.get("/devices")
         return response.json()
 
