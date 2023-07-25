@@ -252,86 +252,211 @@ class VideoClient(BaseClient):
         return response.json()
 
     def remove_device(self, data):
+        """
+        Removes specific device from the client
+        :param data: A dictionary with additional details about the device
+        :return: json object with response
+        """
         response = self.delete("/devices", json=data)
         return response.json()
 
     def query_recordings(self, call_type: str, call_id: str, session_id: str = None):
+        """
+        Executes a query to retrieve specific call recordings
+        :param call_type: A string representing the call type
+        :param call_id: A string representing a unique call identifier
+        :param session_id: A string representing a unique session identifier
+        :return: json object with response
+        """
         if session_id is None:
             response = self.get(f"/call/{call_type}/{call_id}/recordings")
         response = self.get(f"/call/{call_type}/{call_id}/{session_id}/recordings")
         return response.json()
 
     def mute_users(self, call_type: str, call_id: str, data):
+        """
+        Mute users in a specific call
+        :param call_type: A string representing the call type
+        :param call_id: A string representing a unique call identifier
+        :param data: A dictionary with additional call details
+        :return: json object with response
+        """
         response = self.post(f"/call/{call_type}/{call_id}/mute_users", data=data)
         return response.json()
 
     def query_members(self, call_type: str, call_id: str, data):
+        """
+        Executes a query to retrieve specific call members
+        :param call_type: A string representing the call type
+        :param call_id: A string representing a unique call identifier
+        :param data: A dictionary with additional call details
+        :return: json object with response
+        """
         response = self.post(f"/call/{call_type}/{call_id}/members", json=data)
         return response.json()
 
     def request_permissions(self, call_type: str, call_id: str, data):
+        """
+        Requests permissions for a specific call
+        :param call_type: A string representing the call type
+        :param call_id: A string representing a unique call identifier
+        :param data: A dictionary with additional call details
+        :return: json object with response
+        """
         response = self.post(
             f"/call/{call_type}/{call_id}/request_permission", json=data
         )
         return response.json()
 
     def send_custom_event(self, call_type: str, call_id: str, data):
+        """
+        Sends a custom event for a specific call
+        :param call_type: A string representing the call type
+        :param call_id: A string representing a unique call identifier
+        :param data: A dictionary with additional call details
+        :return: json object with response
+        """
         response = self.post(f"/call/{call_type}/{call_id}/event", json=data)
         return response.json()
 
     def send_reaction(self, call_type: str, call_id: str, data):
+        """
+        Sends a reaction for a specific call
+        :param call_type: A string representing the call type
+        :param call_id: A string representing a unique call identifier
+        :param data: A dictionary with additional call details
+        :return: json object with response
+        """
         response = self.post(f"/call/{call_type}/{call_id}/reaction", json=data)
         return response.json()
 
     def start_recording(self, call_type: str, call_id: str):
+        """
+        Starts recording for a specific call
+        :param call_type: A string representing the call type
+        :param call_id: A string representing a unique call identifier
+        :return: json object with response
+        """
         response = self.post(f"/call/{call_type}/{call_id}/start_recording")
         return response.json()
 
     def start_trancription(self, call_type: str, call_id: str):
+        """
+        Starts transcription for a specific call
+        :param call_type: A string representing the call type
+        :param call_id: A string representing a unique call identifier
+        :return: json object with response
+        """
         response = self.post(f"/call/{call_type}/{call_id}/start_transcription")
         return response.json()
 
     def start_broadcasting(self, call_type: str, call_id: str):
+        """
+        Starts broadcasting for a specific call
+        :param call_type: A string representing the call type
+        :param call_id: A string representing a unique call identifier
+        :return: json object with response
+        """
         response = self.post(f"/call/{call_type}/{call_id}/start_broadcasting")
         return response.json()
 
     def stop_recording(self, call_type: str, call_id: str):
+        """
+        Stops recording for a specific call
+        :param call_type: A string representing the call type
+        :param call_id: A string representing a unique call identifier
+        :return: json object with response
+        """
         response = self.post(f"/call/{call_type}/{call_id}/stop_recording")
         return response.json()
 
     def stop_transcription(self, call_type: str, call_id: str):
+        """
+        Stops transcription for a specific call
+        :param call_type: A string representing the call type
+        :param call_id: A string representing a unique call identifier
+        :return: json object with response
+        """
         response = self.post(f"/call/{call_type}/{call_id}/stop_transcription")
         return response.json()
 
     def stop_broadcasting(self, call_type: str, call_id: str):
+        """
+        Stops broadcasting for a specific call
+        :param call_type: A string representing the call type
+        :param call_id: A string representing a unique call identifier
+        :return: json object with response
+        """
         response = self.post(f"/call/{call_type}/{call_id}/stop_broadcasting")
         return response.json()
 
     def stop_live(self, call_type: str, call_id: str):
+        """
+        Stops the live status of a call
+        :param call_type: A string representing the call type
+        :param call_id: A string representing a unique call identifier
+        :return: json object with response
+        """
         response = self.post(f"/call/{call_type}/{call_id}/stop_live")
         return response.json()
 
     def unblock_user(self, call_type: str, call_id: str, data):
+        """
+        Unblocks a user from a specific call
+        :param call_type: A string representing the call type
+        :param call_id: A string representing a unique call identifier
+        :param data: A dictionary with additional call details
+        :return: json object with response
+        """
         response = self.post(f"/call/{call_type}/{call_id}/unblock", json=data)
         return response.json()
 
     def update_call_members(self, call_type: str, call_id: str, members: list = None):
+        """
+        Updates the members of a specific call
+        :param call_type: A string representing the call type
+        :param call_id: A string representing a unique call identifier
+        :param members: A list with the members' details
+        :return: json object with response
+        """
         data = {"update_members": members}
         response = self.put(f"/call/{call_type}/{call_id}/members", json=data)
         return response.json()
 
     def update_call(self, call_type: str, call_id: str, data):
+        """
+        Updates a specific call
+        :param call_type: A string representing the call type
+        :param call_id: A string representing a unique call identifier
+        :param data: A dictionary with additional call details
+        :return: json object with response
+        """
         request_data = {"data": data}
         response = self.put(f"/call/{call_type}/{call_id}", json=request_data)
         return response.json()
 
     def update_user_permissions(self, call_type: str, call_id: str, data):
+        """
+        Updates user permissions for a specific call
+        :param call_type: A string representing the call type
+        :param call_id: A string representing a unique call identifier
+        :param data: A dictionary with additional call details
+        :return: json object with response
+        """
         response = self.put(f"/call/{call_type}/{call_id}/permissions", json=data)
         return response.json()
 
     def get_or_create_call(
         self, call_type: str, call_id: str, data: dict, members: list = None
     ):
+        """
+        Returns a specific call and creates one if it does not exist
+        :param call_type: A string representing the call type
+        :param call_id: A string representing a unique call identifier
+        :param data: A dictionary with additional call details
+        :param members: A list with the call members' details
+        :return: json object with response
+        """
         request_data = {"data": data}
         if members is not None:
             request_data.update({"members": members})
