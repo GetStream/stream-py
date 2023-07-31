@@ -25,7 +25,9 @@ class VideoClient(BaseClient):
                 f"CODE: {code}\n"
                 f"REASON: {message}"
             )
-            raise VideoClientError(error_message)
+            raise VideoClientError(
+                message=error_message, code=code, status_code=status_code
+            )
 
     def call(self, call_type: str, call_id: str):
         return Call(self, call_type, call_id)
