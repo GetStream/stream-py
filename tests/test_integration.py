@@ -145,7 +145,9 @@ def test_get_or_create_call(client):
     calltype_name = "default"
     data = {
         "created_by_id": "sacha@getstream.io",
-        "settings_override": {"audio": {"access_request_enabled": False}},
+        "settings_override": {
+            "audio": {"default_device": "speaker", "access_request_enabled": False}
+        },
     }
     members = [{"role": "speaker", "user_id": "sacha@getstream.io"}]
     response = client.video.get_or_create_call(
