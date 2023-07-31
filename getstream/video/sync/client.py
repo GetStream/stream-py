@@ -1,5 +1,5 @@
 from getstream.sync.base import BaseClient
-from getstream.video.exceptions import VideoCallTypeBadRequest
+from getstream.video.exceptions import VideoCallTypeBadRequest, VideoClientError
 
 
 class VideoClient(BaseClient):
@@ -20,6 +20,23 @@ class VideoClient(BaseClient):
             user_agent=user_agent,
         )
 
+    def _ensure_success_response(self, response, method, url):
+        if not 200 <= response.status_code < 300:
+            error_json = response.json()
+            message = error_json.pop("message", None)
+            code = error_json.pop("code", None)
+            status_code = error_json.pop("StatusCode", None)
+            error_message = (
+                f"Request Failed.\n"
+                f"URL: {url}, METHOD: {method}\n"
+                f"STATUS CODE: {status_code}\n"
+                f"CODE: {code}\n"
+                f"REASON: {message}"
+            )
+            raise VideoClientError(
+                message=error_message, code=code, status_code=status_code
+            )
+
     def call(self, call_type: str, call_id: str):
         """
         Returns instance of Call class
@@ -35,8 +52,8 @@ class VideoClient(BaseClient):
         :return: json object with response
         """
         response = self.get("/edges")
-        json = response.json()
-        return json
+        self._ensure_success_response(response, "GET", "/edges")
+        return response.json()
 
     def get_edge_server(self, call_type: str, call_id: str, data):
         """
@@ -126,37 +143,39 @@ class VideoClient(BaseClient):
         :return: json object with response
         """
         response = self.post("/calls", json=data)
+        self._ensure_success_response(response, "POST", "/calls")
         return response.json()
 
     def block_user(self, call_type: str, call_id: str, data):
         """
-        Blocks user in specific call
-        :param call_type: A string representing the call type
-        :param call_id: A string representing a unique call identifier
-        :param data: A dictionary with additional call details
-        :return: json object with response
+        Blocks user in the call
+        :param data: A dictionary with user details
+        :return: Response from the block user API
         """
-        response = self.post(f"/call/{call_type}/{call_id}/block", json=data)
+        path = f"/call/{call_type}/{call_id}/block"
+        response = self.post(path, json=data)
+        self._ensure_success_response(response, "POST", path)
         return response.json()
 
     def end_call(self, call_type: str, call_id: str):
         """
-        Ends specific call
-        :param call_type: A string representing the call type
-        :param call_id: A string representing a unique call identifier
-        :return: json object with response
+        Ends the call
+        :return: Response from the end call API
         """
-        response = self.post(f"/call/{call_type}/{call_id}/mark_ended")
+        path = f"/call/{call_type}/{call_id}/mark_ended"
+        response = self.post(path)
+        self._ensure_success_response(response, "POST", path)
         return response.json()
 
     def get_call(self, call_type: str, call_id: str):
         """
-        Retrieves specific call
-        :param call_type: A string representing the call type
-        :param call_id: A string representing a unique call identifier
+        Retrieves specific call type
+        :param name: A string representing the name of the call type
         :return: json object with response
         """
-        response = self.get(f"/call/{call_type}/{call_id}")
+        path = f"/call/{call_type}/{call_id}"
+        response = self.get(path)
+        self._ensure_success_response(response, "GET", path)
         return response.json()
 
     def go_live(self, call_type: str, call_id: str):
@@ -166,7 +185,9 @@ class VideoClient(BaseClient):
         :param call_id: A string representing a unique call identifier
         :return: json object with response
         """
-        response = self.post(f"/call/{call_type}/{call_id}/go_live")
+        path = f"/call/{call_type}/{call_id}/go_live"
+        response = self.post(path)
+        self._ensure_success_response(response, "POST", path)
         return response.json()
 
     def join_call(self, call_type: str, call_id: str, data):
@@ -177,7 +198,9 @@ class VideoClient(BaseClient):
         :param data: A dictionary with additional call details
         :return: json object with response
         """
-        response = self.post(f"/call/{call_type}/{call_id}/join", data=data)
+        path = f"/call/{call_type}/{call_id}/join"
+        response = self.post(path, data=data)
+        self._ensure_success_response(response, "POST", path)
         return response.json()
 
     def delete_call_type(self, name: str):
@@ -201,16 +224,14 @@ class VideoClient(BaseClient):
         self, call_type: str, call_id: str, session_id: str, recordingid: str
     ):
         """
-        Deletes specific recording of a call
-        :param call_type: A string representing the call type
-        :param call_id: A string representing a unique call identifier
+        Deletes specific recording of the call
         :param session_id: A string representing a unique session identifier
         :param recordingid: A string representing a unique recording identifier
-        :return: json object with response
+        :return: Response from the delete recording API
         """
-        response = self.delete(
-            f"/call/{call_type}/{call_id}/{session_id}/recordings/{recordingid}"
-        )
+        path = f"/call/{call_type}/{call_id}/{session_id}/recordings/{recordingid}"
+        response = self.delete(path)
+        self._ensure_success_response(response, "DELETE", path)
         return response.json()
 
     def add_device(
@@ -231,6 +252,7 @@ class VideoClient(BaseClient):
         if push_provider_name is not None:
             data.update({"push_provider_name": push_provider_name})
         response = self.post("/devices", json=data)
+        self._ensure_success_response(response, "POST", "/devices")
         return response.json()
 
     def add_voip_device(self, id, push_provider, push_provider_name=None, user_id=None):
@@ -249,6 +271,7 @@ class VideoClient(BaseClient):
         :return: json object with response
         """
         response = self.get("/devices")
+        self._ensure_success_response(response, "GET", "/devices")
         return response.json()
 
     def remove_device(self, data):
@@ -258,6 +281,7 @@ class VideoClient(BaseClient):
         :return: json object with response
         """
         response = self.delete("/devices", json=data)
+        self._ensure_success_response(response, "DELETE", "/devices")
         return response.json()
 
     def query_recordings(self, call_type: str, call_id: str, session_id: str = None):
@@ -268,9 +292,11 @@ class VideoClient(BaseClient):
         :param session_id: A string representing a unique session identifier
         :return: json object with response
         """
+        path = f"/call/{call_type}/{call_id}/recordings"
         if session_id is None:
-            response = self.get(f"/call/{call_type}/{call_id}/recordings")
-        response = self.get(f"/call/{call_type}/{call_id}/{session_id}/recordings")
+            path = f"/call/{call_type}/{call_id}/{session_id}/recordings"
+            response = self.get(path)
+        self._ensure_success_response(response, "GET", path)
         return response.json()
 
     def mute_users(self, call_type: str, call_id: str, data):
@@ -281,7 +307,9 @@ class VideoClient(BaseClient):
         :param data: A dictionary with additional call details
         :return: json object with response
         """
-        response = self.post(f"/call/{call_type}/{call_id}/mute_users", data=data)
+        path = f"/call/{call_type}/{call_id}/mute_users"
+        response = self.post(path, data=data)
+        self._ensure_success_response(response, "POST", path)
         return response.json()
 
     def query_members(self, call_type: str, call_id: str, data):
@@ -292,7 +320,9 @@ class VideoClient(BaseClient):
         :param data: A dictionary with additional call details
         :return: json object with response
         """
-        response = self.post(f"/call/{call_type}/{call_id}/members", json=data)
+        path = f"/call/{call_type}/{call_id}/members"
+        response = self.post(path, json=data)
+        self._ensure_success_response(response, "POST", path)
         return response.json()
 
     def request_permissions(self, call_type: str, call_id: str, data):
@@ -303,9 +333,9 @@ class VideoClient(BaseClient):
         :param data: A dictionary with additional call details
         :return: json object with response
         """
-        response = self.post(
-            f"/call/{call_type}/{call_id}/request_permission", json=data
-        )
+        path = f"/call/{call_type}/{call_id}/request_permission"
+        response = self.post(path, json=data)
+        self._ensure_success_response(response, "POST", path)
         return response.json()
 
     def send_custom_event(self, call_type: str, call_id: str, data):
@@ -316,7 +346,9 @@ class VideoClient(BaseClient):
         :param data: A dictionary with additional call details
         :return: json object with response
         """
-        response = self.post(f"/call/{call_type}/{call_id}/event", json=data)
+        path = f"/call/{call_type}/{call_id}/event"
+        response = self.post(path, json=data)
+        self._ensure_success_response(response, "POST", path)
         return response.json()
 
     def send_reaction(self, call_type: str, call_id: str, data):
@@ -327,7 +359,9 @@ class VideoClient(BaseClient):
         :param data: A dictionary with additional call details
         :return: json object with response
         """
-        response = self.post(f"/call/{call_type}/{call_id}/reaction", json=data)
+        path = f"/call/{call_type}/{call_id}/reaction"
+        response = self.post(path, json=data)
+        self._ensure_success_response(response, "POST", path)
         return response.json()
 
     def start_recording(self, call_type: str, call_id: str):
@@ -337,7 +371,9 @@ class VideoClient(BaseClient):
         :param call_id: A string representing a unique call identifier
         :return: json object with response
         """
-        response = self.post(f"/call/{call_type}/{call_id}/start_recording")
+        path = f"/call/{call_type}/{call_id}/start_recording"
+        response = self.post(path)
+        self._ensure_success_response(response, "POST", path)
         return response.json()
 
     def start_trancription(self, call_type: str, call_id: str):
@@ -347,7 +383,9 @@ class VideoClient(BaseClient):
         :param call_id: A string representing a unique call identifier
         :return: json object with response
         """
-        response = self.post(f"/call/{call_type}/{call_id}/start_transcription")
+        path = f"/call/{call_type}/{call_id}/start_transcription"
+        response = self.post(path)
+        self._ensure_success_response(response, "POST", path)
         return response.json()
 
     def start_broadcasting(self, call_type: str, call_id: str):
@@ -357,7 +395,9 @@ class VideoClient(BaseClient):
         :param call_id: A string representing a unique call identifier
         :return: json object with response
         """
-        response = self.post(f"/call/{call_type}/{call_id}/start_broadcasting")
+        path = f"/call/{call_type}/{call_id}/start_broadcasting"
+        response = self.post(path)
+        self._ensure_success_response(response, "POST", path)
         return response.json()
 
     def stop_recording(self, call_type: str, call_id: str):
@@ -367,7 +407,9 @@ class VideoClient(BaseClient):
         :param call_id: A string representing a unique call identifier
         :return: json object with response
         """
-        response = self.post(f"/call/{call_type}/{call_id}/stop_recording")
+        path = f"/call/{call_type}/{call_id}/stop_recording"
+        response = self.post(path)
+        self._ensure_success_response(response, "POST", path)
         return response.json()
 
     def stop_transcription(self, call_type: str, call_id: str):
@@ -377,7 +419,9 @@ class VideoClient(BaseClient):
         :param call_id: A string representing a unique call identifier
         :return: json object with response
         """
-        response = self.post(f"/call/{call_type}/{call_id}/stop_transcription")
+        path = f"/call/{call_type}/{call_id}/stop_transcription"
+        response = self.post(path)
+        self._ensure_success_response(response, "POST", path)
         return response.json()
 
     def stop_broadcasting(self, call_type: str, call_id: str):
@@ -387,7 +431,9 @@ class VideoClient(BaseClient):
         :param call_id: A string representing a unique call identifier
         :return: json object with response
         """
-        response = self.post(f"/call/{call_type}/{call_id}/stop_broadcasting")
+        path = f"/call/{call_type}/{call_id}/stop_broadcasting"
+        response = self.post(path)
+        self._ensure_success_response(response, "POST", path)
         return response.json()
 
     def stop_live(self, call_type: str, call_id: str):
@@ -397,7 +443,9 @@ class VideoClient(BaseClient):
         :param call_id: A string representing a unique call identifier
         :return: json object with response
         """
-        response = self.post(f"/call/{call_type}/{call_id}/stop_live")
+        path = f"/call/{call_type}/{call_id}/stop_live"
+        response = self.post(path)
+        self._ensure_success_response(response, "POST", path)
         return response.json()
 
     def unblock_user(self, call_type: str, call_id: str, data):
@@ -408,7 +456,9 @@ class VideoClient(BaseClient):
         :param data: A dictionary with additional call details
         :return: json object with response
         """
-        response = self.post(f"/call/{call_type}/{call_id}/unblock", json=data)
+        path = f"/call/{call_type}/{call_id}/unblock"
+        response = self.post(path, json=data)
+        self._ensure_success_response(response, "POST", path)
         return response.json()
 
     def update_call_members(self, call_type: str, call_id: str, members: list = None):
@@ -420,7 +470,9 @@ class VideoClient(BaseClient):
         :return: json object with response
         """
         data = {"update_members": members}
-        response = self.put(f"/call/{call_type}/{call_id}/members", json=data)
+        path = f"/call/{call_type}/{call_id}/members"
+        response = self.put(path, json=data)
+        self._ensure_success_response(response, "PUT", path)
         return response.json()
 
     def update_call(self, call_type: str, call_id: str, data):
@@ -432,7 +484,9 @@ class VideoClient(BaseClient):
         :return: json object with response
         """
         request_data = {"data": data}
-        response = self.put(f"/call/{call_type}/{call_id}", json=request_data)
+        path = f"/call/{call_type}/{call_id}"
+        response = self.put(path, json=request_data)
+        self._ensure_success_response(response, "PUT", path)
         return response.json()
 
     def update_user_permissions(self, call_type: str, call_id: str, data):
@@ -443,7 +497,9 @@ class VideoClient(BaseClient):
         :param data: A dictionary with additional call details
         :return: json object with response
         """
-        response = self.put(f"/call/{call_type}/{call_id}/permissions", json=data)
+        path = f"/call/{call_type}/{call_id}/permissions"
+        response = self.put(path, json=data)
+        self._ensure_success_response(response, "PUT", path)
         return response.json()
 
     def get_or_create_call(
@@ -460,7 +516,9 @@ class VideoClient(BaseClient):
         request_data = {"data": data}
         if members is not None:
             request_data.update({"members": members})
-        response = self.post(f"/call/{call_type}/{call_id}", json=request_data)
+        path = f"/call/{call_type}/{call_id}"
+        response = self.post(path, json=request_data)
+        self._ensure_success_response(response, "POST", path)
         return response.json()
 
 
