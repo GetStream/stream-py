@@ -19,11 +19,11 @@ class VideoClient(BaseClient):
             code = error_json.pop("code", None)
             status_code = error_json.pop("StatusCode", None)
             error_message = (
-                f'Request Failed.\n'
-                f'URL: {url}, METHOD: {method}\n'
-                f'STATUS CODE: {status_code}\n'
-                f'CODE: {code}\n'
-                f'REASON: {message}'
+                f"Request Failed.\n"
+                f"URL: {url}, METHOD: {method}\n"
+                f"STATUS CODE: {status_code}\n"
+                f"CODE: {code}\n"
+                f"REASON: {message}"
             )
             raise VideoClientError(error_message)
 
@@ -32,7 +32,7 @@ class VideoClient(BaseClient):
 
     def edges(self):
         response = self.get("/edges")
-        self._ensure_success_response(response, 'GET', '/edges')
+        self._ensure_success_response(response, "GET", "/edges")
         return response.json()
 
     def get_edge_server(self, call_type: str, call_id: str, data):
@@ -91,37 +91,37 @@ class VideoClient(BaseClient):
 
     def query_calls(self, data):
         response = self.post("/calls", json=data)
-        self._ensure_success_response(response, 'POST', '/calls')
+        self._ensure_success_response(response, "POST", "/calls")
         return response.json()
 
     def block_user(self, call_type: str, call_id: str, data):
         path = f"/call/{call_type}/{call_id}/block"
         response = self.post(path, json=data)
-        self._ensure_success_response(response, 'POST', path)
+        self._ensure_success_response(response, "POST", path)
         return response.json()
 
     def end_call(self, call_type: str, call_id: str):
         path = f"/call/{call_type}/{call_id}/mark_ended"
         response = self.post(path)
-        self._ensure_success_response(response, 'POST', path)
+        self._ensure_success_response(response, "POST", path)
         return response.json()
 
     def get_call(self, call_type: str, call_id: str):
         path = f"/call/{call_type}/{call_id}"
         response = self.get(path)
-        self._ensure_success_response(response, 'GET', path)
+        self._ensure_success_response(response, "GET", path)
         return response.json()
 
     def go_live(self, call_type: str, call_id: str):
         path = f"/call/{call_type}/{call_id}/go_live"
         response = self.post(path)
-        self._ensure_success_response(response, 'POST', path)
+        self._ensure_success_response(response, "POST", path)
         return response.json()
 
     def join_call(self, call_type: str, call_id: str, data):
         path = f"/call/{call_type}/{call_id}/join"
         response = self.post(path, data=data)
-        self._ensure_success_response(response, 'POST', path)
+        self._ensure_success_response(response, "POST", path)
         return response.json()
 
     def delete_call_type(self, name: str):
@@ -140,10 +140,8 @@ class VideoClient(BaseClient):
         self, call_type: str, call_id: str, session_id: str, recordingid: str
     ):
         path = f"/call/{call_type}/{call_id}/{session_id}/recordings/{recordingid}"
-        response = self.delete(
-            path
-        )
-        self._ensure_success_response(response, 'DELETE', path)
+        response = self.delete(path)
+        self._ensure_success_response(response, "DELETE", path)
         return response.json()
 
     def add_device(
@@ -155,7 +153,7 @@ class VideoClient(BaseClient):
         if push_provider_name is not None:
             data.update({"push_provider_name": push_provider_name})
         response = self.post("/devices", json=data)
-        self._ensure_success_response(response, 'POST', '/devices')
+        self._ensure_success_response(response, "POST", "/devices")
         return response.json()
 
     def add_voip_device(self, id, push_provider, push_provider_name=None, user_id=None):
@@ -163,12 +161,12 @@ class VideoClient(BaseClient):
 
     def get_devices(self):
         response = self.get("/devices")
-        self._ensure_success_response(response, 'GET', '/devices')
+        self._ensure_success_response(response, "GET", "/devices")
         return response.json()
 
     def remove_device(self, data):
         response = self.delete("/devices", json=data)
-        self._ensure_success_response(response, 'DELETE', '/devices')
+        self._ensure_success_response(response, "DELETE", "/devices")
         return response.json()
 
     def query_recordings(self, call_type: str, call_id: str, session_id: str = None):
@@ -176,107 +174,105 @@ class VideoClient(BaseClient):
         if session_id is None:
             path = f"/call/{call_type}/{call_id}/{session_id}/recordings"
             response = self.get(path)
-        self._ensure_success_response(response, 'GET', path)
+        self._ensure_success_response(response, "GET", path)
         return response.json()
 
     def mute_users(self, call_type: str, call_id: str, data):
         path = f"/call/{call_type}/{call_id}/mute_users"
         response = self.post(path, data=data)
-        self._ensure_success_response(response, 'POST', path)
+        self._ensure_success_response(response, "POST", path)
         return response.json()
 
     def query_members(self, call_type: str, call_id: str, data):
         path = f"/call/{call_type}/{call_id}/members"
         response = self.post(path, json=data)
-        self._ensure_success_response(response, 'POST', path)
+        self._ensure_success_response(response, "POST", path)
         return response.json()
 
     def request_permissions(self, call_type: str, call_id: str, data):
         path = f"/call/{call_type}/{call_id}/request_permission"
-        response = self.post(
-            path, json=data
-        )
-        self._ensure_success_response(response, 'POST', path)
+        response = self.post(path, json=data)
+        self._ensure_success_response(response, "POST", path)
         return response.json()
 
     def send_custom_event(self, call_type: str, call_id: str, data):
         path = f"/call/{call_type}/{call_id}/event"
         response = self.post(path, json=data)
-        self._ensure_success_response(response, 'POST', path)
+        self._ensure_success_response(response, "POST", path)
         return response.json()
 
     def send_reaction(self, call_type: str, call_id: str, data):
         path = f"/call/{call_type}/{call_id}/reaction"
         response = self.post(path, json=data)
-        self._ensure_success_response(response, 'POST', path)
+        self._ensure_success_response(response, "POST", path)
         return response.json()
 
     def start_recording(self, call_type: str, call_id: str):
         path = f"/call/{call_type}/{call_id}/start_recording"
         response = self.post(path)
-        self._ensure_success_response(response, 'POST', path)
+        self._ensure_success_response(response, "POST", path)
         return response.json()
 
     def start_trancription(self, call_type: str, call_id: str):
         path = f"/call/{call_type}/{call_id}/start_transcription"
         response = self.post(path)
-        self._ensure_success_response(response, 'POST', path)
+        self._ensure_success_response(response, "POST", path)
         return response.json()
 
     def start_broadcasting(self, call_type: str, call_id: str):
         path = f"/call/{call_type}/{call_id}/start_broadcasting"
         response = self.post(path)
-        self._ensure_success_response(response, 'POST', path)
+        self._ensure_success_response(response, "POST", path)
         return response.json()
 
     def stop_recording(self, call_type: str, call_id: str):
         path = f"/call/{call_type}/{call_id}/stop_recording"
         response = self.post(path)
-        self._ensure_success_response(response, 'POST', path)
+        self._ensure_success_response(response, "POST", path)
         return response.json()
 
     def stop_transcription(self, call_type: str, call_id: str):
         path = f"/call/{call_type}/{call_id}/stop_transcription"
         response = self.post(path)
-        self._ensure_success_response(response, 'POST', path)
+        self._ensure_success_response(response, "POST", path)
         return response.json()
 
     def stop_broadcasting(self, call_type: str, call_id: str):
         path = f"/call/{call_type}/{call_id}/stop_broadcasting"
         response = self.post(path)
-        self._ensure_success_response(response, 'POST', path)
+        self._ensure_success_response(response, "POST", path)
         return response.json()
 
     def stop_live(self, call_type: str, call_id: str):
         path = f"/call/{call_type}/{call_id}/stop_live"
         response = self.post(path)
-        self._ensure_success_response(response, 'POST', path)
+        self._ensure_success_response(response, "POST", path)
         return response.json()
 
     def unblock_user(self, call_type: str, call_id: str, data):
         path = f"/call/{call_type}/{call_id}/unblock"
         response = self.post(path, json=data)
-        self._ensure_success_response(response, 'POST', path)
+        self._ensure_success_response(response, "POST", path)
         return response.json()
 
     def update_call_members(self, call_type: str, call_id: str, members: list = None):
         data = {"update_members": members}
         path = f"/call/{call_type}/{call_id}/members"
         response = self.put(path, json=data)
-        self._ensure_success_response(response, 'PUT', path)
+        self._ensure_success_response(response, "PUT", path)
         return response.json()
 
     def update_call(self, call_type: str, call_id: str, data):
         request_data = {"data": data}
         path = f"/call/{call_type}/{call_id}"
         response = self.put(path, json=request_data)
-        self._ensure_success_response(response, 'PUT', path)
+        self._ensure_success_response(response, "PUT", path)
         return response.json()
 
     def update_user_permissions(self, call_type: str, call_id: str, data):
         path = f"/call/{call_type}/{call_id}/permissions"
         response = self.put(path, json=data)
-        self._ensure_success_response(response, 'PUT', path)
+        self._ensure_success_response(response, "PUT", path)
         return response.json()
 
     def get_or_create_call(
