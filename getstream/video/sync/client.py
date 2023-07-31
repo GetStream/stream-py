@@ -19,14 +19,14 @@ class VideoClient(BaseClient):
             code = error_json.pop("code", None)
             status_code = error_json.pop("StatusCode", None)
             error_message = (
-            f'Request Failed.\n'
-            f'URL: {url}, METHOD: {method}\n'
-            f'STATUS CODE: {status_code}\n'
-            f'CODE: {code}\n'
-            f'REASON: {message}'
+                f'Request Failed.\n'
+                f'URL: {url}, METHOD: {method}\n'
+                f'STATUS CODE: {status_code}\n'
+                f'CODE: {code}\n'
+                f'REASON: {message}'
             )
             raise VideoClientError(error_message)
-            
+
     def call(self, call_type: str, call_id: str):
         return Call(self, call_type, call_id)
 
@@ -34,7 +34,7 @@ class VideoClient(BaseClient):
         response = self.get("/edges")
         self._ensure_success_response(response, 'GET', '/edges')
         return response.json()
-    
+
     def get_edge_server(self, call_type: str, call_id: str, data):
         response = self.get(f"/calls/{call_type}/{call_id}/get_edge_server", json=data)
         json = response.json()
@@ -141,7 +141,7 @@ class VideoClient(BaseClient):
     ):
         path = f"/call/{call_type}/{call_id}/{session_id}/recordings/{recordingid}"
         response = self.delete(
-           path
+            path
         )
         self._ensure_success_response(response, 'DELETE', path)
         return response.json()
