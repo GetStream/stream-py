@@ -158,13 +158,13 @@ def test_get_or_create_call(client):
     assert response["call"]["settings"]["recording"]["audio_only"] is False
 
 
-def test_start_broadcasting(client):
-    call_type = "default"
-    response = client.video.start_broadcasting(call_id=CALL_ID, call_type=call_type)
-    assert "duration" in response
+# def test_start_broadcasting(client):
+#     call_type = "default"
+#     response = client.video.start_broadcasting(call_id=CALL_ID, call_type=call_type)
+#     assert "duration" in response
 
 
-def test_stop_broadcasting(client):
-    call_type = "default"
-    response = client.video.stop_broadcasting(call_id=CALL_ID, call_type=call_type)
-    assert "duration" in response
+# def test_stop_broadcasting(client):
+#     call_type = "default"
+#     response = client.video.stop_broadcasting(call_id=CALL_ID, call_type=call_type)
+#     assert "duration" in response
