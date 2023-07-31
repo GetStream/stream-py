@@ -283,7 +283,9 @@ class VideoClient(BaseClient):
         request_data = {"data": data}
         if members is not None:
             request_data.update({"members": members})
-        response = self.post(f"/call/{call_type}/{call_id}", json=request_data)
+        path = f"/call/{call_type}/{call_id}"
+        response = self.post(path, json=request_data)
+        self._ensure_success_response(response, "POST", path)
         return response.json()
 
 
