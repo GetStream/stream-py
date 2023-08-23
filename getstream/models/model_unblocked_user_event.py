@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Any
 from datetime import datetime
 
 from models.model_call_notification_event import UserResponse

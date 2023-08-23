@@ -1,37 +1,76 @@
 from dataclasses import dataclass
 from typing import Optional
+from models.model_blocked_user_event import BlockedUserEvent
+from models.model_unblocked_user_event import UnblockedUserEvent
+from models.model_call_accepted_event import CallAcceptedEvent
+from models.model_call_broadcasting_started_event import CallBroadcastingStartedEvent
+from models.model_call_broadcasting_stopped_event import CallBroadcastingStoppedEvent
+from models.model_call_created_event import CallCreatedEvent
+from models.model_call_ended_event import CallEndedEvent
+from models.model_call_live_started_event import CallLiveStartedEvent
+from models.model_call_member_added_event import CallMemberAddedEvent
+from models.model_call_member_removed_event import CallMemberRemovedEvent
+from models.model_call_member_updated_event import CallMemberUpdatedEvent
+from models.model_call_member_updated_permission_event import (
+    CallMemberUpdatedPermissionEvent,
+)
+from models.model_call_notification_event import CallNotificationEvent
+from models.model_call_reaction_event import CallReactionEvent
+from models.model_call_recording_started_event import CallRecordingStartedEvent
+from models.model_call_recording_stopped_event import CallRecordingStoppedEvent
+from models.model_call_rejected_event import CallRejectedEvent
+from models.model_call_ring_event import CallRingEvent
+from models.model_call_session_ended_event import CallSessionEndedEvent
+from models.model_call_session_participant_joined_event import (
+    CallSessionParticipantJoinedEvent,
+)
+from models.model_call_session_participant_left_event import (
+    CallSessionParticipantLeftEvent,
+)
+from models.model_call_session_started_event import CallSessionStartedEvent
+from models.model_call_updated_event import CallUpdatedEvent
+from models.model_connected_event import ConnectedEvent
+from models.model_connection_error_event import ConnectionErrorEvent
+from models.model_custom_video_event import CustomVideoEvent
+from models.model_health_check_event import HealthCheckEvent
+from models.model_permission_request_event import PermissionRequestEvent
+from models.model_updated_call_permissions_event import UpdatedCallPermissionsEvent
 
 
 @dataclass
 class VideoEvent:
-    BlockedUserEvent: Optional[BlockedUserEvent] = None
-    CallAcceptedEvent: Optional[CallAcceptedEvent] = None
-    CallBroadcastingStartedEvent: Optional[CallBroadcastingStartedEvent] = None
-    CallBroadcastingStoppedEvent: Optional[CallBroadcastingStoppedEvent] = None
-    CallCreatedEvent: Optional[CallCreatedEvent] = None
-    CallEndedEvent: Optional[CallEndedEvent] = None
-    CallLiveStartedEvent: Optional[CallLiveStartedEvent] = None
-    CallMemberAddedEvent: Optional[CallMemberAddedEvent] = None
-    CallMemberRemovedEvent: Optional[CallMemberRemovedEvent] = None
-    CallMemberUpdatedEvent: Optional[CallMemberUpdatedEvent] = None
-    CallMemberUpdatedPermissionEvent: Optional[CallMemberUpdatedPermissionEvent] = None
-    CallNotificationEvent: Optional[CallNotificationEvent] = None
-    CallReactionEvent: Optional[CallReactionEvent] = None
-    CallRecordingStartedEvent: Optional[CallRecordingStartedEvent] = None
-    CallRecordingStoppedEvent: Optional[CallRecordingStoppedEvent] = None
-    CallRejectedEvent: Optional[CallRejectedEvent] = None
-    CallRingEvent: Optional[CallRingEvent] = None
-    CallSessionEndedEvent: Optional[CallSessionEndedEvent] = None
-    CallSessionParticipantJoinedEvent: Optional[
+    blocked_user_event: Optional[BlockedUserEvent] = None
+    call_accepted_event: Optional[CallAcceptedEvent] = None
+    call_broadcasting_started_event: Optional[CallBroadcastingStartedEvent] = None
+    call_broadcasting_stopped_event: Optional[CallBroadcastingStoppedEvent] = None
+    call_created_event: Optional[CallCreatedEvent] = None
+    call_ended_event: Optional[CallEndedEvent] = None
+    call_live_started_event: Optional[CallLiveStartedEvent] = None
+    call_member_added_event: Optional[CallMemberAddedEvent] = None
+    call_member_removed_event: Optional[CallMemberRemovedEvent] = None
+    call_member_updated_event: Optional[CallMemberUpdatedEvent] = None
+    call_member_updated_permission_event: Optional[
+        CallMemberUpdatedPermissionEvent
+    ] = None
+    call_notification_event: Optional[CallNotificationEvent] = None
+    call_reaction_event: Optional[CallReactionEvent] = None
+    call_recording_started_event: Optional[CallRecordingStartedEvent] = None
+    call_recording_stopped_event: Optional[CallRecordingStoppedEvent] = None
+    call_rejected_event: Optional[CallRejectedEvent] = None
+    call_ring_event: Optional[CallRingEvent] = None
+    call_session_ended_event: Optional[CallSessionEndedEvent] = None
+    call_session_participant_joined_event: Optional[
         CallSessionParticipantJoinedEvent
     ] = None
-    CallSessionParticipantLeftEvent: Optional[CallSessionParticipantLeftEvent] = None
-    CallSessionStartedEvent: Optional[CallSessionStartedEvent] = None
-    CallUpdatedEvent: Optional[CallUpdatedEvent] = None
-    ConnectedEvent: Optional[ConnectedEvent] = None
-    ConnectionErrorEvent: Optional[ConnectionErrorEvent] = None
-    CustomVideoEvent: Optional[CustomVideoEvent] = None
-    HealthCheckEvent: Optional[HealthCheckEvent] = None
-    PermissionRequestEvent: Optional[PermissionRequestEvent] = None
-    UnblockedUserEvent: Optional[UnblockedUserEvent] = None
-    UpdatedCallPermissionsEvent: Optional[UpdatedCallPermissionsEvent] = None
+    call_session_participant_left_event: Optional[
+        CallSessionParticipantLeftEvent
+    ] = None
+    call_session_started_event: Optional[CallSessionStartedEvent] = None
+    call_updated_event: Optional[CallUpdatedEvent] = None
+    connected_event: Optional[ConnectedEvent] = None
+    connection_error_event: Optional[ConnectionErrorEvent] = None
+    custom_video_event: Optional[CustomVideoEvent] = None
+    health_check_event: Optional[HealthCheckEvent] = None
+    permission_request_event: Optional[PermissionRequestEvent] = None
+    unblocked_user_event: Optional[UnblockedUserEvent] = None
+    updated_call_permissions_event: Optional[UpdatedCallPermissionsEvent] = None

@@ -7,5 +7,5 @@ from typing import Optional
 class ConnectionErrorEvent:
     connection_id: str
     created_at: datetime
-    error: NullableAPIError
+    error: Optional[str] = None
     type: str
