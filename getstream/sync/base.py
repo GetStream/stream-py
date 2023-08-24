@@ -1,3 +1,7 @@
+import json
+from typing import Any, Dict, Optional
+from getstream.stream_response import T, StreamResponse
+from getstream.video.exceptions import StreamAPIException
 import httpx
 from getstream.config import BaseConfig
 
@@ -33,17 +37,57 @@ class BaseClient(BaseConfig):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
 
-    def get(self, path, *args, **kwargs):
-        return self.client.get(path, *args, **kwargs)
+    def _parse_response(
+        self, response: httpx.Response, data_type: type[T]
+    ) -> StreamResponse[T]:
+        try:
+            parsed_result = json.loads(response.text) if response.text else {}
 
-    def post(self, path, *args, **kwargs):
-        return self.client.post(path, *args, **kwargs)
+            if hasattr(data_type, "from_dict"):
+                data = data_type.from_dict(parsed_result)
+            else:
+                raise AttributeError(f"{data_type.__name__} has no 'from_dict' method")
 
-    def put(self, path, *args, **kwargs):
-        return self.client.put(path, *args, **kwargs)
+        except ValueError:
+            raise StreamAPIException(response.text, response.status_code)
+        if response.status_code >= 399:
+            raise StreamAPIException(response.text, response.status_code)
 
-    def delete(self, path, *args, **kwargs):
-        return self.client.delete(path, *args, **kwargs)
+        return StreamResponse(response, data)
+
+    def get(
+        self, path, data_type: Optional[type[T]] = None, *args, **kwargs
+    ) -> StreamResponse[T]:
+        response = self.client.get(path, *args, **kwargs)
+        return self._parse_response(response, data_type or Dict[str, Any])
+
+    def post(
+        self,
+        path,
+        data: Dict[str, Any],
+        data_type: Optional[type[T]] = None,
+        *args,
+        **kwargs,
+    ) -> StreamResponse[T]:
+        response = self.client.post(path, json=data, *args, **kwargs)
+        return self._parse_response(response, data_type or Dict[str, Any])
+
+    def put(
+        self,
+        path,
+        data: Dict[str, Any],
+        data_type: Optional[type[T]] = None,
+        *args,
+        **kwargs,
+    ) -> StreamResponse[T]:
+        response = self.client.put(path, json=data, *args, **kwargs)
+        return self._parse_response(response, data_type or Dict[str, Any])
+
+    def delete(
+        self, path, data_type: Optional[type[T]] = None, *args, **kwargs
+    ) -> StreamResponse[T]:
+        response = self.client.delete(path, *args, **kwargs)
+        return self._parse_response(response, data_type or Dict[str, Any])
 
     def close(self):
         self.client.close()
