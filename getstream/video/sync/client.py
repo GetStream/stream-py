@@ -54,7 +54,6 @@ from getstream.models.model_update_user_permissions_response import (
 )
 from getstream.stream_response import StreamResponse
 from getstream.sync.base import BaseClient
-from getstream.video.exceptions import VideoCallTypeBadRequest, VideoClientError
 
 
 class VideoClient(BaseClient):
