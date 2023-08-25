@@ -65,7 +65,6 @@ class BaseClient(BaseConfig):
     def post(
         self,
         path,
-        json: Dict[str, Any],
         data_type: Optional[Type[T]] = None,
         *args,
         **kwargs,
@@ -76,12 +75,11 @@ class BaseClient(BaseConfig):
     def put(
         self,
         path,
-        json: Dict[str, Any],
         data_type: Optional[Type[T]] = None,
         *args,
         **kwargs,
     ) -> StreamResponse[T]:
-        response = self.client.put(path, json=json, *args, **kwargs)
+        response = self.client.put(path, *args, **kwargs)
         return self._parse_response(response, data_type or Dict[str, Any])
 
     def delete(
