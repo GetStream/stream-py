@@ -69,7 +69,7 @@ class BaseClient(BaseConfig):
         *args,
         **kwargs,
     ) -> StreamResponse[T]:
-        response = self.client.post(path, json=json, *args, **kwargs)
+        response = self.client.post(path, *args, **kwargs)
         return self._parse_response(response, data_type or Dict[str, Any])
 
     def put(
