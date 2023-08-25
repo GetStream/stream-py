@@ -33,3 +33,7 @@ class CallResponse:
     starts_at: Optional[datetime.datetime]
     team: Optional[str]
     ended_at: Optional[datetime.datetime]
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "CallResponse":
+        return cls(**data)

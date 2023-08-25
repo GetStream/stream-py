@@ -23,3 +23,7 @@ class CallSettingsResponse:
     screensharing: ScreensharingSettings
     transcription: TranscriptionSettings
     video: VideoSettings
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "CallSettingsResponse":
+        return cls(**data)

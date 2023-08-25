@@ -9,3 +9,7 @@ class AudioSettings:
     opus_dtx_enabled: bool
     redundant_coding_enabled: bool
     speaker_default_on: bool
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "AudioSettings":
+        return cls(**data)
