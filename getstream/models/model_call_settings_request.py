@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional
+from typing import List, Optional
 
 from .model_audio_settings_request import AudioSettingsRequest
 from .model_backstage_settings_request import BackstageSettingsRequest
@@ -24,3 +24,5 @@ class CallSettingsRequest:
     transcription: Optional[TranscriptionSettingsRequest] = None
     video: Optional[VideoSettingsRequest] = None
     auto_on: Optional[bool] = None
+    enabled: Optional[bool] = None
+    quality_tracks: Optional[List[str]] = None
