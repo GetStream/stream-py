@@ -41,18 +41,23 @@ class BaseClient(BaseConfig):
     def _parse_response(
         self, response: httpx.Response, data_type: Type[T]
     ) -> StreamResponse[T]:
+        if response.status_code >= 399:
+            raise StreamAPIException(
+                f"Response resulted in status code {response.status_code}, body: {response.text}"
+            )
+
         try:
             parsed_result = json.loads(response.text) if response.text else {}
 
-            if hasattr(data_type, "from_dict"):
+            if callable(getattr(data_type, "from_dict", None)):
                 data = data_type.from_dict(parsed_result)
             else:
                 raise AttributeError(f"{data_type.__name__} has no 'from_dict' method")
 
         except ValueError:
-            raise StreamAPIException(response.text, response.status_code)
-        if response.status_code >= 399:
-            raise StreamAPIException(response.text, response.status_code)
+            raise StreamAPIException(
+                f"Invalid JSON, original response: {response.text}"
+            )
 
         return StreamResponse(response, data)
 
