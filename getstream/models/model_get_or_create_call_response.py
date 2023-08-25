@@ -18,4 +18,5 @@ class GetOrCreateCallResponse:
 
     @classmethod
     def from_dict(cls, data: dict) -> "GetOrCreateCallResponse":
+        data["call"] = CallResponse.from_dict(data["call"])
         return cls(**data)
