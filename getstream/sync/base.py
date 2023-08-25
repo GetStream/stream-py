@@ -57,7 +57,7 @@ class BaseClient(BaseConfig):
         return StreamResponse(response, data)
 
     def get(
-        self, path, data_type: Optional[type[T]] = None, *args, **kwargs
+        self, path, data_type: Optional[Type[T]] = None, *args, **kwargs
     ) -> StreamResponse[T]:
         response = self.client.get(path, *args, **kwargs)
         return self._parse_response(response, data_type or Dict[str, Any])
@@ -66,7 +66,7 @@ class BaseClient(BaseConfig):
         self,
         path,
         data: Dict[str, Any],
-        data_type: Optional[type[T]] = None,
+        data_type: Optional[Type[T]] = None,
         *args,
         **kwargs,
     ) -> StreamResponse[T]:
@@ -77,7 +77,7 @@ class BaseClient(BaseConfig):
         self,
         path,
         data: Dict[str, Any],
-        data_type: Optional[type[T]] = None,
+        data_type: Optional[Type[T]] = None,
         *args,
         **kwargs,
     ) -> StreamResponse[T]:
@@ -85,7 +85,7 @@ class BaseClient(BaseConfig):
         return self._parse_response(response, data_type or Dict[str, Any])
 
     def delete(
-        self, path, data_type: Optional[type[T]] = None, *args, **kwargs
+        self, path, data_type: Optional[Type[T]] = None, *args, **kwargs
     ) -> StreamResponse[T]:
         response = self.client.delete(path, *args, **kwargs)
         return self._parse_response(response, data_type or Dict[str, Any])
