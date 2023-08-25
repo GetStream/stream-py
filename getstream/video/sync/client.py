@@ -552,9 +552,9 @@ class VideoClient(BaseClient):
         :param members: A list with the call members' details
         :return: json object with response
         """
-        request_data = {"data": data}
+        request_data = {"data": asdict(data)}
         if members is not None:
-            request_data.update({"members": members})
+            request_data.update({"members": asdict(members)})
         path = f"/call/{call_type}/{call_id}"
         response = self.post(path, GetOrCreateCallResponse, json=request_data)
 
