@@ -4,6 +4,6 @@ from typing import Optional, Dict, Any
 
 @dataclass
 class MemberRequest:
-    custom: Optional[Dict[str, Any]]
-    role: Optional[str]
+    custom: Optional[Dict[str, Any]] = None
+    role: Optional[str] = None
     user_id: str
