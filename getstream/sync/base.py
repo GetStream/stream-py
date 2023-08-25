@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Type
 from getstream.stream_response import StreamResponse
 from getstream.generic import T
 from getstream.video.exceptions import StreamAPIException
@@ -39,7 +39,7 @@ class BaseClient(BaseConfig):
         self.close()
 
     def _parse_response(
-        self, response: httpx.Response, data_type: type[T]
+        self, response: httpx.Response, data_type: Type[T]
     ) -> StreamResponse[T]:
         try:
             parsed_result = json.loads(response.text) if response.text else {}
