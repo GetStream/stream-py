@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Any, Optional, TypeVar, Generic
+from typing import Any, Optional, Generic
 import typing
 
 import httpx
