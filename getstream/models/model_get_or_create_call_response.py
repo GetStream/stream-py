@@ -15,3 +15,7 @@ class GetOrCreateCallResponse:
     members: List[MemberResponse]
     membership: Optional[MemberResponse]
     own_capabilities: List[OwnCapability]
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "GetOrCreateCallResponse":
+        return cls(**data)
