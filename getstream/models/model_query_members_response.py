@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import List, Optional
 
-from models.model_call_notification_event import MemberResponse
+from .model_call_notification_event import MemberResponse
 
 
 @dataclass

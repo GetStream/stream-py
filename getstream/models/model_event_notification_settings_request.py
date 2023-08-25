@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from models.model_apns_request import APNSRequest
+from .model_apns_request import APNSRequest
 
 
 @dataclass

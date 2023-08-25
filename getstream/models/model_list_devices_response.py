@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import List
 
-from models.model_device import Device
+from .model_device import Device
 
 
 @dataclass

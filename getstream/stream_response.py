@@ -1,12 +1,11 @@
-from ast import Dict
 from datetime import datetime, timezone
 from typing import Any, Optional, TypeVar, Generic
+import typing
 
 import httpx
 
 from getstream.rate_limit import RateLimitInfo
-
-T = TypeVar("T")
+from getstream.generic import T
 
 
 class StreamResponse(Generic[T]):
@@ -52,7 +51,7 @@ class StreamResponse(Generic[T]):
         """Returns the ratelimit info of your API operation."""
         return self.__rate_limit
 
-    def headers(self) -> Dict[str, Any]:
+    def headers(self) -> typing.Dict[str, Any]:
         """Returns the headers of the response."""
         return self.__headers
 

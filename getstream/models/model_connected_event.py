@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 
-from models.model_own_user_response import OwnUserResponse
+from .model_own_user_response import OwnUserResponse
 
 
 @dataclass

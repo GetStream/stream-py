@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from models.model_event_notification_settings_request import (
+from .model_event_notification_settings_request import (
     EventNotificationSettingsRequest,
 )
 

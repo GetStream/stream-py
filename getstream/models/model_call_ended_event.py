@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 
-from models.model_call_notification_event import UserResponse
+from .model_call_notification_event import UserResponse
 
 
 @dataclass

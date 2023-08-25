@@ -2,8 +2,8 @@ from dataclasses import dataclass
 from typing import List
 from datetime import datetime
 
-from models.model_call_notification_event import CallResponse, MemberResponse
-
+from .model_call_response from .model_call_response import CallResponse
+from .model_call_notification_event import MemberResponse
 
 @dataclass
 class CallMemberUpdatedEvent:

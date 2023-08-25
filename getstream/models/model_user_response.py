@@ -5,12 +5,12 @@ from datetime import datetime
 
 @dataclass
 class UserResponse:
-    created_at: datetime
-    custom: Dict[str, str]
-    deleted_at: Optional[datetime] = None
     id: str
-    image: Optional[str] = None
-    name: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+    custom: Dict[str, str]
     role: str
     teams: List[str]
-    updated_at: datetime
+    deleted_at: Optional[datetime] = None
+    image: Optional[str] = None
+    name: Optional[str] = None

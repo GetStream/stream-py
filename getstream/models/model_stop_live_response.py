@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from models.model_call_member_removed_event import CallResponse
+from .model_call_response import CallResponse
 
 
 @dataclass

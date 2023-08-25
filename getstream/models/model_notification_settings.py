@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from models.model_event_notification_settings import EventNotificationSettings
+from .model_event_notification_settings import EventNotificationSettings
 
 
 @dataclass

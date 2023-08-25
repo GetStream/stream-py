@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Optional, Dict, Any
 from datetime import datetime
 
-from models.model_call_settings_request import CallSettingsRequest
+from .model_call_settings_request import CallSettingsRequest
 
 
 @dataclass

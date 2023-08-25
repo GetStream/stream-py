@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
 
-from models.model_device import Device
+from .model_device import Device
 
 
 @dataclass

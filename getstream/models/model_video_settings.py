@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from models.model_target_resolution import TargetResolution
+from .model_target_resolution import TargetResolution
 
 
 @dataclass

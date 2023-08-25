@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 
-from models.model_reaction_response import ReactionResponse
+from .model_reaction_response import ReactionResponse
 
 
 @dataclass

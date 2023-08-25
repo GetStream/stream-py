@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from models.model_hls_settings import HLSSettings
+from .model_hls_settings import HLSSettings
 
 
 @dataclass

@@ -1,6 +1,7 @@
 import json
 from typing import Any, Dict, Optional
-from getstream.stream_response import T, StreamResponse
+from getstream.stream_response import StreamResponse
+from getstream.generic import T
 from getstream.video.exceptions import StreamAPIException
 import httpx
 from getstream.config import BaseConfig

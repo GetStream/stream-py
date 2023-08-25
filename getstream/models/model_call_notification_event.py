@@ -2,12 +2,15 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import List
 
-from models.model_call_response import CallResponse
-from models.model_call_ring_event import MemberResponse, UserResponse
+from .model_user_response import UserResponse
 
+from .model_member_response import MemberResponse
+from .model_call_response import CallResponse
 
 @dataclass
 class CallNotificationEvent:
+    
+
     call: CallResponse
     call_cid: str
     created_at: datetime

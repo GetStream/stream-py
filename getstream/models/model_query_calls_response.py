@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional, List
 
-from models.model_call_state_response_fields import CallStateResponseFields
+from .model_call_state_response_fields import CallStateResponseFields
 
 
 @dataclass

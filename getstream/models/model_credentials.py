@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from typing import List
 
-from models.model_ice_server import ICEServer
-from models.model_sfu_response import SFUResponse
+from .model_ice_server import ICEServer
+from .model_sfu_response import SFUResponse
 
 
 @dataclass

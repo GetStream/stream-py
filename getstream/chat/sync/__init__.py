@@ -1,1 +1,1 @@
-from .chat import ChatClient  # noqa F401
+# from getstream.chat.sync.chat import ChatClient  # noqa: F401

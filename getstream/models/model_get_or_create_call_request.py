@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from models.model_call_request import CallRequest
+from .model_call_request import CallRequest
 
 
 @dataclass

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from models.model_target_resolution_request import TargetResolutionRequest
+from .model_target_resolution_request import TargetResolutionRequest
 
 
 @dataclass

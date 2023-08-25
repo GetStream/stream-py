@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Dict, Optional, List
 
-from models.model_sort_param_request import SortParamRequest
+from .model_sort_param_request import SortParamRequest
 
 
 @dataclass

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from models.model_user_request import UserRequest
+from .model_user_request import UserRequest
 
 
 @dataclass

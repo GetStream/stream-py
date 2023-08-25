@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 from datetime import datetime
 from typing import List, Dict
-from models.model_call_settings_response import CallSettingsResponse
+from .model_call_settings_response import CallSettingsResponse
 
-from models.model_call_type_response import NotificationSettings
+from .model_call_type_response import NotificationSettings
 
 
 @dataclass

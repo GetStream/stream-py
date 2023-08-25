@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Dict
 
-from models.model_call_type_response import CallTypeResponse
+from .model_call_type_response import CallTypeResponse
 
 
 @dataclass

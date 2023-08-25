@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from models.model_hls_settings_request import HLSSettingsRequest
+from .model_hls_settings_request import HLSSettingsRequest
 
 
 @dataclass

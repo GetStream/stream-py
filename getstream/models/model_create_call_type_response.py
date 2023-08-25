@@ -2,8 +2,8 @@ from dataclasses import dataclass
 from typing import Dict, List
 from datetime import datetime
 
-from models.model_call_settings_response import CallSettingsResponse
-from models.model_call_type_response import NotificationSettings
+from .model_call_settings_response import CallSettingsResponse
+from .model_call_type_response import NotificationSettings
 
 
 @dataclass

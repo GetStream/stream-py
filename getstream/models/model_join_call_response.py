@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 from typing import List, Optional
-from models.model_call_member_removed_event import CallResponse
+from .model_call_response import CallResponse
 
-from models.model_call_notification_event import MemberResponse, UserResponse
-from models.model_credentials import Credentials
-from models.model_own_capability import OwnCapability
+from .model_call_notification_event import MemberResponse, UserResponse
+from .model_credentials import Credentials
+from .model_own_capability import OwnCapability
 
 
 @dataclass

@@ -2,10 +2,10 @@ from dataclasses import dataclass
 from typing import Optional, List, Dict
 
 from datetime import datetime
-from models.model_call_settings_request import CallSettingsRequest
+from .model_call_settings_request import CallSettingsRequest
 
-from models.model_member_request import MemberRequest
-from models.model_user_request import UserRequest
+from .model_member_request import MemberRequest
+from .model_user_request import UserRequest
 
 
 @dataclass

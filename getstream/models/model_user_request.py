@@ -4,8 +4,8 @@ from dataclasses import dataclass
 
 @dataclass
 class UserRequest:
-    custom: Optional[Dict[str, Any]] = None
     id: str
+    custom: Optional[Dict[str, Any]] = None
     image: Optional[str] = None
     name: Optional[str] = None
     role: Optional[str] = None

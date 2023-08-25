@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 
-from models.model_call_participant_response import CallParticipantResponse
+from .model_call_participant_response import CallParticipantResponse
 
 
 @dataclass

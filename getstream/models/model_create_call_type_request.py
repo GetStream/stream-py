@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from typing import Optional, Dict, List
-from models.model_call_settings_request import CallSettingsRequest
+from .model_call_settings_request import CallSettingsRequest
 
-from models.model_notification_settings_request import NotificationSettingsRequest
+from .model_notification_settings_request import NotificationSettingsRequest
 
 
 @dataclass

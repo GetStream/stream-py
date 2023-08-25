@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import List
 
-from models.model_edge_response import EdgeResponse
+from .model_edge_response import EdgeResponse
 
 
 @dataclass

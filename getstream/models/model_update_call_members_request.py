@@ -1,7 +1,7 @@
 from typing import List
 from dataclasses import dataclass
 
-from models.model_member_request import MemberRequest
+from .model_member_request import MemberRequest
 
 
 @dataclass

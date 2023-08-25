@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import List
 
-from models.model_call_recording import CallRecording
+from .model_call_recording import CallRecording
 
 
 @dataclass
