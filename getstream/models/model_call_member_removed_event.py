@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import List
 
-from .model_call_notification_event from .model_call_response import CallResponse
+from .model_call_response import CallResponse
 
 
 @dataclass

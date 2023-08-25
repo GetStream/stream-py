@@ -1,4 +1,5 @@
 from getstream import BaseStream
+
 # from getstream.chat.sync import ChatClient
 from getstream.video import VideoClient
 

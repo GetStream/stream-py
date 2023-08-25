@@ -9,10 +9,9 @@ from .model_call_session_response import CallSessionResponse
 from .model_call_settings_response import CallSettingsResponse
 from .model_egress_response import EgressResponse
 
+
 @dataclass
 class CallResponse:
-
-
     id: str
     backstage: bool
     blocked_user_ids: List[str]

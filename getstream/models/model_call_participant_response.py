@@ -7,7 +7,6 @@ from .model_user_response import UserResponse
 
 @dataclass
 class CallParticipantResponse:
-
     joined_at: datetime
     role: str
     user: UserResponse

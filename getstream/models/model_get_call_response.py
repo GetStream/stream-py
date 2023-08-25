@@ -7,7 +7,6 @@ from .model_own_capability import OwnCapability
 from .model_user_response import UserResponse
 
 
-
 @dataclass
 class GetCallResponse:
     blocked_users: List[UserResponse]

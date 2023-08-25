@@ -11,10 +11,9 @@ from .model_transcription_settings import TranscriptionSettings
 
 from .model_video_settings import VideoSettings
 
+
 @dataclass
 class CallSettingsResponse:
-
-
     audio: AudioSettings
     backstage: BackstageSettings
     broadcasting: BroadcastSettings

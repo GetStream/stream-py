@@ -5,8 +5,6 @@ from datetime import datetime
 from .model_user_response import UserResponse
 
 
-
-
 @dataclass
 class MemberResponse:
     created_at: datetime

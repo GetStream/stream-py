@@ -7,10 +7,9 @@ from .model_user_response import UserResponse
 from .model_member_response import MemberResponse
 from .model_call_response import CallResponse
 
+
 @dataclass
 class CallNotificationEvent:
-    
-
     call: CallResponse
     call_cid: str
     created_at: datetime

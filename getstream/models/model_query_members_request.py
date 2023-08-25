@@ -14,4 +14,3 @@ class QueryMembersRequest:
     prev: Optional[str] = None
     sort: Optional[List[SortParamRequest]] = None
     filter_conditions: Optional[Dict[str, object]] = None
-
