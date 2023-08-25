@@ -15,3 +15,7 @@ class UpdateCallTypeResponse:
     notification_settings: NotificationSettings
     settings: CallSettingsResponse
     updated_at: datetime
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "UpdateCallTypeResponse":
+        return cls(**data)
