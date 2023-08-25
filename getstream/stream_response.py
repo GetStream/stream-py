@@ -34,7 +34,7 @@ class StreamResponse(Generic[T]):
             )
 
         self.__data: T = data
-        super(StreamResponse, self).__init__(response)
+        super(StreamResponse, self).__init__()
 
     def data(self) -> T:
         """Returns the encapsulated data of provided type."""
