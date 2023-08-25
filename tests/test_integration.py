@@ -174,7 +174,7 @@ def test_get_or_create_call(client: Stream):
     response = client.video.get_or_create_call(
         call_type=calltype_name, call_id=CALL_ID, data=data, members=members
     )
-
+    print(response.data())
     assert response.data().call.settings.audio.access_request_enabled is False
     assert response.data().call.settings.recording.audio_only is False
 
