@@ -65,23 +65,23 @@ class BaseClient(BaseConfig):
     def post(
         self,
         path,
-        data: Dict[str, Any],
+        json: Dict[str, Any],
         data_type: Optional[Type[T]] = None,
         *args,
         **kwargs,
     ) -> StreamResponse[T]:
-        response = self.client.post(path, json=data, *args, **kwargs)
+        response = self.client.post(path, json=json, *args, **kwargs)
         return self._parse_response(response, data_type or Dict[str, Any])
 
     def put(
         self,
         path,
-        data: Dict[str, Any],
+        json: Dict[str, Any],
         data_type: Optional[Type[T]] = None,
         *args,
         **kwargs,
     ) -> StreamResponse[T]:
-        response = self.client.put(path, json=data, *args, **kwargs)
+        response = self.client.put(path, json=json, *args, **kwargs)
         return self._parse_response(response, data_type or Dict[str, Any])
 
     def delete(
