@@ -1,7 +1,6 @@
 from httpx import Response
 from datetime import timezone
 from dateutil.parser import parse as dt_parse
-from getstream.generic import T
 from getstream.rate_limit import RateLimitInfo
 from getstream.stream_response import StreamResponse
 
