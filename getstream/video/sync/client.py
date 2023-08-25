@@ -554,7 +554,7 @@ class VideoClient(BaseClient):
         """
         request_data = {"data": asdict(data)}
         if members is not None:
-            request_data.update({"members": asdict(members)})
+            request_data.update({"members": [asdict(member) for member in members]})
         path = f"/call/{call_type}/{call_id}"
         response = self.post(path, GetOrCreateCallResponse, json=request_data)
 
