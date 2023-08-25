@@ -23,3 +23,4 @@ class CallSettingsRequest:
     screensharing: Optional[ScreensharingSettingsRequest] = None
     transcription: Optional[TranscriptionSettingsRequest] = None
     video: Optional[VideoSettingsRequest] = None
+    auto_on: Optional[bool] = None
