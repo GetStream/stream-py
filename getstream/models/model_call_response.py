@@ -36,4 +36,5 @@ class CallResponse:
 
     @classmethod
     def from_dict(cls, data: dict) -> "CallResponse":
+        data["settings"] = CallSettingsResponse.from_dict(data["settings"])
         return cls(**data)

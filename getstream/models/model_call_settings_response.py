@@ -26,4 +26,5 @@ class CallSettingsResponse:
 
     @classmethod
     def from_dict(cls, data: dict) -> "CallSettingsResponse":
+        data["audio"] = AudioSettings.from_dict(data["audio"])
         return cls(**data)
