@@ -40,5 +40,6 @@ class CallResponse:
         data["created_by"] = UserResponse.from_dict(data["created_by"])
         data["egress"] = EgressResponse.from_dict(data["egress"])
         data["ingress"] = CallIngressResponse.from_dict(data["ingress"])
-        data["session"] = CallSessionResponse.from_dict(data["session"])
+        if data.get("session"):
+            data["session"] = CallSessionResponse.from_dict(data["session"])
         return cls(**data)
