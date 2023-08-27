@@ -1,10 +1,9 @@
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
 class EgressHLSResponse:
-    playlist_url: Optional[str] = None
+    playlist_url: str
 
     @classmethod
     def from_dict(cls, data: dict) -> "EgressHLSResponse":
