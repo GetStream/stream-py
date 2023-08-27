@@ -14,3 +14,7 @@ class UserResponse:
     deleted_at: Optional[datetime] = None
     image: Optional[str] = None
     name: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "UserResponse":
+        return cls(**data)

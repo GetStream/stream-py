@@ -10,3 +10,17 @@ class NotificationSettings:
     call_ring: EventNotificationSettings
     enabled: bool
     session_started: EventNotificationSettings
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "NotificationSettings":
+        data["call_live_started"] = EventNotificationSettings.from_dict(
+            data["call_live_started"]
+        )
+        data["call_notification"] = EventNotificationSettings.from_dict(
+            data["call_notification"]
+        )
+        data["call_ring"] = EventNotificationSettings.from_dict(data["call_ring"])
+        data["session_started"] = EventNotificationSettings.from_dict(
+            data["session_started"]
+        )
+        return cls(**data)

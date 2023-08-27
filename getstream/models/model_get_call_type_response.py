@@ -18,4 +18,8 @@ class GetCallTypeResponse:
 
     @classmethod
     def from_dict(cls, data: dict) -> "GetCallTypeResponse":
+        data["notification_settings"] = NotificationSettings.from_dict(
+            data["notification_settings"]
+        )
+        data["settings"] = CallSettingsResponse.from_dict(data["settings"])
         return cls(**data)

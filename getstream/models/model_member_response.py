@@ -14,3 +14,8 @@ class MemberResponse:
     user_id: str
     deleted_at: Optional[datetime] = None
     role: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "MemberResponse":
+        data["user"] = UserResponse.from_dict(data["user"])
+        return cls(**data)

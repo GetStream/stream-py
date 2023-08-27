@@ -14,3 +14,11 @@ class CallTypeResponse:
     notification_settings: NotificationSettings
     settings: CallSettingsResponse
     updated_at: datetime
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "CallTypeResponse":
+        data["notification_settings"] = NotificationSettings.from_dict(
+            data["notification_settings"]
+        )
+        data["settings"] = CallSettingsResponse.from_dict(data["settings"])
+        return cls(**data)

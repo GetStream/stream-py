@@ -10,3 +10,10 @@ class VideoSettings:
     camera_facing: str
     enabled: bool
     target_resolution: TargetResolution
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "VideoSettings":
+        data["target_resolution"] = TargetResolution.from_dict(
+            data["target_resolution"]
+        )
+        return cls(**data)

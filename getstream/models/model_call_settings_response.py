@@ -27,4 +27,12 @@ class CallSettingsResponse:
     @classmethod
     def from_dict(cls, data: dict) -> "CallSettingsResponse":
         data["audio"] = AudioSettings.from_dict(data["audio"])
+        data["backstage"] = BackstageSettings.from_dict(data["backstage"])
+        data["broadcasting"] = BroadcastSettings.from_dict(data["broadcasting"])
+        data["geofencing"] = GeofenceSettings.from_dict(data["geofencing"])
+        data["recording"] = RecordSettings.from_dict(data["recording"])
+        data["ring"] = RingSettings.from_dict(data["ring"])
+        data["screensharing"] = ScreensharingSettings.from_dict(data["screensharing"])
+        data["transcription"] = TranscriptionSettings.from_dict(data["transcription"])
+        data["video"] = VideoSettings.from_dict(data["video"])
         return cls(**data)

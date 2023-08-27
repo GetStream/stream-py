@@ -11,4 +11,7 @@ class ListCallTypeResponse:
 
     @classmethod
     def from_dict(cls, data: dict) -> "ListCallTypeResponse":
+        data["call_types"] = {
+            k: CallTypeResponse.from_dict(v) for k, v in data["call_types"].items()
+        }
         return cls(**data)
