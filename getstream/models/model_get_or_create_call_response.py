@@ -19,7 +19,8 @@ class GetOrCreateCallResponse:
     @classmethod
     def from_dict(cls, data: dict) -> "GetOrCreateCallResponse":
         data["call"] = CallResponse.from_dict(data["call"])
-        data["members"] = [MemberResponse.from_dict(m) for m in data["members"]]
+        if data.get("members"):
+            data["members"] = [MemberResponse.from_dict(m) for m in data["members"]]
         data["membership"] = MemberResponse.from_dict(data["membership"])
         data["blocked_users"] = [
             UserResponse.from_dict(bu) for bu in data["blocked_users"]
