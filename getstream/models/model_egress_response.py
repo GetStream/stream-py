@@ -13,6 +13,6 @@ class EgressResponse:
     @classmethod
     def from_dict(cls, data: dict) -> "EgressResponse":
         data["rtmps"] = [EgressRTMPResponse.from_dict(d) for d in data["rtmps"]]
-        if "hls" in data:
+        if data.get("hls"):  # Here's the change
             data["hls"] = EgressHLSResponse.from_dict(data["hls"])
         return cls(**data)
