@@ -16,7 +16,7 @@ class CallSessionResponse:
 
     @classmethod
     def from_dict(cls, data: dict) -> "CallSessionResponse":
-        print(data["participants"])
+        print(data)
         data["participants"] = [
             CallParticipantResponse.from_dict(d) for d in data["participants"]
         ]
