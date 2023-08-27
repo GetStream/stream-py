@@ -37,4 +37,8 @@ class CallResponse:
     @classmethod
     def from_dict(cls, data: dict) -> "CallResponse":
         data["settings"] = CallSettingsResponse.from_dict(data["settings"])
+        data["created_by"] = UserResponse.from_dict(data["created_by"])
+        data["egress"] = EgressResponse.from_dict(data["egress"])
+        data["ingress"] = CallIngressResponse.from_dict(data["ingress"])
+        data["session"] = CallSessionResponse.from_dict(data["session"])
         return cls(**data)

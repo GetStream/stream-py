@@ -9,3 +9,9 @@ class EgressResponse:
     broadcasting: bool
     rtmps: List[EgressRTMPResponse]
     hls: Optional[EgressHLSResponse] = None
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "EgressResponse":
+        data["rtmps"] = [EgressRTMPResponse.from_dict(d) for d in data["rtmps"]]
+        data["hls"] = EgressHLSResponse.from_dict(data["hls"])
+        return cls(**data)

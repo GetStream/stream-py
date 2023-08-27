@@ -13,3 +13,10 @@ class CallSessionResponse:
     rejected_by: Dict[str, datetime]
     started_at: Optional[datetime]
     ended_at: Optional[datetime]
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "CallSessionResponse":
+        data["participants"] = [
+            CallParticipantResponse.from_dict(d) for d in data["participants"]
+        ]
+        return cls(**data)
