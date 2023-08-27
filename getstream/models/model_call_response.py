@@ -29,10 +29,10 @@ class CallResponse:
     transcribing: bool
     type: str
     updated_at: datetime.datetime
-    session: Optional[CallSessionResponse]
-    starts_at: Optional[datetime.datetime]
-    team: Optional[str]
-    ended_at: Optional[datetime.datetime]
+    session: Optional[CallSessionResponse] = None
+    starts_at: Optional[datetime.datetime] = None
+    team: Optional[str] = None
+    ended_at: Optional[datetime.datetime] = None
 
     @classmethod
     def from_dict(cls, data: dict) -> "CallResponse":
