@@ -48,7 +48,6 @@ class BaseClient(BaseConfig):
 
         try:
             parsed_result = json.loads(response.text) if response.text else {}
-            print(parsed_result)
             if callable(getattr(data_type, "from_dict", None)):
                 data = data_type.from_dict(parsed_result)
             else:
@@ -56,7 +55,8 @@ class BaseClient(BaseConfig):
 
         except ValueError:
             raise StreamAPIException(
-                f"Invalid JSON, original response: {response.text}"
+                text=f"Response body is not valid JSON: {response.text}",
+                status_code=response.status_code,
             )
 
         return StreamResponse(response, data)
