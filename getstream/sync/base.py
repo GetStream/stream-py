@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict, Optional, Type
+from typing import Any, Dict, Optional, Type, get_origin
 from getstream.stream_response import StreamResponse
 from getstream.generic import T
 from getstream.video.exceptions import StreamAPIException
@@ -49,10 +49,12 @@ class BaseClient(BaseConfig):
 
         try:
             parsed_result = json.loads(response.text) if response.text else {}
-            if callable(getattr(data_type, "from_dict", None)):
+            if hasattr(data_type, "from_dict"):
                 data = data_type.from_dict(parsed_result)
-            else:
+            elif get_origin(data_type) is not dict:
                 raise AttributeError(f"{data_type.__name__} has no 'from_dict' method")
+            else:
+                data = parsed_result
 
         except ValueError:
             raise StreamAPIException(

@@ -144,7 +144,7 @@ def test_list_call_types(client: Stream):
 
 def test_delete_call_type(client: Stream):
     response = client.video.delete_call_type("example_calltype3")
-    assert response.status_code == 200
+    assert response.status_code() == 200
 
 
 def test_create_token(client: Stream):
