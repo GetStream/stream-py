@@ -13,8 +13,8 @@ class GetOrCreateCallResponse:
     created: bool
     duration: str
     members: List[MemberResponse]
-    membership: Optional[MemberResponse] = None
     own_capabilities: List[OwnCapability]
+    membership: Optional[MemberResponse] = None
 
     @classmethod
     def from_dict(cls, data: dict) -> "GetOrCreateCallResponse":
