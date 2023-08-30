@@ -14,6 +14,5 @@ class CallSessionParticipantJoinedEvent:
 
     @classmethod
     def from_dict(cls, data: dict) -> "CallSessionParticipantJoinedEvent":
-        data["created_at"] = datetime.fromisoformat(data["created_at"])
         data["participant"] = CallParticipantResponse.from_dict(data["participant"])
         return cls(**data)

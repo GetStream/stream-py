@@ -15,5 +15,5 @@ class CallSessionStartedEvent:
     @classmethod
     def from_dict(cls, data: dict) -> "CallSessionStartedEvent":
         data["call"] = CallResponse.from_dict(data["call"])
-        data["created_at"] = datetime.fromisoformat(data["created_at"])
+
         return cls(**data)

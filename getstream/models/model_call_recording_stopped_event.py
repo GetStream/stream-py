@@ -10,5 +10,4 @@ class CallRecordingStoppedEvent:
 
     @classmethod
     def from_dict(cls, data: dict) -> "CallRecordingStoppedEvent":
-        data["created_at"] = datetime.fromisoformat(data["created_at"])
         return cls(**data)

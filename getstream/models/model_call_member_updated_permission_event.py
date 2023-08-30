@@ -19,7 +19,7 @@ class CallMemberUpdatedPermissionEvent:
     @classmethod
     def from_dict(cls, data: dict) -> "CallMemberUpdatedPermissionEvent":
         data["call"] = CallResponse.from_dict(data["call"])
-        data["created_at"] = datetime.fromisoformat(data["created_at"])
+
         data["members"] = [
             MemberResponse.from_dict(member) for member in data["members"]
         ]

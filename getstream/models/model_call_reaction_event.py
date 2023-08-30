@@ -13,6 +13,5 @@ class CallReactionEvent:
 
     @classmethod
     def from_dict(cls, data: dict) -> "CallReactionEvent":
-        data["created_at"] = datetime.fromisoformat(data["created_at"])
         data["reaction"] = ReactionResponse.from_dict(data["reaction"])
         return cls(**data)

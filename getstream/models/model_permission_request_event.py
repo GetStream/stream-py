@@ -15,6 +15,5 @@ class PermissionRequestEvent:
 
     @classmethod
     def from_dict(cls, data: dict) -> "PermissionRequestEvent":
-        data["created_at"] = datetime.fromisoformat(data["created_at"])
         data["user"] = UserResponse.from_dict(data["user"])
         return cls(**data)

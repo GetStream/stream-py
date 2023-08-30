@@ -16,7 +16,6 @@ class UpdatedCallPermissionsEvent:
 
     @classmethod
     def from_dict(cls, data: dict) -> "UpdatedCallPermissionsEvent":
-        data["created_at"] = datetime.fromisoformat(data["created_at"])
         data["own_capabilities"] = [
             OwnCapability.from_dict(d) for d in data["own_capabilities"]
         ]

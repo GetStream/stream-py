@@ -13,6 +13,5 @@ class CallEndedEvent:
 
     @classmethod
     def from_dict(cls, data: dict) -> "CallEndedEvent":
-        data["created_at"] = datetime.fromisoformat(data["created_at"])
         data["user"] = UserResponse.from_dict(data["user"])
         return cls(**data)

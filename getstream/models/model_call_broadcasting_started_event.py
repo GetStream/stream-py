@@ -11,5 +11,4 @@ class CallBroadcastingStartedEvent:
 
     @classmethod
     def from_dict(cls, data: dict) -> "CallBroadcastingStartedEvent":
-        data["created_at"] = datetime.fromisoformat(data["created_at"])
         return cls(**data)

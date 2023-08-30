@@ -30,6 +30,4 @@ class CallRequest:
             data["settings_override"] = CallSettingsRequest.from_dict(
                 data["settings_override"]
             )
-        if data["starts_at"] is not None:
-            data["starts_at"] = datetime.fromisoformat(data["starts_at"])
         return cls(**data)

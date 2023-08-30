@@ -10,5 +10,4 @@ class HealthCheckEvent:
 
     @classmethod
     def from_dict(cls, data: dict) -> "HealthCheckEvent":
-        data["created_at"] = datetime.fromisoformat(data["created_at"])
         return cls(**data)

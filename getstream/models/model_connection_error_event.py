@@ -12,5 +12,4 @@ class ConnectionErrorEvent:
 
     @classmethod
     def from_dict(cls, data: dict) -> "ConnectionErrorEvent":
-        data["created_at"] = datetime.fromisoformat(data["created_at"])
         return cls(**data)

@@ -15,5 +15,4 @@ class Device:
 
     @classmethod
     def from_dict(cls, data: dict) -> "Device":
-        data["created_at"] = datetime.fromisoformat(data["created_at"])
         return cls(**data)

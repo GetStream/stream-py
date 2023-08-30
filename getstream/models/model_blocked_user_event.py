@@ -17,6 +17,6 @@ class BlockedUserEvent:
     def from_dict(cls, data: dict) -> "BlockedUserEvent":
         if data["blocked_by_user"] is not None:
             data["blocked_by_user"] = UserResponse.from_dict(data["blocked_by_user"])
-        data["created_at"] = datetime.fromisoformat(data["created_at"])
+
         data["user"] = UserResponse.from_dict(data["user"])
         return cls(**data)

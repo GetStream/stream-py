@@ -20,14 +20,9 @@ class OwnUserResponse:
 
     @classmethod
     def from_dict(cls, data: dict) -> "OwnUserResponse":
-        data["created_at"] = datetime.fromisoformat(data["created_at"])
         data["custom"] = data.get("custom", {})
-        data["deleted_at"] = (
-            datetime.fromisoformat(data["deleted_at"])
-            if data.get("deleted_at")
-            else None
-        )
+
         if data.get("devices"):
             data["devices"] = [Device.from_dict(d) for d in data["devices"]]
-        data["updated_at"] = datetime.fromisoformat(data["updated_at"])
+
         return cls(**data)

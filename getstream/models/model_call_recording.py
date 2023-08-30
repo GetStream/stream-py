@@ -11,6 +11,4 @@ class CallRecording:
 
     @classmethod
     def from_dict(cls, data: dict) -> "CallRecording":
-        data["end_time"] = datetime.fromisoformat(data["end_time"])
-        data["start_time"] = datetime.fromisoformat(data["start_time"])
         return cls(**data)

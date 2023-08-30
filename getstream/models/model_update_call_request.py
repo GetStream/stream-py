@@ -18,7 +18,5 @@ class UpdateCallRequest:
             if data.get("settings_override")
             else None
         )
-        data["starts_at"] = (
-            datetime.fromisoformat(data["starts_at"]) if data.get("starts_at") else None
-        )
+        data["starts_at"] = ()
         return cls(**data)
