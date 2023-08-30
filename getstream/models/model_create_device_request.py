@@ -12,3 +12,9 @@ class CreateDeviceRequest:
     user: Optional[UserRequest] = None
     user_id: Optional[str] = None
     voip_token: Optional[bool] = None
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "CreateDeviceRequest":
+        if data.get("user"):
+            data["user"] = UserRequest.from_dict(data["user"])
+        return cls(**data)

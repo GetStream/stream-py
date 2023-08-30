@@ -7,3 +7,8 @@ from .model_call_response import CallResponse
 class StopLiveResponse:
     call: CallResponse
     duration: str
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "StopLiveResponse":
+        data["call"] = CallResponse.from_dict(data["call"])
+        return cls(**data)

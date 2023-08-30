@@ -13,3 +13,12 @@ class UpdatedCallPermissionsEvent:
     own_capabilities: List[OwnCapability]
     type: str
     user: UserResponse
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "UpdatedCallPermissionsEvent":
+        data["created_at"] = datetime.fromisoformat(data["created_at"])
+        data["own_capabilities"] = [
+            OwnCapability.from_dict(d) for d in data["own_capabilities"]
+        ]
+        data["user"] = UserResponse.from_dict(data["user"])
+        return cls(**data)

@@ -9,3 +9,7 @@ class MuteUsersRequest:
     screenshare: Optional[bool] = None
     user_ids: List[str] = None
     video: Optional[bool] = None
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "MuteUsersRequest":
+        return cls(**data)

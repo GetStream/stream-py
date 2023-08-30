@@ -10,3 +10,9 @@ class Credentials:
     ice_servers: List[ICEServer]
     server: SFUResponse
     token: str
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Credentials":
+        data["ice_servers"] = [ICEServer.from_dict(d) for d in data["ice_servers"]]
+        data["server"] = SFUResponse.from_dict(data["server"])
+        return cls(**data)

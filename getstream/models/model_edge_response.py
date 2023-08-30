@@ -13,3 +13,7 @@ class EdgeResponse:
     red: int
     subdivision_iso_code: str
     yellow: int
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "EdgeResponse":
+        return cls(**data)

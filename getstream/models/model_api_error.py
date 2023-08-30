@@ -11,3 +11,7 @@ class APIError:
     ExceptionFields: Optional[Dict[str, str]]
     Message: str
     MoreInfo: str
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "APIError":
+        return cls(**data)

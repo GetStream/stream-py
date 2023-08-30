@@ -42,4 +42,10 @@ class CallResponse:
         data["ingress"] = CallIngressResponse.from_dict(data["ingress"])
         if data.get("session"):
             data["session"] = CallSessionResponse.from_dict(data["session"])
+        data["created_at"] = datetime.datetime.fromisoformat(data["created_at"])
+        data["updated_at"] = datetime.datetime.fromisoformat(data["updated_at"])
+        if data.get("starts_at"):
+            data["starts_at"] = datetime.datetime.fromisoformat(data["starts_at"])
+        if data.get("ended_at"):
+            data["ended_at"] = datetime.datetime.fromisoformat(data["ended_at"])
         return cls(**data)

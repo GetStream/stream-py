@@ -8,3 +8,7 @@ from .model_hls_settings_request import HLSSettingsRequest
 class BroadcastSettingsRequest:
     enabled: Optional[bool] = None
     hls: Optional[HLSSettingsRequest] = None
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "BroadcastSettingsRequest":
+        return cls(**data)

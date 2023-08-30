@@ -7,3 +7,7 @@ class SendReactionRequest:
     custom: Optional[Dict[str, Any]] = None
     emoji_code: Optional[str] = None
     type: str = ""
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "SendReactionRequest":
+        return cls(**data)

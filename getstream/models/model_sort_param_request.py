@@ -6,3 +6,7 @@ from typing import Optional
 class SortParamRequest:
     direction: Optional[int]
     field: Optional[str]
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "SortParamRequest":
+        return cls(**data)

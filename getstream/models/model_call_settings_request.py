@@ -26,3 +26,38 @@ class CallSettingsRequest:
     auto_on: Optional[bool] = None
     enabled: Optional[bool] = None
     quality_tracks: Optional[List[str]] = None
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "CallSettingsRequest":
+        if data.get("audio"):
+            data["audio"] = AudioSettingsRequest.from_dict(data["audio"])
+        if data.get("backstage"):
+            data["backstage"] = BackstageSettingsRequest.from_dict(data["backstage"])
+        if data.get("broadcasting"):
+            data["broadcasting"] = BroadcastSettingsRequest.from_dict(
+                data["broadcasting"]
+            )
+        if data.get("geofencing"):
+            data["geofencing"] = GeofenceSettingsRequest.from_dict(data["geofencing"])
+        if data.get("recording"):
+            data["recording"] = RecordSettingsRequest.from_dict(data["recording"])
+        if data.get("ring"):
+            data["ring"] = RingSettingsRequest.from_dict(data["ring"])
+        if data.get("screensharing"):
+            data["screensharing"] = ScreensharingSettingsRequest.from_dict(
+                data["screensharing"]
+            )
+        if data.get("transcription"):
+            data["transcription"] = TranscriptionSettingsRequest.from_dict(
+                data["transcription"]
+            )
+        if data.get("video"):
+            data["video"] = VideoSettingsRequest.from_dict(data["video"])
+        if data.get("quality_tracks"):
+            data["quality_tracks"] = [str(i) for i in data["quality_tracks"]]
+        if data.get("auto_on"):
+            data["auto_on"] = bool(data["auto_on"])
+        if data.get("enabled"):
+            data["enabled"] = bool(data["enabled"])
+
+        return cls(**data)

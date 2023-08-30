@@ -22,4 +22,6 @@ class CreateCallTypeResponse:
             data["notification_settings"]
         )
         data["settings"] = CallSettingsResponse.from_dict(data["settings"])
+        data["created_at"] = datetime.fromisoformat(data["created_at"])
+        data["updated_at"] = datetime.fromisoformat(data["updated_at"])
         return cls(**data)

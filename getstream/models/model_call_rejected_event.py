@@ -13,3 +13,10 @@ class CallRejectedEvent:
     created_at: datetime
     type: str
     user: UserResponse
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "CallRejectedEvent":
+        data["call"] = CallResponse.from_dict(data["call"])
+        data["created_at"] = datetime.fromisoformat(data["created_at"])
+        data["user"] = UserResponse.from_dict(data["user"])
+        return cls(**data)

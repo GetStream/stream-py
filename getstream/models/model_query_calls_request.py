@@ -6,9 +6,15 @@ from .model_sort_param_request import SortParamRequest
 
 @dataclass
 class QueryCallsRequest:
-    FilterConditions: Optional[Dict[str, object]] = field(default_factory=dict)
-    Limit: Optional[int] = None
-    Next: Optional[str] = None
-    Prev: Optional[str] = None
-    Sort: Optional[List[SortParamRequest]] = field(default_factory=list)
-    Watch: Optional[bool] = None
+    filter_conditions: Optional[Dict[str, object]] = field(default_factory=dict)
+    limit: Optional[int] = None
+    next: Optional[str] = None
+    prev: Optional[str] = None
+    sort: Optional[List[SortParamRequest]] = field(default_factory=list)
+    watch: Optional[bool] = None
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "QueryCallsRequest":
+        if data.get("sort"):
+            data["sort"] = [SortParamRequest.from_dict(d) for d in data["sort"]]
+        return cls(**data)

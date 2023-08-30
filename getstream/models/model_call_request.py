@@ -17,3 +17,19 @@ class CallRequest:
     settings_override: Optional[CallSettingsRequest] = None
     starts_at: Optional[datetime] = None
     team: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "CallRequest":
+        if data["created_by"] is not None:
+            data["created_by"] = UserRequest.from_dict(data["created_by"])
+        if data["members"] is not None:
+            data["members"] = [
+                MemberRequest.from_dict(member) for member in data["members"]
+            ]
+        if data["settings_override"] is not None:
+            data["settings_override"] = CallSettingsRequest.from_dict(
+                data["settings_override"]
+            )
+        if data["starts_at"] is not None:
+            data["starts_at"] = datetime.fromisoformat(data["starts_at"])
+        return cls(**data)

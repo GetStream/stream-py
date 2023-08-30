@@ -11,3 +11,9 @@ class CallSessionEndedEvent:
     created_at: datetime
     session_id: str
     type: str
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "CallSessionEndedEvent":
+        data["call"] = CallResponse.from_dict(data["call"])
+        data["created_at"] = datetime.fromisoformat(data["created_at"])
+        return cls(**data)

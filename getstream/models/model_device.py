@@ -12,3 +12,8 @@ class Device:
     push_provider: str
     push_provider_name: Optional[str]
     voip: Optional[bool]
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Device":
+        data["created_at"] = datetime.fromisoformat(data["created_at"])
+        return cls(**data)

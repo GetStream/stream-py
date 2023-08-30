@@ -10,3 +10,8 @@ class ReactionResponse:
     user: UserResponse
     custom: Optional[Dict[str, Any]] = None
     emoji_code: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "ReactionResponse":
+        data["user"] = UserResponse.from_dict(data["user"])
+        return cls(**data)

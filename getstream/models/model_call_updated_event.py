@@ -7,8 +7,14 @@ from .model_call_response import CallResponse
 
 @dataclass
 class CallUpdatedEvent:
-    Call: CallResponse
-    CallCid: str
-    CapabilitiesByRole: Dict[str, List[str]]
-    CreatedAt: datetime
-    Type: str
+    call: CallResponse
+    call_cid: str
+    capabilities_by_role: Dict[str, List[str]]
+    created_at: datetime
+    type: str
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "CallUpdatedEvent":
+        data["call"] = CallResponse.from_dict(data["call"])
+        data["created_at"] = datetime.fromisoformat(data["created_at"])
+        return cls(**data)

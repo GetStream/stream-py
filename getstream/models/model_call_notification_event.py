@@ -17,3 +17,13 @@ class CallNotificationEvent:
     session_id: str
     type: str
     user: UserResponse
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "CallNotificationEvent":
+        data["call"] = CallResponse.from_dict(data["call"])
+        data["created_at"] = datetime.fromisoformat(data["created_at"])
+        data["members"] = [
+            MemberResponse.from_dict(member) for member in data["members"]
+        ]
+        data["user"] = UserResponse.from_dict(data["user"])
+        return cls(**data)

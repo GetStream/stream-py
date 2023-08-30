@@ -7,3 +7,7 @@ class RecordSettingsRequest:
     audio_only: Optional[bool] = None
     mode: Optional[str] = None
     quality: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "RecordSettingsRequest":
+        return cls(**data)

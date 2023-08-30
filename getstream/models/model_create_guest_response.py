@@ -8,3 +8,8 @@ class CreateGuestResponse:
     access_token: str
     duration: str
     user: UserResponse
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "CreateGuestResponse":
+        data["user"] = UserResponse.from_dict(data["user"])
+        return cls(**data)

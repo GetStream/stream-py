@@ -15,3 +15,23 @@ class GetCallResponse:
     members: List[MemberResponse]
     membership: Optional[MemberResponse]
     own_capabilities: List[OwnCapability]
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "GetCallResponse":
+        data["call"] = CallResponse.from_dict(data["call"])
+        if data.get("blocked_users"):
+            data["blocked_users"] = [
+                UserResponse.from_dict(user) for user in data["blocked_users"]
+            ]
+        if data.get("members"):
+            data["members"] = [
+                MemberResponse.from_dict(member) for member in data["members"]
+            ]
+        if data.get("membership"):
+            data["membership"] = MemberResponse.from_dict(data["membership"])
+        if data.get("own_capabilities"):
+            data["own_capabilities"] = [
+                OwnCapability.from_dict(capability)
+                for capability in data["own_capabilities"]
+            ]
+        return cls(**data)

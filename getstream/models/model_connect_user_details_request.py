@@ -8,3 +8,7 @@ class ConnectUserDetailsRequest:
     id: str
     image: Optional[str] = None
     name: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "ConnectUserDetailsRequest":
+        return cls(**data)

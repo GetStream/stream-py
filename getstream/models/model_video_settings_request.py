@@ -11,3 +11,12 @@ class VideoSettingsRequest:
     camera_facing: Optional[str] = None
     enabled: Optional[bool] = None
     target_resolution: Optional[TargetResolutionRequest] = None
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "VideoSettingsRequest":
+        data["target_resolution"] = (
+            TargetResolutionRequest.from_dict(data["target_resolution"])
+            if data.get("target_resolution")
+            else None
+        )
+        return cls(**data)

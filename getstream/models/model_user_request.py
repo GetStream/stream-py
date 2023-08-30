@@ -10,3 +10,7 @@ class UserRequest:
     name: Optional[str] = None
     role: Optional[str] = None
     teams: Optional[List[str]] = None
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "UserRequest":
+        return cls(**data)

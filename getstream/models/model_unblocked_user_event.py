@@ -10,3 +10,9 @@ class UnblockedUserEvent:
     created_at: datetime
     type: str
     user: UserResponse
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "UnblockedUserEvent":
+        data["created_at"] = datetime.fromisoformat(data["created_at"])
+        data["user"] = UserResponse.from_dict(data["user"])
+        return cls(**data)

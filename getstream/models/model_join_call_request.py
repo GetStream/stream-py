@@ -13,3 +13,9 @@ class JoinCallRequest:
     migrating_from: Optional[str] = None
     notify: Optional[bool] = None
     ring: Optional[bool] = None
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "JoinCallRequest":
+        if data.get("data"):
+            data["data"] = CallRequest.from_dict(data["data"])
+        return cls(**data)

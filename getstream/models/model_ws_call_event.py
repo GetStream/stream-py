@@ -1,6 +1,11 @@
+from dataclasses import dataclass
 from typing import Optional
 
 
+@dataclass
 class WSCallEvent:
-    def __init__(self, call_cid: Optional[str] = None):
-        self.call_cid = call_cid
+    call_cid: Optional[str] = None
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "WSCallEvent":
+        return cls(**data)
