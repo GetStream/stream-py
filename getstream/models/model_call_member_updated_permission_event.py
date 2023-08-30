@@ -2,7 +2,9 @@ from dataclasses import dataclass
 from typing import List, Dict
 from datetime import datetime
 
-from .model_call_response import CallResponse, MemberResponse
+from .model_member_response import MemberResponse
+
+from .model_call_response import CallResponse
 
 
 @dataclass
