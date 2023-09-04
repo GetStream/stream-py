@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Any, Optional
 
 import httpx
 
@@ -13,6 +13,9 @@ class RateLimitInfo:
 
 
 def extract_rate_limit(response: httpx.Response) -> Optional[RateLimitInfo]:
+    def get_first_nonempty_value(header: str) -> Any:
+        return next(v.strip() for v in header.split(",") if v.strip())
+
     limit, remaining, reset = (
         response.headers.get("x-ratelimit-limit"),
         response.headers.get("x-ratelimit-remaining"),
@@ -21,13 +24,15 @@ def extract_rate_limit(response: httpx.Response) -> Optional[RateLimitInfo]:
 
     if limit and remaining and reset:
         try:
-            values = (v.strip() for v in httpx.Headers.split(","))
+            limit_value = int(get_first_nonempty_value(limit))
+            remaining_value = int(get_first_nonempty_value(remaining))
+            reset_value = datetime.fromtimestamp(
+                float(get_first_nonempty_value(reset)), timezone.utc
+            )
             return RateLimitInfo(
-                limit=int(next(v for v in values if v)),
-                remaining=int(next(v for v in values if v)),
-                reset=datetime.fromtimestamp(
-                    float(next(v for v in values if v)), timezone.utc
-                ),
+                limit=limit_value,
+                remaining=remaining_value,
+                reset=reset_value,
             )
         except ValueError:
             return None
