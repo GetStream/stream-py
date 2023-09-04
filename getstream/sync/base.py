@@ -43,8 +43,7 @@ class BaseClient(BaseConfig):
     ) -> StreamResponse[T]:
         if response.status_code >= 399:
             raise StreamAPIException(
-                text=f"Request failed with status code {response.status_code}: {response.text}",
-                status_code=response.status_code,
+                response=response,
             )
 
         try:
@@ -58,8 +57,7 @@ class BaseClient(BaseConfig):
 
         except ValueError:
             raise StreamAPIException(
-                text=f"Response body is not valid JSON: {response.text}",
-                status_code=response.status_code,
+                response=response,
             )
 
         return StreamResponse(response, data)

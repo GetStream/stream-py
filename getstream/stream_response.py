@@ -4,7 +4,7 @@ import typing
 
 import httpx
 
-from getstream.rate_limit import RateLimitInfo
+from getstream.rate_limit import RateLimitInfo, extract_rate_limit
 from getstream.generic import T
 
 
@@ -17,21 +17,7 @@ class StreamResponse(Generic[T]):
     def __init__(self, response: httpx.Response, data: T) -> None:
         self.__headers = response.headers
         self.__status_code = response.status_code
-        self.__rate_limit: Optional[RateLimitInfo] = None
-        limit, remaining, reset = (
-            response.headers.get("x-ratelimit-limit"),
-            response.headers.get("x-ratelimit-remaining"),
-            response.headers.get("x-ratelimit-reset"),
-        )
-
-        if limit and remaining and reset:
-            self.__rate_limit = RateLimitInfo(
-                limit=int(self._clean_header(limit)),
-                remaining=int(self._clean_header(remaining)),
-                reset=datetime.fromtimestamp(
-                    float(self._clean_header(reset)), timezone.utc
-                ),
-            )
+        self.__rate_limit = extract_rate_limit(response)
 
         self.__data: T = data
         super(StreamResponse, self).__init__()
@@ -39,13 +25,6 @@ class StreamResponse(Generic[T]):
     def data(self) -> T:
         """Returns the encapsulated data of provided type."""
         return self.__data
-
-    def _clean_header(self, header: str) -> int:
-        try:
-            values = (v.strip() for v in header.split(","))
-            return int(next(v for v in values if v))
-        except ValueError:
-            return 0
 
     def rate_limit(self) -> Optional[RateLimitInfo]:
         """Returns the ratelimit info of your API operation."""

@@ -1,17 +1,28 @@
-from dataclasses import dataclass
-from typing import List, Optional, Dict
+import dataclasses
+from typing import List, Dict, Optional
+from dataclasses import dataclass, field
+from functools import partial
+
+
+def remap_fields(cls, data_dict: dict) -> dict:
+    for field_ in dataclasses.fields(cls):
+        serializedName = field_.metadata.get("serializedName")
+        if serializedName and serializedName in data_dict:
+            data_dict[field_.name] = data_dict.pop(serializedName)
+    return data_dict
 
 
 @dataclass
 class APIError:
-    StatusCode: int
-    Code: int
-    Details: List[int]
-    Duration: str
-    ExceptionFields: Optional[Dict[str, str]]
-    Message: str
-    MoreInfo: str
+    status_code: int = field(metadata={"serializedName": "StatusCode"})
+    code: int
+    details: List[int]
+    duration: str
+    exception_fields: Optional[Dict[str, str]]
+    message: str
+    more_info: str
 
     @classmethod
     def from_dict(cls, data: dict) -> "APIError":
-        return cls(**data)
+        remapped_data = remap_fields(cls, data)
+        return cls(**remapped_data)

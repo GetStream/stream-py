@@ -1,33 +1,23 @@
 import json
-from typing import Dict
+from typing import Dict, Optional
+
+from getstream.models.model_api_error import APIError
+from getstream.rate_limit import extract_rate_limit
 
 
 class StreamAPIException(Exception):
-    def __init__(self, text: str, status_code: int) -> None:
-        self.response_text = text
-        self.status_code = status_code
-        self.json_response = False
+    def __init__(self, response: str) -> None:
+        self.api_error: Optional[APIError] = None
+        self.rate_limit_info = extract_rate_limit(response)
 
         try:
-            parsed_response: Dict = json.loads(text)
-            self.error_code = parsed_response.get("code", "unknown")
-            self.error_message = parsed_response.get("message", "unknown")
-            self.json_response = True
+            parsed_response: Dict = json.loads(response.text)
+            self.api_error = APIError.from_dict(parsed_response)
         except ValueError:
             pass
 
     def __str__(self) -> str:
-        if self.json_response:
-            return f'StreamChat error code {self.error_code}: {self.error_message}"'
+        if self.api_error:
+            return f'Stream error code {self.api_error.code}: {self.api_error.message}"'
         else:
-            return f"StreamChat error HTTP code: {self.status_code}"
-
-
-class VideoCallTypeBadRequest(StreamAPIException):
-    def __init__(self, text: str, status_code: int) -> None:
-        super().__init__(text, status_code)
-
-
-class VideoCallTypeNotFound(StreamAPIException):
-    def __init__(self, text: str, status_code: int) -> None:
-        super().__init__(text, status_code)
+            return f"Stream error HTTP code: {self.status_code}"
