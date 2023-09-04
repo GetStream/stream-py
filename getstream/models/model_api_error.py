@@ -23,5 +23,7 @@ class APIError:
 
     @classmethod
     def from_dict(cls, data: dict) -> "APIError":
+        if data.get("exception_fields"):
+            data["exception_fields"] = data["exception_fields"]
         remapped_data = remap_fields(cls, data)
         return cls(**remapped_data)
