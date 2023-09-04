@@ -17,9 +17,9 @@ class APIError:
     code: int
     details: List[int]
     duration: str
-    exception_fields: Optional[Dict[str, str]] = None
     message: str
     more_info: str
+    exception_fields: Optional[Dict[str, str]] = None
 
     @classmethod
     def from_dict(cls, data: dict) -> "APIError":
