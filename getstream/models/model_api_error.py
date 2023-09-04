@@ -1,7 +1,6 @@
 import dataclasses
 from typing import List, Dict, Optional
 from dataclasses import dataclass, field
-from functools import partial
 
 
 def remap_fields(cls, data_dict: dict) -> dict:
