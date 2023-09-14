@@ -2,23 +2,24 @@ import os
 import uuid
 
 import jwt
-from getstream.models.model_audio_settings_request import AudioSettingsRequest
-from getstream.models.model_backstage_settings_request import BackstageSettingsRequest
-from getstream.models.model_broadcast_settings_request import BroadcastSettingsRequest
-from getstream.models.model_call_request import CallRequest
-from getstream.models.model_call_settings_request import CallSettingsRequest
-from getstream.models.model_create_call_type_request import CreateCallTypeRequest
-from getstream.models.model_member_request import MemberRequest
-from getstream.models.model_record_settings_request import RecordSettingsRequest
-from getstream.models.model_screensharing_settings_request import (
+from getstream.models.get_or_create_call_request import GetOrCreateCallRequest
+from getstream.models.audio_settings_request import AudioSettingsRequest
+from getstream.models.backstage_settings_request import BackstageSettingsRequest
+from getstream.models.broadcast_settings_request import BroadcastSettingsRequest
+from getstream.models.call_request import CallRequest
+from getstream.models.call_settings_request import CallSettingsRequest
+from getstream.models.create_call_type_request import CreateCallTypeRequest
+from getstream.models.member_request import MemberRequest
+from getstream.models.record_settings_request import RecordSettingsRequest
+from getstream.models.screensharing_settings_request import (
     ScreensharingSettingsRequest,
 )
-from getstream.models.model_target_resolution_request import TargetResolutionRequest
-from getstream.models.model_transcription_settings_request import (
+from getstream.models.target_resolution_request import TargetResolutionRequest
+from getstream.models.transcription_settings_request import (
     TranscriptionSettingsRequest,
 )
-from getstream.models.model_update_call_type_request import UpdateCallTypeRequest
-from getstream.models.model_video_settings_request import VideoSettingsRequest
+from getstream.models.update_call_type_request import UpdateCallTypeRequest
+from getstream.models.video_settings_request import VideoSettingsRequest
 from getstream.version import VERSION
 import pytest
 from getstream import Stream
@@ -160,7 +161,7 @@ def test_create_token(client: Stream):
 def test_get_or_create_call(client: Stream):
     calltype_name = "default"
 
-    data = CallRequest(
+    call = CallRequest(
         created_by_id="sacha@getstream.io",
         settings_override=CallSettingsRequest(
             audio=AudioSettingsRequest(
@@ -171,6 +172,10 @@ def test_get_or_create_call(client: Stream):
     )
 
     members = [MemberRequest(role="speaker", user_id="sacha@getstream.io")]
+    data = GetOrCreateCallRequest(
+        call=call,
+        members=members,
+    )
     response = client.video.get_or_create_call(
         call_type=calltype_name, call_id=CALL_ID, data=data, members=members
     )

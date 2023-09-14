@@ -5,6 +5,16 @@ from getstream.generic import T
 from getstream.video.exceptions import StreamAPIException
 import httpx
 from getstream.config import BaseConfig
+from urllib.parse import quote
+
+
+def build_path(path: str, path_params: dict) -> str:
+    for k, v in path_params:
+        path_params[k] = quote(
+            v, safe=""
+        )  # in case of special characters in the path. Known cases: chat message ids.
+
+    return path.format(**path_params)
 
 
 class BaseClient(BaseConfig):
@@ -63,35 +73,59 @@ class BaseClient(BaseConfig):
         return StreamResponse(response, data)
 
     def get(
-        self, path, data_type: Optional[Type[T]] = None, *args, **kwargs
+        self,
+        path,
+        data_type: Optional[Type[T]] = None,
+        path_params: Optional[Dict[str, str]] = None,
+        query_params: Optional[Dict[str, str]] = None,
+        *args,
+        **kwargs,
     ) -> StreamResponse[T]:
-        response = self.client.get(path, *args, **kwargs)
+        response = self.client.get(
+            build_path(path, path_params), params=query_params, *args, **kwargs
+        )
         return self._parse_response(response, data_type or Dict[str, Any])
 
     def post(
         self,
         path,
         data_type: Optional[Type[T]] = None,
+        path_params: Optional[Dict[str, str]] = None,
+        query_params: Optional[Dict[str, str]] = None,
         *args,
         **kwargs,
     ) -> StreamResponse[T]:
-        response = self.client.post(path, *args, **kwargs)
+        response = self.client.post(
+            build_path(path, path_params), params=query_params, *args, **kwargs
+        )
         return self._parse_response(response, data_type or Dict[str, Any])
 
     def put(
         self,
         path,
         data_type: Optional[Type[T]] = None,
+        path_params: Optional[Dict[str, str]] = None,
+        query_params: Optional[Dict[str, str]] = None,
         *args,
         **kwargs,
     ) -> StreamResponse[T]:
-        response = self.client.put(path, *args, **kwargs)
+        response = self.client.put(
+            build_path(path, path_params), params=query_params, *args, **kwargs
+        )
         return self._parse_response(response, data_type or Dict[str, Any])
 
     def delete(
-        self, path, data_type: Optional[Type[T]] = None, *args, **kwargs
+        self,
+        path,
+        data_type: Optional[Type[T]] = None,
+        path_params: Optional[Dict[str, str]] = None,
+        query_params: Optional[Dict[str, str]] = None,
+        *args,
+        **kwargs,
     ) -> StreamResponse[T]:
-        response = self.client.delete(path, *args, **kwargs)
+        response = self.client.delete(
+            build_path(path, path_params), params=query_params, *args, **kwargs
+        )
         return self._parse_response(response, data_type or Dict[str, Any])
 
     def close(self):
