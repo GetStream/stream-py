@@ -9,6 +9,7 @@ readme = "README.md"
 python = ">=3.8.1,<4.0.0"
 httpx = "^0.19.0"
 pyjwt = "^2.6.0"
+dataclasses-json = "^0.6.0"
 
 frozendict = "^2.3.7"
 click = "^8.1.3"
