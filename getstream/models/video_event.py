@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Optional
+
 from typing import Union
 from json import loads
 

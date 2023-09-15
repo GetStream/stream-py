@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Optional
+
 from dataclasses_json import config, dataclass_json
 from event_notification_settings_request import EventNotificationSettingsRequest
 from event_notification_settings_request import EventNotificationSettingsRequest

@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Optional
+
 from dataclasses_json import config, dataclass_json
 from call_settings_response import CallSettingsResponse
 from notification_settings import NotificationSettings
