@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-
+from typing import Optional
 from dataclasses_json import config, dataclass_json
 from backstage_settings_request import BackstageSettingsRequest
 from geofence_settings_request import GeofenceSettingsRequest

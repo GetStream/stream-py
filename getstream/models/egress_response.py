@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-
+from typing import Optional
 from dataclasses_json import config, dataclass_json
 from egress_hls_response import EgressHlsresponse
 from egress_rtmp_response import EgressRtmpresponse

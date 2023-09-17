@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-
+from typing import Optional
 from dataclasses_json import config, dataclass_json
 from member_request import MemberRequest
 from call_settings_request import CallSettingsRequest

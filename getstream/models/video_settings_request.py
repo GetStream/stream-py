@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-
+from typing import Optional
 from dataclasses_json import config, dataclass_json
 from target_resolution_request import TargetResolutionRequest
 

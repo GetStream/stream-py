@@ -1,7 +1,7 @@
 import json
 from typing import Dict, Optional
 
-from getstream.models.model_api_error import APIError
+from getstream.models.api_error import APIError
 from getstream.rate_limit import extract_rate_limit
 
 

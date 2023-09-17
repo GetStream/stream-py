@@ -1,6 +1,6 @@
 import unittest
 
-from getstream.models.model_api_error import APIError
+from getstream.models.api_error import APIError
 
 
 class TestAPIError(unittest.TestCase):
