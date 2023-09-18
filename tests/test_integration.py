@@ -56,12 +56,9 @@ def create_call_type_data() -> CreateCallTypeRequest:
                     auto_on=True,
                     enabled=True,
                     quality_tracks=[
-                        "audio-only",
                         "360p",
                         "480p",
                         "720p",
-                        "1080p",
-                        "1440p",
                     ],
                 ),
             ),
