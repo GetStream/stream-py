@@ -1,10 +1,10 @@
 from dataclasses import dataclass, field
 from dataclasses_json import config, dataclass_json
 
-from typing import Dict
+from typing import List, Dict
 from datetime import datetime
-from getstream.models.notification_settings import NotificationSettings
 from getstream.models.call_settings_response import CallSettingsResponse
+from getstream.models.notification_settings import NotificationSettings
 
 
 @dataclass_json

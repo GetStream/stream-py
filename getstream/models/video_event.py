@@ -1,6 +1,4 @@
-from dataclasses import dataclass, field
-from dataclasses_json import config, dataclass_json
-
+from dataclasses import dataclass
 from typing import Union
 from json import loads
 

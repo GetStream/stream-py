@@ -12,7 +12,6 @@ from getstream.models.credentials import Credentials
 @dataclass_json
 @dataclass
 class JoinCallResponse:
-    members: List[MemberResponse] = field(metadata=config(field_name="members"))
     own_capabilities: List[OwnCapability] = field(
         metadata=config(field_name="own_capabilities")
     )
@@ -23,6 +22,7 @@ class JoinCallResponse:
     created: bool = field(metadata=config(field_name="created"))
     credentials: Credentials = field(metadata=config(field_name="credentials"))
     duration: str = field(metadata=config(field_name="duration"))
+    members: List[MemberResponse] = field(metadata=config(field_name="members"))
     membership: Optional[MemberResponse] = field(
         metadata=config(field_name="membership"), default=None
     )

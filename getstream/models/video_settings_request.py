@@ -8,9 +8,6 @@ from getstream.models.target_resolution_request import TargetResolutionRequest
 @dataclass_json
 @dataclass
 class VideoSettingsRequest:
-    target_resolution: Optional[TargetResolutionRequest] = field(
-        metadata=config(field_name="target_resolution"), default=None
-    )
     access_request_enabled: Optional[bool] = field(
         metadata=config(field_name="access_request_enabled"), default=None
     )
@@ -21,3 +18,6 @@ class VideoSettingsRequest:
         metadata=config(field_name="camera_facing"), default=None
     )
     enabled: Optional[bool] = field(metadata=config(field_name="enabled"), default=None)
+    target_resolution: Optional[TargetResolutionRequest] = field(
+        metadata=config(field_name="target_resolution"), default=None
+    )

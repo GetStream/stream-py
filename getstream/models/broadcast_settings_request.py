@@ -8,7 +8,7 @@ from getstream.models.hls_settings_request import HlssettingsRequest
 @dataclass_json
 @dataclass
 class BroadcastSettingsRequest:
-    enabled: Optional[bool] = field(metadata=config(field_name="enabled"), default=None)
     hls: Optional[HlssettingsRequest] = field(
         metadata=config(field_name="hls"), default=None
     )
+    enabled: Optional[bool] = field(metadata=config(field_name="enabled"), default=None)

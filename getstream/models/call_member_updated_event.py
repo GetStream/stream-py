@@ -3,8 +3,8 @@ from dataclasses_json import config, dataclass_json
 
 from typing import List
 from datetime import datetime
-from getstream.models.call_response import CallResponse
 from getstream.models.member_response import MemberResponse
+from getstream.models.call_response import CallResponse
 
 
 @dataclass_json

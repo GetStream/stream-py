@@ -11,15 +11,15 @@ from getstream.models.call_response import CallResponse
 @dataclass_json
 @dataclass
 class UpdateCallResponse:
+    own_capabilities: List[OwnCapability] = field(
+        metadata=config(field_name="own_capabilities")
+    )
     blocked_users: List[UserResponse] = field(
         metadata=config(field_name="blocked_users")
     )
     call: CallResponse = field(metadata=config(field_name="call"))
     duration: str = field(metadata=config(field_name="duration"))
     members: List[MemberResponse] = field(metadata=config(field_name="members"))
-    own_capabilities: List[OwnCapability] = field(
-        metadata=config(field_name="own_capabilities")
-    )
     membership: Optional[MemberResponse] = field(
         metadata=config(field_name="membership"), default=None
     )

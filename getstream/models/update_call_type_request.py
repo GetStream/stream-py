@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from dataclasses_json import config, dataclass_json
 
-from typing import Dict, Optional
+from typing import List, Dict, Optional
 from getstream.models.notification_settings_request import NotificationSettingsRequest
 from getstream.models.call_settings_request import CallSettingsRequest
 
