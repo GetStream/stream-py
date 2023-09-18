@@ -172,7 +172,6 @@ def test_get_or_create_call(client: Stream):
         ),
     )
 
- 
     data = GetOrCreateCallRequest(
         data=call,
     )
