@@ -45,7 +45,7 @@ def create_call_type_data() -> CreateCallTypeRequest:
             recording=RecordSettingsRequest(
                 audio_only=True,
                 mode="available",
-                quality="audio-only",
+                quality="360p",
             ),
             backstage=BackstageSettingsRequest(
                 enabled=True,
