@@ -9,6 +9,7 @@ from getstream.models.broadcast_settings_request import BroadcastSettingsRequest
 from getstream.models.call_request import CallRequest
 from getstream.models.call_settings_request import CallSettingsRequest
 from getstream.models.create_call_type_request import CreateCallTypeRequest
+from getstream.models.hls_settings_request import HlssettingsRequest
 from getstream.models.member_request import MemberRequest
 from getstream.models.record_settings_request import RecordSettingsRequest
 from getstream.models.screensharing_settings_request import (
@@ -51,7 +52,7 @@ def create_call_type_data() -> CreateCallTypeRequest:
             ),
             broadcasting=BroadcastSettingsRequest(
                 enabled=True,
-                hls=CallSettingsRequest(
+                hls=HlssettingsRequest(
                     auto_on=True,
                     enabled=True,
                     quality_tracks=[
