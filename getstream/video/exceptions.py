@@ -1,18 +1,18 @@
 import json
 from typing import Dict, Optional
 
-from getstream.models.api_error import APIError
+from getstream.models.api_error import Apierror
 from getstream.rate_limit import extract_rate_limit
 
 
 class StreamAPIException(Exception):
     def __init__(self, response: str) -> None:
-        self.api_error: Optional[APIError] = None
+        self.api_error: Optional[Apierror] = None
         self.rate_limit_info = extract_rate_limit(response)
 
         try:
             parsed_response: Dict = json.loads(response.text)
-            self.api_error = APIError.from_dict(parsed_response)
+            self.api_error = Apierror.from_dict(parsed_response)
         except ValueError:
             pass
 
