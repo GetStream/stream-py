@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
-
 from dataclasses_json import config, dataclass_json
+
+from typing import List
 
 
 @dataclass_json
@@ -8,4 +9,4 @@ from dataclasses_json import config, dataclass_json
 class Iceserver:
     username: str = field(metadata=config(field_name="username"))
     password: str = field(metadata=config(field_name="password"))
-    urls: list[str] = field(metadata=config(field_name="urls"))
+    urls: List[str] = field(metadata=config(field_name="urls"))

@@ -1,8 +1,10 @@
 from dataclasses import dataclass, field
-
 from dataclasses_json import config, dataclass_json
-from notification_settings import NotificationSettings
-from call_settings_response import CallSettingsResponse
+
+from typing import Dict
+from datetime import datetime
+from getstream.models.notification_settings import NotificationSettings
+from getstream.models.call_settings_response import CallSettingsResponse
 
 
 @dataclass_json
@@ -12,8 +14,8 @@ class CreateCallTypeResponse:
         metadata=config(field_name="notification_settings")
     )
     settings: CallSettingsResponse = field(metadata=config(field_name="settings"))
-    updated_at: str = field(metadata=config(field_name="updated_at"))
-    created_at: str = field(metadata=config(field_name="created_at"))
+    updated_at: datetime = field(metadata=config(field_name="updated_at"))
+    created_at: datetime = field(metadata=config(field_name="created_at"))
     duration: str = field(metadata=config(field_name="duration"))
-    grants: dict[str, list[str]] = field(metadata=config(field_name="grants"))
+    grants: Dict[str, List[str]] = field(metadata=config(field_name="grants"))
     name: str = field(metadata=config(field_name="name"))

@@ -1,14 +1,15 @@
 from dataclasses import dataclass, field
-from typing import Optional
 from dataclasses_json import config, dataclass_json
-from notification_settings_request import NotificationSettingsRequest
-from call_settings_request import CallSettingsRequest
+
+from typing import Dict, Optional
+from getstream.models.notification_settings_request import NotificationSettingsRequest
+from getstream.models.call_settings_request import CallSettingsRequest
 
 
 @dataclass_json
 @dataclass
 class UpdateCallTypeRequest:
-    grants: Optional[dict[str, list[str]]] = field(
+    grants: Optional[Dict[str, List[str]]] = field(
         metadata=config(field_name="grants"), default=None
     )
     notification_settings: Optional[NotificationSettingsRequest] = field(

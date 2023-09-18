@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
-
 from dataclasses_json import config, dataclass_json
-from hls_settings import Hlssettings
+
+from getstream.models.hls_settings import Hlssettings
 
 
 @dataclass_json

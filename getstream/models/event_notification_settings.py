@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
-
 from dataclasses_json import config, dataclass_json
-from apns import Apns
+
+from getstream.models.apns import Apns
 
 
 @dataclass_json

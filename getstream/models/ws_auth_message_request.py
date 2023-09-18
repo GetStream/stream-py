@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
-
 from dataclasses_json import config, dataclass_json
-from connect_user_details_request import ConnectUserDetailsRequest
+
+from getstream.models.connect_user_details_request import ConnectUserDetailsRequest
 
 
 @dataclass_json

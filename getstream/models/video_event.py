@@ -1,37 +1,48 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from dataclasses_json import config, dataclass_json
 
 from typing import Union
 from json import loads
 
-from blocked_user_event import BlockedUserEvent
-from call_accepted_event import CallAcceptedEvent
-from call_broadcasting_started_event import CallBroadcastingStartedEvent
-from call_broadcasting_stopped_event import CallBroadcastingStoppedEvent
-from call_created_event import CallCreatedEvent
-from call_ended_event import CallEndedEvent
-from call_live_started_event import CallLiveStartedEvent
-from call_member_added_event import CallMemberAddedEvent
-from call_member_removed_event import CallMemberRemovedEvent
-from call_member_updated_event import CallMemberUpdatedEvent
-from call_member_updated_permission_event import CallMemberUpdatedPermissionEvent
-from call_notification_event import CallNotificationEvent
-from call_reaction_event import CallReactionEvent
-from call_recording_started_event import CallRecordingStartedEvent
-from call_recording_stopped_event import CallRecordingStoppedEvent
-from call_rejected_event import CallRejectedEvent
-from call_ring_event import CallRingEvent
-from call_session_ended_event import CallSessionEndedEvent
-from call_session_participant_joined_event import CallSessionParticipantJoinedEvent
-from call_session_participant_left_event import CallSessionParticipantLeftEvent
-from call_session_started_event import CallSessionStartedEvent
-from call_updated_event import CallUpdatedEvent
-from connected_event import ConnectedEvent
-from connection_error_event import ConnectionErrorEvent
-from custom_video_event import CustomVideoEvent
-from health_check_event import HealthCheckEvent
-from permission_request_event import PermissionRequestEvent
-from unblocked_user_event import UnblockedUserEvent
-from updated_call_permissions_event import UpdatedCallPermissionsEvent
+from getstream.models.blocked_user_event import BlockedUserEvent
+from getstream.models.call_accepted_event import CallAcceptedEvent
+from getstream.models.call_broadcasting_started_event import (
+    CallBroadcastingStartedEvent,
+)
+from getstream.models.call_broadcasting_stopped_event import (
+    CallBroadcastingStoppedEvent,
+)
+from getstream.models.call_created_event import CallCreatedEvent
+from getstream.models.call_ended_event import CallEndedEvent
+from getstream.models.call_live_started_event import CallLiveStartedEvent
+from getstream.models.call_member_added_event import CallMemberAddedEvent
+from getstream.models.call_member_removed_event import CallMemberRemovedEvent
+from getstream.models.call_member_updated_event import CallMemberUpdatedEvent
+from getstream.models.call_member_updated_permission_event import (
+    CallMemberUpdatedPermissionEvent,
+)
+from getstream.models.call_notification_event import CallNotificationEvent
+from getstream.models.call_reaction_event import CallReactionEvent
+from getstream.models.call_recording_started_event import CallRecordingStartedEvent
+from getstream.models.call_recording_stopped_event import CallRecordingStoppedEvent
+from getstream.models.call_rejected_event import CallRejectedEvent
+from getstream.models.call_ring_event import CallRingEvent
+from getstream.models.call_session_ended_event import CallSessionEndedEvent
+from getstream.models.call_session_participant_joined_event import (
+    CallSessionParticipantJoinedEvent,
+)
+from getstream.models.call_session_participant_left_event import (
+    CallSessionParticipantLeftEvent,
+)
+from getstream.models.call_session_started_event import CallSessionStartedEvent
+from getstream.models.call_updated_event import CallUpdatedEvent
+from getstream.models.connected_event import ConnectedEvent
+from getstream.models.connection_error_event import ConnectionErrorEvent
+from getstream.models.custom_video_event import CustomVideoEvent
+from getstream.models.health_check_event import HealthCheckEvent
+from getstream.models.permission_request_event import PermissionRequestEvent
+from getstream.models.unblocked_user_event import UnblockedUserEvent
+from getstream.models.updated_call_permissions_event import UpdatedCallPermissionsEvent
 
 mapping = {
     "call.accepted": CallAcceptedEvent,

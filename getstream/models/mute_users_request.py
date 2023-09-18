@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
-from typing import Optional
 from dataclasses_json import config, dataclass_json
+
+from typing import List, Optional
 
 
 @dataclass_json
@@ -13,7 +14,7 @@ class MuteUsersRequest:
     screenshare: Optional[bool] = field(
         metadata=config(field_name="screenshare"), default=None
     )
-    user_ids: Optional[list[str]] = field(
+    user_ids: Optional[List[str]] = field(
         metadata=config(field_name="user_ids"), default=None
     )
     video: Optional[bool] = field(metadata=config(field_name="video"), default=None)

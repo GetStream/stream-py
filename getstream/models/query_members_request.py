@@ -1,7 +1,8 @@
 from dataclasses import dataclass, field
-from typing import Optional
 from dataclasses_json import config, dataclass_json
-from sort_param_request import SortParamRequest
+
+from typing import Dict, List, Optional
+from getstream.models.sort_param_request import SortParamRequest
 
 
 @dataclass_json
@@ -9,12 +10,12 @@ from sort_param_request import SortParamRequest
 class QueryMembersRequest:
     id: str = field(metadata=config(field_name="id"))
     type: str = field(metadata=config(field_name="type"))
-    filter_conditions: Optional[dict[str, object]] = field(
-        metadata=config(field_name="filter_conditions"), default=None
-    )
     limit: Optional[int] = field(metadata=config(field_name="limit"), default=None)
     next: Optional[str] = field(metadata=config(field_name="next"), default=None)
     prev: Optional[str] = field(metadata=config(field_name="prev"), default=None)
-    sort: Optional[list[SortParamRequest]] = field(
+    sort: Optional[List[SortParamRequest]] = field(
         metadata=config(field_name="sort"), default=None
+    )
+    filter_conditions: Optional[Dict[str, object]] = field(
+        metadata=config(field_name="filter_conditions"), default=None
     )

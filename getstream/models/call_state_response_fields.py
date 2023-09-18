@@ -1,21 +1,22 @@
 from dataclasses import dataclass, field
-from typing import Optional
 from dataclasses_json import config, dataclass_json
-from user_response import UserResponse
-from call_response import CallResponse
-from member_response import MemberResponse
-from own_capability import OwnCapability
+
+from typing import List, Optional
+from getstream.models.member_response import MemberResponse
+from getstream.models.own_capability import OwnCapability
+from getstream.models.user_response import UserResponse
+from getstream.models.call_response import CallResponse
 
 
 @dataclass_json
 @dataclass
 class CallStateResponseFields:
-    blocked_users: list[UserResponse] = field(
+    blocked_users: List[UserResponse] = field(
         metadata=config(field_name="blocked_users")
     )
     call: CallResponse = field(metadata=config(field_name="call"))
-    members: list[MemberResponse] = field(metadata=config(field_name="members"))
-    own_capabilities: list[OwnCapability] = field(
+    members: List[MemberResponse] = field(metadata=config(field_name="members"))
+    own_capabilities: List[OwnCapability] = field(
         metadata=config(field_name="own_capabilities")
     )
     membership: Optional[MemberResponse] = field(

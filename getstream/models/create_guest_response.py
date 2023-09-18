@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
-
 from dataclasses_json import config, dataclass_json
-from user_response import UserResponse
+
+from getstream.models.user_response import UserResponse
 
 
 @dataclass_json

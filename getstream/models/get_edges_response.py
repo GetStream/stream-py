@@ -1,11 +1,12 @@
 from dataclasses import dataclass, field
-
 from dataclasses_json import config, dataclass_json
-from edge_response import EdgeResponse
+
+from typing import List
+from getstream.models.edge_response import EdgeResponse
 
 
 @dataclass_json
 @dataclass
 class GetEdgesResponse:
     duration: str = field(metadata=config(field_name="duration"))
-    edges: list[EdgeResponse] = field(metadata=config(field_name="edges"))
+    edges: List[EdgeResponse] = field(metadata=config(field_name="edges"))

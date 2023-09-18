@@ -1,13 +1,14 @@
 from dataclasses import dataclass, field
-from typing import Optional
 from dataclasses_json import config, dataclass_json
+
+from typing import Dict, Optional
 
 
 @dataclass_json
 @dataclass
 class SendReactionRequest:
     type: str = field(metadata=config(field_name="type"))
-    custom: Optional[dict[str, object]] = field(
+    custom: Optional[Dict[str, object]] = field(
         metadata=config(field_name="custom"), default=None
     )
     emoji_code: Optional[str] = field(

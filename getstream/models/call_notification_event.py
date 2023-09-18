@@ -1,16 +1,18 @@
 from dataclasses import dataclass, field
-
 from dataclasses_json import config, dataclass_json
-from user_response import UserResponse
-from call_response import CallResponse
-from member_response import MemberResponse
+
+from typing import List
+from datetime import datetime
+from getstream.models.user_response import UserResponse
+from getstream.models.call_response import CallResponse
+from getstream.models.member_response import MemberResponse
 
 
 @dataclass_json
 @dataclass
 class CallNotificationEvent:
-    created_at: str = field(metadata=config(field_name="created_at"))
-    members: list[MemberResponse] = field(metadata=config(field_name="members"))
+    created_at: datetime = field(metadata=config(field_name="created_at"))
+    members: List[MemberResponse] = field(metadata=config(field_name="members"))
     session_id: str = field(metadata=config(field_name="session_id"))
     type: str = field(metadata=config(field_name="type"))
     user: UserResponse = field(metadata=config(field_name="user"))
