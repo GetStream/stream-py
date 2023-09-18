@@ -4,7 +4,6 @@ from dataclasses_json import config, dataclass_json
 from user_response import UserResponse
 from call_response import CallResponse
 from member_response import MemberResponse
-from member_response import MemberResponse
 from own_capability import OwnCapability
 
 

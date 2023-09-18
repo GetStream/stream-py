@@ -3,7 +3,6 @@ from typing import Optional
 from dataclasses_json import config, dataclass_json
 from call_response import CallResponse
 from member_response import MemberResponse
-from member_response import MemberResponse
 from own_capability import OwnCapability
 from user_response import UserResponse
 
