@@ -160,9 +160,10 @@ def test_create_token(client: Stream):
 
 def test_get_or_create_call(client: Stream):
     calltype_name = "default"
-
+    members = [MemberRequest(role="speaker", user_id="sacha@getstream.io")]
     call = CallRequest(
         created_by_id="sacha@getstream.io",
+        members=members,
         settings_override=CallSettingsRequest(
             audio=AudioSettingsRequest(
                 default_device="speaker",
@@ -171,10 +172,9 @@ def test_get_or_create_call(client: Stream):
         ),
     )
 
-    members = [MemberRequest(role="speaker", user_id="sacha@getstream.io")]
+ 
     data = GetOrCreateCallRequest(
-        call=call,
-        members=members,
+        data=call,
     )
     response = client.video.get_or_create_call(
         call_type=calltype_name, call_id=CALL_ID, data=data, members=members
