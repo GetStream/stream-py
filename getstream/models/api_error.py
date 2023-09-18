@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import Dict, List, Optional
 from dataclasses_json import config, dataclass_json
 
 
@@ -12,6 +12,6 @@ class Apierror:
     more_info: str = field(metadata=config(field_name="more_info"))
     status_code: int = field(metadata=config(field_name="StatusCode"))
     code: int = field(metadata=config(field_name="code"))
-    exception_fields: Optional[dict[str, str]] = field(
+    exception_fields: Optional[Dict[str, str]] = field(
         metadata=config(field_name="exception_fields"), default=None
     )
