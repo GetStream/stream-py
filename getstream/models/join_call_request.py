@@ -9,6 +9,11 @@ from getstream.models.call_request import CallRequest
 @dataclass
 class JoinCallRequest:
     location: str = field(metadata=config(field_name="location"))
+    ring: Optional[bool] = field(metadata=config(field_name="ring"), default=None)
+    create: Optional[bool] = field(metadata=config(field_name="create"), default=None)
+    data: Optional[CallRequest] = field(
+        metadata=config(field_name="data"), default=None
+    )
     members_limit: Optional[int] = field(
         metadata=config(field_name="members_limit"), default=None
     )
@@ -16,8 +21,3 @@ class JoinCallRequest:
         metadata=config(field_name="migrating_from"), default=None
     )
     notify: Optional[bool] = field(metadata=config(field_name="notify"), default=None)
-    ring: Optional[bool] = field(metadata=config(field_name="ring"), default=None)
-    create: Optional[bool] = field(metadata=config(field_name="create"), default=None)
-    data: Optional[CallRequest] = field(
-        metadata=config(field_name="data"), default=None
-    )

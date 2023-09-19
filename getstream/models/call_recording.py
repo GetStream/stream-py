@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from dataclasses_json import config, dataclass_json
 
 from datetime import datetime
+from dateutil.parser import parse
 from marshmallow import fields
 
 
@@ -11,8 +12,8 @@ class CallRecording:
     end_time: datetime = field(
         metadata=config(
             field_name="end_time",
-            encoder=datetime.isoformat,
-            decoder=datetime.fromisoformat,
+            encoder=lambda d: d.isoformat(),
+            decoder=parse,
             mm_field=fields.DateTime(format="iso"),
         )
     )
@@ -20,8 +21,8 @@ class CallRecording:
     start_time: datetime = field(
         metadata=config(
             field_name="start_time",
-            encoder=datetime.isoformat,
-            decoder=datetime.fromisoformat,
+            encoder=lambda d: d.isoformat(),
+            decoder=parse,
             mm_field=fields.DateTime(format="iso"),
         )
     )

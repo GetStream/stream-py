@@ -12,17 +12,17 @@ from getstream.models.credentials import Credentials
 @dataclass_json
 @dataclass
 class JoinCallResponse:
+    blocked_users: List[UserResponse] = field(
+        metadata=config(field_name="blocked_users")
+    )
+    call: CallResponse = field(metadata=config(field_name="call"))
+    created: bool = field(metadata=config(field_name="created"))
     credentials: Credentials = field(metadata=config(field_name="credentials"))
     duration: str = field(metadata=config(field_name="duration"))
     members: List[MemberResponse] = field(metadata=config(field_name="members"))
     own_capabilities: List[OwnCapability] = field(
         metadata=config(field_name="own_capabilities")
     )
-    blocked_users: List[UserResponse] = field(
-        metadata=config(field_name="blocked_users")
-    )
-    call: CallResponse = field(metadata=config(field_name="call"))
-    created: bool = field(metadata=config(field_name="created"))
     membership: Optional[MemberResponse] = field(
         metadata=config(field_name="membership"), default=None
     )

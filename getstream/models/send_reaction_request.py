@@ -8,9 +8,9 @@ from typing import Dict, Optional
 @dataclass
 class SendReactionRequest:
     type: str = field(metadata=config(field_name="type"))
-    custom: Optional[Dict[str, object]] = field(
-        metadata=config(field_name="custom"), default=None
-    )
     emoji_code: Optional[str] = field(
         metadata=config(field_name="emoji_code"), default=None
+    )
+    custom: Optional[Dict[str, object]] = field(
+        metadata=config(field_name="custom"), default=None
     )
