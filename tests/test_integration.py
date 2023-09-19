@@ -119,6 +119,8 @@ def test_update_call_type(client: Stream):
             ),
             recording=RecordSettingsRequest(
                 audio_only=False,
+                mode="auto-on",
+                quality="720p",
             ),
         ),
     )

@@ -92,7 +92,7 @@ class VideoClient(BaseClient):
         query_params = {}
         path_params = {}
 
-        self.post(
+        return self.post(
             "/call/members",
             QueryMembersResponse,
             query_params=query_params,
@@ -121,7 +121,7 @@ class VideoClient(BaseClient):
         query_params["ring"] = ring
         query_params["notify"] = notify
 
-        self.get(
+        return self.get(
             "/call/{type}/{id}",
             GetCallResponse,
             query_params=query_params,
@@ -139,7 +139,7 @@ class VideoClient(BaseClient):
         path_params["type"] = type
         path_params["id"] = id
 
-        self.patch(
+        return self.patch(
             "/call/{type}/{id}",
             UpdateCallResponse,
             query_params=query_params,
@@ -163,7 +163,7 @@ class VideoClient(BaseClient):
         path_params["id"] = id
         query_params["connection_id"] = connection_id
 
-        self.post(
+        return self.post(
             "/call/{type}/{id}",
             GetOrCreateCallResponse,
             query_params=query_params,
@@ -180,7 +180,7 @@ class VideoClient(BaseClient):
         path_params["type"] = type
         path_params["id"] = id
 
-        self.post(
+        return self.post(
             "/call/{type}/{id}/accept",
             AcceptCallResponse,
             query_params=query_params,
@@ -198,7 +198,7 @@ class VideoClient(BaseClient):
         path_params["type"] = type
         path_params["id"] = id
 
-        self.post(
+        return self.post(
             "/call/{type}/{id}/block",
             BlockUserResponse,
             query_params=query_params,
@@ -217,7 +217,7 @@ class VideoClient(BaseClient):
         path_params["type"] = type
         path_params["id"] = id
 
-        self.post(
+        return self.post(
             "/call/{type}/{id}/event",
             SendEventResponse,
             query_params=query_params,
@@ -236,7 +236,7 @@ class VideoClient(BaseClient):
         path_params["type"] = type
         path_params["id"] = id
 
-        self.post(
+        return self.post(
             "/call/{type}/{id}/go_live",
             GoLiveResponse,
             query_params=query_params,
@@ -260,7 +260,7 @@ class VideoClient(BaseClient):
         path_params["id"] = id
         query_params["connection_id"] = connection_id
 
-        self.post(
+        return self.post(
             "/call/{type}/{id}/join",
             JoinCallResponse,
             query_params=query_params,
@@ -277,7 +277,7 @@ class VideoClient(BaseClient):
         path_params["type"] = type
         path_params["id"] = id
 
-        self.post(
+        return self.post(
             "/call/{type}/{id}/mark_ended",
             EndCallResponse,
             query_params=query_params,
@@ -295,7 +295,7 @@ class VideoClient(BaseClient):
         path_params["type"] = type
         path_params["id"] = id
 
-        self.post(
+        return self.post(
             "/call/{type}/{id}/members",
             UpdateCallMembersResponse,
             query_params=query_params,
@@ -314,7 +314,7 @@ class VideoClient(BaseClient):
         path_params["type"] = type
         path_params["id"] = id
 
-        self.post(
+        return self.post(
             "/call/{type}/{id}/mute_users",
             MuteUsersResponse,
             query_params=query_params,
@@ -333,7 +333,7 @@ class VideoClient(BaseClient):
         path_params["type"] = type
         path_params["id"] = id
 
-        self.post(
+        return self.post(
             "/call/{type}/{id}/pin",
             PinResponse,
             query_params=query_params,
@@ -352,7 +352,7 @@ class VideoClient(BaseClient):
         path_params["type"] = type
         path_params["id"] = id
 
-        self.post(
+        return self.post(
             "/call/{type}/{id}/reaction",
             SendReactionResponse,
             query_params=query_params,
@@ -371,7 +371,7 @@ class VideoClient(BaseClient):
         path_params["type"] = type
         path_params["id"] = id
 
-        self.get(
+        return self.get(
             "/call/{type}/{id}/recordings",
             ListRecordingsResponse,
             query_params=query_params,
@@ -387,7 +387,7 @@ class VideoClient(BaseClient):
         path_params["type"] = type
         path_params["id"] = id
 
-        self.post(
+        return self.post(
             "/call/{type}/{id}/reject",
             RejectCallResponse,
             query_params=query_params,
@@ -405,7 +405,7 @@ class VideoClient(BaseClient):
         path_params["type"] = type
         path_params["id"] = id
 
-        self.post(
+        return self.post(
             "/call/{type}/{id}/request_permission",
             RequestPermissionResponse,
             query_params=query_params,
@@ -424,7 +424,7 @@ class VideoClient(BaseClient):
         path_params["type"] = type
         path_params["id"] = id
 
-        self.post(
+        return self.post(
             "/call/{type}/{id}/start_broadcasting",
             StartBroadcastingResponse,
             query_params=query_params,
@@ -442,7 +442,7 @@ class VideoClient(BaseClient):
         path_params["type"] = type
         path_params["id"] = id
 
-        self.post(
+        return self.post(
             "/call/{type}/{id}/start_recording",
             StartRecordingResponse,
             query_params=query_params,
@@ -460,7 +460,7 @@ class VideoClient(BaseClient):
         path_params["type"] = type
         path_params["id"] = id
 
-        self.post(
+        return self.post(
             "/call/{type}/{id}/start_transcription",
             StartTranscriptionResponse,
             query_params=query_params,
@@ -478,7 +478,7 @@ class VideoClient(BaseClient):
         path_params["type"] = type
         path_params["id"] = id
 
-        self.post(
+        return self.post(
             "/call/{type}/{id}/stop_broadcasting",
             StopBroadcastingResponse,
             query_params=query_params,
@@ -494,7 +494,7 @@ class VideoClient(BaseClient):
         path_params["type"] = type
         path_params["id"] = id
 
-        self.post(
+        return self.post(
             "/call/{type}/{id}/stop_live",
             StopLiveResponse,
             query_params=query_params,
@@ -512,7 +512,7 @@ class VideoClient(BaseClient):
         path_params["type"] = type
         path_params["id"] = id
 
-        self.post(
+        return self.post(
             "/call/{type}/{id}/stop_recording",
             StopRecordingResponse,
             query_params=query_params,
@@ -530,7 +530,7 @@ class VideoClient(BaseClient):
         path_params["type"] = type
         path_params["id"] = id
 
-        self.post(
+        return self.post(
             "/call/{type}/{id}/stop_transcription",
             StopTranscriptionResponse,
             query_params=query_params,
@@ -548,7 +548,7 @@ class VideoClient(BaseClient):
         path_params["type"] = type
         path_params["id"] = id
 
-        self.post(
+        return self.post(
             "/call/{type}/{id}/unblock",
             UnblockUserResponse,
             query_params=query_params,
@@ -567,7 +567,7 @@ class VideoClient(BaseClient):
         path_params["type"] = type
         path_params["id"] = id
 
-        self.post(
+        return self.post(
             "/call/{type}/{id}/unpin",
             UnpinResponse,
             query_params=query_params,
@@ -586,7 +586,7 @@ class VideoClient(BaseClient):
         path_params["type"] = type
         path_params["id"] = id
 
-        self.post(
+        return self.post(
             "/call/{type}/{id}/user_permissions",
             UpdateUserPermissionsResponse,
             query_params=query_params,
@@ -606,7 +606,7 @@ class VideoClient(BaseClient):
         path_params["id"] = id
         path_params["session"] = session
 
-        self.get(
+        return self.get(
             "/call/{type}/{id}/{session}/recordings",
             ListRecordingsResponse,
             query_params=query_params,
@@ -623,7 +623,7 @@ class VideoClient(BaseClient):
         path_params = {}
         query_params["connection_id"] = connection_id
 
-        self.post(
+        return self.post(
             "/calls",
             QueryCallsResponse,
             query_params=query_params,
@@ -638,7 +638,7 @@ class VideoClient(BaseClient):
         query_params = {}
         path_params = {}
 
-        self.get(
+        return self.get(
             "/calltypes",
             ListCallTypeResponse,
             query_params=query_params,
@@ -654,7 +654,7 @@ class VideoClient(BaseClient):
         query_params = {}
         path_params = {}
 
-        self.post(
+        return self.post(
             "/calltypes",
             CreateCallTypeResponse,
             query_params=query_params,
@@ -670,7 +670,7 @@ class VideoClient(BaseClient):
         path_params = {}
         path_params["name"] = name
 
-        self.delete(
+        return self.delete(
             "/calltypes/{name}",
             Response,
             query_params=query_params,
@@ -685,7 +685,7 @@ class VideoClient(BaseClient):
         path_params = {}
         path_params["name"] = name
 
-        self.get(
+        return self.get(
             "/calltypes/{name}",
             GetCallTypeResponse,
             query_params=query_params,
@@ -702,7 +702,7 @@ class VideoClient(BaseClient):
         path_params = {}
         path_params["name"] = name
 
-        self.put(
+        return self.put(
             "/calltypes/{name}",
             UpdateCallTypeResponse,
             query_params=query_params,
@@ -721,7 +721,7 @@ class VideoClient(BaseClient):
         query_params["id"] = id
         query_params["user_id"] = user_id
 
-        self.delete(
+        return self.delete(
             "/devices", Response, query_params=query_params, path_params=path_params
         )
 
@@ -735,7 +735,7 @@ class VideoClient(BaseClient):
         path_params = {}
         query_params["user_id"] = user_id
 
-        self.get(
+        return self.get(
             "/devices",
             ListDevicesResponse,
             query_params=query_params,
@@ -749,7 +749,7 @@ class VideoClient(BaseClient):
         query_params = {}
         path_params = {}
 
-        self.post(
+        return self.post(
             "/devices",
             Response,
             query_params=query_params,
@@ -764,7 +764,7 @@ class VideoClient(BaseClient):
         query_params = {}
         path_params = {}
 
-        self.get(
+        return self.get(
             "/edges",
             GetEdgesResponse,
             query_params=query_params,
@@ -780,7 +780,7 @@ class VideoClient(BaseClient):
         query_params = {}
         path_params = {}
 
-        self.post(
+        return self.post(
             "/guest",
             CreateGuestResponse,
             query_params=query_params,
@@ -795,7 +795,7 @@ class VideoClient(BaseClient):
         query_params = {}
         path_params = {}
 
-        self.get(
+        return self.get(
             "/video/connect",
             query_params=query_params,
             path_params=path_params,

@@ -9,7 +9,7 @@ from urllib.parse import quote
 
 
 def build_path(path: str, path_params: dict) -> str:
-    for k, v in path_params:
+    for k, v in path_params.items():
         path_params[k] = quote(
             v, safe=""
         )  # in case of special characters in the path. Known cases: chat message ids.
@@ -58,6 +58,7 @@ class BaseClient(BaseConfig):
 
         try:
             parsed_result = json.loads(response.text) if response.text else {}
+
             if hasattr(data_type, "from_dict"):
                 data = data_type.from_dict(parsed_result)
             elif get_origin(data_type) is not dict:
