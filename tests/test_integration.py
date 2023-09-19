@@ -35,7 +35,7 @@ CALL_ID = str(uuid.uuid4())
 
 def create_call_type_data() -> CreateCallTypeRequest:
     return CreateCallTypeRequest(
-        name="example_calltype3",
+        name="example_calltype4",
         settings=CallSettingsRequest(
             audio=AudioSettingsRequest(
                 default_device="speaker",
@@ -105,12 +105,12 @@ def test_create_call_type(client: Stream):
     data = create_call_type_data()
     response = client.video.create_call_type(data)
     print(response)
-    assert response.data().name == "example_calltype3"
+    assert response.data().name == "example_calltype4"
     # assert "settings" in response
 
 
 def test_update_call_type(client: Stream):
-    name = "example_calltype3"
+    name = "example_calltype4"
     updated_data = UpdateCallTypeRequest(
         settings=CallSettingsRequest(
             audio=AudioSettingsRequest(
@@ -129,20 +129,20 @@ def test_update_call_type(client: Stream):
 
 
 def test_get_call_type(client: Stream):
-    name = "example_calltype3"
+    name = "example_calltype4"
     response = client.video.get_call_type(name)
 
-    assert response.data().name == "example_calltype3"
+    assert response.data().name == "example_calltype4"
 
 
 def test_list_call_types(client: Stream):
     response = client.video.list_call_types()
     keys = response.data().call_types.keys()
-    assert "example_calltype3" in keys
+    assert "example_calltype4" in keys
 
 
 def test_delete_call_type(client: Stream):
-    response = client.video.delete_call_type("example_calltype3")
+    response = client.video.delete_call_type("example_calltype4")
     assert response.status_code() == 200
 
 
