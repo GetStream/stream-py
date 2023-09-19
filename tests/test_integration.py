@@ -2,23 +2,25 @@ import os
 import uuid
 
 import jwt
-from getstream.models.model_audio_settings_request import AudioSettingsRequest
-from getstream.models.model_backstage_settings_request import BackstageSettingsRequest
-from getstream.models.model_broadcast_settings_request import BroadcastSettingsRequest
-from getstream.models.model_call_request import CallRequest
-from getstream.models.model_call_settings_request import CallSettingsRequest
-from getstream.models.model_create_call_type_request import CreateCallTypeRequest
-from getstream.models.model_member_request import MemberRequest
-from getstream.models.model_record_settings_request import RecordSettingsRequest
-from getstream.models.model_screensharing_settings_request import (
+from getstream.models.get_or_create_call_request import GetOrCreateCallRequest
+from getstream.models.audio_settings_request import AudioSettingsRequest
+from getstream.models.backstage_settings_request import BackstageSettingsRequest
+from getstream.models.broadcast_settings_request import BroadcastSettingsRequest
+from getstream.models.call_request import CallRequest
+from getstream.models.call_settings_request import CallSettingsRequest
+from getstream.models.create_call_type_request import CreateCallTypeRequest
+from getstream.models.hls_settings_request import HlssettingsRequest
+from getstream.models.member_request import MemberRequest
+from getstream.models.record_settings_request import RecordSettingsRequest
+from getstream.models.screensharing_settings_request import (
     ScreensharingSettingsRequest,
 )
-from getstream.models.model_target_resolution_request import TargetResolutionRequest
-from getstream.models.model_transcription_settings_request import (
+from getstream.models.target_resolution_request import TargetResolutionRequest
+from getstream.models.transcription_settings_request import (
     TranscriptionSettingsRequest,
 )
-from getstream.models.model_update_call_type_request import UpdateCallTypeRequest
-from getstream.models.model_video_settings_request import VideoSettingsRequest
+from getstream.models.update_call_type_request import UpdateCallTypeRequest
+from getstream.models.video_settings_request import VideoSettingsRequest
 from getstream.version import VERSION
 import pytest
 from getstream import Stream
@@ -33,7 +35,7 @@ CALL_ID = str(uuid.uuid4())
 
 def create_call_type_data() -> CreateCallTypeRequest:
     return CreateCallTypeRequest(
-        name="example_calltype3",
+        name="example_calltype4",
         settings=CallSettingsRequest(
             audio=AudioSettingsRequest(
                 default_device="speaker",
@@ -43,23 +45,20 @@ def create_call_type_data() -> CreateCallTypeRequest:
             recording=RecordSettingsRequest(
                 audio_only=True,
                 mode="available",
-                quality="audio-only",
+                quality="360p",
             ),
             backstage=BackstageSettingsRequest(
                 enabled=True,
             ),
             broadcasting=BroadcastSettingsRequest(
                 enabled=True,
-                hls=CallSettingsRequest(
+                hls=HlssettingsRequest(
                     auto_on=True,
                     enabled=True,
                     quality_tracks=[
-                        "audio-only",
                         "360p",
                         "480p",
                         "720p",
-                        "1080p",
-                        "1440p",
                     ],
                 ),
             ),
@@ -106,12 +105,12 @@ def test_create_call_type(client: Stream):
     data = create_call_type_data()
     response = client.video.create_call_type(data)
     print(response)
-    assert response.data().name == "example_calltype3"
+    assert response.data().name == "example_calltype4"
     # assert "settings" in response
 
 
 def test_update_call_type(client: Stream):
-    name = "example_calltype3"
+    name = "example_calltype4"
     updated_data = UpdateCallTypeRequest(
         settings=CallSettingsRequest(
             audio=AudioSettingsRequest(
@@ -120,6 +119,8 @@ def test_update_call_type(client: Stream):
             ),
             recording=RecordSettingsRequest(
                 audio_only=False,
+                mode="auto-on",
+                quality="720p",
             ),
         ),
     )
@@ -130,20 +131,20 @@ def test_update_call_type(client: Stream):
 
 
 def test_get_call_type(client: Stream):
-    name = "example_calltype3"
+    name = "example_calltype4"
     response = client.video.get_call_type(name)
 
-    assert response.data().name == "example_calltype3"
+    assert response.data().name == "example_calltype4"
 
 
 def test_list_call_types(client: Stream):
     response = client.video.list_call_types()
     keys = response.data().call_types.keys()
-    assert "example_calltype3" in keys
+    assert "example_calltype4" in keys
 
 
 def test_delete_call_type(client: Stream):
-    response = client.video.delete_call_type("example_calltype3")
+    response = client.video.delete_call_type("example_calltype4")
     assert response.status_code() == 200
 
 
@@ -159,9 +160,10 @@ def test_create_token(client: Stream):
 
 def test_get_or_create_call(client: Stream):
     calltype_name = "default"
-
-    data = CallRequest(
+    members = [MemberRequest(role="speaker", user_id="sacha@getstream.io")]
+    call = CallRequest(
         created_by_id="sacha@getstream.io",
+        members=members,
         settings_override=CallSettingsRequest(
             audio=AudioSettingsRequest(
                 default_device="speaker",
@@ -170,9 +172,11 @@ def test_get_or_create_call(client: Stream):
         ),
     )
 
-    members = [MemberRequest(role="speaker", user_id="sacha@getstream.io")]
+    data = GetOrCreateCallRequest(
+        data=call,
+    )
     response = client.video.get_or_create_call(
-        call_type=calltype_name, call_id=CALL_ID, data=data, members=members
+        type=calltype_name, id=CALL_ID, data=data
     )
     print(response.data())
     assert response.data().call.settings.audio.access_request_enabled is False
