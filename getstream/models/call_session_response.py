@@ -3,6 +3,7 @@ from dataclasses_json import config, dataclass_json
 
 from typing import Dict, List, Optional
 from datetime import datetime
+from marshmallow import fields
 from getstream.models.call_participant_response import CallParticipantResponse
 
 
@@ -18,15 +19,39 @@ class CallSessionResponse:
         metadata=config(field_name="participants_count_by_role")
     )
     rejected_by: Dict[str, datetime] = field(metadata=config(field_name="rejected_by"))
-    ended_at: Optional[datetime] = field(
-        metadata=config(field_name="ended_at"), default=None
+    started_at: Optional[datetime] = field(
+        metadata=config(
+            field_name="started_at",
+            encoder=datetime.isoformat,
+            decoder=datetime.fromisoformat,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+        default=None,
     )
-    live_started_at: Optional[datetime] = field(
-        metadata=config(field_name="live_started_at"), default=None
+    ended_at: Optional[datetime] = field(
+        metadata=config(
+            field_name="ended_at",
+            encoder=datetime.isoformat,
+            decoder=datetime.fromisoformat,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+        default=None,
     )
     live_ended_at: Optional[datetime] = field(
-        metadata=config(field_name="live_ended_at"), default=None
+        metadata=config(
+            field_name="live_ended_at",
+            encoder=datetime.isoformat,
+            decoder=datetime.fromisoformat,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+        default=None,
     )
-    started_at: Optional[datetime] = field(
-        metadata=config(field_name="started_at"), default=None
+    live_started_at: Optional[datetime] = field(
+        metadata=config(
+            field_name="live_started_at",
+            encoder=datetime.isoformat,
+            decoder=datetime.fromisoformat,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+        default=None,
     )

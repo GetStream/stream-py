@@ -7,7 +7,7 @@ from getstream.models.connect_user_details_request import ConnectUserDetailsRequ
 @dataclass_json
 @dataclass
 class WsauthMessageRequest:
-    token: str = field(metadata=config(field_name="token"))
     user_details: ConnectUserDetailsRequest = field(
         metadata=config(field_name="user_details")
     )
+    token: str = field(metadata=config(field_name="token"))

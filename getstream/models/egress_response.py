@@ -9,8 +9,8 @@ from getstream.models.egress_rtmp_response import EgressRtmpresponse
 @dataclass_json
 @dataclass
 class EgressResponse:
-    rtmps: List[EgressRtmpresponse] = field(metadata=config(field_name="rtmps"))
     broadcasting: bool = field(metadata=config(field_name="broadcasting"))
+    rtmps: List[EgressRtmpresponse] = field(metadata=config(field_name="rtmps"))
     hls: Optional[EgressHlsresponse] = field(
         metadata=config(field_name="hls"), default=None
     )

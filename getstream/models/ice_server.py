@@ -7,6 +7,6 @@ from typing import List
 @dataclass_json
 @dataclass
 class Iceserver:
-    password: str = field(metadata=config(field_name="password"))
     urls: List[str] = field(metadata=config(field_name="urls"))
     username: str = field(metadata=config(field_name="username"))
+    password: str = field(metadata=config(field_name="password"))

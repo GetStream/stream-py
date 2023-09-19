@@ -3,6 +3,7 @@ from dataclasses_json import config, dataclass_json
 
 from typing import Dict, List, Optional
 from datetime import datetime
+from marshmallow import fields
 from getstream.models.user_request import UserRequest
 from getstream.models.member_request import MemberRequest
 from getstream.models.call_settings_request import CallSettingsRequest
@@ -11,6 +12,7 @@ from getstream.models.call_settings_request import CallSettingsRequest
 @dataclass_json
 @dataclass
 class CallRequest:
+    team: Optional[str] = field(metadata=config(field_name="team"), default=None)
     created_by: Optional[UserRequest] = field(
         metadata=config(field_name="created_by"), default=None
     )
@@ -27,6 +29,11 @@ class CallRequest:
         metadata=config(field_name="settings_override"), default=None
     )
     starts_at: Optional[datetime] = field(
-        metadata=config(field_name="starts_at"), default=None
+        metadata=config(
+            field_name="starts_at",
+            encoder=datetime.isoformat,
+            decoder=datetime.fromisoformat,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+        default=None,
     )
-    team: Optional[str] = field(metadata=config(field_name="team"), default=None)

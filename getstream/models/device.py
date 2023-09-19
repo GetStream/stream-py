@@ -3,6 +3,7 @@ from dataclasses_json import config, dataclass_json
 
 from typing import Optional
 from datetime import datetime
+from marshmallow import fields
 
 
 @dataclass_json
@@ -10,7 +11,14 @@ from datetime import datetime
 class Device:
     id: str = field(metadata=config(field_name="id"))
     push_provider: str = field(metadata=config(field_name="push_provider"))
-    created_at: datetime = field(metadata=config(field_name="created_at"))
+    created_at: datetime = field(
+        metadata=config(
+            field_name="created_at",
+            encoder=datetime.isoformat,
+            decoder=datetime.fromisoformat,
+            mm_field=fields.DateTime(format="iso"),
+        )
+    )
     disabled_reason: Optional[str] = field(
         metadata=config(field_name="disabled_reason"), default=None
     )

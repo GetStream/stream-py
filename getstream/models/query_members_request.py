@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from dataclasses_json import config, dataclass_json
 
-from typing import List, Dict, Optional
+from typing import Dict, List, Optional
 from getstream.models.sort_param_request import SortParamRequest
 
 
