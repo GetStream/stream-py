@@ -2,7 +2,6 @@ from dataclasses import dataclass, field
 from dataclasses_json import config, dataclass_json
 
 from typing import List, Optional
-from getstream.models.user_response import UserResponse
 from getstream.models.call_response import CallResponse
 from getstream.models.member_response import MemberResponse
 from getstream.models.own_capability import OwnCapability

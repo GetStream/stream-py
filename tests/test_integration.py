@@ -6,7 +6,6 @@ import jwt
 from getstream.models.apns_request import Apnsrequest
 from getstream.models.audio_settings_request import AudioSettingsRequest
 from getstream.models.backstage_settings_request import BackstageSettingsRequest
-from getstream.models.call_notification_event import CallNotificationEvent
 from getstream.models.call_request import CallRequest
 from getstream.models.call_settings_request import CallSettingsRequest
 from getstream.models.create_call_type_request import CreateCallTypeRequest
@@ -96,15 +95,15 @@ def test_create_call_type(client: Stream):
     response = client.video.create_call_type(data)
 
     assert response.data().name == "example_calltype5"
-    assert response.data().settings.audio.mic_default_on == True
+    assert response.data().settings.audio.mic_default_on is True
     assert response.data().settings.audio.default_device == "speaker"
     assert response.data().grants["admin"] is not None
     assert response.data().grants["user"] is not None
-    assert response.data().settings.screensharing.access_request_enabled == False
-    assert response.data().settings.screensharing.enabled == True
-    assert response.data().notification_settings.enabled == True
-    assert response.data().notification_settings.session_started.enabled == False
-    assert response.data().notification_settings.call_notification.enabled == True
+    assert response.data().settings.screensharing.access_request_enabled is False
+    assert response.data().settings.screensharing.enabled is True
+    assert response.data().notification_settings.enabled is True
+    assert response.data().notification_settings.session_started.enabled is False
+    assert response.data().notification_settings.call_notification.enabled is True
     assert (
         response.data().notification_settings.call_notification.apns.title
         == "{{ user.display_name }} invites you to a call"
@@ -133,17 +132,17 @@ def test_update_call_type(client: Stream):
         grants={"host": [OwnCapability.JOIN_BACKSTAGE]},
     )
     response = client.video.update_call_type("example_calltype5", data)
-    assert response.data().settings.audio.mic_default_on == False
+    assert response.data().settings.audio.mic_default_on is False
     assert response.data().settings.audio.default_device == "earpiece"
     assert response.data().settings.recording.mode == "disabled"
-    assert response.data().settings.backstage.enabled == True
+    assert response.data().settings.backstage.enabled is True
     assert response.data().grants["host"] == ["join-backstage"]
 
 
 def test_delete_call_type(client: Stream):
     try:
         response = client.video.delete_call_type("example_calltype5")
-    except:
+    except Exception as e:
         time.sleep(2)
         response = client.video.delete_call_type("example_calltype5")
     assert response.status_code() == 200
@@ -168,7 +167,7 @@ def test_create_call(client: Stream):
     response = client.video.get_or_create_call(type="default", id=CALL_ID, data=data)
     assert response.data().call.created_by.id == "john"
     assert response.data().call.settings.geofencing.names == ["canada"]
-    assert response.data().call.settings.screensharing.enabled == False
+    assert response.data().call.settings.screensharing.enabled is False
 
 
 def test_update_call(client: Stream):
@@ -184,7 +183,7 @@ def test_update_call(client: Stream):
             ),
         ),
     )
-    assert response.data().call.settings.audio.mic_default_on == True
+    assert response.data().call.settings.audio.mic_default_on is True
 
 
 def test_rtmp_address(client: Stream):

@@ -1,4 +1,3 @@
-from dataclasses import asdict
 from typing import Optional
 from getstream.models.list_recordings_response import ListRecordingsResponse
 from getstream.models.list_call_type_response import ListCallTypeResponse

@@ -7,7 +7,6 @@ from dateutil.parser import parse
 from marshmallow import fields
 from getstream.models.notification_settings import NotificationSettings
 from getstream.models.call_settings_response import CallSettingsResponse
-from getstream.models.own_capability import OwnCapability
 
 
 @dataclass_json
