@@ -11,9 +11,6 @@ from getstream.models.own_capability import OwnCapability
 @dataclass_json
 @dataclass
 class GetCallResponse:
-    blocked_users: List[UserResponse] = field(
-        metadata=config(field_name="blocked_users")
-    )
     call: CallResponse = field(metadata=config(field_name="call"))
     duration: str = field(metadata=config(field_name="duration"))
     members: List[MemberResponse] = field(metadata=config(field_name="members"))

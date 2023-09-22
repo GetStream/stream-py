@@ -16,9 +16,6 @@ class CallStateResponseFields:
     own_capabilities: List[OwnCapability] = field(
         metadata=config(field_name="own_capabilities")
     )
-    blocked_users: List[UserResponse] = field(
-        metadata=config(field_name="blocked_users")
-    )
     membership: Optional[MemberResponse] = field(
         metadata=config(field_name="membership"), default=None
     )

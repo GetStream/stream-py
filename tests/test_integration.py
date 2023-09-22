@@ -1,29 +1,31 @@
+import time
+import pytest
 import os
 import uuid
-
 import jwt
-from getstream.models.get_or_create_call_request import GetOrCreateCallRequest
+from getstream.models.apns_request import Apnsrequest
 from getstream.models.audio_settings_request import AudioSettingsRequest
 from getstream.models.backstage_settings_request import BackstageSettingsRequest
-from getstream.models.broadcast_settings_request import BroadcastSettingsRequest
+from getstream.models.call_notification_event import CallNotificationEvent
 from getstream.models.call_request import CallRequest
 from getstream.models.call_settings_request import CallSettingsRequest
 from getstream.models.create_call_type_request import CreateCallTypeRequest
-from getstream.models.hls_settings_request import HlssettingsRequest
-from getstream.models.member_request import MemberRequest
+from getstream.models.event_notification_settings_request import (
+    EventNotificationSettingsRequest,
+)
+from getstream.models.geofence_settings_request import GeofenceSettingsRequest
+
+from getstream.models.get_or_create_call_request import GetOrCreateCallRequest
+from getstream.models.notification_settings_request import NotificationSettingsRequest
+from getstream.models.own_capability import OwnCapability
+from getstream.models.query_calls_request import QueryCallsRequest
 from getstream.models.record_settings_request import RecordSettingsRequest
-from getstream.models.screensharing_settings_request import (
-    ScreensharingSettingsRequest,
-)
-from getstream.models.target_resolution_request import TargetResolutionRequest
-from getstream.models.transcription_settings_request import (
-    TranscriptionSettingsRequest,
-)
+from getstream.models.screensharing_settings_request import ScreensharingSettingsRequest
+from getstream.models.update_call_request import UpdateCallRequest
 from getstream.models.update_call_type_request import UpdateCallTypeRequest
-from getstream.models.video_settings_request import VideoSettingsRequest
+from getstream.sync.stream import Stream
 from getstream.version import VERSION
-import pytest
-from getstream import Stream
+
 
 VIDEO_API_KEY = os.environ.get("VIDEO_API_KEY")
 BASE_URL = "https://video.stream-io-api.com/video"
@@ -31,57 +33,7 @@ VIDEO_API_SECRET = os.environ.get("VIDEO_API_SECRET")
 TIMEOUT = 6
 
 CALL_ID = str(uuid.uuid4())
-
-
-def create_call_type_data() -> CreateCallTypeRequest:
-    return CreateCallTypeRequest(
-        name="example_calltype4",
-        settings=CallSettingsRequest(
-            audio=AudioSettingsRequest(
-                default_device="speaker",
-                access_request_enabled=True,
-                opus_dtx_enabled=True,
-            ),
-            recording=RecordSettingsRequest(
-                audio_only=True,
-                mode="available",
-                quality="360p",
-            ),
-            backstage=BackstageSettingsRequest(
-                enabled=True,
-            ),
-            broadcasting=BroadcastSettingsRequest(
-                enabled=True,
-                hls=HlssettingsRequest(
-                    auto_on=True,
-                    enabled=True,
-                    quality_tracks=[
-                        "360p",
-                        "480p",
-                        "720p",
-                    ],
-                ),
-            ),
-            screensharing=ScreensharingSettingsRequest(
-                access_request_enabled=True,
-                enabled=True,
-            ),
-            transcription=TranscriptionSettingsRequest(
-                closed_caption_mode="available",
-                mode="available",
-            ),
-            video=VideoSettingsRequest(
-                access_request_enabled=True,
-                enabled=True,
-                camera_facing="front",
-                target_resolution=TargetResolutionRequest(
-                    bitrate=240,
-                    height=240,
-                    width=1000,
-                ),
-            ),
-        ),
-    )
+CALL_TYPE = "default"
 
 
 @pytest.fixture(scope="module")
@@ -101,53 +53,6 @@ def test_video_client_initialization(client: Stream):
     assert client.video.timeout == TIMEOUT
 
 
-def test_create_call_type(client: Stream):
-    data = create_call_type_data()
-    response = client.video.create_call_type(data)
-    print(response)
-    assert response.data().name == "example_calltype4"
-    # assert "settings" in response
-
-
-def test_update_call_type(client: Stream):
-    name = "example_calltype4"
-    updated_data = UpdateCallTypeRequest(
-        settings=CallSettingsRequest(
-            audio=AudioSettingsRequest(
-                default_device="speaker",
-                access_request_enabled=False,
-            ),
-            recording=RecordSettingsRequest(
-                audio_only=False,
-                mode="auto-on",
-                quality="720p",
-            ),
-        ),
-    )
-    response = client.video.update_call_type(name, updated_data)
-
-    assert response.data().settings.audio.access_request_enabled is False
-    assert response.data().settings.recording.audio_only is False
-
-
-def test_get_call_type(client: Stream):
-    name = "example_calltype4"
-    response = client.video.get_call_type(name)
-
-    assert response.data().name == "example_calltype4"
-
-
-def test_list_call_types(client: Stream):
-    response = client.video.list_call_types()
-    keys = response.data().call_types.keys()
-    assert "example_calltype4" in keys
-
-
-def test_delete_call_type(client: Stream):
-    response = client.video.delete_call_type("example_calltype4")
-    assert response.status_code() == 200
-
-
 def test_create_token(client: Stream):
     token = client.create_token()
     assert token is not None
@@ -158,38 +63,198 @@ def test_create_token(client: Stream):
     assert decoded["iat"] is not None
 
 
-def test_get_or_create_call(client: Stream):
-    calltype_name = "default"
-    members = [MemberRequest(role="speaker", user_id="sacha@getstream.io")]
-    call = CallRequest(
-        created_by_id="sacha@getstream.io",
-        members=members,
-        settings_override=CallSettingsRequest(
+def test_create_call_type(client: Stream):
+    data = CreateCallTypeRequest(
+        name="example_calltype5",
+        settings=CallSettingsRequest(
             audio=AudioSettingsRequest(
                 default_device="speaker",
+                mic_default_on=True,
+            ),
+            screensharing=ScreensharingSettingsRequest(
                 access_request_enabled=False,
+                enabled=True,
+            ),
+        ),
+        notification_settings=NotificationSettingsRequest(
+            enabled=True,
+            call_notification=EventNotificationSettingsRequest(
+                apns=Apnsrequest(title="{{ user.display_name }} invites you to a call"),
+                enabled=True,
+            ),
+            session_started=EventNotificationSettingsRequest(enabled=False),
+        ),
+        grants={
+            "admin": [
+                OwnCapability.SEND_AUDIO,
+                OwnCapability.SEND_VIDEO,
+                OwnCapability.MUTE_USERS,
+            ],
+            "user": [OwnCapability.SEND_AUDIO, OwnCapability.SEND_VIDEO],
+        },
+    )
+    response = client.video.create_call_type(data)
+
+    assert response.data().name == "example_calltype5"
+    assert response.data().settings.audio.mic_default_on == True
+    assert response.data().settings.audio.default_device == "speaker"
+    assert response.data().grants["admin"] is not None
+    assert response.data().grants["user"] is not None
+    assert response.data().settings.screensharing.access_request_enabled == False
+    assert response.data().settings.screensharing.enabled == True
+    assert response.data().notification_settings.enabled == True
+    assert response.data().notification_settings.session_started.enabled == False
+    assert response.data().notification_settings.call_notification.enabled == True
+    assert (
+        response.data().notification_settings.call_notification.apns.title
+        == "{{ user.display_name }} invites you to a call"
+    )
+
+
+def test_read_call_type(client: Stream):
+    response = client.video.get_call_type("example_calltype5")
+    assert response.data().name == "example_calltype5"
+
+
+def test_update_call_type(client: Stream):
+    data = UpdateCallTypeRequest(
+        settings=CallSettingsRequest(
+            audio=AudioSettingsRequest(
+                default_device="earpiece",
+                mic_default_on=False,
+            ),
+            recording=RecordSettingsRequest(
+                mode="disabled",
+            ),
+            backstage=BackstageSettingsRequest(
+                enabled=True,
+            ),
+        ),
+        grants={"host": [OwnCapability.JOIN_BACKSTAGE]},
+    )
+    response = client.video.update_call_type("example_calltype5", data)
+    assert response.data().settings.audio.mic_default_on == False
+    assert response.data().settings.audio.default_device == "earpiece"
+    assert response.data().settings.recording.mode == "disabled"
+    assert response.data().settings.backstage.enabled == True
+    assert response.data().grants["host"] == ["join-backstage"]
+
+
+def test_delete_call_type(client: Stream):
+    try:
+        response = client.video.delete_call_type("example_calltype5")
+    except:
+        time.sleep(2)
+        response = client.video.delete_call_type("example_calltype5")
+    assert response.status_code() == 200
+
+
+def test_create_call(client: Stream):
+    data = GetOrCreateCallRequest(
+        data=CallRequest(
+            created_by_id="john",
+            settings_override=CallSettingsRequest(
+                geofencing=GeofenceSettingsRequest(
+                    names=[
+                        "canada",
+                    ]
+                ),
+                screensharing=ScreensharingSettingsRequest(
+                    enabled=False,
+                ),
             ),
         ),
     )
+    response = client.video.get_or_create_call(type="default", id=CALL_ID, data=data)
+    assert response.data().call.created_by.id == "john"
+    assert response.data().call.settings.geofencing.names == ["canada"]
+    assert response.data().call.settings.screensharing.enabled == False
 
-    data = GetOrCreateCallRequest(
-        data=call,
+
+def test_update_call(client: Stream):
+    response = client.video.update_call(
+        CALL_TYPE,
+        CALL_ID,
+        UpdateCallRequest(
+            settings_override=CallSettingsRequest(
+                audio=AudioSettingsRequest(
+                    mic_default_on=True,
+                    default_device="speaker",
+                ),
+            ),
+        ),
     )
+    assert response.data().call.settings.audio.mic_default_on == True
+
+
+def test_rtmp_address(client: Stream):
     response = client.video.get_or_create_call(
-        type=calltype_name, id=CALL_ID, data=data
+        type="default",
+        id=CALL_ID,
+        data=GetOrCreateCallRequest(
+            data=CallRequest(
+                created_by_id="john",
+            ),
+        ),
     )
-    print(response.data())
-    assert response.data().call.settings.audio.access_request_enabled is False
-    assert response.data().call.settings.recording.audio_only is False
+    assert CALL_ID in response.data().call.ingress.rtmp.address
 
 
-# def test_start_broadcasting(client):
-#     call_type = "default"
-#     response = client.video.start_broadcasting(call_id=CALL_ID, call_type=call_type)
-#     assert "duration" in response
+def test_query_calls(client: Stream):
+    response = client.video.query_calls(data=QueryCallsRequest())
+    assert len(response.data().calls) >= 1
 
 
-# def test_stop_broadcasting(client):
-#     call_type = "default"
-#     response = client.video.stop_broadcasting(call_id=CALL_ID, call_type=call_type)
-#     assert "duration" in response
+def test_enable_call_recording(client: Stream):
+    response = client.video.update_call(
+        CALL_TYPE,
+        CALL_ID,
+        data=UpdateCallRequest(
+            settings_override=CallSettingsRequest(
+                recording=RecordSettingsRequest(
+                    mode="available",
+                )
+            ),
+        ),
+    )
+    assert response.data().call.settings.recording.mode == "available"
+
+
+# def test_start_recording(client: Stream):
+#     response = client.video.start_recording(CALL_ID)
+#     assert "recording" in response
+
+
+# def test_stop_recording(client: Stream):
+#     response = client.video.stop_recording(CALL_ID)
+#     assert "recording" in response
+
+
+# def test_query_recordings(client: Stream):
+#     response = client.video.query_recordings(CALL_ID)
+#     assert "recordings" in response
+
+
+def test_enable_backstage_mode(client: Stream):
+    response = client.video.update_call(
+        CALL_TYPE,
+        CALL_ID,
+        data=UpdateCallRequest(
+            settings_override=CallSettingsRequest(
+                backstage=BackstageSettingsRequest(
+                    enabled=True,
+                ),
+            ),
+        ),
+    )
+    assert response.data().call.settings.backstage.enabled is True
+
+
+# def test_go_live(client: Stream):
+#     response = client.video.go_live(CALL_ID)
+#     assert response.data().call.egress.broadcasting is True
+
+
+# def test_stop_live(client: Stream):
+#     response = client.video.stop_live(CALL_ID)
+#     assert response.data().call.egress.broadcasting is False

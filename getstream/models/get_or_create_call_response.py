@@ -16,9 +16,6 @@ class GetOrCreateCallResponse:
     own_capabilities: List[OwnCapability] = field(
         metadata=config(field_name="own_capabilities")
     )
-    blocked_users: List[UserResponse] = field(
-        metadata=config(field_name="blocked_users")
-    )
     call: CallResponse = field(metadata=config(field_name="call"))
     created: bool = field(metadata=config(field_name="created"))
     membership: Optional[MemberResponse] = field(

@@ -67,11 +67,26 @@ class BaseClient(BaseConfig):
                 data = parsed_result
 
         except ValueError:
+            print("ValueError")
             raise StreamAPIException(
                 response=response,
             )
 
         return StreamResponse(response, data)
+
+    def patch(
+        self,
+        path,
+        data_type: Optional[Type[T]] = None,
+        path_params: Optional[Dict[str, str]] = None,
+        query_params: Optional[Dict[str, str]] = None,
+        *args,
+        **kwargs,
+    ) -> StreamResponse[T]:
+        response = self.client.patch(
+            build_path(path, path_params), params=query_params, *args, **kwargs
+        )
+        return self._parse_response(response, data_type or Dict[str, Any])
 
     def get(
         self,
@@ -99,6 +114,7 @@ class BaseClient(BaseConfig):
         response = self.client.post(
             build_path(path, path_params), params=query_params, *args, **kwargs
         )
+        print(response.json())
         return self._parse_response(response, data_type or Dict[str, Any])
 
     def put(

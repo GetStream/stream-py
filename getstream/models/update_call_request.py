@@ -20,7 +20,7 @@ class UpdateCallRequest:
     starts_at: Optional[datetime] = field(
         metadata=config(
             field_name="starts_at",
-            encoder=lambda d: d.isoformat(),
+            encoder=lambda d: d.isoformat() if d is not None else None,
             decoder=parse,
             mm_field=fields.DateTime(format="iso"),
         ),

@@ -26,6 +26,14 @@ class OwnCapability(Enum):
     UPDATE_CALL_MEMBER = "update-call-member"
     UPDATE_CALL_PERMISSIONS = "update-call-permissions"
     UPDATE_CALL_SETTINGS = "update-call-settings"
+    SEND_EVENT = "send-event"
+    CREATE_CALL_MEMBER = "create-call-member"
+    DELETE_CALL_MEMBER = "delete-call-member"
+    LIST_RECORDINGS = "list-recordings"
+    DELETE_RECORDING = "delete-recording"
+    UPDATE_CALL_MEMBER_ROLE = "update-call-member-role"
+    GRANT_CALL_ROLE = "grant-call-role"
+    CREATE_CALL_REACTION = "create-call-reaction"
 
     @classmethod
     def from_str(cls, value: str) -> "OwnCapability":
@@ -33,3 +41,8 @@ class OwnCapability(Enum):
             return cls(value)
         except ValueError:
             raise ValueError(f"'{value}' is not a valid OwnCapability")
+
+    # to_str
+    @classmethod
+    def to_str(cls, value: "OwnCapability") -> str:
+        return value.value

@@ -12,9 +12,6 @@ from getstream.models.credentials import Credentials
 @dataclass_json
 @dataclass
 class JoinCallResponse:
-    blocked_users: List[UserResponse] = field(
-        metadata=config(field_name="blocked_users")
-    )
     call: CallResponse = field(metadata=config(field_name="call"))
     created: bool = field(metadata=config(field_name="created"))
     credentials: Credentials = field(metadata=config(field_name="credentials"))

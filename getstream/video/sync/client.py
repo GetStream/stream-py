@@ -97,7 +97,7 @@ class VideoClient(BaseClient):
             QueryMembersResponse,
             query_params=query_params,
             path_params=path_params,
-            json=asdict(data),
+            json=data.to_dict(),
         )
 
     def get_call(
@@ -144,7 +144,7 @@ class VideoClient(BaseClient):
             UpdateCallResponse,
             query_params=query_params,
             path_params=path_params,
-            json=asdict(data),
+            json=data.to_dict(),
         )
 
     def get_or_create_call(
@@ -168,7 +168,7 @@ class VideoClient(BaseClient):
             GetOrCreateCallResponse,
             query_params=query_params,
             path_params=path_params,
-            json=asdict(data),
+            json=data.to_dict(),
         )
 
     def accept_call(self, type: str, id: str) -> StreamResponse[AcceptCallResponse]:
@@ -203,7 +203,7 @@ class VideoClient(BaseClient):
             BlockUserResponse,
             query_params=query_params,
             path_params=path_params,
-            json=asdict(data),
+            json=data.to_dict(),
         )
 
     def send_event(
@@ -222,7 +222,7 @@ class VideoClient(BaseClient):
             SendEventResponse,
             query_params=query_params,
             path_params=path_params,
-            json=asdict(data),
+            json=data.to_dict(),
         )
 
     def go_live(
@@ -241,7 +241,7 @@ class VideoClient(BaseClient):
             GoLiveResponse,
             query_params=query_params,
             path_params=path_params,
-            json=asdict(data),
+            json=data.to_dict(),
         )
 
     def join_call(
@@ -265,7 +265,7 @@ class VideoClient(BaseClient):
             JoinCallResponse,
             query_params=query_params,
             path_params=path_params,
-            json=asdict(data),
+            json=data.to_dict(),
         )
 
     def end_call(self, type: str, id: str) -> StreamResponse[EndCallResponse]:
@@ -300,7 +300,7 @@ class VideoClient(BaseClient):
             UpdateCallMembersResponse,
             query_params=query_params,
             path_params=path_params,
-            json=asdict(data),
+            json=data.to_dict(),
         )
 
     def mute_users(
@@ -319,7 +319,7 @@ class VideoClient(BaseClient):
             MuteUsersResponse,
             query_params=query_params,
             path_params=path_params,
-            json=asdict(data),
+            json=data.to_dict(),
         )
 
     def video_pin(
@@ -338,7 +338,7 @@ class VideoClient(BaseClient):
             PinResponse,
             query_params=query_params,
             path_params=path_params,
-            json=asdict(data),
+            json=data.to_dict(),
         )
 
     def send_video_reaction(
@@ -357,7 +357,7 @@ class VideoClient(BaseClient):
             SendReactionResponse,
             query_params=query_params,
             path_params=path_params,
-            json=asdict(data),
+            json=data.to_dict(),
         )
 
     def list_recordings_type_id_0(
@@ -410,7 +410,7 @@ class VideoClient(BaseClient):
             RequestPermissionResponse,
             query_params=query_params,
             path_params=path_params,
-            json=asdict(data),
+            json=data.to_dict(),
         )
 
     def start_broadcasting(
@@ -553,7 +553,7 @@ class VideoClient(BaseClient):
             UnblockUserResponse,
             query_params=query_params,
             path_params=path_params,
-            json=asdict(data),
+            json=data.to_dict(),
         )
 
     def video_unpin(
@@ -572,7 +572,7 @@ class VideoClient(BaseClient):
             UnpinResponse,
             query_params=query_params,
             path_params=path_params,
-            json=asdict(data),
+            json=data.to_dict(),
         )
 
     def update_user_permissions(
@@ -591,7 +591,7 @@ class VideoClient(BaseClient):
             UpdateUserPermissionsResponse,
             query_params=query_params,
             path_params=path_params,
-            json=asdict(data),
+            json=data.to_dict(),
         )
 
     def list_recordings_type_id_session_1(
@@ -628,7 +628,7 @@ class VideoClient(BaseClient):
             QueryCallsResponse,
             query_params=query_params,
             path_params=path_params,
-            json=asdict(data),
+            json=data.to_dict(),
         )
 
     def list_call_types(self) -> StreamResponse[ListCallTypeResponse]:
@@ -659,7 +659,7 @@ class VideoClient(BaseClient):
             CreateCallTypeResponse,
             query_params=query_params,
             path_params=path_params,
-            json=asdict(data),
+            json=data.to_dict(),
         )
 
     def delete_call_type(self, name: str) -> StreamResponse[Response]:
@@ -707,7 +707,7 @@ class VideoClient(BaseClient):
             UpdateCallTypeResponse,
             query_params=query_params,
             path_params=path_params,
-            json=asdict(data),
+            json=data.to_dict(),
         )
 
     def delete_device(
@@ -754,7 +754,7 @@ class VideoClient(BaseClient):
             Response,
             query_params=query_params,
             path_params=path_params,
-            json=asdict(data),
+            json=data.to_dict(),
         )
 
     def get_edges(self) -> StreamResponse[GetEdgesResponse]:
@@ -785,7 +785,7 @@ class VideoClient(BaseClient):
             CreateGuestResponse,
             query_params=query_params,
             path_params=path_params,
-            json=asdict(data),
+            json=data.to_dict(),
         )
 
     def video_connect(self, data: WsauthMessageRequest):
@@ -799,5 +799,5 @@ class VideoClient(BaseClient):
             "/video/connect",
             query_params=query_params,
             path_params=path_params,
-            json=asdict(data),
+            json=data.to_dict(),
         )
