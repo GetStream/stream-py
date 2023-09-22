@@ -141,7 +141,7 @@ def test_update_call_type(client: Stream):
 def test_delete_call_type(client: Stream):
     try:
         response = client.video.delete_call_type("example_calltype5")
-    except Exception as _:
+    except Exception:
         time.sleep(2)
         response = client.video.delete_call_type("example_calltype5")
     assert response.status_code() == 200
