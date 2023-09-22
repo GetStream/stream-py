@@ -104,9 +104,8 @@ def test_create_call_type(client: Stream):
     assert response.data().notification_settings.enabled is True
     assert response.data().notification_settings.session_started.enabled is False
     assert response.data().notification_settings.call_notification.enabled is True
-    assert (
-        response.data().notification_settings.call_notification.apns.title
-        == "{{ user.display_name }} invites you to a call"
+    assert response.data().notification_settings.call_notification.apns.title == (
+        "{{ user.display_name }} invites you to a call"
     )
 
 
@@ -142,7 +141,7 @@ def test_update_call_type(client: Stream):
 def test_delete_call_type(client: Stream):
     try:
         response = client.video.delete_call_type("example_calltype5")
-    except Exception as e:
+    except Exception as _:
         time.sleep(2)
         response = client.video.delete_call_type("example_calltype5")
     assert response.status_code() == 200
