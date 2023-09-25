@@ -131,7 +131,9 @@ class Call:
         """
         return self._client.query_recordings(self._call_type, self._call_id, session_id)
 
-    def delete_recording(self, session_id: str, recording_id: str) -> StreamResponse[Response]:
+    def delete_recording(
+        self, session_id: str, recording_id: str
+    ) -> StreamResponse[Response]:
         """
         Deletes specific recording of the call
         :param session_id: A string representing a unique session identifier
