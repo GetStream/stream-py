@@ -62,6 +62,7 @@ from getstream.models.update_call_type_request import UpdateCallTypeRequest
 from getstream.models.join_call_request import JoinCallRequest
 from getstream.stream_response import StreamResponse
 from getstream.sync.base import BaseClient
+from getstream.video.sync.call import Call
 
 
 class VideoClient(BaseClient):
@@ -81,6 +82,15 @@ class VideoClient(BaseClient):
             timeout=timeout,
             user_agent=user_agent,
         )
+
+    def call(self, type: str, id: str) -> Call:
+        """
+        Returns a Call instance
+        :param type: A string representing the call type
+        :param id: A string representing the call id
+        :return: A Call instance
+        """
+        return Call(client=self, type=type, id=id)
 
     def query_members(
         self, data: QueryMembersRequest
