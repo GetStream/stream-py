@@ -855,14 +855,6 @@ class Call:
         """
         return self._client.query_calls(self._call_type, self._call_id, data)
 
-    def send_event(self, data: SendEventRequest) -> StreamResponse[SendEventResponse]:
-        """
-        Sends a custom event for the call
-        :param data: A dictionary with event details
-        :return: Response from the send custom event API
-        """
-        return self._client.send_event(self._call_type, self._call_id, data)
-
     def update_user_permissions(
         self, data: UpdateUserPermissionsRequest
     ) -> StreamResponse[UpdateUserPermissionsResponse]:
@@ -921,14 +913,6 @@ class Call:
         :return: Response from the reject call API
         """
         return self._client.reject_call(self._call_type, self._call_id)
-
-    def go_live(self, data: GoLiveRequest) -> StreamResponse[GoLiveResponse]:
-        """
-        Makes the call go live
-        :param data: A dictionary with call details
-        :return: Response from the go live API
-        """
-        return self._client.go_live(self._call_type, self._call_id, data)
 
     def update_call_members(
         self, data: UpdateCallMembersRequest
@@ -1009,7 +993,7 @@ class Call:
         """
         return self._client.request_permission(self._call_type, self._call_id, data)
 
-    def send_event(self, data) -> StreamResponse[SendEventResponse]:
+    def send_event(self, data: SendEventRequest) -> StreamResponse[SendEventResponse]:
         """
         Sends a custom event for the call
         :param data: A dictionary with event details
@@ -1084,7 +1068,7 @@ class Call:
         """
         return self._client.end_call(self._call_type, self._call_id)
 
-    def go_live(self) -> StreamResponse[GoLiveResponse]:
+    def go_live(self, data: GoLiveRequest) -> StreamResponse[GoLiveResponse]:
         """
         Makes the call go live
         :return: Response from the go live API
