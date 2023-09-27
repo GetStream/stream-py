@@ -796,6 +796,7 @@ class VideoClient(BaseClient):
             json=data.to_dict(),
         )
 
+
 class Call:
     def __init__(self, client: VideoClient, call_type: str, call_id: str):
         """
@@ -834,7 +835,9 @@ class Call:
         """
         return self._client.update_call(self._call_type, self._call_id, data)
 
-    def create_guest(self, data: CreateGuestRequest) -> StreamResponse[CreateGuestResponse]:
+    def create_guest(
+        self, data: CreateGuestRequest
+    ) -> StreamResponse[CreateGuestResponse]:
         """
         Creates a guest with given data
         :param data: A dictionary with guest details
@@ -842,7 +845,9 @@ class Call:
         """
         return self._client.create_guest(self._call_type, self._call_id, data)
 
-    def query_calls(self, data: QueryCallsRequest) -> StreamResponse[QueryCallsResponse]:
+    def query_calls(
+        self, data: QueryCallsRequest
+    ) -> StreamResponse[QueryCallsResponse]:
         """
         Executes a query to retrieve calls
         :param data: A dictionary with query details
