@@ -8,7 +8,6 @@ from typing import List, Dict, Optional
 @dataclass
 class UserRequest:
     id: str = field(metadata=config(field_name="id"))
-    role: Optional[str] = field(metadata=config(field_name="role"), default=None)
     teams: Optional[List[str]] = field(
         metadata=config(field_name="teams"), default=None
     )
@@ -17,3 +16,4 @@ class UserRequest:
     )
     image: Optional[str] = field(metadata=config(field_name="image"), default=None)
     name: Optional[str] = field(metadata=config(field_name="name"), default=None)
+    role: Optional[str] = field(metadata=config(field_name="role"), default=None)

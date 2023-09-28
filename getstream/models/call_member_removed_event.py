@@ -11,8 +11,6 @@ from getstream.models.call_response import CallResponse
 @dataclass_json
 @dataclass
 class CallMemberRemovedEvent:
-    members: List[str] = field(metadata=config(field_name="members"))
-    type: str = field(metadata=config(field_name="type"))
     call: CallResponse = field(metadata=config(field_name="call"))
     call_cid: str = field(metadata=config(field_name="call_cid"))
     created_at: datetime = field(
@@ -23,3 +21,5 @@ class CallMemberRemovedEvent:
             mm_field=fields.DateTime(format="iso"),
         )
     )
+    members: List[str] = field(metadata=config(field_name="members"))
+    type: str = field(metadata=config(field_name="type"))

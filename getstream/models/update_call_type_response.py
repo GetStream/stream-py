@@ -5,13 +5,21 @@ from typing import List, Dict
 from datetime import datetime
 from dateutil.parser import parse
 from marshmallow import fields
-from getstream.models.notification_settings import NotificationSettings
 from getstream.models.call_settings_response import CallSettingsResponse
+from getstream.models.notification_settings import NotificationSettings
 
 
 @dataclass_json
 @dataclass
 class UpdateCallTypeResponse:
+    updated_at: datetime = field(
+        metadata=config(
+            field_name="updated_at",
+            encoder=lambda d: d.isoformat(),
+            decoder=parse,
+            mm_field=fields.DateTime(format="iso"),
+        )
+    )
     created_at: datetime = field(
         metadata=config(
             field_name="created_at",
@@ -27,11 +35,3 @@ class UpdateCallTypeResponse:
         metadata=config(field_name="notification_settings")
     )
     settings: CallSettingsResponse = field(metadata=config(field_name="settings"))
-    updated_at: datetime = field(
-        metadata=config(
-            field_name="updated_at",
-            encoder=lambda d: d.isoformat(),
-            decoder=parse,
-            mm_field=fields.DateTime(format="iso"),
-        )
-    )

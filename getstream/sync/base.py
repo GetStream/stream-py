@@ -114,7 +114,7 @@ class BaseClient(BaseConfig):
         response = self.client.post(
             build_path(path, path_params), params=query_params, *args, **kwargs
         )
-        print(response.json())
+
         return self._parse_response(response, data_type or Dict[str, Any])
 
     def put(

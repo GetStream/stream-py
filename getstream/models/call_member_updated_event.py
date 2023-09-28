@@ -5,8 +5,8 @@ from typing import List
 from datetime import datetime
 from dateutil.parser import parse
 from marshmallow import fields
-from getstream.models.call_response import CallResponse
 from getstream.models.member_response import MemberResponse
+from getstream.models.call_response import CallResponse
 
 
 @dataclass_json

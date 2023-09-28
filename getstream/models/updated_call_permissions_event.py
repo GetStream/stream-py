@@ -5,8 +5,8 @@ from typing import List
 from datetime import datetime
 from dateutil.parser import parse
 from marshmallow import fields
-from getstream.models.own_capability import OwnCapability
 from getstream.models.user_response import UserResponse
+from getstream.models.own_capability import OwnCapability
 
 
 @dataclass_json

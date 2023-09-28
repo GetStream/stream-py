@@ -2,8 +2,8 @@ from dataclasses import dataclass, field
 from dataclasses_json import config, dataclass_json
 
 from typing import List, Optional
-from getstream.models.egress_rtmp_response import EgressRtmpresponse
 from getstream.models.egress_hls_response import EgressHlsresponse
+from getstream.models.egress_rtmp_response import EgressRtmpresponse
 
 
 @dataclass_json

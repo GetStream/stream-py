@@ -10,9 +10,6 @@ from getstream.models.event_notification_settings_request import (
 @dataclass_json
 @dataclass
 class NotificationSettingsRequest:
-    session_started: Optional[EventNotificationSettingsRequest] = field(
-        metadata=config(field_name="session_started"), default=None
-    )
     call_live_started: Optional[EventNotificationSettingsRequest] = field(
         metadata=config(field_name="call_live_started"), default=None
     )
@@ -23,3 +20,6 @@ class NotificationSettingsRequest:
         metadata=config(field_name="call_ring"), default=None
     )
     enabled: Optional[bool] = field(metadata=config(field_name="enabled"), default=None)
+    session_started: Optional[EventNotificationSettingsRequest] = field(
+        metadata=config(field_name="session_started"), default=None
+    )

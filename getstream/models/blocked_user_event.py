@@ -11,6 +11,8 @@ from getstream.models.user_response import UserResponse
 @dataclass_json
 @dataclass
 class BlockedUserEvent:
+    type: str = field(metadata=config(field_name="type"))
+    user: UserResponse = field(metadata=config(field_name="user"))
     call_cid: str = field(metadata=config(field_name="call_cid"))
     created_at: datetime = field(
         metadata=config(
@@ -20,8 +22,6 @@ class BlockedUserEvent:
             mm_field=fields.DateTime(format="iso"),
         )
     )
-    type: str = field(metadata=config(field_name="type"))
-    user: UserResponse = field(metadata=config(field_name="user"))
     blocked_by_user: Optional[UserResponse] = field(
         metadata=config(field_name="blocked_by_user"), default=None
     )

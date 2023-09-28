@@ -1,15 +1,15 @@
 from dataclasses import dataclass, field
 from dataclasses_json import config, dataclass_json
 
+from typing import List
 from datetime import datetime
 from dateutil.parser import parse
 from marshmallow import fields
-from getstream.models.call_participant_response import CallParticipantResponse
 
 
 @dataclass_json
 @dataclass
-class CallSessionParticipantJoinedEvent:
+class CallUserMuted:
     type: str = field(metadata=config(field_name="type"))
     call_cid: str = field(metadata=config(field_name="call_cid"))
     created_at: datetime = field(
@@ -20,7 +20,5 @@ class CallSessionParticipantJoinedEvent:
             mm_field=fields.DateTime(format="iso"),
         )
     )
-    participant: CallParticipantResponse = field(
-        metadata=config(field_name="participant")
-    )
-    session_id: str = field(metadata=config(field_name="session_id"))
+    from_user_id: str = field(metadata=config(field_name="from_user_id"))
+    muted_user_ids: List[str] = field(metadata=config(field_name="muted_user_ids"))

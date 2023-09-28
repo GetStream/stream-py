@@ -8,5 +8,5 @@ from getstream.models.call_recording import CallRecording
 @dataclass_json
 @dataclass
 class ListRecordingsResponse:
-    duration: str = field(metadata=config(field_name="duration"))
     recordings: List[CallRecording] = field(metadata=config(field_name="recordings"))
+    duration: str = field(metadata=config(field_name="duration"))

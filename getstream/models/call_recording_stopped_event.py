@@ -9,8 +9,6 @@ from marshmallow import fields
 @dataclass_json
 @dataclass
 class CallRecordingStoppedEvent:
-    type: str = field(metadata=config(field_name="type"))
-    call_cid: str = field(metadata=config(field_name="call_cid"))
     created_at: datetime = field(
         metadata=config(
             field_name="created_at",
@@ -19,3 +17,5 @@ class CallRecordingStoppedEvent:
             mm_field=fields.DateTime(format="iso"),
         )
     )
+    type: str = field(metadata=config(field_name="type"))
+    call_cid: str = field(metadata=config(field_name="call_cid"))

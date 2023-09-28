@@ -11,6 +11,7 @@ from getstream.models.call_response import CallResponse
 @dataclass_json
 @dataclass
 class CallAcceptedEvent:
+    user: UserResponse = field(metadata=config(field_name="user"))
     call: CallResponse = field(metadata=config(field_name="call"))
     call_cid: str = field(metadata=config(field_name="call_cid"))
     created_at: datetime = field(
@@ -22,4 +23,3 @@ class CallAcceptedEvent:
         )
     )
     type: str = field(metadata=config(field_name="type"))
-    user: UserResponse = field(metadata=config(field_name="user"))

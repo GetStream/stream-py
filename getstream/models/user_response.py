@@ -10,16 +10,8 @@ from marshmallow import fields
 @dataclass_json
 @dataclass
 class UserResponse:
-    created_at: datetime = field(
-        metadata=config(
-            field_name="created_at",
-            encoder=lambda d: d.isoformat(),
-            decoder=parse,
-            mm_field=fields.DateTime(format="iso"),
-        )
-    )
     custom: Dict[str, object] = field(metadata=config(field_name="custom"))
-    role: str = field(metadata=config(field_name="role"))
+    teams: List[str] = field(metadata=config(field_name="teams"))
     updated_at: datetime = field(
         metadata=config(
             field_name="updated_at",
@@ -28,12 +20,20 @@ class UserResponse:
             mm_field=fields.DateTime(format="iso"),
         )
     )
+    created_at: datetime = field(
+        metadata=config(
+            field_name="created_at",
+            encoder=lambda d: d.isoformat(),
+            decoder=parse,
+            mm_field=fields.DateTime(format="iso"),
+        )
+    )
     id: str = field(metadata=config(field_name="id"))
-    teams: List[str] = field(metadata=config(field_name="teams"))
+    role: str = field(metadata=config(field_name="role"))
     deleted_at: Optional[datetime] = field(
         metadata=config(
             field_name="deleted_at",
-            encoder=lambda d: d.isoformat(),
+            encoder=lambda d: d.isoformat() if d is not None else None,
             decoder=parse,
             mm_field=fields.DateTime(format="iso"),
         ),

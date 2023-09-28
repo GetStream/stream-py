@@ -1,11 +1,11 @@
 from dataclasses import dataclass, field
 from dataclasses_json import config, dataclass_json
 
-from getstream.models.hls_settings import Hlssettings
+from getstream.models.hls_settings_response import HlssettingsResponse
 
 
 @dataclass_json
 @dataclass
-class BroadcastSettings:
+class BroadcastSettingsResponse:
     enabled: bool = field(metadata=config(field_name="enabled"))
-    hls: Hlssettings = field(metadata=config(field_name="hls"))
+    hls: HlssettingsResponse = field(metadata=config(field_name="hls"))

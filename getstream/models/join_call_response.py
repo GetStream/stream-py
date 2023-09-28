@@ -2,10 +2,10 @@ from dataclasses import dataclass, field
 from dataclasses_json import config, dataclass_json
 
 from typing import List, Optional
+from getstream.models.credentials import Credentials
 from getstream.models.member_response import MemberResponse
 from getstream.models.own_capability import OwnCapability
 from getstream.models.call_response import CallResponse
-from getstream.models.credentials import Credentials
 
 
 @dataclass_json

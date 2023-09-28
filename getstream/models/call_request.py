@@ -13,6 +13,9 @@ from getstream.models.user_request import UserRequest
 @dataclass_json
 @dataclass
 class CallRequest:
+    created_by: Optional[UserRequest] = field(
+        metadata=config(field_name="created_by"), default=None
+    )
     created_by_id: Optional[str] = field(
         metadata=config(field_name="created_by_id"), default=None
     )
@@ -35,6 +38,3 @@ class CallRequest:
         default=None,
     )
     team: Optional[str] = field(metadata=config(field_name="team"), default=None)
-    created_by: Optional[UserRequest] = field(
-        metadata=config(field_name="created_by"), default=None
-    )

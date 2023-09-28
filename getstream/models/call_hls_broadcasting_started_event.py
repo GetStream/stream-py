@@ -4,13 +4,11 @@ from dataclasses_json import config, dataclass_json
 from datetime import datetime
 from dateutil.parser import parse
 from marshmallow import fields
-from getstream.models.call_participant_response import CallParticipantResponse
 
 
 @dataclass_json
 @dataclass
-class CallSessionParticipantJoinedEvent:
-    type: str = field(metadata=config(field_name="type"))
+class CallHlsbroadcastingStartedEvent:
     call_cid: str = field(metadata=config(field_name="call_cid"))
     created_at: datetime = field(
         metadata=config(
@@ -20,7 +18,5 @@ class CallSessionParticipantJoinedEvent:
             mm_field=fields.DateTime(format="iso"),
         )
     )
-    participant: CallParticipantResponse = field(
-        metadata=config(field_name="participant")
-    )
-    session_id: str = field(metadata=config(field_name="session_id"))
+    hls_playlist_url: str = field(metadata=config(field_name="hls_playlist_url"))
+    type: str = field(metadata=config(field_name="type"))

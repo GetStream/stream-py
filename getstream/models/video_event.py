@@ -4,14 +4,14 @@ from json import loads
 
 from getstream.models.blocked_user_event import BlockedUserEvent
 from getstream.models.call_accepted_event import CallAcceptedEvent
-from getstream.models.call_broadcasting_started_event import (
-    CallBroadcastingStartedEvent,
-)
-from getstream.models.call_broadcasting_stopped_event import (
-    CallBroadcastingStoppedEvent,
-)
 from getstream.models.call_created_event import CallCreatedEvent
 from getstream.models.call_ended_event import CallEndedEvent
+from getstream.models.call_hls_broadcasting_started_event import (
+    CallHlsbroadcastingStartedEvent,
+)
+from getstream.models.call_hls_broadcasting_stopped_event import (
+    CallHlsbroadcastingStoppedEvent,
+)
 from getstream.models.call_live_started_event import CallLiveStartedEvent
 from getstream.models.call_member_added_event import CallMemberAddedEvent
 from getstream.models.call_member_removed_event import CallMemberRemovedEvent
@@ -21,6 +21,8 @@ from getstream.models.call_member_updated_permission_event import (
 )
 from getstream.models.call_notification_event import CallNotificationEvent
 from getstream.models.call_reaction_event import CallReactionEvent
+from getstream.models.call_recording_failed_event import CallRecordingFailedEvent
+from getstream.models.call_recording_ready_event import CallRecordingReadyEvent
 from getstream.models.call_recording_started_event import CallRecordingStartedEvent
 from getstream.models.call_recording_stopped_event import CallRecordingStoppedEvent
 from getstream.models.call_rejected_event import CallRejectedEvent
@@ -34,6 +36,7 @@ from getstream.models.call_session_participant_left_event import (
 )
 from getstream.models.call_session_started_event import CallSessionStartedEvent
 from getstream.models.call_updated_event import CallUpdatedEvent
+from getstream.models.call_user_muted import CallUserMuted
 from getstream.models.connected_event import ConnectedEvent
 from getstream.models.connection_error_event import ConnectionErrorEvent
 from getstream.models.custom_video_event import CustomVideoEvent
@@ -45,10 +48,10 @@ from getstream.models.updated_call_permissions_event import UpdatedCallPermissio
 mapping = {
     "call.accepted": CallAcceptedEvent,
     "call.blocked_user": BlockedUserEvent,
-    "call.broadcasting_started": CallBroadcastingStartedEvent,
-    "call.broadcasting_stopped": CallBroadcastingStoppedEvent,
     "call.created": CallCreatedEvent,
     "call.ended": CallEndedEvent,
+    "call.hls_broadcasting_started": CallHlsbroadcastingStartedEvent,
+    "call.hls_broadcasting_stopped": CallHlsbroadcastingStoppedEvent,
     "call.live_started": CallLiveStartedEvent,
     "call.member_added": CallMemberAddedEvent,
     "call.member_removed": CallMemberRemovedEvent,
@@ -58,6 +61,8 @@ mapping = {
     "call.permission_request": PermissionRequestEvent,
     "call.permissions_updated": UpdatedCallPermissionsEvent,
     "call.reaction_new": CallReactionEvent,
+    "call.recording_failed": CallRecordingFailedEvent,
+    "call.recording_ready": CallRecordingReadyEvent,
     "call.recording_started": CallRecordingStartedEvent,
     "call.recording_stopped": CallRecordingStoppedEvent,
     "call.rejected": CallRejectedEvent,
@@ -68,6 +73,7 @@ mapping = {
     "call.session_started": CallSessionStartedEvent,
     "call.unblocked_user": UnblockedUserEvent,
     "call.updated": CallUpdatedEvent,
+    "call.user_muted": CallUserMuted,
     "connection.error": ConnectionErrorEvent,
     "connection.ok": ConnectedEvent,
     "custom": CustomVideoEvent,
@@ -80,10 +86,10 @@ class VideoEvent:
     event: Union[
         BlockedUserEvent,
         CallAcceptedEvent,
-        CallBroadcastingStartedEvent,
-        CallBroadcastingStoppedEvent,
         CallCreatedEvent,
         CallEndedEvent,
+        CallHlsbroadcastingStartedEvent,
+        CallHlsbroadcastingStoppedEvent,
         CallLiveStartedEvent,
         CallMemberAddedEvent,
         CallMemberRemovedEvent,
@@ -91,6 +97,8 @@ class VideoEvent:
         CallMemberUpdatedPermissionEvent,
         CallNotificationEvent,
         CallReactionEvent,
+        CallRecordingFailedEvent,
+        CallRecordingReadyEvent,
         CallRecordingStartedEvent,
         CallRecordingStoppedEvent,
         CallRejectedEvent,
@@ -100,6 +108,7 @@ class VideoEvent:
         CallSessionParticipantLeftEvent,
         CallSessionStartedEvent,
         CallUpdatedEvent,
+        CallUserMuted,
         ConnectedEvent,
         ConnectionErrorEvent,
         CustomVideoEvent,

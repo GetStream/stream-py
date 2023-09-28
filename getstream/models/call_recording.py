@@ -9,15 +9,6 @@ from marshmallow import fields
 @dataclass_json
 @dataclass
 class CallRecording:
-    end_time: datetime = field(
-        metadata=config(
-            field_name="end_time",
-            encoder=lambda d: d.isoformat(),
-            decoder=parse,
-            mm_field=fields.DateTime(format="iso"),
-        )
-    )
-    filename: str = field(metadata=config(field_name="filename"))
     start_time: datetime = field(
         metadata=config(
             field_name="start_time",
@@ -27,3 +18,12 @@ class CallRecording:
         )
     )
     url: str = field(metadata=config(field_name="url"))
+    end_time: datetime = field(
+        metadata=config(
+            field_name="end_time",
+            encoder=lambda d: d.isoformat(),
+            decoder=parse,
+            mm_field=fields.DateTime(format="iso"),
+        )
+    )
+    filename: str = field(metadata=config(field_name="filename"))

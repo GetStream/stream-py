@@ -11,15 +11,6 @@ from getstream.models.user_response import UserResponse
 @dataclass_json
 @dataclass
 class MemberResponse:
-    custom: Dict[str, object] = field(metadata=config(field_name="custom"))
-    updated_at: datetime = field(
-        metadata=config(
-            field_name="updated_at",
-            encoder=lambda d: d.isoformat(),
-            decoder=parse,
-            mm_field=fields.DateTime(format="iso"),
-        )
-    )
     user: UserResponse = field(metadata=config(field_name="user"))
     user_id: str = field(metadata=config(field_name="user_id"))
     created_at: datetime = field(
@@ -30,10 +21,19 @@ class MemberResponse:
             mm_field=fields.DateTime(format="iso"),
         )
     )
+    custom: Dict[str, object] = field(metadata=config(field_name="custom"))
+    updated_at: datetime = field(
+        metadata=config(
+            field_name="updated_at",
+            encoder=lambda d: d.isoformat(),
+            decoder=parse,
+            mm_field=fields.DateTime(format="iso"),
+        )
+    )
     deleted_at: Optional[datetime] = field(
         metadata=config(
             field_name="deleted_at",
-            encoder=lambda d: d.isoformat(),
+            encoder=lambda d: d.isoformat() if d is not None else None,
             decoder=parse,
             mm_field=fields.DateTime(format="iso"),
         ),
