@@ -11,3 +11,4 @@
 */cli/__pycache__
 .env
 .vscode/settings.json
+*.pyc

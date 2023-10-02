@@ -1,5 +1,6 @@
 from getstream import BaseStream
-from getstream.chat.sync import ChatClient
+
+# from getstream.chat.sync import ChatClient
 from getstream.video import VideoClient
 
 
@@ -49,6 +50,6 @@ class Stream(BaseStream):
             timeout=timeout,
             user_agent=user_agent,
         )
-        self.chat = ChatClient(
-            api_key=api_key, base_url="https://chat.stream-io-api.com", token=token
-        )
+        # self.chat = ChatClient(
+        #     api_key=api_key, base_url="https://chat.stream-io-api.com", token=token
+        # )

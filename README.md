@@ -83,7 +83,7 @@ poetry run create-token --api-key API_KEY --api-secret API_SECRET --user-id USER
 ```
 
 Or you can use docker
-First, build the image
+First, build the image:
 
 ```sh
 docker build -t stream-py .

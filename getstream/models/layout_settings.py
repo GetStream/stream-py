@@ -1,0 +1,15 @@
+from dataclasses import dataclass, field
+from dataclasses_json import config, dataclass_json
+
+from typing import Dict, Optional
+
+
+@dataclass_json
+@dataclass
+class LayoutSettings:
+    external_app_url: str = field(metadata=config(field_name="external_app_url"))
+    external_css_url: str = field(metadata=config(field_name="external_css_url"))
+    name: str = field(metadata=config(field_name="name"))
+    options: Optional[Dict[str, object]] = field(
+        metadata=config(field_name="options"), default=None
+    )

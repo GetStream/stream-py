@@ -43,4 +43,4 @@ jobs:
       env:
         VIDEO_API_KEY: ${{ secrets.VIDEO_API_KEY }}
         VIDEO_API_SECRET: ${{ secrets.VIDEO_API_SECRET }}
-      run: poetry run pytest tests/test_integration.py
+      run: poetry run pytest tests/

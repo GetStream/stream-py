@@ -1,50 +1,23 @@
-class VideoClientError(Exception):
-    def __init__(self, message, code, status_code):
-        super().__init__(message)
-        self.code = code
-        self.status_code = status_code
+import json
+from typing import Dict, Optional
+
+from getstream.models.api_error import Apierror
+from getstream.rate_limit import extract_rate_limit
 
 
-class VideoCallTypeBadRequest(VideoClientError):
-    def __init__(self, message, code, status_code):
-        super().__init__(message, code, status_code)
+class StreamAPIException(Exception):
+    def __init__(self, response: str) -> None:
+        self.api_error: Optional[Apierror] = None
+        self.rate_limit_info = extract_rate_limit(response)
 
+        try:
+            parsed_response: Dict = json.loads(response.text)
+            self.api_error = Apierror.from_dict(parsed_response)
+        except ValueError:
+            pass
 
-class VideoCallTypeNotFound(VideoClientError):
-    def __init__(self, message, code, status_code):
-        super().__init__(message, code, status_code)
-
-
-class VideoUnauthorized(VideoClientError):
-    def __init__(self, message, code, status_code):
-        super().__init__(message, code, status_code)
-
-
-class VideoForbidden(VideoClientError):
-    def __init__(self, message, code, status_code):
-        super().__init__(message, code, status_code)
-
-
-class VideoTimeout(VideoClientError):
-    def __init__(self, message, code, status_code):
-        super().__init__(message, code, status_code)
-
-
-class VideoPayloadTooLarge(VideoClientError):
-    def __init__(self, message, code, status_code):
-        super().__init__(message, code, status_code)
-
-
-class VideoTooManyRequests(VideoClientError):
-    def __init__(self, message, code, status_code):
-        super().__init__(message, code, status_code)
-
-
-class VideoRequestHeaderFieldsTooLarge(VideoClientError):
-    def __init__(self, message, code, status_code):
-        super().__init__(message, code, status_code)
-
-
-class VideoInternalServerError(VideoClientError):
-    def __init__(self, message, code, status_code):
-        super().__init__(message, code, status_code)
+    def __str__(self) -> str:
+        if self.api_error:
+            return f'Stream error code {self.api_error.code}: {self.api_error.message}"'
+        else:
+            return f"Stream error HTTP code: {self.status_code}"

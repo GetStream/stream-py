@@ -1,5 +1,69 @@
+from getstream.stream_response import StreamResponse
 from getstream.sync.base import BaseClient
-from getstream.video.exceptions import VideoCallTypeBadRequest, VideoClientError
+from typing import Optional
+from getstream.models.request_permission_response import RequestPermissionResponse
+from getstream.models.send_event_request import SendEventRequest
+from getstream.models.update_call_type_request import UpdateCallTypeRequest
+from getstream.models.update_call_type_response import UpdateCallTypeResponse
+from getstream.models.create_call_type_request import CreateCallTypeRequest
+from getstream.models.query_calls_response import QueryCallsResponse
+from getstream.models.get_call_type_response import GetCallTypeResponse
+from getstream.models.request_permission_request import RequestPermissionRequest
+from getstream.models.response import Response
+from getstream.models.update_call_response import UpdateCallResponse
+from getstream.models.start_hls_broadcasting_response import (
+    StartHlsbroadcastingResponse,
+)
+from getstream.models.query_members_request import QueryMembersRequest
+from getstream.models.block_user_request import BlockUserRequest
+from getstream.models.create_guest_request import CreateGuestRequest
+from getstream.models.mute_users_request import MuteUsersRequest
+from getstream.models.end_call_response import EndCallResponse
+from getstream.models.update_call_request import UpdateCallRequest
+from getstream.models.create_device_request import CreateDeviceRequest
+from getstream.models.query_members_response import QueryMembersResponse
+from getstream.models.pin_request import PinRequest
+from getstream.models.update_user_permissions_response import (
+    UpdateUserPermissionsResponse,
+)
+from getstream.models.unblock_user_request import UnblockUserRequest
+from getstream.models.list_devices_response import ListDevicesResponse
+from getstream.models.pin_response import PinResponse
+from getstream.models.list_recordings_response import ListRecordingsResponse
+from getstream.models.ws_auth_message_request import WsauthMessageRequest
+from getstream.models.stop_live_response import StopLiveResponse
+from getstream.models.create_guest_response import CreateGuestResponse
+from getstream.models.mute_users_response import MuteUsersResponse
+from getstream.models.update_call_members_request import UpdateCallMembersRequest
+from getstream.models.go_live_response import GoLiveResponse
+from getstream.models.unpin_response import UnpinResponse
+from getstream.models.stop_recording_response import StopRecordingResponse
+from getstream.models.accept_call_response import AcceptCallResponse
+from getstream.models.get_or_create_call_request import GetOrCreateCallRequest
+from getstream.models.send_event_response import SendEventResponse
+from getstream.models.stop_transcription_response import StopTranscriptionResponse
+from getstream.models.reject_call_response import RejectCallResponse
+from getstream.models.update_user_permissions_request import (
+    UpdateUserPermissionsRequest,
+)
+from getstream.models.join_call_request import JoinCallRequest
+from getstream.models.join_call_response import JoinCallResponse
+from getstream.models.get_or_create_call_response import GetOrCreateCallResponse
+from getstream.models.list_call_type_response import ListCallTypeResponse
+from getstream.models.create_call_type_response import CreateCallTypeResponse
+from getstream.models.start_transcription_response import StartTranscriptionResponse
+from getstream.models.start_recording_response import StartRecordingResponse
+from getstream.models.get_edges_response import GetEdgesResponse
+from getstream.models.query_calls_request import QueryCallsRequest
+from getstream.models.block_user_response import BlockUserResponse
+from getstream.models.update_call_members_response import UpdateCallMembersResponse
+from getstream.models.stop_hls_broadcasting_response import StopHlsbroadcastingResponse
+from getstream.models.unblock_user_response import UnblockUserResponse
+from getstream.models.get_call_response import GetCallResponse
+from getstream.models.send_reaction_response import SendReactionResponse
+from getstream.models.send_reaction_request import SendReactionRequest
+from getstream.models.unpin_request import UnpinRequest
+from getstream.models.go_live_request import GoLiveRequest
 
 
 class VideoClient(BaseClient):
@@ -20,706 +84,1005 @@ class VideoClient(BaseClient):
             user_agent=user_agent,
         )
 
-    def _ensure_success_response(self, response, method, url):
-        if not 200 <= response.status_code < 300:
-            error_json = response.json()
-            message = error_json.pop("message", None)
-            code = error_json.pop("code", None)
-            status_code = error_json.pop("StatusCode", None)
-            error_message = (
-                f"Request Failed.\n"
-                f"URL: {url}, METHOD: {method}\n"
-                f"STATUS CODE: {status_code}\n"
-                f"CODE: {code}\n"
-                f"REASON: {message}"
-            )
-            raise VideoClientError(
-                message=error_message, code=code, status_code=status_code
-            )
-
-    def call(self, call_type: str, call_id: str):
+    def call(self, type: str, id: str):
         """
         Returns instance of Call class
-        :param call_type: A string representing the call type
-        :param call_id: A string representing a unique call identifier
+        param type: A string representing the call type
+        :param id: A string representing a unique call identifier
         :return: Instance of Call class
         """
-        return Call(self, call_type, call_id)
+        return Call(self, type, id)
 
-    def edges(self):
+    def query_members(
+        self, data: QueryMembersRequest
+    ) -> StreamResponse[QueryMembersResponse]:
         """
-        Retrieves edges from the server
-        :return: json object with response
+        Query call members
         """
-        response = self.get("/edges")
-        self._ensure_success_response(response, "GET", "/edges")
-        return response.json()
+        query_params = {}
+        path_params = {}
 
-    def get_edge_server(self, call_type: str, call_id: str, data):
-        """
-        Retrieves specific edge server
-        :param call_type: A string representing the call type
-        :param call_id: A string representing a unique call identifier
-        :param data: A dictionary with additional call details
-        :return: json object with response
-        """
-        response = self.get(f"/calls/{call_type}/{call_id}/get_edge_server", json=data)
-        json = response.json()
-        return json
+        return self.post(
+            "/call/members",
+            QueryMembersResponse,
+            query_params=query_params,
+            path_params=path_params,
+            json=data.to_dict(),
+        )
 
-    def create_call_type(self, data):
+    def get_call(
+        self,
+        type: str,
+        id: str,
+        connection_id: Optional[str] = None,
+        members_limit: Optional[int] = None,
+        ring: Optional[bool] = None,
+        notify: Optional[bool] = None,
+    ) -> StreamResponse[GetCallResponse]:
         """
-        Creates a new call type
-        :param data: A dictionary with details about the call type
-        :return: json object with response
+        Get Call
         """
-        response = self.post("/calltypes", json=data)
-        if response.status_code == 400:
-            error_json = response.json()
-            message = error_json.pop("message", None)
-            code = error_json.pop("code", None)
-            status_code = error_json.pop("StatusCode", None)
-            raise VideoCallTypeBadRequest(
-                message=message, code=code, status_code=status_code
-            )
-        return response.json()
+        query_params = {}
+        path_params = {}
+        path_params["type"] = type
+        path_params["id"] = id
+        query_params["connection_id"] = connection_id
+        query_params["members_limit"] = members_limit
+        query_params["ring"] = ring
+        query_params["notify"] = notify
 
-    def get_call_type(self, name: str):
-        """
-        Retrieves specific call type
-        :param name: A string representing the name of the call type
-        :return: json object with response
-        """
-        response = self.get(f"/calltypes/{name}")
-        if response.status_code == 400:
-            error_json = response.json()
-            message = error_json.pop("message", None)
-            code = error_json.pop("code", None)
-            status_code = error_json.pop("StatusCode", None)
-            raise VideoCallTypeBadRequest(
-                message=message, code=code, status_code=status_code
-            )
-        return response.json()
+        return self.get(
+            "/call/{type}/{id}",
+            GetCallResponse,
+            query_params=query_params,
+            path_params=path_params,
+        )
 
-    def list_call_types(self):
+    def update_call(
+        self, type: str, id: str, data: UpdateCallRequest
+    ) -> StreamResponse[UpdateCallResponse]:
         """
-        Returns a list with all call types of the client
-        :return: json object with response
+        Update Call
         """
-        response = self.get("/calltypes")
-        if response.status_code == 400:
-            error_json = response.json()
-            message = error_json.pop("message", None)
-            code = error_json.pop("code", None)
-            status_code = error_json.pop("StatusCode", None)
-            raise VideoCallTypeBadRequest(
-                message=message, code=code, status_code=status_code
-            )
-        json = response.json()
-        return json
+        query_params = {}
+        path_params = {}
+        path_params["type"] = type
+        path_params["id"] = id
 
-    def update_call_type(self, name: str, data):
-        """
-        Updates specific call type
-        :param name: A string representing the name of the call type
-        :param data: A dictionary with details about the call type
-        :return: json object with response
-        """
-        response = self.put(f"/calltypes/{name}", json=data)
-        if response.status_code == 400:
-            error_json = response.json()
-            message = error_json.pop("message", None)
-            code = error_json.pop("code", None)
-            status_code = error_json.pop("StatusCode", None)
-            raise VideoCallTypeBadRequest(
-                message=message, code=code, status_code=status_code
-            )
-        return response.json()
-
-    def query_calls(self, data):
-        """
-        Executes a query about specific call
-        :param data: A dictionary with additional call details
-        :return: json object with response
-        """
-        response = self.post("/calls", json=data)
-        self._ensure_success_response(response, "POST", "/calls")
-        return response.json()
-
-    def block_user(self, call_type: str, call_id: str, data):
-        """
-        Blocks user in the call
-        :param data: A dictionary with user details
-        :return: Response from the block user API
-        """
-        path = f"/call/{call_type}/{call_id}/block"
-        response = self.post(path, json=data)
-        self._ensure_success_response(response, "POST", path)
-        return response.json()
-
-    def end_call(self, call_type: str, call_id: str):
-        """
-        Ends the call
-        :return: Response from the end call API
-        """
-        path = f"/call/{call_type}/{call_id}/mark_ended"
-        response = self.post(path)
-        self._ensure_success_response(response, "POST", path)
-        return response.json()
-
-    def get_call(self, call_type: str, call_id: str):
-        """
-        Retrieves specific call type
-        :param name: A string representing the name of the call type
-        :return: json object with response
-        """
-        path = f"/call/{call_type}/{call_id}"
-        response = self.get(path)
-        self._ensure_success_response(response, "GET", path)
-        return response.json()
-
-    def go_live(self, call_type: str, call_id: str):
-        """
-        Makes specific call go live
-        :param call_type: A string representing the call type
-        :param call_id: A string representing a unique call identifier
-        :return: json object with response
-        """
-        path = f"/call/{call_type}/{call_id}/go_live"
-        response = self.post(path)
-        self._ensure_success_response(response, "POST", path)
-        return response.json()
-
-    def join_call(self, call_type: str, call_id: str, data):
-        """
-        Joins specific call
-        :param call_type: A string representing the call type
-        :param call_id: A string representing a unique call identifier
-        :param data: A dictionary with additional call details
-        :return: json object with response
-        """
-        path = f"/call/{call_type}/{call_id}/join"
-        response = self.post(path, data=data)
-        self._ensure_success_response(response, "POST", path)
-        return response.json()
-
-    def delete_call_type(self, name: str):
-        """
-        Deletes specific call type
-        :param name: A string representing the name of the call type
-        :return: json object with response
-        """
-        response = self.delete(f"/calltypes/{name}")
-        if response.status_code == 400:
-            error_json = response.json()
-            message = error_json.pop("message", None)
-            code = error_json.pop("code", None)
-            status_code = error_json.pop("StatusCode", None)
-            raise VideoCallTypeBadRequest(
-                message=message, code=code, status_code=status_code
-            )
-        return response.json()
-
-    def delete_recording(
-        self, call_type: str, call_id: str, session_id: str, recordingid: str
-    ):
-        """
-        Deletes specific recording of the call
-        :param session_id: A string representing a unique session identifier
-        :param recordingid: A string representing a unique recording identifier
-        :return: Response from the delete recording API
-        """
-        path = f"/call/{call_type}/{call_id}/{session_id}/recordings/{recordingid}"
-        response = self.delete(path)
-        self._ensure_success_response(response, "DELETE", path)
-        return response.json()
-
-    def add_device(
-        self, id, push_provider, push_provider_name=None, user_id=None, voip_token=None
-    ):
-        """
-        Adds device to the client
-        :param id: A string representing device identifier
-        :param push_provider: An instance representing the push provider
-        :param push_provider_name: A string representing the name of the push provider
-        :param user_id: A string representing a unique user identifier
-        :param voip_token: A string representing the Voice Over IP token
-        :return: json object with response
-        """
-        data = {"id": id, "push_provider": push_provider, "voip_token": voip_token}
-        if user_id is not None:
-            data.update({"user_id": user_id})
-        if push_provider_name is not None:
-            data.update({"push_provider_name": push_provider_name})
-        response = self.post("/devices", json=data)
-        self._ensure_success_response(response, "POST", "/devices")
-        return response.json()
-
-    def add_voip_device(self, id, push_provider, push_provider_name=None, user_id=None):
-        """
-        Adds Voice Over IP device to the client
-        :param id: A string representing device identifier
-        :param push_provider: An instance representing the push provider
-        :param push_provider_name: A string representing the name of the push provider
-        :param user_id: A string representing a unique user identifier
-        """
-        self.add_device(id, push_provider, push_provider_name, user_id, voip_token=True)
-
-    def get_devices(self):
-        """
-        Retrieves all devices of the client
-        :return: json object with response
-        """
-        response = self.get("/devices")
-        self._ensure_success_response(response, "GET", "/devices")
-        return response.json()
-
-    def remove_device(self, data):
-        """
-        Removes specific device from the client
-        :param data: A dictionary with additional details about the device
-        :return: json object with response
-        """
-        response = self.delete("/devices", json=data)
-        self._ensure_success_response(response, "DELETE", "/devices")
-        return response.json()
-
-    def query_recordings(self, call_type: str, call_id: str, session_id: str = None):
-        """
-        Executes a query to retrieve specific call recordings
-        :param call_type: A string representing the call type
-        :param call_id: A string representing a unique call identifier
-        :param session_id: A string representing a unique session identifier
-        :return: json object with response
-        """
-        path = f"/call/{call_type}/{call_id}/recordings"
-        if session_id is None:
-            path = f"/call/{call_type}/{call_id}/{session_id}/recordings"
-            response = self.get(path)
-        self._ensure_success_response(response, "GET", path)
-        return response.json()
-
-    def mute_users(self, call_type: str, call_id: str, data):
-        """
-        Mute users in a specific call
-        :param call_type: A string representing the call type
-        :param call_id: A string representing a unique call identifier
-        :param data: A dictionary with additional call details
-        :return: json object with response
-        """
-        path = f"/call/{call_type}/{call_id}/mute_users"
-        response = self.post(path, data=data)
-        self._ensure_success_response(response, "POST", path)
-        return response.json()
-
-    def query_members(self, call_type: str, call_id: str, data):
-        """
-        Executes a query to retrieve specific call members
-        :param call_type: A string representing the call type
-        :param call_id: A string representing a unique call identifier
-        :param data: A dictionary with additional call details
-        :return: json object with response
-        """
-        path = f"/call/{call_type}/{call_id}/members"
-        response = self.post(path, json=data)
-        self._ensure_success_response(response, "POST", path)
-        return response.json()
-
-    def request_permissions(self, call_type: str, call_id: str, data):
-        """
-        Requests permissions for a specific call
-        :param call_type: A string representing the call type
-        :param call_id: A string representing a unique call identifier
-        :param data: A dictionary with additional call details
-        :return: json object with response
-        """
-        path = f"/call/{call_type}/{call_id}/request_permission"
-        response = self.post(path, json=data)
-        self._ensure_success_response(response, "POST", path)
-        return response.json()
-
-    def send_custom_event(self, call_type: str, call_id: str, data):
-        """
-        Sends a custom event for a specific call
-        :param call_type: A string representing the call type
-        :param call_id: A string representing a unique call identifier
-        :param data: A dictionary with additional call details
-        :return: json object with response
-        """
-        path = f"/call/{call_type}/{call_id}/event"
-        response = self.post(path, json=data)
-        self._ensure_success_response(response, "POST", path)
-        return response.json()
-
-    def send_reaction(self, call_type: str, call_id: str, data):
-        """
-        Sends a reaction for a specific call
-        :param call_type: A string representing the call type
-        :param call_id: A string representing a unique call identifier
-        :param data: A dictionary with additional call details
-        :return: json object with response
-        """
-        path = f"/call/{call_type}/{call_id}/reaction"
-        response = self.post(path, json=data)
-        self._ensure_success_response(response, "POST", path)
-        return response.json()
-
-    def start_recording(self, call_type: str, call_id: str):
-        """
-        Starts recording for a specific call
-        :param call_type: A string representing the call type
-        :param call_id: A string representing a unique call identifier
-        :return: json object with response
-        """
-        path = f"/call/{call_type}/{call_id}/start_recording"
-        response = self.post(path)
-        self._ensure_success_response(response, "POST", path)
-        return response.json()
-
-    def start_trancription(self, call_type: str, call_id: str):
-        """
-        Starts transcription for a specific call
-        :param call_type: A string representing the call type
-        :param call_id: A string representing a unique call identifier
-        :return: json object with response
-        """
-        path = f"/call/{call_type}/{call_id}/start_transcription"
-        response = self.post(path)
-        self._ensure_success_response(response, "POST", path)
-        return response.json()
-
-    def start_broadcasting(self, call_type: str, call_id: str):
-        """
-        Starts broadcasting for a specific call
-        :param call_type: A string representing the call type
-        :param call_id: A string representing a unique call identifier
-        :return: json object with response
-        """
-        path = f"/call/{call_type}/{call_id}/start_broadcasting"
-        response = self.post(path)
-        self._ensure_success_response(response, "POST", path)
-        return response.json()
-
-    def stop_recording(self, call_type: str, call_id: str):
-        """
-        Stops recording for a specific call
-        :param call_type: A string representing the call type
-        :param call_id: A string representing a unique call identifier
-        :return: json object with response
-        """
-        path = f"/call/{call_type}/{call_id}/stop_recording"
-        response = self.post(path)
-        self._ensure_success_response(response, "POST", path)
-        return response.json()
-
-    def stop_transcription(self, call_type: str, call_id: str):
-        """
-        Stops transcription for a specific call
-        :param call_type: A string representing the call type
-        :param call_id: A string representing a unique call identifier
-        :return: json object with response
-        """
-        path = f"/call/{call_type}/{call_id}/stop_transcription"
-        response = self.post(path)
-        self._ensure_success_response(response, "POST", path)
-        return response.json()
-
-    def stop_broadcasting(self, call_type: str, call_id: str):
-        """
-        Stops broadcasting for a specific call
-        :param call_type: A string representing the call type
-        :param call_id: A string representing a unique call identifier
-        :return: json object with response
-        """
-        path = f"/call/{call_type}/{call_id}/stop_broadcasting"
-        response = self.post(path)
-        self._ensure_success_response(response, "POST", path)
-        return response.json()
-
-    def stop_live(self, call_type: str, call_id: str):
-        """
-        Stops the live status of a call
-        :param call_type: A string representing the call type
-        :param call_id: A string representing a unique call identifier
-        :return: json object with response
-        """
-        path = f"/call/{call_type}/{call_id}/stop_live"
-        response = self.post(path)
-        self._ensure_success_response(response, "POST", path)
-        return response.json()
-
-    def unblock_user(self, call_type: str, call_id: str, data):
-        """
-        Unblocks a user from a specific call
-        :param call_type: A string representing the call type
-        :param call_id: A string representing a unique call identifier
-        :param data: A dictionary with additional call details
-        :return: json object with response
-        """
-        path = f"/call/{call_type}/{call_id}/unblock"
-        response = self.post(path, json=data)
-        self._ensure_success_response(response, "POST", path)
-        return response.json()
-
-    def update_call_members(self, call_type: str, call_id: str, members: list = None):
-        """
-        Updates the members of a specific call
-        :param call_type: A string representing the call type
-        :param call_id: A string representing a unique call identifier
-        :param members: A list with the members' details
-        :return: json object with response
-        """
-        data = {"update_members": members}
-        path = f"/call/{call_type}/{call_id}/members"
-        response = self.put(path, json=data)
-        self._ensure_success_response(response, "PUT", path)
-        return response.json()
-
-    def update_call(self, call_type: str, call_id: str, data):
-        """
-        Updates a specific call
-        :param call_type: A string representing the call type
-        :param call_id: A string representing a unique call identifier
-        :param data: A dictionary with additional call details
-        :return: json object with response
-        """
-        request_data = {"data": data}
-        path = f"/call/{call_type}/{call_id}"
-        response = self.put(path, json=request_data)
-        self._ensure_success_response(response, "PUT", path)
-        return response.json()
-
-    def update_user_permissions(self, call_type: str, call_id: str, data):
-        """
-        Updates user permissions for a specific call
-        :param call_type: A string representing the call type
-        :param call_id: A string representing a unique call identifier
-        :param data: A dictionary with additional call details
-        :return: json object with response
-        """
-        path = f"/call/{call_type}/{call_id}/permissions"
-        response = self.put(path, json=data)
-        self._ensure_success_response(response, "PUT", path)
-        return response.json()
+        return self.patch(
+            "/call/{type}/{id}",
+            UpdateCallResponse,
+            query_params=query_params,
+            path_params=path_params,
+            json=data.to_dict(),
+        )
 
     def get_or_create_call(
-        self, call_type: str, call_id: str, data: dict, members: list = None
-    ):
+        self,
+        type: str,
+        id: str,
+        data: GetOrCreateCallRequest,
+        connection_id: Optional[str] = None,
+    ) -> StreamResponse[GetOrCreateCallResponse]:
         """
-        Returns a specific call and creates one if it does not exist
-        :param call_type: A string representing the call type
-        :param call_id: A string representing a unique call identifier
-        :param data: A dictionary with additional call details
-        :param members: A list with the call members' details
-        :return: json object with response
+        Get or create a call
         """
-        request_data = {"data": data}
-        if members is not None:
-            request_data.update({"members": members})
-        path = f"/call/{call_type}/{call_id}"
-        response = self.post(path, json=request_data)
-        self._ensure_success_response(response, "POST", path)
-        return response.json()
+        query_params = {}
+        path_params = {}
+        path_params["type"] = type
+        path_params["id"] = id
+        query_params["connection_id"] = connection_id
+
+        return self.post(
+            "/call/{type}/{id}",
+            GetOrCreateCallResponse,
+            query_params=query_params,
+            path_params=path_params,
+            json=data.to_dict(),
+        )
+
+    def accept_call(self, type: str, id: str) -> StreamResponse[AcceptCallResponse]:
+        """
+        Accept Call
+        """
+        query_params = {}
+        path_params = {}
+        path_params["type"] = type
+        path_params["id"] = id
+
+        return self.post(
+            "/call/{type}/{id}/accept",
+            AcceptCallResponse,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
+    def block_user(
+        self, type: str, id: str, data: BlockUserRequest
+    ) -> StreamResponse[BlockUserResponse]:
+        """
+        Block user on a call
+        """
+        query_params = {}
+        path_params = {}
+        path_params["type"] = type
+        path_params["id"] = id
+
+        return self.post(
+            "/call/{type}/{id}/block",
+            BlockUserResponse,
+            query_params=query_params,
+            path_params=path_params,
+            json=data.to_dict(),
+        )
+
+    def send_event(
+        self, type: str, id: str, data: SendEventRequest
+    ) -> StreamResponse[SendEventResponse]:
+        """
+        Send custom event
+        """
+        query_params = {}
+        path_params = {}
+        path_params["type"] = type
+        path_params["id"] = id
+
+        return self.post(
+            "/call/{type}/{id}/event",
+            SendEventResponse,
+            query_params=query_params,
+            path_params=path_params,
+            json=data.to_dict(),
+        )
+
+    def go_live(
+        self, type: str, id: str, data: GoLiveRequest
+    ) -> StreamResponse[GoLiveResponse]:
+        """
+        Set call as live
+        """
+        query_params = {}
+        path_params = {}
+        path_params["type"] = type
+        path_params["id"] = id
+
+        return self.post(
+            "/call/{type}/{id}/go_live",
+            GoLiveResponse,
+            query_params=query_params,
+            path_params=path_params,
+            json=data.to_dict(),
+        )
+
+    def join_call(
+        self,
+        type: str,
+        id: str,
+        data: JoinCallRequest,
+        connection_id: Optional[str] = None,
+    ) -> StreamResponse[JoinCallResponse]:
+        """
+        Join call
+        """
+        query_params = {}
+        path_params = {}
+        path_params["type"] = type
+        path_params["id"] = id
+        query_params["connection_id"] = connection_id
+
+        return self.post(
+            "/call/{type}/{id}/join",
+            JoinCallResponse,
+            query_params=query_params,
+            path_params=path_params,
+            json=data.to_dict(),
+        )
+
+    def end_call(self, type: str, id: str) -> StreamResponse[EndCallResponse]:
+        """
+        End call
+        """
+        query_params = {}
+        path_params = {}
+        path_params["type"] = type
+        path_params["id"] = id
+
+        return self.post(
+            "/call/{type}/{id}/mark_ended",
+            EndCallResponse,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
+    def update_call_members(
+        self, type: str, id: str, data: UpdateCallMembersRequest
+    ) -> StreamResponse[UpdateCallMembersResponse]:
+        """
+        Update Call Member
+        """
+        query_params = {}
+        path_params = {}
+        path_params["type"] = type
+        path_params["id"] = id
+
+        return self.post(
+            "/call/{type}/{id}/members",
+            UpdateCallMembersResponse,
+            query_params=query_params,
+            path_params=path_params,
+            json=data.to_dict(),
+        )
+
+    def mute_users(
+        self, type: str, id: str, data: MuteUsersRequest
+    ) -> StreamResponse[MuteUsersResponse]:
+        """
+        Mute users
+        """
+        query_params = {}
+        path_params = {}
+        path_params["type"] = type
+        path_params["id"] = id
+
+        return self.post(
+            "/call/{type}/{id}/mute_users",
+            MuteUsersResponse,
+            query_params=query_params,
+            path_params=path_params,
+            json=data.to_dict(),
+        )
+
+    def video_pin(
+        self, type: str, id: str, data: PinRequest
+    ) -> StreamResponse[PinResponse]:
+        """
+        Pin
+        """
+        query_params = {}
+        path_params = {}
+        path_params["type"] = type
+        path_params["id"] = id
+
+        return self.post(
+            "/call/{type}/{id}/pin",
+            PinResponse,
+            query_params=query_params,
+            path_params=path_params,
+            json=data.to_dict(),
+        )
+
+    def send_video_reaction(
+        self, type: str, id: str, data: SendReactionRequest
+    ) -> StreamResponse[SendReactionResponse]:
+        """
+        Send reaction to the call
+        """
+        query_params = {}
+        path_params = {}
+        path_params["type"] = type
+        path_params["id"] = id
+
+        return self.post(
+            "/call/{type}/{id}/reaction",
+            SendReactionResponse,
+            query_params=query_params,
+            path_params=path_params,
+            json=data.to_dict(),
+        )
+
+    def list_recordings(
+        self, type: str, id: str, session: Optional[str] = None
+    ) -> StreamResponse[ListRecordingsResponse]:
+        """
+        List recordings (type, id)
+        """
+        query_params = {}
+        path_params = {}
+        path_params["type"] = type
+        path_params["id"] = id
+        path_params["session"] = session
+
+        path = "/call/{type}/{id}/recordings"
+        if session is not None:
+            path = "/call/{type}/{id}/{session}/recordings"
+
+        return self.get(
+            path,
+            ListRecordingsResponse,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
+    def reject_call(self, type: str, id: str) -> StreamResponse[RejectCallResponse]:
+        """
+        Reject Call
+        """
+        query_params = {}
+        path_params = {}
+        path_params["type"] = type
+        path_params["id"] = id
+
+        return self.post(
+            "/call/{type}/{id}/reject",
+            RejectCallResponse,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
+    def request_permission(
+        self, type: str, id: str, data: RequestPermissionRequest
+    ) -> StreamResponse[RequestPermissionResponse]:
+        """
+        Request permission
+        """
+        query_params = {}
+        path_params = {}
+        path_params["type"] = type
+        path_params["id"] = id
+
+        return self.post(
+            "/call/{type}/{id}/request_permission",
+            RequestPermissionResponse,
+            query_params=query_params,
+            path_params=path_params,
+            json=data.to_dict(),
+        )
+
+    def start_hls_broadcasting(
+        self, type: str, id: str
+    ) -> StreamResponse[StartHlsbroadcastingResponse]:
+        """
+        Start HLS broadcasting
+        """
+        query_params = {}
+        path_params = {}
+        path_params["type"] = type
+        path_params["id"] = id
+
+        return self.post(
+            "/call/{type}/{id}/start_broadcasting",
+            StartHlsbroadcastingResponse,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
+    def start_recording(
+        self, type: str, id: str
+    ) -> StreamResponse[StartRecordingResponse]:
+        """
+        Start recording
+        """
+        query_params = {}
+        path_params = {}
+        path_params["type"] = type
+        path_params["id"] = id
+
+        return self.post(
+            "/call/{type}/{id}/start_recording",
+            StartRecordingResponse,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
+    def start_transcription(
+        self, type: str, id: str
+    ) -> StreamResponse[StartTranscriptionResponse]:
+        """
+        Start transcription
+        """
+        query_params = {}
+        path_params = {}
+        path_params["type"] = type
+        path_params["id"] = id
+
+        return self.post(
+            "/call/{type}/{id}/start_transcription",
+            StartTranscriptionResponse,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
+    def stop_hls_broadcasting(
+        self, type: str, id: str
+    ) -> StreamResponse[StopHlsbroadcastingResponse]:
+        """
+        Stop HLS broadcasting
+        """
+        query_params = {}
+        path_params = {}
+        path_params["type"] = type
+        path_params["id"] = id
+
+        return self.post(
+            "/call/{type}/{id}/stop_broadcasting",
+            StopHlsbroadcastingResponse,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
+    def stop_live(self, type: str, id: str) -> StreamResponse[StopLiveResponse]:
+        """
+        Set call as not live
+        """
+        query_params = {}
+        path_params = {}
+        path_params["type"] = type
+        path_params["id"] = id
+
+        return self.post(
+            "/call/{type}/{id}/stop_live",
+            StopLiveResponse,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
+    def stop_recording(
+        self, type: str, id: str
+    ) -> StreamResponse[StopRecordingResponse]:
+        """
+        Stop recording
+        """
+        query_params = {}
+        path_params = {}
+        path_params["type"] = type
+        path_params["id"] = id
+
+        return self.post(
+            "/call/{type}/{id}/stop_recording",
+            StopRecordingResponse,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
+    def stop_transcription(
+        self, type: str, id: str
+    ) -> StreamResponse[StopTranscriptionResponse]:
+        """
+        Stop transcription
+        """
+        query_params = {}
+        path_params = {}
+        path_params["type"] = type
+        path_params["id"] = id
+
+        return self.post(
+            "/call/{type}/{id}/stop_transcription",
+            StopTranscriptionResponse,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
+    def unblock_user(
+        self, type: str, id: str, data: UnblockUserRequest
+    ) -> StreamResponse[UnblockUserResponse]:
+        """
+        Unblocks user on a call
+        """
+        query_params = {}
+        path_params = {}
+        path_params["type"] = type
+        path_params["id"] = id
+
+        return self.post(
+            "/call/{type}/{id}/unblock",
+            UnblockUserResponse,
+            query_params=query_params,
+            path_params=path_params,
+            json=data.to_dict(),
+        )
+
+    def video_unpin(
+        self, type: str, id: str, data: UnpinRequest
+    ) -> StreamResponse[UnpinResponse]:
+        """
+        Unpin
+        """
+        query_params = {}
+        path_params = {}
+        path_params["type"] = type
+        path_params["id"] = id
+
+        return self.post(
+            "/call/{type}/{id}/unpin",
+            UnpinResponse,
+            query_params=query_params,
+            path_params=path_params,
+            json=data.to_dict(),
+        )
+
+    def update_user_permissions(
+        self, type: str, id: str, data: UpdateUserPermissionsRequest
+    ) -> StreamResponse[UpdateUserPermissionsResponse]:
+        """
+        Update user permissions
+        """
+        query_params = {}
+        path_params = {}
+        path_params["type"] = type
+        path_params["id"] = id
+
+        return self.post(
+            "/call/{type}/{id}/user_permissions",
+            UpdateUserPermissionsResponse,
+            query_params=query_params,
+            path_params=path_params,
+            json=data.to_dict(),
+        )
+
+    def query_calls(
+        self, data: QueryCallsRequest, connection_id: Optional[str] = None
+    ) -> StreamResponse[QueryCallsResponse]:
+        """
+        Query call
+        """
+        query_params = {}
+        path_params = {}
+        query_params["connection_id"] = connection_id
+
+        return self.post(
+            "/calls",
+            QueryCallsResponse,
+            query_params=query_params,
+            path_params=path_params,
+            json=data.to_dict(),
+        )
+
+    def list_call_types(self) -> StreamResponse[ListCallTypeResponse]:
+        """
+        List Call Type
+        """
+        query_params = {}
+        path_params = {}
+
+        return self.get(
+            "/calltypes",
+            ListCallTypeResponse,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
+    def create_call_type(
+        self, data: CreateCallTypeRequest
+    ) -> StreamResponse[CreateCallTypeResponse]:
+        """
+        Create Call Type
+        """
+        query_params = {}
+        path_params = {}
+
+        return self.post(
+            "/calltypes",
+            CreateCallTypeResponse,
+            query_params=query_params,
+            path_params=path_params,
+            json=data.to_dict(),
+        )
+
+    def delete_call_type(self, name: str) -> StreamResponse[Response]:
+        """
+        Delete Call Type
+        """
+        query_params = {}
+        path_params = {}
+        path_params["name"] = name
+
+        return self.delete(
+            "/calltypes/{name}",
+            Response,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
+    def get_call_type(self, name: str) -> StreamResponse[GetCallTypeResponse]:
+        """
+        Get Call Type
+        """
+        query_params = {}
+        path_params = {}
+        path_params["name"] = name
+
+        return self.get(
+            "/calltypes/{name}",
+            GetCallTypeResponse,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
+    def update_call_type(
+        self, name: str, data: UpdateCallTypeRequest
+    ) -> StreamResponse[UpdateCallTypeResponse]:
+        """
+        Update Call Type
+        """
+        query_params = {}
+        path_params = {}
+        path_params["name"] = name
+
+        return self.put(
+            "/calltypes/{name}",
+            UpdateCallTypeResponse,
+            query_params=query_params,
+            path_params=path_params,
+            json=data.to_dict(),
+        )
+
+    def delete_device(
+        self, id: Optional[str] = None, user_id: Optional[str] = None
+    ) -> StreamResponse[Response]:
+        """
+        Delete device
+        """
+        query_params = {}
+        path_params = {}
+        query_params["id"] = id
+        query_params["user_id"] = user_id
+
+        return self.delete(
+            "/devices", Response, query_params=query_params, path_params=path_params
+        )
+
+    def list_devices(
+        self, user_id: Optional[str] = None
+    ) -> StreamResponse[ListDevicesResponse]:
+        """
+        List devices
+        """
+        query_params = {}
+        path_params = {}
+        query_params["user_id"] = user_id
+
+        return self.get(
+            "/devices",
+            ListDevicesResponse,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
+    def create_device(self, data: CreateDeviceRequest) -> StreamResponse[Response]:
+        """
+        Create device
+        """
+        query_params = {}
+        path_params = {}
+
+        return self.post(
+            "/devices",
+            Response,
+            query_params=query_params,
+            path_params=path_params,
+            json=data.to_dict(),
+        )
+
+    def get_edges(self) -> StreamResponse[GetEdgesResponse]:
+        """
+        Get Edges
+        """
+        query_params = {}
+        path_params = {}
+
+        return self.get(
+            "/edges",
+            GetEdgesResponse,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
+    def create_guest(
+        self, data: CreateGuestRequest
+    ) -> StreamResponse[CreateGuestResponse]:
+        """
+        Create Guest
+        """
+        query_params = {}
+        path_params = {}
+
+        return self.post(
+            "/guest",
+            CreateGuestResponse,
+            query_params=query_params,
+            path_params=path_params,
+            json=data.to_dict(),
+        )
+
+    def video_connect(self, data: WsauthMessageRequest):
+        """
+        Video Connect (WebSocket)
+        """
+        query_params = {}
+        path_params = {}
+
+        return self.get(
+            "/video/connect",
+            query_params=query_params,
+            path_params=path_params,
+            json=data.to_dict(),
+        )
 
 
 class Call:
-    def __init__(self, client: VideoClient, call_type: str, call_id: str):
+    def __init__(self, client: VideoClient, type: str, id: str):
         """
-        Initializes Call with VideoClient instance
-        :param client: An instance of VideoClient class
-        :param call_type: A string representing the call type
-        :param call_id: A string representing a unique call identifier
+        Initializes Call with BaseClient instance
+        :param client: An instance of BaseClient class
+        :param type: A string representing the call type
+        :param id: A string representing a unique call identifier
         """
         self._client = client
-        self._call_type = call_type
-        self._call_id = call_id
+        self._type = type
+        self._id = id
 
-    def create(self, data: dict, members: list = None):
+    def query_members(
+        self, data: QueryMembersRequest
+    ) -> StreamResponse[QueryMembersResponse]:
         """
-        Creates a call with given data and members
-        :param data: A dictionary with call details
-        :param members: A list of members to be included in the call
-        :return: Response from the create call API
+        Query call members
+        """
+        return self._client.query_members(self._type, self._id, data)
+
+    def get_call(
+        self,
+        connection_id: Optional[str] = None,
+        members_limit: Optional[int] = None,
+        ring: Optional[bool] = None,
+        notify: Optional[bool] = None,
+    ) -> StreamResponse[GetCallResponse]:
+        """
+        Get Call
+        """
+        return self._client.get_call(
+            self._type, self._id, connection_id, members_limit, ring, notify
+        )
+
+    def update_call(
+        self, data: UpdateCallRequest
+    ) -> StreamResponse[UpdateCallResponse]:
+        """
+        Update Call
+        """
+        return self._client.update_call(self._type, self._id, data)
+
+    def get_or_create_call(
+        self, data: GetOrCreateCallRequest, connection_id: Optional[str] = None
+    ) -> StreamResponse[GetOrCreateCallResponse]:
+        """
+        Get or create a call
         """
         return self._client.get_or_create_call(
-            self._call_type, self._call_id, data, members
+            self._type, self._id, data, connection_id
         )
 
-    def get(self):
+    def accept_call(self) -> StreamResponse[AcceptCallResponse]:
         """
-        Retrieves the call based on call type and id
-        :return: Response from the get call API
+        Accept Call
         """
-        return self._client.get_call(self._call_type, self._call_id)
+        return self._client.accept_call(self._type, self._id)
 
-    def update(self, data: dict):
+    def block_user(self, data: BlockUserRequest) -> StreamResponse[BlockUserResponse]:
         """
-        Updates the call with given data
-        :param data: A dictionary with updated call details
-        :return: Response from the update call API
+        Block user on a call
         """
-        return self._client.update_call(self._call_type, self._call_id, data)
+        return self._client.block_user(self._type, self._id, data)
 
-    def update_user_permissions(self, data):
+    def send_event(self, data: SendEventRequest) -> StreamResponse[SendEventResponse]:
         """
-        Updates permissions of the user in the call
-        :param data: A dictionary with permission details
-        :return: Response from the update user permissions API
+        Send custom event
         """
-        return self._client.update_user_permissions(
-            self._call_type, self._call_id, data
-        )
+        return self._client.send_event(self._type, self._id, data)
 
-    def update_call_members(self, members: list = None):
+    def go_live(self, data: GoLiveRequest) -> StreamResponse[GoLiveResponse]:
         """
-        Updates members of the call
-        :param members: A list of new members to be included in the call
-        :return: Response from the update call members API
+        Set call as live
         """
-        return self._client.update_call_members(self._call_type, self._call_id, members)
+        return self._client.go_live(self._type, self._id, data)
 
-    def unblock_user(self, data):
+    def join_call(
+        self, data: JoinCallRequest, connection_id: Optional[str] = None
+    ) -> StreamResponse[JoinCallResponse]:
         """
-        Unblocks user from the call
-        :param data: A dictionary with user details
-        :return: Response from the unblock user API
+        Join call
         """
-        return self._client.unblock_user(self._call_type, self._call_id, data)
+        return self._client.join_call(self._type, self._id, data, connection_id)
 
-    def stop_live(self):
+    def end_call(self) -> StreamResponse[EndCallResponse]:
         """
-        Stops live call
-        :return: Response from the stop live API
+        End call
         """
-        return self._client.stop_live(self._call_type, self._call_id)
+        return self._client.end_call(self._type, self._id)
 
-    def query_recordings(self, session_id: str = None):
+    def update_call_members(
+        self, data: UpdateCallMembersRequest
+    ) -> StreamResponse[UpdateCallMembersResponse]:
         """
-        Executes a query to retrieve recordings of the call
-        :param session_id: A string representing a unique session identifier
-        :return: Response from the query recordings API
+        Update Call Member
         """
-        return self._client.query_recordings(self._call_type, self._call_id, session_id)
+        return self._client.update_call_members(self._type, self._id, data)
 
-    def delete_recording(self, session_id: str, recordingid: str):
+    def mute_users(self, data: MuteUsersRequest) -> StreamResponse[MuteUsersResponse]:
         """
-        Deletes specific recording of the call
-        :param session_id: A string representing a unique session identifier
-        :param recordingid: A string representing a unique recording identifier
-        :return: Response from the delete recording API
+        Mute users
         """
-        return self._client.delete_recording(
-            self._call_type, self._call_id, session_id, recordingid
-        )
+        return self._client.mute_users(self._type, self._id, data)
 
-    def mute_users(self, data):
+    def video_pin(self, data: PinRequest) -> StreamResponse[PinResponse]:
         """
-        Mute users in the call
-        :param data: A dictionary with user details
-        :return: Response from the mute users API
+        Pin
         """
-        return self._client.mute_users(self._call_type, self._call_id, data)
+        return self._client.video_pin(self._type, self._id, data)
 
-    def query_members(self, data):
+    def send_video_reaction(
+        self, data: SendReactionRequest
+    ) -> StreamResponse[SendReactionResponse]:
         """
-        Executes a query to retrieve members of the call
-        :param data: A dictionary with query details
-        :return: Response from the query members API
+        Send reaction to the call
         """
-        return self._client.query_members(self._call_type, self._call_id, data)
+        return self._client.send_video_reaction(self._type, self._id, data)
 
-    def request_permissions(self, data):
+    def list_recordings(
+        self, session: Optional[str] = None
+    ) -> StreamResponse[ListRecordingsResponse]:
         """
-        Requests permissions for the call
-        :param data: A dictionary with permission details
-        :return: Response from the request permissions API
+        List recordings (type, id)
         """
-        return self._client.request_permissions(self._call_type, self._call_id, data)
+        return self._client.list_recordings(self._type, self._id, session)
 
-    def send_custom_event(self, data):
+    def reject_call(self) -> StreamResponse[RejectCallResponse]:
         """
-        Sends a custom event for the call
-        :param data: A dictionary with event details
-        :return: Response from the send custom event API
+        Reject Call
         """
-        return self._client.send_custom_event(self._call_type, self._call_id, data)
+        return self._client.reject_call(self._type, self._id)
 
-    def send_reaction(self, data):
+    def request_permission(
+        self, data: RequestPermissionRequest
+    ) -> StreamResponse[RequestPermissionResponse]:
         """
-        Sends a reaction for the call
-        :param data: A dictionary with reaction details
-        :return: Response from the send
+        Request permission
         """
-        return self._client.send_reaction(self._call_type, self._call_id, data)
+        return self._client.request_permission(self._type, self._id, data)
 
-    def start_recording(self):
+    def start_hls_broadcasting(self) -> StreamResponse[StartHlsbroadcastingResponse]:
         """
-        Starts recording for the call
-        :return: Response from the start recording API
+        Start HLS broadcasting
         """
-        return self._client.start_recording(self._call_type, self._call_id)
+        return self._client.start_hls_broadcasting(self._type, self._id)
 
-    def start_trancription(self):
+    def start_recording(self) -> StreamResponse[StartRecordingResponse]:
         """
-        Starts transcription for the call
-        :return: Response from the start transcription API
+        Start recording
         """
-        return self._client.start_trancription(self._call_type, self._call_id)
+        return self._client.start_recording(self._type, self._id)
 
-    def start_broadcasting(self):
+    def start_transcription(self) -> StreamResponse[StartTranscriptionResponse]:
         """
-        Starts broadcasting for the call
-        :return: Response from the start broadcasting API
+        Start transcription
         """
-        return self._client.start_broadcasting(self._call_type, self._call_id)
+        return self._client.start_transcription(self._type, self._id)
 
-    def stop_recording(self):
+    def stop_hls_broadcasting(self) -> StreamResponse[StopHlsbroadcastingResponse]:
         """
-        Stops recording for the call
-        :return: Response from the stop recording API
+        Stop HLS broadcasting
         """
-        return self._client.stop_recording(self._call_type, self._call_id)
+        return self._client.stop_hls_broadcasting(self._type, self._id)
 
-    def stop_transcription(self):
+    def stop_live(self) -> StreamResponse[StopLiveResponse]:
         """
-        Stops transcription for the call
-        :return: Response from the stop transcription API
+        Set call as not live
         """
-        return self._client.stop_transcription(self._call_type, self._call_id)
+        return self._client.stop_live(self._type, self._id)
 
-    def stop_broadcasting(self):
+    def stop_recording(self) -> StreamResponse[StopRecordingResponse]:
         """
-        Stops broadcasting for the call
-        :return: Response from the stop broadcasting API
+        Stop recording
         """
-        return self._client.stop_broadcasting(self._call_type, self._call_id)
+        return self._client.stop_recording(self._type, self._id)
 
-    def block_user(self, data):
+    def stop_transcription(self) -> StreamResponse[StopTranscriptionResponse]:
         """
-        Blocks user in the call
-        :param data: A dictionary with user details
-        :return: Response from the block user API
+        Stop transcription
         """
-        return self._client.block_user(self._call_type, self._call_id, data)
+        return self._client.stop_transcription(self._type, self._id)
 
-    def end_call(self):
+    def unblock_user(
+        self, data: UnblockUserRequest
+    ) -> StreamResponse[UnblockUserResponse]:
         """
-        Ends the call
-        :return: Response from the end call API
+        Unblocks user on a call
         """
-        return self._client.end_call(self._call_type, self._call_id)
+        return self._client.unblock_user(self._type, self._id, data)
 
-    def go_live(self):
+    def video_unpin(self, data: UnpinRequest) -> StreamResponse[UnpinResponse]:
         """
-        Makes the call go live
-        :return: Response from the go live API
+        Unpin
         """
-        return self._client.go_live(self._call_type, self._call_id)
+        return self._client.video_unpin(self._type, self._id, data)
 
-    def join(self, data):
+    def update_user_permissions(
+        self, data: UpdateUserPermissionsRequest
+    ) -> StreamResponse[UpdateUserPermissionsResponse]:
         """
-        Joins the call
-        :param data: A dictionary with user details
-        :return: Response from the join call API
+        Update user permissions
         """
-        return self._client.join_call(self._call_type, self._call_id, data)
+        return self._client.update_user_permissions(self._type, self._id, data)
+
+    def query_calls(
+        self, data: QueryCallsRequest, connection_id: Optional[str] = None
+    ) -> StreamResponse[QueryCallsResponse]:
+        """
+        Query call
+        """
+        return self._client.query_calls(self._type, self._id, data, connection_id)
+
+    def list_call_types(self) -> StreamResponse[ListCallTypeResponse]:
+        """
+        List Call Type
+        """
+        return self._client.list_call_types(self._type, self._id)
+
+    def create_call_type(
+        self, data: CreateCallTypeRequest
+    ) -> StreamResponse[CreateCallTypeResponse]:
+        """
+        Create Call Type
+        """
+        return self._client.create_call_type(self._type, self._id, data)
+
+    def delete_call_type(self) -> StreamResponse[Response]:
+        """
+        Delete Call Type
+        """
+        return self._client.delete_call_type(self._type, self._id)
+
+    def get_call_type(self) -> StreamResponse[GetCallTypeResponse]:
+        """
+        Get Call Type
+        """
+        return self._client.get_call_type(self._type, self._id)
+
+    def update_call_type(
+        self, data: UpdateCallTypeRequest
+    ) -> StreamResponse[UpdateCallTypeResponse]:
+        """
+        Update Call Type
+        """
+        return self._client.update_call_type(self._type, self._id, data)
+
+    def delete_device(
+        self, id: Optional[str] = None, user_id: Optional[str] = None
+    ) -> StreamResponse[Response]:
+        """
+        Delete device
+        """
+        return self._client.delete_device(self._type, self._id, id, user_id)
+
+    def list_devices(
+        self, user_id: Optional[str] = None
+    ) -> StreamResponse[ListDevicesResponse]:
+        """
+        List devices
+        """
+        return self._client.list_devices(self._type, self._id, user_id)
+
+    def create_device(self, data: CreateDeviceRequest) -> StreamResponse[Response]:
+        """
+        Create device
+        """
+        return self._client.create_device(self._type, self._id, data)
+
+    def get_edges(self) -> StreamResponse[GetEdgesResponse]:
+        """
+        Get Edges
+        """
+        return self._client.get_edges(self._type, self._id)
+
+    def create_guest(
+        self, data: CreateGuestRequest
+    ) -> StreamResponse[CreateGuestResponse]:
+        """
+        Create Guest
+        """
+        return self._client.create_guest(self._type, self._id, data)
+
+    def video_connect(self, data: WsauthMessageRequest):
+        """
+        Video Connect (WebSocket)
+        """
+        return self._client.video_connect(self._type, self._id, data)
