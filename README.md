@@ -100,6 +100,47 @@ Or use the published one
 docker run -it --rm ghcr.io/getstream/stream-py:main --api-key API_KEY --api-secret API_SECRET --user-id
 ```
 
+## Development
+
+We use poetry to manage dependencies and run tests. It's a package manager for Python that allows you to declare the libraries your project depends on and manage them.
+To install the development dependencies, run the following command:
+
+```sh
+poetry install
+```
+
+To activate the virtual environment, run the following command:
+
+```sh
+poetry shell
+```
+
+To run tests, run the following command:
+```sh
+# export secrets
+export VIDEO_API_KEY=your_api_key
+export VIDEO_API_SECRET=your_api_secret
+poetry run pytest tests/
+```
+
+### Code Generation
+
+In order to generate the code, clone the `protocol` repo 
+```sh
+git clone github.com/GetStream/protocol
+cd protocol
+# checkout to the generator branch
+git checkout PBE-832-openapi-generation-tool
+# merge master into the generator branch to get the latest spec changes
+git merge master
+```
+
+Then run the following command to generate the code
+```sh
+cd openapi-gen
+go run . -i ../openapi/video-openapi.yaml -o ~/py-dev/stream/getstream  -c config.yaml # replicate with path to where you cloned the current repo
+```
+
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
