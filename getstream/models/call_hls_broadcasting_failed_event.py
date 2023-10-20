@@ -9,7 +9,8 @@ from marshmallow import fields
 
 @dataclass_json
 @dataclass
-class CallHlsbroadcastingStoppedEvent:
+class CallHlsbroadcastingFailedEvent:
+    type: str = field(metadata=config(field_name="type"))
     call_cid: str = field(metadata=config(field_name="call_cid"))
     created_at: datetime = field(
         metadata=config(
@@ -19,4 +20,3 @@ class CallHlsbroadcastingStoppedEvent:
             mm_field=fields.DateTime(format="iso"),
         )
     )
-    type: str = field(metadata=config(field_name="type"))

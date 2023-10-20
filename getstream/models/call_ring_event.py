@@ -1,3 +1,4 @@
+# THIS FILE IS GENERATED FROM github.com/GetStream/protocol/tree/main/openapi-gen/templates/python/type.tmpl
 from dataclasses import dataclass, field
 from dataclasses_json import config, dataclass_json
 
@@ -13,9 +14,6 @@ from getstream.models.user_response import UserResponse
 @dataclass_json
 @dataclass
 class CallRingEvent:
-    type: str = field(metadata=config(field_name="type"))
-    user: UserResponse = field(metadata=config(field_name="user"))
-    call: CallResponse = field(metadata=config(field_name="call"))
     call_cid: str = field(metadata=config(field_name="call_cid"))
     created_at: datetime = field(
         metadata=config(
@@ -27,3 +25,6 @@ class CallRingEvent:
     )
     members: List[MemberResponse] = field(metadata=config(field_name="members"))
     session_id: str = field(metadata=config(field_name="session_id"))
+    type: str = field(metadata=config(field_name="type"))
+    user: UserResponse = field(metadata=config(field_name="user"))
+    call: CallResponse = field(metadata=config(field_name="call"))

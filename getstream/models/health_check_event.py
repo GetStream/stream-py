@@ -1,3 +1,4 @@
+# THIS FILE IS GENERATED FROM github.com/GetStream/protocol/tree/main/openapi-gen/templates/python/type.tmpl
 from dataclasses import dataclass, field
 from dataclasses_json import config, dataclass_json
 
@@ -9,7 +10,6 @@ from marshmallow import fields
 @dataclass_json
 @dataclass
 class HealthCheckEvent:
-    type: str = field(metadata=config(field_name="type"))
     connection_id: str = field(metadata=config(field_name="connection_id"))
     created_at: datetime = field(
         metadata=config(
@@ -19,3 +19,4 @@ class HealthCheckEvent:
             mm_field=fields.DateTime(format="iso"),
         )
     )
+    type: str = field(metadata=config(field_name="type"))

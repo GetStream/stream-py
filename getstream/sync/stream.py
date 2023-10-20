@@ -5,6 +5,7 @@ from getstream.video import VideoClient
 
 from functools import cached_property
 
+
 class Stream(BaseStream):
     """
     A class used to represent a Stream client.
@@ -12,7 +13,7 @@ class Stream(BaseStream):
     Contains methods to interact with Video and Chat modules of Stream API.
     """
 
-    BASE_URL = "stream-io-api.com" 
+    BASE_URL = "stream-io-api.com"
 
     def __init__(
         self,
@@ -46,7 +47,6 @@ class Stream(BaseStream):
         self._user_agent = user_agent
         self._video_base_url = video_base_url or f"https://video.{self.BASE_URL}/video"
 
-        
     @cached_property
     def video(self):
         return VideoClient(

@@ -1,3 +1,4 @@
+# THIS FILE IS GENERATED FROM github.com/GetStream/protocol/tree/main/openapi-gen/templates/python/type.tmpl
 from dataclasses import dataclass, field
 from dataclasses_json import config, dataclass_json
 
@@ -10,6 +11,7 @@ from marshmallow import fields
 @dataclass_json
 @dataclass
 class Device:
+    push_provider: str = field(metadata=config(field_name="push_provider"))
     created_at: datetime = field(
         metadata=config(
             field_name="created_at",
@@ -19,7 +21,6 @@ class Device:
         )
     )
     id: str = field(metadata=config(field_name="id"))
-    push_provider: str = field(metadata=config(field_name="push_provider"))
     push_provider_name: Optional[str] = field(
         metadata=config(field_name="push_provider_name"), default=None
     )

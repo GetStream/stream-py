@@ -1,3 +1,4 @@
+# THIS FILE IS GENERATED FROM github.com/GetStream/protocol/tree/main/openapi-gen/templates/python/type.tmpl
 from dataclasses import dataclass
 from typing import Union
 from json import loads
@@ -6,6 +7,9 @@ from getstream.models.blocked_user_event import BlockedUserEvent
 from getstream.models.call_accepted_event import CallAcceptedEvent
 from getstream.models.call_created_event import CallCreatedEvent
 from getstream.models.call_ended_event import CallEndedEvent
+from getstream.models.call_hls_broadcasting_failed_event import (
+    CallHlsbroadcastingFailedEvent,
+)
 from getstream.models.call_hls_broadcasting_started_event import (
     CallHlsbroadcastingStartedEvent,
 )
@@ -50,6 +54,7 @@ mapping = {
     "call.blocked_user": BlockedUserEvent,
     "call.created": CallCreatedEvent,
     "call.ended": CallEndedEvent,
+    "call.hls_broadcasting_failed": CallHlsbroadcastingFailedEvent,
     "call.hls_broadcasting_started": CallHlsbroadcastingStartedEvent,
     "call.hls_broadcasting_stopped": CallHlsbroadcastingStoppedEvent,
     "call.live_started": CallLiveStartedEvent,
@@ -88,6 +93,7 @@ class VideoEvent:
         CallAcceptedEvent,
         CallCreatedEvent,
         CallEndedEvent,
+        CallHlsbroadcastingFailedEvent,
         CallHlsbroadcastingStartedEvent,
         CallHlsbroadcastingStoppedEvent,
         CallLiveStartedEvent,

@@ -1,3 +1,4 @@
+# THIS FILE IS GENERATED FROM github.com/GetStream/protocol/tree/main/openapi-gen/templates/python/type.tmpl
 from dataclasses import dataclass, field
 from dataclasses_json import config, dataclass_json
 
@@ -10,7 +11,7 @@ from marshmallow import fields
 @dataclass_json
 @dataclass
 class UserResponse:
-    custom: Dict[str, object] = field(metadata=config(field_name="custom"))
+    role: str = field(metadata=config(field_name="role"))
     teams: List[str] = field(metadata=config(field_name="teams"))
     updated_at: datetime = field(
         metadata=config(
@@ -28,8 +29,9 @@ class UserResponse:
             mm_field=fields.DateTime(format="iso"),
         )
     )
+    custom: Dict[str, object] = field(metadata=config(field_name="custom"))
     id: str = field(metadata=config(field_name="id"))
-    role: str = field(metadata=config(field_name="role"))
+    image: Optional[str] = field(metadata=config(field_name="image"), default=None)
     deleted_at: Optional[datetime] = field(
         metadata=config(
             field_name="deleted_at",
@@ -39,5 +41,4 @@ class UserResponse:
         ),
         default=None,
     )
-    image: Optional[str] = field(metadata=config(field_name="image"), default=None)
     name: Optional[str] = field(metadata=config(field_name="name"), default=None)
