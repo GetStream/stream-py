@@ -11,6 +11,7 @@ from marshmallow import fields
 @dataclass_json
 @dataclass
 class CallUserMuted:
+    from_user_id: str = field(metadata=config(field_name="from_user_id"))
     muted_user_ids: List[str] = field(metadata=config(field_name="muted_user_ids"))
     type: str = field(metadata=config(field_name="type"))
     call_cid: str = field(metadata=config(field_name="call_cid"))
@@ -22,4 +23,3 @@ class CallUserMuted:
             mm_field=fields.DateTime(format="iso"),
         )
     )
-    from_user_id: str = field(metadata=config(field_name="from_user_id"))

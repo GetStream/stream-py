@@ -12,7 +12,6 @@ from getstream.models.user_response import UserResponse
 @dataclass_json
 @dataclass
 class CustomVideoEvent:
-    call_cid: str = field(metadata=config(field_name="call_cid"))
     created_at: datetime = field(
         metadata=config(
             field_name="created_at",
@@ -24,3 +23,4 @@ class CustomVideoEvent:
     custom: Dict[str, object] = field(metadata=config(field_name="custom"))
     type: str = field(metadata=config(field_name="type"))
     user: UserResponse = field(metadata=config(field_name="user"))
+    call_cid: str = field(metadata=config(field_name="call_cid"))

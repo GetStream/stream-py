@@ -12,6 +12,8 @@ from getstream.models.call_response import CallResponse
 @dataclass_json
 @dataclass
 class CallUpdatedEvent:
+    call: CallResponse = field(metadata=config(field_name="call"))
+    call_cid: str = field(metadata=config(field_name="call_cid"))
     capabilities_by_role: Dict[str, List[str]] = field(
         metadata=config(field_name="capabilities_by_role")
     )
@@ -24,5 +26,3 @@ class CallUpdatedEvent:
         )
     )
     type: str = field(metadata=config(field_name="type"))
-    call: CallResponse = field(metadata=config(field_name="call"))
-    call_cid: str = field(metadata=config(field_name="call_cid"))

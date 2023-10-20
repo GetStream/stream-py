@@ -35,5 +35,6 @@ class OwnCapability(Enum):
         except ValueError:
             raise ValueError(f"'{value}' is not a valid OwnCapability")
 
+    @classmethod
     def to_str(self) -> str:
         return self.value

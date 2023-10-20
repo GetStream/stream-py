@@ -13,10 +13,6 @@ from getstream.models.call_settings_response import CallSettingsResponse
 @dataclass_json
 @dataclass
 class CreateCallTypeResponse:
-    name: str = field(metadata=config(field_name="name"))
-    notification_settings: NotificationSettings = field(
-        metadata=config(field_name="notification_settings")
-    )
     settings: CallSettingsResponse = field(metadata=config(field_name="settings"))
     updated_at: datetime = field(
         metadata=config(
@@ -36,3 +32,7 @@ class CreateCallTypeResponse:
     )
     duration: str = field(metadata=config(field_name="duration"))
     grants: Dict[str, List[str]] = field(metadata=config(field_name="grants"))
+    name: str = field(metadata=config(field_name="name"))
+    notification_settings: NotificationSettings = field(
+        metadata=config(field_name="notification_settings")
+    )

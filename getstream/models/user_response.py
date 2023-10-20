@@ -21,6 +21,8 @@ class UserResponse:
             mm_field=fields.DateTime(format="iso"),
         )
     )
+    custom: Dict[str, object] = field(metadata=config(field_name="custom"))
+    id: str = field(metadata=config(field_name="id"))
     created_at: datetime = field(
         metadata=config(
             field_name="created_at",
@@ -29,9 +31,6 @@ class UserResponse:
             mm_field=fields.DateTime(format="iso"),
         )
     )
-    custom: Dict[str, object] = field(metadata=config(field_name="custom"))
-    id: str = field(metadata=config(field_name="id"))
-    image: Optional[str] = field(metadata=config(field_name="image"), default=None)
     deleted_at: Optional[datetime] = field(
         metadata=config(
             field_name="deleted_at",
@@ -42,3 +41,4 @@ class UserResponse:
         default=None,
     )
     name: Optional[str] = field(metadata=config(field_name="name"), default=None)
+    image: Optional[str] = field(metadata=config(field_name="image"), default=None)

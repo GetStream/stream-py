@@ -9,8 +9,8 @@ from getstream.models.user_response import UserResponse
 @dataclass_json
 @dataclass
 class ReactionResponse:
-    type: str = field(metadata=config(field_name="type"))
     user: UserResponse = field(metadata=config(field_name="user"))
+    type: str = field(metadata=config(field_name="type"))
     custom: Optional[Dict[str, object]] = field(
         metadata=config(field_name="custom"), default=None
     )

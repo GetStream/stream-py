@@ -3,46 +3,46 @@ from getstream.stream_response import StreamResponse
 from getstream.sync.base import BaseClient
 from typing import Optional, List, Dict
 from datetime import datetime
-from getstream.models.send_reaction_response import SendReactionResponse
-from getstream.models.reject_call_response import RejectCallResponse
-from getstream.models.get_edges_response import GetEdgesResponse
-from getstream.models.request_permission_response import RequestPermissionResponse
-from getstream.models.list_devices_response import ListDevicesResponse
+from getstream.models.update_user_permissions_response import (
+    UpdateUserPermissionsResponse,
+)
+from getstream.models.stop_recording_response import StopRecordingResponse
+from getstream.models.list_recordings_response import ListRecordingsResponse
+from getstream.models.block_user_response import BlockUserResponse
+from getstream.models.send_event_response import SendEventResponse
 from getstream.models.accept_call_response import AcceptCallResponse
-from getstream.models.stop_live_response import StopLiveResponse
-from getstream.models.start_recording_response import StartRecordingResponse
-from getstream.models.stop_transcription_response import StopTranscriptionResponse
-from getstream.models.join_call_response import JoinCallResponse
 from getstream.models.get_call_type_response import GetCallTypeResponse
-from getstream.models.get_call_response import GetCallResponse
-from getstream.models.go_live_response import GoLiveResponse
-from getstream.models.list_call_type_response import ListCallTypeResponse
-from getstream.models.end_call_response import EndCallResponse
+from getstream.models.stop_live_response import StopLiveResponse
+from getstream.models.update_call_response import UpdateCallResponse
+from getstream.models.update_call_members_response import UpdateCallMembersResponse
+from getstream.models.get_edges_response import GetEdgesResponse
 from getstream.models.start_hls_broadcasting_response import (
     StartHlsbroadcastingResponse,
 )
 from getstream.models.get_or_create_call_response import GetOrCreateCallResponse
-from getstream.models.response import Response
-from getstream.models.update_call_response import UpdateCallResponse
-from getstream.models.stop_hls_broadcasting_response import StopHlsbroadcastingResponse
-from getstream.models.pin_response import PinResponse
-from getstream.models.create_call_type_response import CreateCallTypeResponse
 from getstream.models.query_members_response import QueryMembersResponse
-from getstream.models.block_user_response import BlockUserResponse
+from getstream.models.list_devices_response import ListDevicesResponse
 from getstream.models.create_guest_response import CreateGuestResponse
-from getstream.models.mute_users_response import MuteUsersResponse
-from getstream.models.send_event_response import SendEventResponse
-from getstream.models.unblock_user_response import UnblockUserResponse
+from getstream.models.end_call_response import EndCallResponse
+from getstream.models.stop_transcription_response import StopTranscriptionResponse
+from getstream.models.create_call_type_response import CreateCallTypeResponse
+from getstream.models.stop_hls_broadcasting_response import StopHlsbroadcastingResponse
+from getstream.models.start_recording_response import StartRecordingResponse
 from getstream.models.unpin_response import UnpinResponse
-from getstream.models.update_call_type_response import UpdateCallTypeResponse
-from getstream.models.list_recordings_response import ListRecordingsResponse
-from getstream.models.update_user_permissions_response import (
-    UpdateUserPermissionsResponse,
-)
-from getstream.models.query_calls_response import QueryCallsResponse
-from getstream.models.stop_recording_response import StopRecordingResponse
+from getstream.models.list_call_type_response import ListCallTypeResponse
+from getstream.models.join_call_response import JoinCallResponse
+from getstream.models.mute_users_response import MuteUsersResponse
+from getstream.models.get_call_response import GetCallResponse
+from getstream.models.send_reaction_response import SendReactionResponse
 from getstream.models.start_transcription_response import StartTranscriptionResponse
-from getstream.models.update_call_members_response import UpdateCallMembersResponse
+from getstream.models.response import Response
+from getstream.models.unblock_user_response import UnblockUserResponse
+from getstream.models.request_permission_response import RequestPermissionResponse
+from getstream.models.update_call_type_response import UpdateCallTypeResponse
+from getstream.models.reject_call_response import RejectCallResponse
+from getstream.models.query_calls_response import QueryCallsResponse
+from getstream.models.pin_response import PinResponse
+from getstream.models.go_live_response import GoLiveResponse
 
 
 from getstream.models.sort_param_request import SortParamRequest
@@ -67,8 +67,8 @@ from getstream.models.notification_settings_request import NotificationSettingsR
 from getstream.models.call_settings_request import CallSettingsRequest
 
 
-from getstream.models.notification_settings_request import NotificationSettingsRequest
 from getstream.models.call_settings_request import CallSettingsRequest
+from getstream.models.notification_settings_request import NotificationSettingsRequest
 
 
 from getstream.models.user_request import UserRequest
@@ -109,13 +109,13 @@ class VideoClient(BaseClient):
 
     def query_members(
         self,
-        id: str,
         type: str,
-        filter_conditions: Optional[Dict[str, object]] = None,
-        limit: Optional[int] = None,
+        id: str,
         next: Optional[str] = None,
         prev: Optional[str] = None,
         sort: Optional[List[SortParamRequest]] = None,
+        filter_conditions: Optional[Dict[str, object]] = None,
+        limit: Optional[int] = None,
         **kwargs
     ) -> StreamResponse[QueryMembersResponse]:
         """
@@ -124,18 +124,18 @@ class VideoClient(BaseClient):
         query_params = {}
         path_params = {}
         json = {}
-        json["id"] = id
         json["type"] = type
-        if filter_conditions is not None:
-            json["filter_conditions"] = filter_conditions
-        if limit is not None:
-            json["limit"] = limit
+        json["id"] = id
         if next is not None:
             json["next"] = next
         if prev is not None:
             json["prev"] = prev
         if sort is not None:
             json["sort"] = sort.to_dict()
+        if filter_conditions is not None:
+            json["filter_conditions"] = filter_conditions
+        if limit is not None:
+            json["limit"] = limit
         for key, value in kwargs.items():
             query_params[key] = value
 
@@ -322,9 +322,9 @@ class VideoClient(BaseClient):
         self,
         type: str,
         id: str,
+        start_hls: Optional[bool] = None,
         start_recording: Optional[bool] = None,
         start_transcription: Optional[bool] = None,
-        start_hls: Optional[bool] = None,
         **kwargs
     ) -> StreamResponse[GoLiveResponse]:
         """
@@ -335,12 +335,12 @@ class VideoClient(BaseClient):
         json = {}
         path_params["type"] = type
         path_params["id"] = id
+        if start_hls is not None:
+            json["start_hls"] = start_hls
         if start_recording is not None:
             json["start_recording"] = start_recording
         if start_transcription is not None:
             json["start_transcription"] = start_transcription
-        if start_hls is not None:
-            json["start_hls"] = start_hls
         for key, value in kwargs.items():
             query_params[key] = value
 
@@ -357,12 +357,12 @@ class VideoClient(BaseClient):
         type: str,
         id: str,
         location: str,
-        ring: Optional[bool] = None,
-        create: Optional[bool] = None,
         data: Optional[CallRequest] = None,
         members_limit: Optional[int] = None,
         migrating_from: Optional[str] = None,
         notify: Optional[bool] = None,
+        ring: Optional[bool] = None,
+        create: Optional[bool] = None,
         connection_id: Optional[str] = None,
         **kwargs
     ) -> StreamResponse[JoinCallResponse]:
@@ -376,10 +376,6 @@ class VideoClient(BaseClient):
         path_params["id"] = id
         query_params["connection_id"] = connection_id
         json["location"] = location
-        if ring is not None:
-            json["ring"] = ring
-        if create is not None:
-            json["create"] = create
         if data is not None:
             json["data"] = data.to_dict()
         if members_limit is not None:
@@ -388,6 +384,10 @@ class VideoClient(BaseClient):
             json["migrating_from"] = migrating_from
         if notify is not None:
             json["notify"] = notify
+        if ring is not None:
+            json["ring"] = ring
+        if create is not None:
+            json["create"] = create
         for key, value in kwargs.items():
             query_params[key] = value
 
@@ -421,8 +421,8 @@ class VideoClient(BaseClient):
         self,
         type: str,
         id: str,
-        update_members: Optional[List[MemberRequest]] = None,
         remove_members: Optional[List[str]] = None,
+        update_members: Optional[List[MemberRequest]] = None,
         **kwargs
     ) -> StreamResponse[UpdateCallMembersResponse]:
         """
@@ -433,10 +433,10 @@ class VideoClient(BaseClient):
         json = {}
         path_params["type"] = type
         path_params["id"] = id
-        if update_members is not None:
-            json["update_members"] = update_members.to_dict()
         if remove_members is not None:
             json["remove_members"] = remove_members
+        if update_members is not None:
+            json["update_members"] = update_members.to_dict()
         for key, value in kwargs.items():
             query_params[key] = value
 
@@ -452,12 +452,12 @@ class VideoClient(BaseClient):
         self,
         type: str,
         id: str,
-        mute_all_users: Optional[bool] = None,
-        screenshare: Optional[bool] = None,
         screenshare_audio: Optional[bool] = None,
         user_ids: Optional[List[str]] = None,
         video: Optional[bool] = None,
         audio: Optional[bool] = None,
+        mute_all_users: Optional[bool] = None,
+        screenshare: Optional[bool] = None,
         **kwargs
     ) -> StreamResponse[MuteUsersResponse]:
         """
@@ -468,10 +468,6 @@ class VideoClient(BaseClient):
         json = {}
         path_params["type"] = type
         path_params["id"] = id
-        if mute_all_users is not None:
-            json["mute_all_users"] = mute_all_users
-        if screenshare is not None:
-            json["screenshare"] = screenshare
         if screenshare_audio is not None:
             json["screenshare_audio"] = screenshare_audio
         if user_ids is not None:
@@ -480,6 +476,10 @@ class VideoClient(BaseClient):
             json["video"] = video
         if audio is not None:
             json["audio"] = audio
+        if mute_all_users is not None:
+            json["mute_all_users"] = mute_all_users
+        if screenshare is not None:
+            json["screenshare"] = screenshare
         for key, value in kwargs.items():
             query_params[key] = value
 
@@ -1024,12 +1024,12 @@ class VideoClient(BaseClient):
 
     def create_device(
         self,
-        user: Optional[UserRequest] = None,
         user_id: Optional[str] = None,
         voip_token: Optional[bool] = None,
         id: Optional[str] = None,
         push_provider: Optional[str] = None,
         push_provider_name: Optional[str] = None,
+        user: Optional[UserRequest] = None,
         **kwargs
     ) -> StreamResponse[Response]:
         """
@@ -1038,8 +1038,6 @@ class VideoClient(BaseClient):
         query_params = {}
         path_params = {}
         json = {}
-        if user is not None:
-            json["user"] = user.to_dict()
         if user_id is not None:
             json["user_id"] = user_id
         if voip_token is not None:
@@ -1050,6 +1048,8 @@ class VideoClient(BaseClient):
             json["push_provider"] = push_provider
         if push_provider_name is not None:
             json["push_provider_name"] = push_provider_name
+        if user is not None:
+            json["user"] = user.to_dict()
         for key, value in kwargs.items():
             query_params[key] = value
 
@@ -1136,11 +1136,11 @@ class Call:
         self,
         type: str,
         id: str,
+        filter_conditions: Optional[Dict[str, object]] = None,
         limit: Optional[int] = None,
         next: Optional[str] = None,
         prev: Optional[str] = None,
         sort: Optional[List[SortParamRequest]] = None,
-        filter_conditions: Optional[Dict[str, object]] = None,
         **kwargs
     ) -> StreamResponse[QueryMembersResponse]:
         """
@@ -1151,11 +1151,11 @@ class Call:
             self._id,
             type=type,
             id=id,
+            filter_conditions=filter_conditions,
             limit=limit,
             next=next,
             prev=prev,
             sort=sort,
-            filter_conditions=filter_conditions,
             **kwargs
         )
 
@@ -1171,7 +1171,13 @@ class Call:
         Get Call
         """
         return self._client.get_call(
-            self._type, self._idconnection_idmembers_limitringnotify**kwargs
+            self._type,
+            self._id,
+            connection_id=connection_id,
+            members_limit=members_limit,
+            ring=ring,
+            notify=notify,
+            **kwargs
         )
 
     def update_call(
@@ -1208,7 +1214,8 @@ class Call:
         return self._client.get_or_create_call(
             self._type,
             self._id,
-            connection_iddata=data,
+            connection_id=connection_id,
+            data=data,
             members_limit=members_limit,
             notify=notify,
             ring=ring,
@@ -1219,7 +1226,7 @@ class Call:
         """
         Accept Call
         """
-        return self._client.accept_call(self._type, self._id**kwargs)
+        return self._client.accept_call(self._type, self._id, **kwargs)
 
     def block_user(self, user_id: str, **kwargs) -> StreamResponse[BlockUserResponse]:
         """
@@ -1257,12 +1264,12 @@ class Call:
     def join_call(
         self,
         location: str,
-        notify: Optional[bool] = None,
-        ring: Optional[bool] = None,
         create: Optional[bool] = None,
         data: Optional[CallRequest] = None,
         members_limit: Optional[int] = None,
         migrating_from: Optional[str] = None,
+        notify: Optional[bool] = None,
+        ring: Optional[bool] = None,
         connection_id: Optional[str] = None,
         **kwargs
     ) -> StreamResponse[JoinCallResponse]:
@@ -1272,13 +1279,14 @@ class Call:
         return self._client.join_call(
             self._type,
             self._id,
-            connection_idlocation=location,
-            notify=notify,
-            ring=ring,
+            connection_id=connection_id,
+            location=location,
             create=create,
             data=data,
             members_limit=members_limit,
             migrating_from=migrating_from,
+            notify=notify,
+            ring=ring,
             **kwargs
         )
 
@@ -1286,7 +1294,7 @@ class Call:
         """
         End call
         """
-        return self._client.end_call(self._type, self._id**kwargs)
+        return self._client.end_call(self._type, self._id, **kwargs)
 
     def update_call_members(
         self,
@@ -1343,8 +1351,8 @@ class Call:
     def send_video_reaction(
         self,
         type: str,
-        custom: Optional[Dict[str, object]] = None,
         emoji_code: Optional[str] = None,
+        custom: Optional[Dict[str, object]] = None,
         **kwargs
     ) -> StreamResponse[SendReactionResponse]:
         """
@@ -1354,8 +1362,8 @@ class Call:
             self._type,
             self._id,
             type=type,
-            custom=custom,
             emoji_code=emoji_code,
+            custom=custom,
             **kwargs
         )
 
@@ -1363,13 +1371,13 @@ class Call:
         """
         List recordings
         """
-        return self._client.list_recordings(self._type, self._id**kwargs)
+        return self._client.list_recordings(self._type, self._id, **kwargs)
 
     def reject_call(self, **kwargs) -> StreamResponse[RejectCallResponse]:
         """
         Reject Call
         """
-        return self._client.reject_call(self._type, self._id**kwargs)
+        return self._client.reject_call(self._type, self._id, **kwargs)
 
     def request_permission(
         self, permissions: List[str], **kwargs
@@ -1387,13 +1395,13 @@ class Call:
         """
         Start HLS broadcasting
         """
-        return self._client.start_hls_broadcasting(self._type, self._id**kwargs)
+        return self._client.start_hls_broadcasting(self._type, self._id, **kwargs)
 
     def start_recording(self, **kwargs) -> StreamResponse[StartRecordingResponse]:
         """
         Start recording
         """
-        return self._client.start_recording(self._type, self._id**kwargs)
+        return self._client.start_recording(self._type, self._id, **kwargs)
 
     def start_transcription(
         self, **kwargs
@@ -1401,7 +1409,7 @@ class Call:
         """
         Start transcription
         """
-        return self._client.start_transcription(self._type, self._id**kwargs)
+        return self._client.start_transcription(self._type, self._id, **kwargs)
 
     def stop_hls_broadcasting(
         self, **kwargs
@@ -1409,25 +1417,25 @@ class Call:
         """
         Stop HLS broadcasting
         """
-        return self._client.stop_hls_broadcasting(self._type, self._id**kwargs)
+        return self._client.stop_hls_broadcasting(self._type, self._id, **kwargs)
 
     def stop_live(self, **kwargs) -> StreamResponse[StopLiveResponse]:
         """
         Set call as not live
         """
-        return self._client.stop_live(self._type, self._id**kwargs)
+        return self._client.stop_live(self._type, self._id, **kwargs)
 
     def stop_recording(self, **kwargs) -> StreamResponse[StopRecordingResponse]:
         """
         Stop recording
         """
-        return self._client.stop_recording(self._type, self._id**kwargs)
+        return self._client.stop_recording(self._type, self._id, **kwargs)
 
     def stop_transcription(self, **kwargs) -> StreamResponse[StopTranscriptionResponse]:
         """
         Stop transcription
         """
-        return self._client.stop_transcription(self._type, self._id**kwargs)
+        return self._client.stop_transcription(self._type, self._id, **kwargs)
 
     def unblock_user(
         self, user_id: str, **kwargs
@@ -1440,20 +1448,20 @@ class Call:
         )
 
     def video_unpin(
-        self, session_id: str, user_id: str, **kwargs
+        self, user_id: str, session_id: str, **kwargs
     ) -> StreamResponse[UnpinResponse]:
         """
         Unpin
         """
         return self._client.video_unpin(
-            self._type, self._id, session_id=session_id, user_id=user_id, **kwargs
+            self._type, self._id, user_id=user_id, session_id=session_id, **kwargs
         )
 
     def update_user_permissions(
         self,
         user_id: str,
-        revoke_permissions: Optional[List[str]] = None,
         grant_permissions: Optional[List[str]] = None,
+        revoke_permissions: Optional[List[str]] = None,
         **kwargs
     ) -> StreamResponse[UpdateUserPermissionsResponse]:
         """
@@ -1463,19 +1471,19 @@ class Call:
             self._type,
             self._id,
             user_id=user_id,
-            revoke_permissions=revoke_permissions,
             grant_permissions=grant_permissions,
+            revoke_permissions=revoke_permissions,
             **kwargs
         )
 
     def query_calls(
         self,
-        prev: Optional[str] = None,
-        sort: Optional[List[SortParamRequest]] = None,
-        watch: Optional[bool] = None,
         filter_conditions: Optional[Dict[str, object]] = None,
         limit: Optional[int] = None,
         next: Optional[str] = None,
+        prev: Optional[str] = None,
+        sort: Optional[List[SortParamRequest]] = None,
+        watch: Optional[bool] = None,
         connection_id: Optional[str] = None,
         **kwargs
     ) -> StreamResponse[QueryCallsResponse]:
@@ -1485,12 +1493,13 @@ class Call:
         return self._client.query_calls(
             self._type,
             self._id,
-            connection_idprev=prev,
-            sort=sort,
-            watch=watch,
+            connection_id=connection_id,
             filter_conditions=filter_conditions,
             limit=limit,
             next=next,
+            prev=prev,
+            sort=sort,
+            watch=watch,
             **kwargs
         )
 
@@ -1498,7 +1507,7 @@ class Call:
         """
         List Call Type
         """
-        return self._client.list_call_types(self._type, self._id**kwargs)
+        return self._client.list_call_types(self._type, self._id, **kwargs)
 
     def create_call_type(
         self,
@@ -1525,13 +1534,13 @@ class Call:
         """
         Delete Call Type
         """
-        return self._client.delete_call_type(self._type, self._id**kwargs)
+        return self._client.delete_call_type(self._type, self._id, **kwargs)
 
     def get_call_type(self, **kwargs) -> StreamResponse[GetCallTypeResponse]:
         """
         Get Call Type
         """
-        return self._client.get_call_type(self._type, self._id**kwargs)
+        return self._client.get_call_type(self._type, self._id, **kwargs)
 
     def update_call_type(
         self,
@@ -1558,7 +1567,9 @@ class Call:
         """
         Delete device
         """
-        return self._client.delete_device(self._type, self._ididuser_id**kwargs)
+        return self._client.delete_device(
+            self._type, self._id, id=id, user_id=user_id, **kwargs
+        )
 
     def list_devices(
         self, user_id: Optional[str] = None, **kwargs
@@ -1566,7 +1577,9 @@ class Call:
         """
         List devices
         """
-        return self._client.list_devices(self._type, self._iduser_id**kwargs)
+        return self._client.list_devices(
+            self._type, self._id, user_id=user_id, **kwargs
+        )
 
     def create_device(
         self,
@@ -1597,7 +1610,7 @@ class Call:
         """
         Get Edges
         """
-        return self._client.get_edges(self._type, self._id**kwargs)
+        return self._client.get_edges(self._type, self._id, **kwargs)
 
     def create_guest(
         self, user: UserRequest, **kwargs

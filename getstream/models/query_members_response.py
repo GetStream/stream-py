@@ -11,5 +11,5 @@ from getstream.models.member_response import MemberResponse
 class QueryMembersResponse:
     duration: str = field(metadata=config(field_name="duration"))
     members: List[MemberResponse] = field(metadata=config(field_name="members"))
-    prev: Optional[str] = field(metadata=config(field_name="prev"), default=None)
     next: Optional[str] = field(metadata=config(field_name="next"), default=None)
+    prev: Optional[str] = field(metadata=config(field_name="prev"), default=None)

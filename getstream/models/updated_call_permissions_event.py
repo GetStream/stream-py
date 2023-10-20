@@ -13,6 +13,7 @@ from getstream.models.user_response import UserResponse
 @dataclass_json
 @dataclass
 class UpdatedCallPermissionsEvent:
+    user: UserResponse = field(metadata=config(field_name="user"))
     call_cid: str = field(metadata=config(field_name="call_cid"))
     created_at: datetime = field(
         metadata=config(
@@ -26,4 +27,3 @@ class UpdatedCallPermissionsEvent:
         metadata=config(field_name="own_capabilities")
     )
     type: str = field(metadata=config(field_name="type"))
-    user: UserResponse = field(metadata=config(field_name="user"))
