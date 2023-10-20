@@ -1,9 +1,11 @@
 from getstream import BaseStream
+from getstream.users.client import UsersClient
 
 # from getstream.chat.sync import ChatClient
-from getstream.video import VideoClient
 
 from functools import cached_property
+
+from getstream.video.sync.client import VideoClient
 
 
 class Stream(BaseStream):
@@ -23,6 +25,7 @@ class Stream(BaseStream):
         timeout=None,
         user_agent=None,
         video_base_url=None,
+        chat_base_url=None,
     ):
         """
         Instantiates the Stream client with provided credentials, and initializes the chat and video clients.
@@ -46,12 +49,23 @@ class Stream(BaseStream):
         self._timeout = timeout
         self._user_agent = user_agent
         self._video_base_url = video_base_url or f"https://video.{self.BASE_URL}/video"
+        self._chat_base_url = chat_base_url or f"https://chat.{self.BASE_URL}"
 
     @cached_property
     def video(self):
         return VideoClient(
             api_key=self._api_key,
             base_url=self._video_base_url,
+            token=self._token,
+            timeout=self._timeout,
+            user_agent=self._user_agent,
+        )
+
+    @cached_property
+    def users(self):
+        return UsersClient(
+            api_key=self._api_key,
+            base_url=self._chat_base_url,
             token=self._token,
             timeout=self._timeout,
             user_agent=self._user_agent,

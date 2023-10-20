@@ -6,6 +6,7 @@ from getstream.video.exceptions import StreamAPIException
 import httpx
 from getstream.config import BaseConfig
 from urllib.parse import quote
+from abc import ABC
 
 
 def build_path(path: str, path_params: dict) -> str:
@@ -17,7 +18,7 @@ def build_path(path: str, path_params: dict) -> str:
     return path.format(**path_params)
 
 
-class BaseClient(BaseConfig):
+class BaseClient(BaseConfig, ABC):
     def __init__(
         self,
         api_key,
