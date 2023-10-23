@@ -25,9 +25,7 @@ def client():
 def test_update_users(client: Stream):
     users = {}
     users["user1"] = UserRequest(
-        id="user1",
-        role="admin",
-        custom= {"premium": True},
-        name="user1")
+        id="user1", role="admin", custom={"premium": True}, name="user1"
+    )
 
     client.users.update_users(users=users)

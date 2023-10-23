@@ -2,13 +2,30 @@ from typing import Dict
 from getstream.models.user_request import UserRequest
 from getstream.models.user_response import UserResponse
 
-RESERVED_KEYWORDS = ['ban_expires', 'banned', 'id', 'invisible', 'language', 'push_notifications', 'revoke_tokens_issued_before', 'role', 'teams', 'created_at', 'deactivated_at', 'deleted_at', 'last_active', 'online', 'updated_at', 'shadow_banned']
+# RESERVED_KEYWORDS = [
+#     "ban_expires",
+#     "banned",
+#     "id",
+#     "invisible",
+#     "language",
+#     "push_notifications",
+#     "revoke_tokens_issued_before",
+#     "role",
+#     "teams",
+#     "created_at",
+#     "deactivated_at",
+#     "deleted_at",
+#     "last_active",
+#     "online",
+#     "updated_at",
+#     "shadow_banned",
+# ]
 
 
 def to_chat_user_dict(user: UserRequest) -> Dict[str, object]:
-    '''
+    """
     Convert UserRequest instance to a chat dictionary
-    '''
+    """
     # Convert UserRequest instance to dictionary
     chat_dict = user.to_dict()
 
@@ -21,14 +38,15 @@ def to_chat_user_dict(user: UserRequest) -> Dict[str, object]:
 
 
 def from_chat_user_dict(chat_user: Dict[str, object]) -> UserResponse:
-    '''
+    """
     Reverse operation of to_chat_user_dict
-    '''
+    """
     custom_fields = {}
     keys_to_remove = []
 
     for key, value in chat_user.items():
-        if key not in RESERVED_KEYWORDS:
+        # If the key is a reserved keyword, skip it
+        if key not in UserResponse.__annotations__.keys():
             custom_fields[key] = value
             keys_to_remove.append(key)
 

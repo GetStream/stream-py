@@ -1,15 +1,19 @@
+# THIS FILE IS GENERATED FROM github.com/GetStream/protocol/tree/main/openapi-gen/templates/python/type.tmpl
 from dataclasses import dataclass, field
+from dataclasses_json import config, dataclass_json
+
 from typing import Optional
-from marshmallow import fields
 from datetime import datetime
 from dateutil.parser import parse
-from dataclasses_json import config, dataclass_json
+from marshmallow import fields
 
 
 @dataclass_json
 @dataclass
 class PushNotificationSettings:
-    disabled: bool = field(metadata=config(field_name="disabled"))
+    disabled: Optional[bool] = field(
+        metadata=config(field_name="disabled"), default=None
+    )
     disabled_until: Optional[datetime] = field(
         metadata=config(
             field_name="disabled_until",
