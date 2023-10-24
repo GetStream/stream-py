@@ -107,11 +107,6 @@ def test_create_call_type(client: Stream):
     )
 
 
-def test_read_call_type(client: Stream):
-    response = client.video.get_call_type(name=CALL_TYPE_NAME)
-    assert response.data().name == CALL_TYPE_NAME
-
-
 def test_update_call_type(client: Stream):
     response = client.video.update_call_type(
         name=CALL_TYPE_NAME,
@@ -134,6 +129,11 @@ def test_update_call_type(client: Stream):
     assert response.data().settings.recording.mode == "disabled"
     assert response.data().settings.backstage.enabled is True
     assert response.data().grants["host"] == ["join-backstage"]
+
+
+def test_read_call_type(client: Stream):
+    response = client.video.get_call_type(name=CALL_TYPE_NAME)
+    assert response.data().name == CALL_TYPE_NAME
 
 
 def test_delete_call_type(client: Stream):
