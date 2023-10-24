@@ -1,5 +1,4 @@
 from getstream.stream_response import StreamResponse
-from getstream.sync.base import BaseClient
 from typing import Optional, List, Dict
 from datetime import datetime
 from getstream.models.update_user_permissions_response import (
