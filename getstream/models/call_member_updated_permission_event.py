@@ -1,3 +1,4 @@
+# THIS FILE IS GENERATED FROM github.com/GetStream/protocol/tree/main/openapi-gen/templates/python/type.tmpl
 from dataclasses import dataclass, field
 from dataclasses_json import config, dataclass_json
 
@@ -12,6 +13,7 @@ from getstream.models.call_response import CallResponse
 @dataclass_json
 @dataclass
 class CallMemberUpdatedPermissionEvent:
+    type: str = field(metadata=config(field_name="type"))
     call: CallResponse = field(metadata=config(field_name="call"))
     call_cid: str = field(metadata=config(field_name="call_cid"))
     capabilities_by_role: Dict[str, List[str]] = field(
@@ -26,4 +28,3 @@ class CallMemberUpdatedPermissionEvent:
         )
     )
     members: List[MemberResponse] = field(metadata=config(field_name="members"))
-    type: str = field(metadata=config(field_name="type"))

@@ -1,3 +1,4 @@
+# THIS FILE IS GENERATED FROM github.com/GetStream/protocol/tree/main/openapi-gen/templates/python/type.tmpl
 from dataclasses import dataclass, field
 from dataclasses_json import config, dataclass_json
 
@@ -12,6 +13,7 @@ from getstream.models.call_settings_response import CallSettingsResponse
 @dataclass_json
 @dataclass
 class CreateCallTypeResponse:
+    settings: CallSettingsResponse = field(metadata=config(field_name="settings"))
     updated_at: datetime = field(
         metadata=config(
             field_name="updated_at",
@@ -34,4 +36,3 @@ class CreateCallTypeResponse:
     notification_settings: NotificationSettings = field(
         metadata=config(field_name="notification_settings")
     )
-    settings: CallSettingsResponse = field(metadata=config(field_name="settings"))

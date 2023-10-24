@@ -1,3 +1,4 @@
+# THIS FILE IS GENERATED FROM github.com/GetStream/protocol/tree/main/openapi-gen/templates/python/type.tmpl
 from enum import Enum
 
 
@@ -34,6 +35,5 @@ class OwnCapability(Enum):
         except ValueError:
             raise ValueError(f"'{value}' is not a valid OwnCapability")
 
-    @classmethod
-    def to_str(cls, value: "OwnCapability") -> str:
-        return value.value
+    def to_str(self) -> str:
+        return self.value

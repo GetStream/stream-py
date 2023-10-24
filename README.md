@@ -30,29 +30,30 @@ client = Stream(api_key="your_api_key", api_secret="your_api_secret")
 
 ### Video Calls
 
-To create a video call or retrieve an existing one, use the `client.video.call` method:
+To create a video call, use the `client.video.call` method:
 
 ```python
 import uuid
 
 call = client.video.call(
-    "livestream",
-    uuid.uuid4(),
-    data={
-        "created_by_id": "admin-user",
-        "settings_override": {
-            "broadcasting": {
-                "enabled": True,
-                "hls": {
-                    "enabled": True,
-                    "quality_tracks": ["480p", "720p", "1080p"],
-                },
-            },
-        },
-    },
+    call_type = "livestream",
+    call_id = uuid.uuid4())
 )
 
-response = call.get_or_create()
+response = call.create(
+        data=CallRequest(
+            created_by_id="admin-user",
+            settings_override=CallSettingsRequest(
+                broadcasting=BroadcastSettingsRequest(
+                    enabled=True,
+                    hls=HlssettingsRequest(
+                        enabled=True,
+                        quality_tracks=["480p", "720p", "1080p"],
+                    ),
+                ),
+            ),
+        ),
+    )
 print(response)
 ```
 

@@ -1,7 +1,11 @@
 from getstream import BaseStream
+from getstream.users.sync.client import UsersClient
 
 # from getstream.chat.sync import ChatClient
-from getstream.video import VideoClient
+
+from functools import cached_property
+
+from getstream.video.sync.client import VideoClient
 
 
 class Stream(BaseStream):
@@ -11,6 +15,8 @@ class Stream(BaseStream):
     Contains methods to interact with Video and Chat modules of Stream API.
     """
 
+    BASE_URL = "stream-io-api.com"
+
     def __init__(
         self,
         api_key: str,
@@ -19,6 +25,7 @@ class Stream(BaseStream):
         timeout=None,
         user_agent=None,
         video_base_url=None,
+        chat_base_url=None,
     ):
         """
         Instantiates the Stream client with provided credentials, and initializes the chat and video clients.
@@ -37,18 +44,31 @@ class Stream(BaseStream):
 
         super().__init__(api_key, api_secret)
 
-        if token is None:
-            token = self.create_token()
+        self._api_key = api_key
+        self._token = token or self.create_token()
+        self._timeout = timeout
+        self._user_agent = user_agent
+        self._video_base_url = video_base_url or f"https://video.{self.BASE_URL}/video"
+        self._chat_base_url = chat_base_url or f"https://chat.{self.BASE_URL}"
 
-        if video_base_url is None:
-            video_base_url = "https://video.stream-io-api.com/video"
+    @cached_property
+    def video(self):
+        return VideoClient(
+            api_key=self._api_key,
+            base_url=self._video_base_url,
+            token=self._token,
+            timeout=self._timeout,
+            user_agent=self._user_agent,
+        )
 
-        self.video = VideoClient(
-            api_key=api_key,
-            base_url=video_base_url,
-            token=token,
-            timeout=timeout,
-            user_agent=user_agent,
+    @cached_property
+    def users(self):
+        return UsersClient(
+            api_key=self._api_key,
+            base_url=self._chat_base_url,
+            token=self._token,
+            timeout=self._timeout,
+            user_agent=self._user_agent,
         )
         # self.chat = ChatClient(
         #     api_key=api_key, base_url="https://chat.stream-io-api.com", token=token

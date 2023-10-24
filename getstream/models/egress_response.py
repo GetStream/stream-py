@@ -1,3 +1,4 @@
+# THIS FILE IS GENERATED FROM github.com/GetStream/protocol/tree/main/openapi-gen/templates/python/type.tmpl
 from dataclasses import dataclass, field
 from dataclasses_json import config, dataclass_json
 
@@ -9,8 +10,8 @@ from getstream.models.egress_rtmp_response import EgressRtmpresponse
 @dataclass_json
 @dataclass
 class EgressResponse:
-    broadcasting: bool = field(metadata=config(field_name="broadcasting"))
     rtmps: List[EgressRtmpresponse] = field(metadata=config(field_name="rtmps"))
+    broadcasting: bool = field(metadata=config(field_name="broadcasting"))
     hls: Optional[EgressHlsresponse] = field(
         metadata=config(field_name="hls"), default=None
     )
