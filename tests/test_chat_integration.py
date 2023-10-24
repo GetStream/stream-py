@@ -4,7 +4,6 @@ import uuid
 import pytest
 from getstream.models.user_request import UserRequest
 from getstream.sync.stream import Stream
-from getstream.version import VERSION
 
 
 VIDEO_API_KEY = os.environ.get("VIDEO_API_KEY")
@@ -60,9 +59,10 @@ def test_update_users(client: Stream):
 #     # client.users.unban_user(target_user_id=user_id, user_id=admin_id)
 
 
-def test_query_users(client:Stream):
+def test_query_users(client: Stream):
     response = client.users.query_users(limit=10)
     assert response.users is not None
+
 
 def test_delete_user(client: Stream):
     user_id = str(uuid.uuid4())
