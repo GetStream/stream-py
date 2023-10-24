@@ -56,6 +56,7 @@ class UsersClient(
         id_lt: Optional[str] = None,
         id_lte: Optional[str] = None,
         limit: Optional[int] = None,
+        **kwargs
     ) -> UsersResponse:
         query_params = {}
         payload = {}

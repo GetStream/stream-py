@@ -100,7 +100,7 @@ class VideoBaseClient(BaseClient):
         if limit is not None:
             json["limit"] = limit
         for key, value in kwargs.items():
-            query_params[key] = value
+            json[key] = value
 
         return self.post(
             "/call/members",
@@ -204,7 +204,7 @@ class VideoBaseClient(BaseClient):
         if ring is not None:
             json["ring"] = ring
         for key, value in kwargs.items():
-            query_params[key] = value
+            json[key] = value
 
         return self.post(
             "/call/{call_type}/{call_id}",
@@ -227,7 +227,7 @@ class VideoBaseClient(BaseClient):
         path_params["call_id"] = call_id
         json["user_id"] = user_id
         for key, value in kwargs.items():
-            query_params[key] = value
+            json[key] = value
 
         return self.post(
             "/call/{call_type}/{call_id}/block",
@@ -255,7 +255,7 @@ class VideoBaseClient(BaseClient):
         if custom is not None:
             json["custom"] = custom
         for key, value in kwargs.items():
-            query_params[key] = value
+            json[key] = value
 
         return self.post(
             "/call/{call_type}/{call_id}/event",
@@ -289,7 +289,7 @@ class VideoBaseClient(BaseClient):
         if start_transcription is not None:
             json["start_transcription"] = start_transcription
         for key, value in kwargs.items():
-            query_params[key] = value
+            json[key] = value
 
         return self.post(
             "/call/{call_type}/{call_id}/go_live",
@@ -336,7 +336,7 @@ class VideoBaseClient(BaseClient):
         if create is not None:
             json["create"] = create
         for key, value in kwargs.items():
-            query_params[key] = value
+            json[key] = value
 
         return self.post(
             "/call/{call_type}/{call_id}/join",
@@ -387,7 +387,7 @@ class VideoBaseClient(BaseClient):
         if update_members is not None:
             json["update_members"] = update_members.to_dict()
         for key, value in kwargs.items():
-            query_params[key] = value
+            json[key] = value
 
         return self.post(
             "/call/{call_type}/{call_id}/members",
@@ -430,7 +430,7 @@ class VideoBaseClient(BaseClient):
         if screenshare is not None:
             json["screenshare"] = screenshare
         for key, value in kwargs.items():
-            query_params[key] = value
+            json[key] = value
 
         return self.post(
             "/call/{call_type}/{call_id}/mute_users",
@@ -454,7 +454,7 @@ class VideoBaseClient(BaseClient):
         json["session_id"] = session_id
         json["user_id"] = user_id
         for key, value in kwargs.items():
-            query_params[key] = value
+            json[key] = value
 
         return self.post(
             "/call/{call_type}/{call_id}/pin",
@@ -637,7 +637,7 @@ class VideoBaseClient(BaseClient):
         path_params["call_id"] = call_id
         json["user_id"] = user_id
         for key, value in kwargs.items():
-            query_params[key] = value
+            json[key] = value
 
         return self.post(
             "/call/{call_type}/{call_id}/unblock",
@@ -661,7 +661,7 @@ class VideoBaseClient(BaseClient):
         json["session_id"] = session_id
         json["user_id"] = user_id
         for key, value in kwargs.items():
-            query_params[key] = value
+            json[key] = value
 
         return self.post(
             "/call/{call_type}/{call_id}/unpin",
@@ -694,7 +694,7 @@ class VideoBaseClient(BaseClient):
         if revoke_permissions is not None:
             json["revoke_permissions"] = revoke_permissions
         for key, value in kwargs.items():
-            query_params[key] = value
+            json[key] = value
 
         return self.post(
             "/call/{call_type}/{call_id}/user_permissions",
@@ -735,7 +735,7 @@ class VideoBaseClient(BaseClient):
         if prev is not None:
             json["prev"] = prev
         for key, value in kwargs.items():
-            query_params[key] = value
+            json[key] = value
 
         return self.post(
             "/calls",
@@ -783,7 +783,7 @@ class VideoBaseClient(BaseClient):
         if settings is not None:
             json["settings"] = settings.to_dict()
         for key, value in kwargs.items():
-            query_params[key] = value
+            json[key] = value
 
         return self.post(
             "/calltypes",
@@ -849,7 +849,7 @@ class VideoBaseClient(BaseClient):
         if settings is not None:
             json["settings"] = settings.to_dict()
         for key, value in kwargs.items():
-            query_params[key] = value
+            json[key] = value
 
         return self.put(
             "/calltypes/{name}",
@@ -924,7 +924,7 @@ class VideoBaseClient(BaseClient):
         if user is not None:
             json["user"] = user.to_dict()
         for key, value in kwargs.items():
-            query_params[key] = value
+            json[key] = value
 
         return self.post(
             "/devices",
@@ -961,7 +961,7 @@ class VideoBaseClient(BaseClient):
         json = {}
         json["user"] = user
         for key, value in kwargs.items():
-            query_params[key] = value
+            json[key] = value
 
         return self.post(
             "/guest",
