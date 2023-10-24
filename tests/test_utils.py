@@ -7,7 +7,6 @@ from getstream.utils import from_chat_user_dict, to_chat_user_dict
 
 class TestCompatUtils(unittest.TestCase):
     def setUp(self):
-
         self.user_request = UserRequest(
             id="123",
             name="John Doe",
