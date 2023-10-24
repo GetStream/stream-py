@@ -41,7 +41,6 @@ class UsersClient(
         # loop through chat_response dict, and apply from_chat_user_dict to value on user items
         old_dict = chat_response.data()
         return UpdateUsersResponse.from_dict(old_dict)
-    
 
     def query_users(self, filter_conditions: Optional[Dict[str, object]] = {},
                     sort: List[SortParam] = None, user_id: Optional[str] = None,
