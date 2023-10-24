@@ -50,6 +50,7 @@ from getstream.models.call_settings_request import CallSettingsRequest
 from getstream.models.call_request import CallRequest
 from getstream.models.member_request import MemberRequest
 from getstream.models.notification_settings_request import NotificationSettingsRequest
+
 # TODO: generator make imports a set because we have duplicate imports
 from getstream.models.user_request import UserRequest
 from getstream.models.connect_user_details_request import ConnectUserDetailsRequest

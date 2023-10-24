@@ -12,7 +12,6 @@ from getstream.utils import to_chat_user_dict
 class UsersClient(
     BaseClient
 ):  # TODO: inherit from generated once we fix spec for generation
-
     def __init__(self, api_key: str, base_url, token, timeout, user_agent):
         super().__init__(
             api_key=api_key,
@@ -42,14 +41,22 @@ class UsersClient(
         old_dict = chat_response.data()
         return UpdateUsersResponse.from_dict(old_dict)
 
-    def query_users(self, filter_conditions: Optional[Dict[str, object]] = {},
-                    sort: List[SortParam] = None, user_id: Optional[str] = None,
-                    id_gt: Optional[str] = None, id_gte: Optional[str] = None,
-                    presence: Optional[bool] = None, user: Optional[UserRequest] = None,
-                    offset: Optional[int] = None, client_id: Optional[str] = None,
-                    connection_id: Optional[str] = None, id_lt: Optional[str] = None,
-                    id_lte: Optional[str] = None, limit: Optional[int] = None) -> UsersResponse:
-
+    def query_users(
+        self,
+        filter_conditions: Optional[Dict[str, object]] = {},
+        sort: List[SortParam] = None,
+        user_id: Optional[str] = None,
+        id_gt: Optional[str] = None,
+        id_gte: Optional[str] = None,
+        presence: Optional[bool] = None,
+        user: Optional[UserRequest] = None,
+        offset: Optional[int] = None,
+        client_id: Optional[str] = None,
+        connection_id: Optional[str] = None,
+        id_lt: Optional[str] = None,
+        id_lte: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> UsersResponse:
         query_params = {}
         payload = {}
         path_params = {}
@@ -69,20 +76,24 @@ class UsersClient(
         payload["limit"] = limit
         query_params = {"payload": json.dumps(payload)}
 
-        chat_response = self.get("/users", query_params=query_params,
-                                 path_params=path_params,
-                                 )
+        chat_response = self.get(
+            "/users",
+            query_params=query_params,
+            path_params=path_params,
+        )
         old_dict = chat_response.data()
 
         return UsersResponse.from_dict(old_dict)
 
-    def delete_user(self,
-                    user_id: str,
-                    user_ids: List[str] = None,
-                    conversations: Optional[str] = None,
-                    messages: Optional[str] = None,
-                    new_channel_owner_id: Optional[str] = None,
-                    user: Optional[UserRequest] = None) -> DeleteUserResponse:
+    def delete_user(
+        self,
+        user_id: str,
+        user_ids: List[str] = None,
+        conversations: Optional[str] = None,
+        messages: Optional[str] = None,
+        new_channel_owner_id: Optional[str] = None,
+        user: Optional[UserRequest] = None,
+    ) -> DeleteUserResponse:
         query_params = {}
         path_params = {}
         path_params["user_id"] = user_id
@@ -93,8 +104,8 @@ class UsersClient(
         if user is not None:
             query_params["user"] = to_chat_user_dict(user)
 
-        chat_response = self.delete("/users/{user_id}", query_params=query_params,
-                                    path_params=path_params
-                                    )
+        chat_response = self.delete(
+            "/users/{user_id}", query_params=query_params, path_params=path_params
+        )
         old_dict = chat_response.data()
         return DeleteUserResponse.from_dict(old_dict)

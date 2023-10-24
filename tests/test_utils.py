@@ -6,7 +6,6 @@ from getstream.utils import from_chat_user_dict, to_chat_user_dict
 
 
 class TestCompatUtils(unittest.TestCase):
-
     def setUp(self):
         # Assuming UserRequest and UserResponse classes have an __init__ method
         # and they accept all the fields as parameters
@@ -22,9 +21,7 @@ class TestCompatUtils(unittest.TestCase):
             name="John Doe",
             role="admin",
             teams=["dev", "marketing"],
-
-            custom={"location": "New York", "age": 30}
-
+            custom={"location": "New York", "age": 30},
         )
 
         self.user_response = UserResponse(
@@ -34,9 +31,7 @@ class TestCompatUtils(unittest.TestCase):
             teams=["dev", "marketing"],
             created_at="2021-01-01T00:00:00.000000Z",
             updated_at="2021-01-01T00:00:00.000000Z",
-
-
-            custom={"location": "New York", "age": 30}
+            custom={"location": "New York", "age": 30},
         )
 
     def test_to_chat_user_dict(self):
@@ -48,7 +43,7 @@ class TestCompatUtils(unittest.TestCase):
             "teams": ["dev", "marketing"],
             "image": None,
             "location": "New York",
-            "age": 30
+            "age": 30,
         }
         self.assertEqual(chat_user_dict, expected_dict)
 
@@ -62,13 +57,16 @@ class TestCompatUtils(unittest.TestCase):
             "updated_at": "2021-01-01T00:00:00.000000Z",
             "name": "John Doe",
             "location": "New York",
-            "age": 30
+            "age": 30,
         }
         user_response = from_chat_user_dict(chat_user_dict)
         self.assertEqual(user_response.id, "123")
 
-        self.assertEqual(user_response.custom, {"location": "New York", "age": 30, "name": "John Doe"})
+        self.assertEqual(
+            user_response.custom,
+            {"location": "New York", "age": 30, "name": "John Doe"},
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

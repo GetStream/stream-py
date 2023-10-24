@@ -30,7 +30,9 @@ class UserResponse:
             mm_field=fields.DateTime(format="iso"),
         )
     )
-    teams: Optional[List[str]] = field(metadata=config(field_name="teams"), default=None)
+    teams: Optional[List[str]] = field(
+        metadata=config(field_name="teams"), default=None
+    )
 
     deleted_at: Optional[datetime] = field(
         metadata=config(

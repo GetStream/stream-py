@@ -1,5 +1,6 @@
 # THIS FILE IS GENERATED FROM github.com/GetStream/protocol/tree/main/openapi-gen/templates/python/type.tmpl
 from __future__ import annotations
+
 # TODO: fix generator to handle self-referencing types add ^ the above line
 from dataclasses import dataclass, field
 from dataclasses_json import config, dataclass_json
