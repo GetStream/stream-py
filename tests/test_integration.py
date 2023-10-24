@@ -44,7 +44,7 @@ def client():
 
 @pytest.fixture(scope="module")
 def call(client: Stream):
-    return client.video.call(CALL_TYPE, CALL_ID)
+    return client.video.call(call_type=CALL_TYPE, call_id=CALL_ID)
 
 
 def test_video_client_initialization(client: Stream):

@@ -1,1 +1,1 @@
-from .client import VideoClient
+from .client import VideoClient  # noqa: F401
