@@ -7,15 +7,7 @@ from getstream.utils import from_chat_user_dict, to_chat_user_dict
 
 class TestCompatUtils(unittest.TestCase):
     def setUp(self):
-        # Assuming UserRequest and UserResponse classes have an __init__ method
-        # and they accept all the fields as parameters
 
-        #       id: str,
-        # teams: List[str] | None = None,
-        # custom: Dict[str, object] | None = None,
-        # image: str | None = None,
-        # name: str | None = None,
-        # role: str | None = None
         self.user_request = UserRequest(
             id="123",
             name="John Doe",
