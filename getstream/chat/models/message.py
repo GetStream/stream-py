@@ -1,4 +1,6 @@
 # THIS FILE IS GENERATED FROM github.com/GetStream/protocol/tree/main/openapi-gen/templates/python/type.tmpl
+from __future__ import annotations
+# TODO: fix generator to handle self-referencing types add ^ the above line
 from dataclasses import dataclass, field
 from dataclasses_json import config, dataclass_json
 
@@ -6,7 +8,6 @@ from typing import List, Dict, Optional
 from datetime import datetime
 from dateutil.parser import parse
 from marshmallow import fields
-from getstream.chat.models.message import Message
 from getstream.chat.models.attachment import Attachment
 from getstream.chat.models.user_object import UserObject
 from getstream.chat.models.reaction import Reaction

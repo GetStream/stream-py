@@ -99,7 +99,7 @@ class ChannelResponse:
         metadata=config(field_name="members"), default=None
     )
     muted: Optional[bool] = field(metadata=config(field_name="muted"), default=None)
-    config: Optional[ChannelConfigWithInfo] = field(
+    config_: Optional[ChannelConfigWithInfo] = field(
         metadata=config(field_name="config"), default=None
     )
     created_at: Optional[datetime] = field(

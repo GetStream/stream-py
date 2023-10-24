@@ -1,5 +1,5 @@
 from getstream import BaseStream
-from getstream.users.client import UsersClient
+from getstream.users.sync.client import UsersClient
 
 # from getstream.chat.sync import ChatClient
 

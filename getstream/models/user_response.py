@@ -12,7 +12,6 @@ from marshmallow import fields
 @dataclass
 class UserResponse:
     role: str = field(metadata=config(field_name="role"))
-    teams: List[str] = field(metadata=config(field_name="teams"))
     updated_at: datetime = field(
         metadata=config(
             field_name="updated_at",
@@ -31,6 +30,8 @@ class UserResponse:
             mm_field=fields.DateTime(format="iso"),
         )
     )
+    teams: Optional[List[str]] = field(metadata=config(field_name="teams"), default=None)
+
     deleted_at: Optional[datetime] = field(
         metadata=config(
             field_name="deleted_at",

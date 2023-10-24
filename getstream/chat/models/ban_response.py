@@ -13,13 +13,14 @@ from getstream.chat.models.user_object import UserObject
 @dataclass_json
 @dataclass
 class BanResponse:
-    created_at: datetime = field(
+    created_at: Optional[datetime] = field(
         metadata=config(
             field_name="created_at",
             encoder=lambda d: d.isoformat(),
             decoder=parse,
             mm_field=fields.DateTime(format="iso"),
-        )
+        ),
+        default=None,
     )
     user: Optional[UserObject] = field(metadata=config(field_name="user"), default=None)
     banned_by: Optional[UserObject] = field(
