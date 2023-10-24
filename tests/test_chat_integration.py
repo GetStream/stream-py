@@ -31,6 +31,7 @@ def test_update_users(client: Stream):
 
     client.users.update_users(users=users)
 
+
 def test_query_users(client: Stream):
     response = client.users.query_users(limit=10)
     assert response.users is not None
