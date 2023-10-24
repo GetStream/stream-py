@@ -31,34 +31,6 @@ def test_update_users(client: Stream):
 
     client.users.update_users(users=users)
 
-
-# def test_create_guest(client: Stream):
-
-#     guest = UserRequest(
-#         id=str(uuid.uuid4()), custom={"color": "red"},
-#     )
-
-#     response = client.users.create_guest(guest=guest)
-#     assert response.user.custom == guest.custom
-
-# def test_ban_user(client:Stream):
-#     user_id = str(uuid.uuid4())
-#     # create user to ban
-#     users = {}
-#     users[user_id] = UserRequest(
-#         id=user_id, role="admin", custom={"premium": True}, name=user_id
-#     )
-#     # admin that will ban the user
-#     admin_id = str(uuid.uuid4())
-#     users[admin_id] = UserRequest(
-#         id=admin_id, role="admin", custom={"premium": True}, name=admin_id
-#     )
-
-#     client.users.update_users(users=users)
-#     client.users.ban_user(target_user_id=user_id, reason="spam", timeout=3600,user_id=admin_id)
-#     # client.users.unban_user(target_user_id=user_id, user_id=admin_id)
-
-
 def test_query_users(client: Stream):
     response = client.users.query_users(limit=10)
     assert response.users is not None
