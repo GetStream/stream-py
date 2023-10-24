@@ -19,6 +19,7 @@ from getstream.models.record_settings_request import RecordSettingsRequest
 from getstream.models.screensharing_settings_request import ScreensharingSettingsRequest
 from getstream.sync.stream import Stream
 from getstream.version import VERSION
+from getstream.video.sync.client import Call
 
 
 VIDEO_API_KEY = os.environ.get("VIDEO_API_KEY")
@@ -39,6 +40,11 @@ def client():
         timeout=TIMEOUT,
         video_base_url=BASE_URL,
     )
+
+
+@pytest.fixture(scope="module")
+def call(client: Stream):
+    return client.video.call(CALL_TYPE, CALL_ID)
 
 
 def test_video_client_initialization(client: Stream):
@@ -145,10 +151,8 @@ def test_delete_call_type(client: Stream):
     assert response.status_code() == 200
 
 
-def test_create_call(client: Stream):
-    response = client.video.get_or_create_call(
-        type="default",
-        id=CALL_ID,
+def test_create_call(call: Call):
+    response = call.create(
         data=CallRequest(
             created_by_id="john",
             settings_override=CallSettingsRequest(
@@ -168,10 +172,8 @@ def test_create_call(client: Stream):
     assert response.data().call.settings.screensharing.enabled is False
 
 
-def test_update_call(client: Stream):
-    response = client.video.update_call(
-        CALL_TYPE,
-        CALL_ID,
+def test_update_call(call: Call):
+    response = call.update(
         settings_override=CallSettingsRequest(
             audio=AudioSettingsRequest(
                 mic_default_on=True,
@@ -182,10 +184,8 @@ def test_update_call(client: Stream):
     assert response.data().call.settings.audio.mic_default_on is True
 
 
-def test_rtmp_address(client: Stream):
-    response = client.video.get_or_create_call(
-        type="default",
-        id=CALL_ID,
+def test_rtmp_address(call: Call):
+    response = call.get(
         data=CallRequest(
             created_by_id="john",
         ),
@@ -198,10 +198,8 @@ def test_query_calls(client: Stream):
     assert len(response.data().calls) >= 1
 
 
-def test_enable_call_recording(client: Stream):
-    response = client.video.update_call(
-        CALL_TYPE,
-        CALL_ID,
+def test_enable_call_recording(call: Call):
+    response = call.update(
         settings_override=CallSettingsRequest(
             recording=RecordSettingsRequest(
                 mode="available",
@@ -226,10 +224,8 @@ def test_enable_call_recording(client: Stream):
 #     assert "recordings" in response
 
 
-def test_enable_backstage_mode(client: Stream):
-    response = client.video.update_call(
-        CALL_TYPE,
-        CALL_ID,
+def test_enable_backstage_mode(call: Call):
+    response = call.update(
         settings_override=CallSettingsRequest(
             backstage=BackstageSettingsRequest(
                 enabled=True,
