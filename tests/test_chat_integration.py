@@ -3,7 +3,7 @@ import uuid
 
 import pytest
 from getstream.models.user_request import UserRequest
-from getstream.sync.stream import Stream
+from getstream import Stream
 
 
 VIDEO_API_KEY = os.environ.get("VIDEO_API_KEY")

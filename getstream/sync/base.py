@@ -68,7 +68,6 @@ class BaseClient(BaseConfig, ABC):
                 data = parsed_result
 
         except ValueError:
-            print("ValueError")
             raise StreamAPIException(
                 response=response,
             )
