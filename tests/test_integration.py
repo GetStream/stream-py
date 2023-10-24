@@ -59,7 +59,7 @@ def test_create_token(client: Stream):
 
 def test_create_call_type(client: Stream):
     response = client.video.create_call_type(
-        name="example_calltype5",
+        name="example_calltype6",
         settings=CallSettingsRequest(
             audio=AudioSettingsRequest(
                 default_device="speaker",
@@ -91,7 +91,7 @@ def test_create_call_type(client: Stream):
         },
     )
 
-    assert response.data().name == "example_calltype5"
+    assert response.data().name == "example_calltype6"
     assert response.data().settings.audio.mic_default_on is True
     assert response.data().settings.audio.default_device == "speaker"
     assert response.data().grants["admin"] is not None
@@ -107,13 +107,13 @@ def test_create_call_type(client: Stream):
 
 
 def test_read_call_type(client: Stream):
-    response = client.video.get_call_type(name="example_calltype5")
-    assert response.data().name == "example_calltype5"
+    response = client.video.get_call_type(name="example_calltype6")
+    assert response.data().name == "example_calltype6"
 
 
 def test_update_call_type(client: Stream):
     response = client.video.update_call_type(
-        name="example_calltype5",
+        name="example_calltype6",
         settings=CallSettingsRequest(
             audio=AudioSettingsRequest(
                 default_device="earpiece",
@@ -137,10 +137,10 @@ def test_update_call_type(client: Stream):
 
 def test_delete_call_type(client: Stream):
     try:
-        response = client.video.delete_call_type(name="example_calltype5")
+        response = client.video.delete_call_type(name="example_calltype6")
     except Exception:
         time.sleep(2)
-        response = client.video.delete_call_type(name="example_calltype5")
+        response = client.video.delete_call_type(name="example_calltype6")
     assert response.status_code() == 200
 
 
