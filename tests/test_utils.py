@@ -64,7 +64,7 @@ class TestCompatUtils(unittest.TestCase):
 
         self.assertEqual(
             user_response.custom,
-            {"location": "New York", "age": 30, "name": "John Doe"},
+            {"location": "New York", "age": 30},
         )
 
 
