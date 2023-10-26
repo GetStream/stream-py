@@ -21,7 +21,7 @@ class UsersClient(
             user_agent=user_agent,
         )
 
-    def update_users(self, users: Dict[str, UserRequest]) -> UpdateUsersResponse:
+    def upsert_users(self, users: Dict[str, UserRequest]) -> UpdateUsersResponse:
         """
         Update or create users in bulk
         """

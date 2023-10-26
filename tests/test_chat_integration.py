@@ -22,14 +22,14 @@ def client():
     )
 
 
-def test_update_users(client: Stream):
+def test_upsert_users(client: Stream):
     users = {}
     user_id = str(uuid.uuid4())
     users[user_id] = UserRequest(
         id=user_id, role="admin", custom={"premium": True}, name=user_id
     )
 
-    client.users.update_users(users=users)
+    client.users.upsert_users(users=users)
 
 
 def test_query_users(client: Stream):
