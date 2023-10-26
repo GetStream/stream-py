@@ -12,3 +12,5 @@
 .env
 .vscode/settings.json
 *.pyc
+dist/*
+dist/*
