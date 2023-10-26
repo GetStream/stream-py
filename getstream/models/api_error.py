@@ -7,7 +7,7 @@ from typing import List, Dict, Optional
 
 @dataclass_json
 @dataclass
-class Apierror:
+class ApiError:
     duration: str = field(metadata=config(field_name="duration"))
     message: str = field(metadata=config(field_name="message"))
     more_info: str = field(metadata=config(field_name="more_info"))
