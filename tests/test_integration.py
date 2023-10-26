@@ -55,13 +55,22 @@ def test_video_client_initialization(client: Stream):
 
 
 def test_create_token(client: Stream):
-    token = client.create_token()
+    token = client.create_token(user_id="tommaso")
     assert token is not None
 
     decoded = jwt.decode(token, VIDEO_API_SECRET, algorithms=["HS256"])
-    assert decoded["iss"] == f"stream-video-python@{VERSION}"
-    assert decoded["sub"] == "server-side"
     assert decoded["iat"] is not None
+    assert decoded["user_id"] == "tommaso"
+
+
+def test_create_token_with_expiration(client: Stream):
+    token = client.create_token(user_id="tommaso", expiration=10)
+    assert token is not None
+
+    decoded = jwt.decode(token, VIDEO_API_SECRET, algorithms=["HS256"])
+    assert decoded["iat"] is not None
+    assert decoded["exp"] == decoded["iat"] + 10
+    assert decoded["user_id"] == "tommaso"
 
 
 def test_create_call_type(client: Stream):

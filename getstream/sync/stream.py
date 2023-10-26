@@ -45,7 +45,7 @@ class Stream(BaseStream):
         super().__init__(api_key, api_secret)
 
         self._api_key = api_key
-        self._token = token or self.create_token()
+        self._token = token or self._create_token()
         self._timeout = timeout
         self._user_agent = user_agent
         self._video_base_url = video_base_url or f"https://video.{self.BASE_URL}/video"

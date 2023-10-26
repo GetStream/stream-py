@@ -13,6 +13,24 @@ class BaseStream:
 
     def create_token(
         self,
+        user_id: str,
+        expiration: int = None,
+    ):
+        return self._create_token(user_id=user_id, expiration=expiration)
+
+    def create_call_token(
+        self,
+        user_id: str,
+        call_cids: List[str] = None,
+        role: str = None,
+        expiration: int = None,
+    ):
+        return self._create_token(
+            user_id=user_id, call_cids=call_cids, role=role, expiration=expiration
+        )
+
+    def _create_token(
+        self,
         user_id: str = None,
         channel_cids: List[str] = None,
         call_cids: List[str] = None,
@@ -22,7 +40,6 @@ class BaseStream:
         now = int(time.time())
 
         claims = {
-            "iss": f"stream-video-python@{VERSION}",  # Replace with your library versio
             "iat": now,
         }
 
@@ -37,12 +54,9 @@ class BaseStream:
 
         if user_id is not None:
             claims["user_id"] = user_id
-            claims["sub"] = f"user/{user_id}"
-        else:
-            claims["sub"] = "server-side"
 
         if expiration is not None:
-            claims["exp"] = now + int(expiration.total_seconds())
+            claims["exp"] = now + expiration
 
         token = jwt.encode(claims, self.api_secret, algorithm="HS256")
         return token

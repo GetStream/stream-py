@@ -124,6 +124,12 @@ export VIDEO_API_SECRET=your_api_secret
 poetry run pytest tests/
 ```
 
+Before pushing changes make sure to run the linter:
+
+```sh
+poetry run black getstream/ tests/
+```
+
 ### Code Generation
 
 In order to generate the code, clone the `protocol` repo 
