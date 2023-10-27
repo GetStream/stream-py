@@ -18,7 +18,6 @@ from getstream.models.own_capability import OwnCapability
 from getstream.models.record_settings_request import RecordSettingsRequest
 from getstream.models.screensharing_settings_request import ScreensharingSettingsRequest
 from getstream.sync.stream import Stream
-from getstream.version import VERSION
 from getstream.video.sync.client import Call
 
 

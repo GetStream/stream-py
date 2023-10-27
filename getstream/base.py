@@ -3,8 +3,6 @@ from typing import List
 
 import jwt
 
-from getstream.version import VERSION
-
 
 class BaseStream:
     def __init__(self, api_key: str, api_secret: str):
