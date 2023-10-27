@@ -44,7 +44,7 @@ def test_delete_user(client: Stream):
     users[user_id] = UserRequest(
         id=user_id, role="admin", custom={"premium": True}, name=user_id
     )
-    client.users.update_users(users=users)
+    client.users.upsert_users(users=users)
     client.users.delete_user(user_id=user_id)
     response = client.users.query_users(limit=10)
     # check that user id is not in the response
