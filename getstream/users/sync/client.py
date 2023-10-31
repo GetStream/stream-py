@@ -3,6 +3,7 @@ from typing import Dict, List, Optional
 from getstream.chat.models.delete_user_response import DeleteUserResponse
 from getstream.chat.models.delete_users_response import DeleteUsersResponse
 from getstream.chat.models.sort_param import SortParam
+from getstream.chat.models.update_user_partial_request import UpdateUserPartialRequest
 from getstream.chat.models.update_users_response import UpdateUsersResponse
 from getstream.chat.models.users_response import UsersResponse
 from getstream.models.user_request import UserRequest
@@ -139,3 +140,21 @@ class UsersClient(
         )
         old_dict = chat_response.data()
         return DeleteUsersResponse.from_dict(old_dict)
+
+    def update_users_partial(self, users: List[UpdateUserPartialRequest] = None, **kwargs) -> UpdateUsersResponse:
+        query_params = {}
+        path_params = {}
+        json = {}
+
+        json["users"] = [user.to_dict() for user in users]
+        for key, value in kwargs.items():
+            json[key] = value
+
+        chat_response = self.patch(
+            "/users",
+            query_params=query_params,
+            path_params=path_params,
+            json=json,
+        )
+        old_dict = chat_response.data()
+        return UpdateUsersResponse.from_dict(old_dict)

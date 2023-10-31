@@ -2,6 +2,7 @@ from typing import Dict, List, Optional
 from getstream import BaseStream
 from getstream.chat.models.delete_user_response import DeleteUserResponse
 from getstream.chat.models.sort_param import SortParam
+from getstream.chat.models.update_user_partial_request import UpdateUserPartialRequest
 from getstream.chat.models.update_users_response import UpdateUsersResponse
 from getstream.chat.models.users_response import UsersResponse
 from getstream.models.user_request import UserRequest
@@ -78,6 +79,12 @@ class Stream(BaseStream):
         )
 
     def upsert_users(self, users: Dict[str, UserRequest]) -> UpdateUsersResponse:
+        """
+        Upsert users in bulk
+
+        Parameters:
+        - users (Dict[str, UserRequest]): A dictionary of user objects to upsert
+        """
         return self._users.upsert_users(users=users)
 
     def query_users(
@@ -97,6 +104,24 @@ class Stream(BaseStream):
         limit: Optional[int] = None,
         **kwargs
     ) -> UsersResponse:
+        """
+        Query users
+
+        filter_conditions: Filter conditions for users
+        sort: Sort the results
+        user_id: The user ID
+        id_gt: The user ID must be greater than this value
+        id_gte: The user ID must be greater than or equal to this value
+        presence: Filter users by presence
+        user: The user object
+        offset: Offset of the results
+        client_id: The client ID
+        connection_id: The connection ID
+        id_lt: The user ID must be less than this value
+        id_lte: The user ID must be less than or equal to this value
+        limit: Limit the number of results returned
+
+        """
         return self._users.query_users(
             filter_conditions=filter_conditions,
             sort=sort,
@@ -121,15 +146,20 @@ class Stream(BaseStream):
             hard_delete: Optional[bool] = None,
             delete_conversation_channels: Optional[bool] = None,
             **kwargs
-
     ) -> DeleteUserResponse:
+        """
+        Delete a user
+        user_id: The ID of the user to delete
+        mark_messages_deleted: Mark messages as deleted instead of hard-deleting them
+        hard_delete: Hard delete messages instead of marking them as deleted
+        delete_conversation_channels: Delete the channels of the conversations the user is part of
+        """
         return self._users.delete_user(
             user_id=user_id,
             mark_messages_deleted=mark_messages_deleted,
             hard_delete=hard_delete,
             delete_conversation_channels=delete_conversation_channels,
             **kwargs
-
         )
 
     def delete_users(
@@ -142,6 +172,8 @@ class Stream(BaseStream):
         **kwargs
     ) -> DeleteUserResponse:
         """
+        Delete multiple users
+
         user_ids: the list of user ids to delete
         new_channel_owner_id: the new owner of the channels of the deleted user
         user: user delete mode
@@ -161,8 +193,11 @@ class Stream(BaseStream):
             new_channel_owner_id=new_channel_owner_id,
             user=user,
             **kwargs
-
         )
-     # self.chat = ChatClient(
+
+    def update_users_partial(self, users: List[UpdateUserPartialRequest] = None, **kwargs) -> UpdateUsersResponse:
+        return self._users.update_users_partial(users=users, **kwargs)
+
+    # self.chat = ChatClient(
         #     api_key=api_key, base_url="https://chat.stream-io-api.com", token=token
         # )

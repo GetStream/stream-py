@@ -2,6 +2,7 @@ import os
 import uuid
 
 import pytest
+from getstream.chat.models.update_user_partial_request import UpdateUserPartialRequest
 from getstream.models.user_request import UserRequest
 from getstream import Stream
 
@@ -35,6 +36,28 @@ def test_upsert_users(client: Stream):
 def test_query_users(client: Stream):
     response = client.query_users(limit=10)
     assert response.users is not None
+
+
+def test_update_users_partial(client: Stream):
+    user_id = str(uuid.uuid4())
+    users = {}
+    users[user_id] = UserRequest(
+        id=user_id, role="admin", custom={"premium": True}, name=user_id
+    )
+    client.upsert_users(users=users)
+    response = client.update_users_partial(
+        users=[
+            UpdateUserPartialRequest(
+                id=user_id,
+                set={"role": "admin", "color": "blue"},
+                unset=["name"],
+            )
+        ]
+    )
+    user_response = response.users[user_id]
+    assert user_response["name"] is None
+    assert user_response["role"] == "admin"
+    assert user_response["custom"]["color"] == "blue"
 
 
 def test_delete_user(client: Stream):
