@@ -1,4 +1,10 @@
+from typing import Dict, List, Optional
 from getstream import BaseStream
+from getstream.chat.models.delete_user_response import DeleteUserResponse
+from getstream.chat.models.sort_param import SortParam
+from getstream.chat.models.update_users_response import UpdateUsersResponse
+from getstream.chat.models.users_response import UsersResponse
+from getstream.models.user_request import UserRequest
 from getstream.users.sync.client import UsersClient
 
 # from getstream.chat.sync import ChatClient
@@ -62,7 +68,7 @@ class Stream(BaseStream):
         )
 
     @cached_property
-    def users(self):
+    def _users(self):
         return UsersClient(
             api_key=self._api_key,
             base_url=self._chat_base_url,
@@ -70,6 +76,61 @@ class Stream(BaseStream):
             timeout=self._timeout,
             user_agent=self._user_agent,
         )
-        # self.chat = ChatClient(
+
+    def upsert_users(self, users: Dict[str, UserRequest]) -> UpdateUsersResponse:
+        return self._users.upsert_users(users=users)
+
+    def query_users(
+        self,
+        filter_conditions: Optional[Dict[str, object]] = {},
+        sort: List[SortParam] = None,
+        user_id: Optional[str] = None,
+        id_gt: Optional[str] = None,
+        id_gte: Optional[str] = None,
+        presence: Optional[bool] = None,
+        user: Optional[UserRequest] = None,
+        offset: Optional[int] = None,
+        client_id: Optional[str] = None,
+        connection_id: Optional[str] = None,
+        id_lt: Optional[str] = None,
+        id_lte: Optional[str] = None,
+        limit: Optional[int] = None,
+        **kwargs
+    ) -> UsersResponse:
+        return self._users.query_users(
+            filter_conditions=filter_conditions,
+            sort=sort,
+            user_id=user_id,
+            id_gt=id_gt,
+            id_gte=id_gte,
+            presence=presence,
+            user=user,
+            offset=offset,
+            client_id=client_id,
+            connection_id=connection_id,
+            id_lt=id_lt,
+            id_lte=id_lte,
+            limit=limit,
+            **kwargs
+        )
+
+    def delete_user(
+        self,
+        user_id: str,
+        user_ids: List[str] = None,
+        conversations: Optional[str] = None,
+        messages: Optional[str] = None,
+        new_channel_owner_id: Optional[str] = None,
+        user: Optional[UserRequest] = None,
+    ) -> DeleteUserResponse:
+        return self._users.delete_user(
+            user_id=user_id,
+            user_ids=user_ids,
+            conversations=conversations,
+            messages=messages,
+            new_channel_owner_id=new_channel_owner_id,
+            user=user,
+        )
+     # self.chat = ChatClient(
         #     api_key=api_key, base_url="https://chat.stream-io-api.com", token=token
         # )

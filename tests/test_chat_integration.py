@@ -29,11 +29,11 @@ def test_upsert_users(client: Stream):
         id=user_id, role="admin", custom={"premium": True}, name=user_id
     )
 
-    client.users.upsert_users(users=users)
+    client.upsert_users(users=users)
 
 
 def test_query_users(client: Stream):
-    response = client.users.query_users(limit=10)
+    response = client.query_users(limit=10)
     assert response.users is not None
 
 
@@ -44,9 +44,9 @@ def test_delete_user(client: Stream):
     users[user_id] = UserRequest(
         id=user_id, role="admin", custom={"premium": True}, name=user_id
     )
-    client.users.upsert_users(users=users)
-    client.users.delete_user(user_id=user_id)
-    response = client.users.query_users(limit=10)
+    client.upsert_users(users=users)
+    client.delete_user(user_id=user_id)
+    response = client.query_users(limit=10)
     # check that user id is not in the response
     user_ids = [user.id for user in response.users]
     assert user_id not in user_ids
