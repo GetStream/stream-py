@@ -116,20 +116,52 @@ class Stream(BaseStream):
 
     def delete_user(
         self,
-        user_id: str,
+            user_id: str,
+            mark_messages_deleted: Optional[bool] = None,
+            hard_delete: Optional[bool] = None,
+            delete_conversation_channels: Optional[bool] = None,
+            **kwargs
+
+    ) -> DeleteUserResponse:
+        return self._users.delete_user(
+            user_id=user_id,
+            mark_messages_deleted=mark_messages_deleted,
+            hard_delete=hard_delete,
+            delete_conversation_channels=delete_conversation_channels,
+            **kwargs
+
+        )
+
+    def delete_users(
+        self,
         user_ids: List[str] = None,
         conversations: Optional[str] = None,
         messages: Optional[str] = None,
         new_channel_owner_id: Optional[str] = None,
-        user: Optional[UserRequest] = None,
+        user: Optional[str] = None,
+        **kwargs
     ) -> DeleteUserResponse:
-        return self._users.delete_user(
-            user_id=user_id,
+        """
+        user_ids: the list of user ids to delete
+        new_channel_owner_id: the new owner of the channels of the deleted user
+        user: user delete mode
+            soft: marks user as deleted and retains all user data
+            pruning: marks user as deleted and nullifies user information
+            hard: deletes user completely. Requires 'hard' option for messages and conversations as well
+        conversations: conversation channels delete mode
+            null or empty string: doesn't delete any conversation channels
+            soft: marks all user messages as deleted without removing any related message data
+            pruning: marks all user messages as deleted, nullifies message information and removes some message data such as reactions and flags
+            hard: deletes messages completely with all related information
+        """
+        return self._users.delete_users(
             user_ids=user_ids,
             conversations=conversations,
             messages=messages,
             new_channel_owner_id=new_channel_owner_id,
             user=user,
+            **kwargs
+
         )
      # self.chat = ChatClient(
         #     api_key=api_key, base_url="https://chat.stream-io-api.com", token=token

@@ -1,6 +1,7 @@
 import json
 from typing import Dict, List, Optional
 from getstream.chat.models.delete_user_response import DeleteUserResponse
+from getstream.chat.models.delete_users_response import DeleteUsersResponse
 from getstream.chat.models.sort_param import SortParam
 from getstream.chat.models.update_users_response import UpdateUsersResponse
 from getstream.chat.models.users_response import UsersResponse
@@ -75,6 +76,8 @@ class UsersClient(
         payload["id_lt"] = id_lt
         payload["id_lte"] = id_lte
         payload["limit"] = limit
+        for key, value in kwargs.items():
+            payload[key] = value
         query_params = {"payload": json.dumps(payload)}
 
         chat_response = self.get(
@@ -87,26 +90,52 @@ class UsersClient(
         return UsersResponse.from_dict(old_dict)
 
     def delete_user(
-        self,
-        user_id: str,
-        user_ids: List[str] = None,
-        conversations: Optional[str] = None,
-        messages: Optional[str] = None,
-        new_channel_owner_id: Optional[str] = None,
-        user: Optional[UserRequest] = None,
+            self,
+            user_id: str,
+            mark_messages_deleted: Optional[bool] = None,
+            hard_delete: Optional[bool] = None,
+            delete_conversation_channels: Optional[bool] = None,
+            **kwargs
     ) -> DeleteUserResponse:
         query_params = {}
         path_params = {}
         path_params["user_id"] = user_id
-        query_params["user_ids"] = user_ids
-        query_params["conversations"] = conversations
-        query_params["messages"] = messages
-        query_params["new_channel_owner_id"] = new_channel_owner_id
-        if user is not None:
-            query_params["user"] = to_chat_user_dict(user)
+        query_params["mark_messages_deleted"] = mark_messages_deleted
+        query_params["hard_delete"] = hard_delete
+        query_params["delete_conversation_channels"] = delete_conversation_channels
+        for key, value in kwargs.items():
+            query_params[key] = value
 
         chat_response = self.delete(
             "/users/{user_id}", query_params=query_params, path_params=path_params
         )
         old_dict = chat_response.data()
         return DeleteUserResponse.from_dict(old_dict)
+
+    def delete_users(
+        self,
+        user_ids: List[str] = None,
+        conversations: Optional[str] = None,
+        messages: Optional[str] = None,
+        new_channel_owner_id: Optional[str] = None,
+        user: Optional[str] = None,
+        **kwargs
+    ) -> DeleteUsersResponse:
+        query_params = {}
+        path_params = {}
+        json = {}
+
+        json["user_ids"] = user_ids
+        json["conversations"] = conversations
+        json["messages"] = messages
+        json["new_channel_owner_id"] = new_channel_owner_id
+        json["user"] = user
+        for key, value in kwargs.items():
+            json[key] = value
+
+        chat_response = self.post(
+            "/users/delete", query_params=query_params, path_params=path_params,
+            json=json
+        )
+        old_dict = chat_response.data()
+        return DeleteUsersResponse.from_dict(old_dict)
