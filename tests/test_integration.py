@@ -12,6 +12,7 @@ from getstream.models.event_notification_settings_request import (
     EventNotificationSettingsRequest,
 )
 from getstream.models.geofence_settings_request import GeofenceSettingsRequest
+from getstream.models.layout_settings_request import LayoutSettingsRequest
 
 from getstream.models.notification_settings_request import NotificationSettingsRequest
 from getstream.models.own_capability import OwnCapability
@@ -148,6 +149,67 @@ def test_update_call_type(client: Stream):
 def test_read_call_type(client: Stream):
     response = client.video.get_call_type(name=CALL_TYPE_NAME)
     assert response.data().name == CALL_TYPE_NAME
+
+
+def test_update_layout(client: Stream):
+    layout_options = {
+        'logo.image_url':
+        'https://theme.zdassets.com/theme_assets/9442057/efc3820e436f9150bc8cf34267fff4df052a1f9c.png',
+        'logo.horizontal_position': 'center',
+        'title.text': 'Building Stream Video Q&A',
+        'title.horizontal_position': 'center',
+        'title.color': 'black',
+        'participant_label.border_radius': '0px',
+        'participant.border_radius': '0px',
+        'layout.spotlight.participants_bar_position': 'top',
+        'layout.background_color': '#f2f2f2',
+        'participant.placeholder_background_color': '#1f1f1f',
+        'layout.single-participant.padding_inline': '20%',
+        'participant_label.background_color': 'transparent',
+    }
+
+    client.video.update_call_type(CALL_TYPE_NAME, settings=CallSettingsRequest(
+        recording=RecordSettingsRequest(
+            mode='available',
+            audio_only=False,
+            quality='1080p',
+            layout=LayoutSettingsRequest(
+                name='spotlight',
+                options=layout_options,
+            ),
+        ),
+    ),
+    )
+
+
+def test_custom_recording_style_css(client: Stream):
+    client.video.update_call_type(CALL_TYPE_NAME, settings=CallSettingsRequest(
+        recording=RecordSettingsRequest(
+            mode="available",
+            audio_only=False,
+            quality="1080p",
+            layout=LayoutSettingsRequest(
+                name="spotlight",
+                external_css_url='https://path/to/custom.css',
+            ),
+        ),
+    ),
+    )
+
+
+def test_custom_recording_website(client: Stream):
+    client.video.update_call_type(CALL_TYPE_NAME, settings=CallSettingsRequest(
+        recording=RecordSettingsRequest(
+            mode="available",
+            audio_only=False,
+            quality="1080p",
+            layout=LayoutSettingsRequest(
+                name="custom",
+                external_app_url='https://path/to/layout/app',
+            ),
+        ),
+    ),
+    )
 
 
 def test_delete_call_type(client: Stream):
