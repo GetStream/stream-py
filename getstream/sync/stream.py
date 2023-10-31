@@ -1,6 +1,7 @@
 from typing import Dict, List, Optional
 from getstream import BaseStream
 from getstream.chat.models.delete_user_response import DeleteUserResponse
+from getstream.chat.models.reactivate_users_response import ReactivateUsersResponse
 from getstream.chat.models.sort_param import SortParam
 from getstream.chat.models.update_user_partial_request import UpdateUserPartialRequest
 from getstream.chat.models.update_users_response import UpdateUsersResponse
@@ -198,7 +199,50 @@ class Stream(BaseStream):
     def update_users_partial(
         self, users: List[UpdateUserPartialRequest] = None, **kwargs
     ) -> UpdateUsersResponse:
+        """
+        Deactivate a user
+
+        user_id: The ID of the user to deactivate
+        created_by_id: ID of the user who deactivated the user
+        mark_messages_deleted: Makes messages appear to be deleted
+
+        """
         return self._users.update_users_partial(users=users, **kwargs)
+
+    def deactivate_user(
+        self,
+        created_by_id: Optional[str] = None,
+        mark_messages_deleted: Optional[bool] = None,
+        user_id: Optional[str] = None,
+        **kwargs,
+    ) -> DeleteUserResponse:
+        return self._users.deactivate_user(
+            created_by_id=created_by_id,
+            mark_messages_deleted=mark_messages_deleted,
+            user_id=user_id,
+            **kwargs,
+        )
+
+    def reactivate_users(
+        self,
+        created_by_id: Optional[str] = None,
+        restore_messages: Optional[bool] = None,
+        user_ids: List[str] = None,
+        **kwargs,
+    ) -> ReactivateUsersResponse:
+        """
+        Reactivate users
+        created_by_id: ID of the user who's reactivating the users
+        restore_messages: Restore previously deleted messages
+        user_ids: User IDs to reactivate
+
+        """
+        return self._users.reactivate_users(
+            created_by_id=created_by_id,
+            restore_messages=restore_messages,
+            user_ids=user_ids,
+            **kwargs,
+        )
 
     # self.chat = ChatClient(
     #     api_key=api_key, base_url="https://chat.stream-io-api.com", token=token

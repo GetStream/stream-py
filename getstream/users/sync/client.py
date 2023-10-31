@@ -1,7 +1,9 @@
 import json
 from typing import Dict, List, Optional
+from getstream.chat.models.deactivate_user_response import DeactivateUserResponse
 from getstream.chat.models.delete_user_response import DeleteUserResponse
 from getstream.chat.models.delete_users_response import DeleteUsersResponse
+from getstream.chat.models.reactivate_users_response import ReactivateUsersResponse
 from getstream.chat.models.sort_param import SortParam
 from getstream.chat.models.update_user_partial_request import UpdateUserPartialRequest
 from getstream.chat.models.update_users_response import UpdateUsersResponse
@@ -162,3 +164,55 @@ class UsersClient(
         )
         old_dict = chat_response.data()
         return UpdateUsersResponse.from_dict(old_dict)
+
+    def deactivate_user(
+        self,
+        created_by_id: Optional[str] = None,
+        mark_messages_deleted: Optional[bool] = None,
+        user_id: Optional[str] = None,
+        **kwargs
+    ) -> DeactivateUserResponse:
+        query_params = {}
+        path_params = {}
+        json = {}
+        path_params["user_id"] = user_id
+        json["created_by_id"] = created_by_id
+        json["mark_messages_deleted"] = mark_messages_deleted
+        json["user_id"] = user_id
+        for key, value in kwargs.items():
+            json[key] = value
+
+        chat_response = self.post(
+            "/users/{user_id}/deactivate",
+            query_params=query_params,
+            path_params=path_params,
+            json=json,
+        )
+        old_dict = chat_response.data()
+        return DeactivateUserResponse.from_dict(old_dict)
+
+    def reactivate_users(
+        self,
+        created_by_id: Optional[str] = None,
+        restore_messages: Optional[bool] = None,
+        user_ids: List[str] = None,
+        **kwargs
+    ) -> ReactivateUsersResponse:
+        query_params = {}
+        path_params = {}
+        json = {}
+        json["created_by_id"] = created_by_id
+        json["restore_messages"] = restore_messages
+        json["user_ids"] = user_ids
+        for key, value in kwargs.items():
+            json[key] = value
+
+        chat_response = self.post(
+            "/users/reactivate",
+            query_params=query_params,
+            path_params=path_params,
+            json=json,
+        )
+
+        old_dict = chat_response.data()
+        return ReactivateUsersResponse.from_dict(old_dict)
