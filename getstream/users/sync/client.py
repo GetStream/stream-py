@@ -91,12 +91,12 @@ class UsersClient(
         return UsersResponse.from_dict(old_dict)
 
     def delete_user(
-            self,
-            user_id: str,
-            mark_messages_deleted: Optional[bool] = None,
-            hard_delete: Optional[bool] = None,
-            delete_conversation_channels: Optional[bool] = None,
-            **kwargs
+        self,
+        user_id: str,
+        mark_messages_deleted: Optional[bool] = None,
+        hard_delete: Optional[bool] = None,
+        delete_conversation_channels: Optional[bool] = None,
+        **kwargs
     ) -> DeleteUserResponse:
         query_params = {}
         path_params = {}
@@ -135,13 +135,17 @@ class UsersClient(
             json[key] = value
 
         chat_response = self.post(
-            "/users/delete", query_params=query_params, path_params=path_params,
-            json=json
+            "/users/delete",
+            query_params=query_params,
+            path_params=path_params,
+            json=json,
         )
         old_dict = chat_response.data()
         return DeleteUsersResponse.from_dict(old_dict)
 
-    def update_users_partial(self, users: List[UpdateUserPartialRequest] = None, **kwargs) -> UpdateUsersResponse:
+    def update_users_partial(
+        self, users: List[UpdateUserPartialRequest] = None, **kwargs
+    ) -> UpdateUsersResponse:
         query_params = {}
         path_params = {}
         json = {}

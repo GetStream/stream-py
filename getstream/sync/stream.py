@@ -102,7 +102,7 @@ class Stream(BaseStream):
         id_lt: Optional[str] = None,
         id_lte: Optional[str] = None,
         limit: Optional[int] = None,
-        **kwargs
+        **kwargs,
     ) -> UsersResponse:
         """
         Query users
@@ -136,16 +136,16 @@ class Stream(BaseStream):
             id_lt=id_lt,
             id_lte=id_lte,
             limit=limit,
-            **kwargs
+            **kwargs,
         )
 
     def delete_user(
         self,
-            user_id: str,
-            mark_messages_deleted: Optional[bool] = None,
-            hard_delete: Optional[bool] = None,
-            delete_conversation_channels: Optional[bool] = None,
-            **kwargs
+        user_id: str,
+        mark_messages_deleted: Optional[bool] = None,
+        hard_delete: Optional[bool] = None,
+        delete_conversation_channels: Optional[bool] = None,
+        **kwargs,
     ) -> DeleteUserResponse:
         """
         Delete a user
@@ -159,7 +159,7 @@ class Stream(BaseStream):
             mark_messages_deleted=mark_messages_deleted,
             hard_delete=hard_delete,
             delete_conversation_channels=delete_conversation_channels,
-            **kwargs
+            **kwargs,
         )
 
     def delete_users(
@@ -169,7 +169,7 @@ class Stream(BaseStream):
         messages: Optional[str] = None,
         new_channel_owner_id: Optional[str] = None,
         user: Optional[str] = None,
-        **kwargs
+        **kwargs,
     ) -> DeleteUserResponse:
         """
         Delete multiple users
@@ -192,12 +192,14 @@ class Stream(BaseStream):
             messages=messages,
             new_channel_owner_id=new_channel_owner_id,
             user=user,
-            **kwargs
+            **kwargs,
         )
 
-    def update_users_partial(self, users: List[UpdateUserPartialRequest] = None, **kwargs) -> UpdateUsersResponse:
+    def update_users_partial(
+        self, users: List[UpdateUserPartialRequest] = None, **kwargs
+    ) -> UpdateUsersResponse:
         return self._users.update_users_partial(users=users, **kwargs)
 
     # self.chat = ChatClient(
-        #     api_key=api_key, base_url="https://chat.stream-io-api.com", token=token
-        # )
+    #     api_key=api_key, base_url="https://chat.stream-io-api.com", token=token
+    # )
