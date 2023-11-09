@@ -8,8 +8,7 @@ from getstream.chat.models.update_users_response import UpdateUsersResponse
 from getstream.chat.models.users_response import UsersResponse
 from getstream.models.user_request import UserRequest
 from getstream.users.sync.client import UsersClient
-
-# from getstream.chat.sync import ChatClient
+import warnings
 
 from functools import cached_property
 
@@ -148,6 +147,10 @@ class Stream(BaseStream):
         delete_conversation_channels: Optional[bool] = None,
         **kwargs,
     ) -> DeleteUserResponse:
+        warnings.warn(
+            "This method is deprecated. Please use delete_users instead.",
+            DeprecationWarning,
+        )
         """
         Delete a user
         user_id: The ID of the user to delete
