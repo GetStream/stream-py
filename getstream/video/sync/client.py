@@ -651,8 +651,6 @@ class Call:
 
     def query_members(
         self,
-        type: str,
-        id: str,
         filter_conditions: Optional[Dict[str, object]] = None,
         limit: Optional[int] = None,
         next: Optional[str] = None,
@@ -664,8 +662,8 @@ class Call:
         Query call members
         """
         return self._client.query_members(
-            type=type,
-            id=id,
+            type=self._call_type,
+            id=self._call_id,
             filter_conditions=filter_conditions,
             limit=limit,
             next=next,

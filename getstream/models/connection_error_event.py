@@ -5,7 +5,7 @@ from dataclasses_json import config, dataclass_json
 from datetime import datetime
 from dateutil.parser import parse
 from marshmallow import fields
-from getstream.models.api_error import Apierror
+from getstream.models.api_error import ApiError
 
 
 @dataclass_json
@@ -19,6 +19,6 @@ class ConnectionErrorEvent:
             mm_field=fields.DateTime(format="iso"),
         )
     )
-    error: Apierror = field(metadata=config(field_name="error"))
+    error: ApiError = field(metadata=config(field_name="error"))
     type: str = field(metadata=config(field_name="type"))
     connection_id: str = field(metadata=config(field_name="connection_id"))
