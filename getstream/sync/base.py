@@ -1,3 +1,4 @@
+import gzip
 import json
 from typing import Any, Dict, Optional, Type, get_origin
 from getstream.stream_response import StreamResponse
@@ -77,14 +78,27 @@ class BaseClient(BaseConfig, ABC):
     def patch(
         self,
         path,
+        data,
         data_type: Optional[Type[T]] = None,
         path_params: Optional[Dict[str, str]] = None,
         query_params: Optional[Dict[str, str]] = None,
         *args,
         **kwargs,
     ) -> StreamResponse[T]:
+        if data:
+            compressed_data = gzip.compress(json.dumps(data).encode())
+            headers = {"Content-Encoding": "gzip", "Accept-Encoding": "gzip, deflate"}
+        else:
+            compressed_data = None
+            headers = {"Accept-Encoding": "gzip, deflate"}
+
         response = self.client.patch(
-            build_path(path, path_params), params=query_params, *args, **kwargs
+            build_path(path, path_params),
+            content=compressed_data,
+            headers=headers,
+            params=query_params,
+            *args,
+            **kwargs,
         )
         return self._parse_response(response, data_type or Dict[str, Any])
 
@@ -97,22 +111,51 @@ class BaseClient(BaseConfig, ABC):
         *args,
         **kwargs,
     ) -> StreamResponse[T]:
+        headers = {
+            "Accept-Encoding": "gzip, deflate"
+        }  # Header to accept gzip-compressed responses
+
         response = self.client.get(
-            build_path(path, path_params), params=query_params, *args, **kwargs
+            build_path(path, path_params),
+            headers=headers,
+            params=query_params,
+            *args,
+            **kwargs,
         )
         return self._parse_response(response, data_type or Dict[str, Any])
 
     def post(
         self,
         path,
+        data,
         data_type: Optional[Type[T]] = None,
         path_params: Optional[Dict[str, str]] = None,
         query_params: Optional[Dict[str, str]] = None,
         *args,
         **kwargs,
     ) -> StreamResponse[T]:
+        # Compress data if it's not None or empty
+        if data:
+            compressed_data = gzip.compress(json.dumps(data).encode())
+            headers = {
+                "Content-Encoding": "gzip",
+                "Accept-Encoding": "gzip, deflate",
+                # Add other headers if necessary
+            }
+        else:
+            compressed_data = None
+            headers = {
+                "Accept-Encoding": "gzip, deflate",
+                # Add other headers if necessary
+            }
+
         response = self.client.post(
-            build_path(path, path_params), params=query_params, *args, **kwargs
+            build_path(path, path_params),
+            content=compressed_data,
+            headers=headers,
+            params=query_params,
+            *args,
+            **kwargs,
         )
 
         return self._parse_response(response, data_type or Dict[str, Any])
@@ -120,28 +163,54 @@ class BaseClient(BaseConfig, ABC):
     def put(
         self,
         path,
+        data,
         data_type: Optional[Type[T]] = None,
         path_params: Optional[Dict[str, str]] = None,
         query_params: Optional[Dict[str, str]] = None,
         *args,
         **kwargs,
     ) -> StreamResponse[T]:
+        if data:
+            compressed_data = gzip.compress(json.dumps(data).encode())
+            headers = {"Content-Encoding": "gzip", "Accept-Encoding": "gzip, deflate"}
+        else:
+            compressed_data = None
+            headers = {"Accept-Encoding": "gzip, deflate"}
+
         response = self.client.put(
-            build_path(path, path_params), params=query_params, *args, **kwargs
+            build_path(path, path_params),
+            content=compressed_data,
+            headers=headers,
+            params=query_params,
+            *args,
+            **kwargs,
         )
         return self._parse_response(response, data_type or Dict[str, Any])
 
     def delete(
         self,
         path,
+        data,
         data_type: Optional[Type[T]] = None,
         path_params: Optional[Dict[str, str]] = None,
         query_params: Optional[Dict[str, str]] = None,
         *args,
         **kwargs,
     ) -> StreamResponse[T]:
+        if data:
+            compressed_data = gzip.compress(json.dumps(data).encode())
+            headers = {"Content-Encoding": "gzip", "Accept-Encoding": "gzip, deflate"}
+        else:
+            compressed_data = None
+            headers = {"Accept-Encoding": "gzip, deflate"}
+
         response = self.client.delete(
-            build_path(path, path_params), params=query_params, *args, **kwargs
+            build_path(path, path_params),
+            content=compressed_data,
+            headers=headers,
+            params=query_params,
+            *args,
+            **kwargs,
         )
         return self._parse_response(response, data_type or Dict[str, Any])
 
