@@ -113,7 +113,7 @@ class BaseClient(BaseConfig, ABC):
     ) -> StreamResponse[T]:
         headers = {
             "Accept-Encoding": "gzip, deflate"
-        }  # Header to accept gzip-compressed responses
+        } 
 
         response = self.client.get(
             build_path(path, path_params),
@@ -134,19 +134,17 @@ class BaseClient(BaseConfig, ABC):
         *args,
         **kwargs,
     ) -> StreamResponse[T]:
-        # Compress data if it's not None or empty
+        
         if data:
             compressed_data = gzip.compress(json.dumps(data).encode())
             headers = {
                 "Content-Encoding": "gzip",
                 "Accept-Encoding": "gzip, deflate",
-                # Add other headers if necessary
             }
         else:
             compressed_data = None
             headers = {
                 "Accept-Encoding": "gzip, deflate",
-                # Add other headers if necessary
             }
 
         response = self.client.post(
