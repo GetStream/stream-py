@@ -36,6 +36,6 @@ class CallRequest:
     created_by_id: Optional[str] = field(
         metadata=config(field_name="created_by_id"), default=None
     )
-    custom: Optional[Dict[str,]] = field(
+    custom: Optional[object] = field(
         metadata=config(field_name="custom"), default=None
     )

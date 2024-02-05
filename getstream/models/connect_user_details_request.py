@@ -13,7 +13,7 @@ class ConnectUserDetailsRequest:
         metadata=config(field_name="language"), default=None
     )
     name: Optional[str] = field(metadata=config(field_name="name"), default=None)
-    custom: Optional[Dict[str,]] = field(
+    custom: Optional[object] = field(
         metadata=config(field_name="custom"), default=None
     )
     image: Optional[str] = field(metadata=config(field_name="image"), default=None)

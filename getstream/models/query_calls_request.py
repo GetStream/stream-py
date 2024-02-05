@@ -9,7 +9,7 @@ from getstream.models.sort_param_request import SortParamRequest
 @dataclass_json
 @dataclass
 class QueryCallsRequest:
-    filter_conditions: Optional[Dict[str,]] = field(
+    filter_conditions: Optional[object] = field(
         metadata=config(field_name="filter_conditions"), default=None
     )
     limit: Optional[int] = field(metadata=config(field_name="limit"), default=None)

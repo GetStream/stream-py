@@ -2,7 +2,7 @@
 from dataclasses import dataclass, field
 from dataclasses_json import config, dataclass_json
 
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 
 @dataclass_json
@@ -18,6 +18,6 @@ class UserRequest:
     teams: Optional[List[str]] = field(
         metadata=config(field_name="teams"), default=None
     )
-    custom: Optional[Dict[str,]] = field(
+    custom: Optional[object] = field(
         metadata=config(field_name="custom"), default=None
     )

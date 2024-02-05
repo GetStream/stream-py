@@ -20,7 +20,7 @@ class MemberResponse:
             mm_field=fields.DateTime(format="iso"),
         )
     )
-    custom: Dict[str,] = field(metadata=config(field_name="custom"))
+    custom: object = field(metadata=config(field_name="custom"))
     updated_at: datetime = field(
         metadata=config(
             field_name="updated_at",

@@ -15,7 +15,7 @@ class QueryMembersRequest:
     sort: Optional[List[SortParamRequest]] = field(
         metadata=config(field_name="sort"), default=None
     )
-    filter_conditions: Optional[Dict[str,]] = field(
+    filter_conditions: Optional[object] = field(
         metadata=config(field_name="filter_conditions"), default=None
     )
     limit: Optional[int] = field(metadata=config(field_name="limit"), default=None)

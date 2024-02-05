@@ -34,7 +34,7 @@ class CallResponse:
     created_by: UserResponse = field(metadata=config(field_name="created_by"))
     type: str = field(metadata=config(field_name="type"))
     blocked_user_ids: List[str] = field(metadata=config(field_name="blocked_user_ids"))
-    custom: Dict[str,] = field(metadata=config(field_name="custom"))
+    custom: object = field(metadata=config(field_name="custom"))
     id: str = field(metadata=config(field_name="id"))
     ingress: CallIngressResponse = field(metadata=config(field_name="ingress"))
     recording: bool = field(metadata=config(field_name="recording"))

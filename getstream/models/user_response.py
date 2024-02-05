@@ -22,7 +22,7 @@ class UserResponse:
         )
     )
     language: str = field(metadata=config(field_name="language"))
-    custom: Dict[str,] = field(metadata=config(field_name="custom"))
+    custom: object = field(metadata=config(field_name="custom"))
     id: str = field(metadata=config(field_name="id"))
     updated_at: datetime = field(
         metadata=config(

@@ -8,6 +8,6 @@ from typing import Dict, Optional
 @dataclass_json
 @dataclass
 class SendEventRequest:
-    custom: Optional[Dict[str,]] = field(
+    custom: Optional[object] = field(
         metadata=config(field_name="custom"), default=None
     )

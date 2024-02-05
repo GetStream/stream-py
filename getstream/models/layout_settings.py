@@ -11,6 +11,6 @@ class LayoutSettings:
     external_app_url: str = field(metadata=config(field_name="external_app_url"))
     external_css_url: str = field(metadata=config(field_name="external_css_url"))
     name: str = field(metadata=config(field_name="name"))
-    options: Optional[Dict[str,]] = field(
+    options: Optional[object] = field(
         metadata=config(field_name="options"), default=None
     )
