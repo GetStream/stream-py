@@ -1,3 +1,18 @@
+from getstream.models.azure_request import AzureRequest
+from getstream.models.check_external_storage_response import (
+    CheckExternalStorageResponse,
+)
+from getstream.models.create_external_storage_response import (
+    CreateExternalStorageResponse,
+)
+from getstream.models.delete_external_storage_response import (
+    DeleteExternalStorageResponse,
+)
+from getstream.models.list_external_storage_response import ListExternalStorageResponse
+from getstream.models.s_3_request import S3Request
+from getstream.models.update_external_storage_response import (
+    UpdateExternalStorageResponse,
+)
 from getstream.stream_response import StreamResponse
 from typing import Optional, List, Dict
 from datetime import datetime
@@ -209,6 +224,7 @@ class VideoClient(VideoBaseClient):
         start_hls: Optional[bool] = None,
         start_recording: Optional[bool] = None,
         start_transcription: Optional[bool] = None,
+        recording_storage_name: Optional[str] = None,
         **kwargs
     ) -> StreamResponse[GoLiveResponse]:
         """
@@ -220,6 +236,7 @@ class VideoClient(VideoBaseClient):
             start_hls=start_hls,
             start_recording=start_recording,
             start_transcription=start_transcription,
+            recording_storage_name=recording_storage_name,
             **kwargs,
         )
 
@@ -351,7 +368,11 @@ class VideoClient(VideoBaseClient):
         )
 
     def start_recording(
-        self, call_type: str, call_id: str, **kwargs
+        self,
+        call_type: str,
+        call_id: str,
+        recording_storage: Optional[str] = None,
+        **kwargs
     ) -> StreamResponse[StartRecordingResponse]:
         """
         Start recording
@@ -359,6 +380,7 @@ class VideoClient(VideoBaseClient):
         return super().start_recording(
             call_type=call_type,
             call_id=call_id,
+            recording_storage=recording_storage,
             **kwargs,
         )
 
@@ -800,6 +822,82 @@ class Call:
             ring=ring,
             **kwargs,
         )
+
+    def list_external_storage(
+        self, **kwargs
+    ) -> StreamResponse[ListExternalStorageResponse]:
+        """
+        List external storage
+        """
+        return self._client.list_external_storage(self._type, self._id, **kwargs)
+
+    def create_external_storage(
+        self,
+        storage_type: str,
+        bucket: str,
+        name: str,
+        aws_s3: Optional[S3Request] = None,
+        azure_blob: Optional[AzureRequest] = None,
+        gcs_credentials: Optional[str] = None,
+        path: Optional[str] = None,
+        **kwargs
+    ) -> StreamResponse[CreateExternalStorageResponse]:
+        """
+        Create external storage
+        """
+        return self._client.create_external_storage(
+            self._type,
+            self._id,
+            storage_type=storage_type,
+            bucket=bucket,
+            name=name,
+            aws_s3=aws_s3,
+            azure_blob=azure_blob,
+            gcs_credentials=gcs_credentials,
+            path=path,
+            **kwargs,
+        )
+
+    def delete_external_storage(
+        self, **kwargs
+    ) -> StreamResponse[DeleteExternalStorageResponse]:
+        """
+        Delete external storage
+        """
+        return self._client.delete_external_storage(self._type, self._id, **kwargs)
+
+    def update_external_storage(
+        self,
+        bucket: str,
+        storage_type: str,
+        azure_blob: Optional[AzureRequest] = None,
+        gcs_credentials: Optional[str] = None,
+        path: Optional[str] = None,
+        aws_s3: Optional[S3Request] = None,
+        **kwargs
+    ) -> StreamResponse[UpdateExternalStorageResponse]:
+        """
+        Update External Storage
+        """
+        return self._client.update_external_storage(
+            self._type,
+            self._id,
+            bucket=bucket,
+            storage_type=storage_type,
+            azure_blob=azure_blob,
+            gcs_credentials=gcs_credentials,
+            path=path,
+            aws_s3=aws_s3,
+            **kwargs,
+        )
+
+    def check_external_storage(
+        self, **kwargs
+    ) -> StreamResponse[CheckExternalStorageResponse]:
+        """
+        Check External Storage
+        """
+        return self._client.check_external_storage(self._type, self._id, **kwargs)
 
     def end(self, **kwargs) -> StreamResponse[EndCallResponse]:
         """

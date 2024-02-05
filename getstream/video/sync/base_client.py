@@ -1,4 +1,19 @@
 # THIS FILE IS GENERATED FROM github.com/GetStream/protocol/tree/main/openapi-gen/templates/python/client.tmpl
+from getstream.models.azure_request import AzureRequest
+from getstream.models.check_external_storage_response import (
+    CheckExternalStorageResponse,
+)
+from getstream.models.create_external_storage_response import (
+    CreateExternalStorageResponse,
+)
+from getstream.models.delete_external_storage_response import (
+    DeleteExternalStorageResponse,
+)
+from getstream.models.list_external_storage_response import ListExternalStorageResponse
+from getstream.models.s_3_request import S3Request
+from getstream.models.update_external_storage_response import (
+    UpdateExternalStorageResponse,
+)
 from getstream.stream_response import StreamResponse
 from getstream.sync.base import BaseClient
 from typing import Optional, List, Dict
@@ -272,6 +287,7 @@ class VideoBaseClient(BaseClient):
         start_hls: Optional[bool] = None,
         start_recording: Optional[bool] = None,
         start_transcription: Optional[bool] = None,
+        recording_storage_name: Optional[str] = None,
         **kwargs
     ) -> StreamResponse[GoLiveResponse]:
         """
@@ -284,6 +300,8 @@ class VideoBaseClient(BaseClient):
         path_params["call_id"] = call_id
         if start_hls is not None:
             json["start_hls"] = start_hls
+        if recording_storage_name is not None:
+            json["recording_storage_name"] = recording_storage_name
         if start_recording is not None:
             json["start_recording"] = start_recording
         if start_transcription is not None:
@@ -344,6 +362,140 @@ class VideoBaseClient(BaseClient):
             query_params=query_params,
             path_params=path_params,
             json=json,
+        )
+
+    def list_external_storage(
+        self, **kwargs
+    ) -> StreamResponse[ListExternalStorageResponse]:
+        """
+        List external storage
+        """
+        query_params = {}
+        path_params = {}
+        for key, value in kwargs.items():
+            query_params[key] = value
+
+        return self.get(
+            "/video/external_storage",
+            ListExternalStorageResponse,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
+    def create_external_storage(
+        self,
+        name: str,
+        storage_type: str,
+        bucket: str,
+        path: Optional[str] = None,
+        aws_s3: Optional[S3Request] = None,
+        azure_blob: Optional[AzureRequest] = None,
+        gcs_credentials: Optional[str] = None,
+        **kwargs
+    ) -> StreamResponse[CreateExternalStorageResponse]:
+        """
+        Create external storage
+        """
+        query_params = {}
+        path_params = {}
+        json = {}
+        json["name"] = name
+        json["storage_type"] = storage_type
+        json["bucket"] = bucket
+        if path is not None:
+            json["path"] = path
+        if aws_s3 is not None:
+            json["aws_s3"] = aws_s3.to_dict()
+        if azure_blob is not None:
+            json["azure_blob"] = azure_blob.to_dict()
+        if gcs_credentials is not None:
+            json["gcs_credentials"] = gcs_credentials
+        for key, value in kwargs.items():
+            query_params[key] = value
+
+        return self.post(
+            "/call/external_storage",
+            CreateExternalStorageResponse,
+            query_params=query_params,
+            path_params=path_params,
+            json=json,
+        )
+
+    def delete_external_storage(
+        self, name: str, **kwargs
+    ) -> StreamResponse[DeleteExternalStorageResponse]:
+        """
+        Delete external storage
+        """
+        query_params = {}
+        path_params = {}
+        path_params["name"] = name
+        for key, value in kwargs.items():
+            query_params[key] = value
+
+        return self.delete(
+            "/call/external_storage/{name}",
+            DeleteExternalStorageResponse,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
+    def update_external_storage(
+        self,
+        name: str,
+        storage_type: str,
+        bucket: str,
+        path: Optional[str] = None,
+        aws_s3: Optional[S3Request] = None,
+        azure_blob: Optional[AzureRequest] = None,
+        gcs_credentials: Optional[str] = None,
+        **kwargs
+    ) -> StreamResponse[UpdateExternalStorageResponse]:
+        """
+        Update External Storage
+        """
+        query_params = {}
+        path_params = {}
+        json = {}
+        path_params["name"] = name
+        json["storage_type"] = storage_type
+        json["bucket"] = bucket
+        if path is not None:
+            json["path"] = path
+        if aws_s3 is not None:
+            json["aws_s3"] = aws_s3.to_dict()
+        if azure_blob is not None:
+            json["azure_blob"] = azure_blob.to_dict()
+        if gcs_credentials is not None:
+            json["gcs_credentials"] = gcs_credentials
+        for key, value in kwargs.items():
+            query_params[key] = value
+
+        return self.put(
+            "/call/external_storage/{name}",
+            UpdateExternalStorageResponse,
+            query_params=query_params,
+            path_params=path_params,
+            json=json,
+        )
+
+    def check_external_storage(
+        self, name: str, **kwargs
+    ) -> StreamResponse[CheckExternalStorageResponse]:
+        """
+        Check External Storage
+        """
+        query_params = {}
+        path_params = {}
+        path_params["name"] = name
+        for key, value in kwargs.items():
+            query_params[key] = value
+
+        return self.get(
+            "/call/external_storage/{name}/check",
+            CheckExternalStorageResponse,
+            query_params=query_params,
+            path_params=path_params,
         )
 
     def end_call(
@@ -505,23 +657,32 @@ class VideoBaseClient(BaseClient):
         )
 
     def start_recording(
-        self, call_type: str, call_id: str, **kwargs
+        self,
+        call_type: str,
+        call_id: str,
+        recording_external_storage: Optional[str] = None,
+        **kwargs
     ) -> StreamResponse[StartRecordingResponse]:
         """
         Start recording
         """
         query_params = {}
         path_params = {}
+        json = {}
         path_params["call_type"] = call_type
         path_params["call_id"] = call_id
         for key, value in kwargs.items():
             query_params[key] = value
+
+        if recording_external_storage is not None:
+            json["recording_storage_name"] = recording_external_storage
 
         return self.post(
             "/call/{call_type}/{call_id}/start_recording",
             StartRecordingResponse,
             query_params=query_params,
             path_params=path_params,
+            json=json,
         )
 
     def start_transcription(
