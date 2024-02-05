@@ -2,7 +2,7 @@
 from dataclasses import dataclass, field
 from dataclasses_json import config, dataclass_json
 
-from typing import Dict, List, Optional
+from typing import List, Optional
 from datetime import datetime
 from dateutil.parser import parse
 from marshmallow import fields
@@ -36,6 +36,4 @@ class CallRequest:
     created_by_id: Optional[str] = field(
         metadata=config(field_name="created_by_id"), default=None
     )
-    custom: Optional[object] = field(
-        metadata=config(field_name="custom"), default=None
-    )
+    custom: Optional[object] = field(metadata=config(field_name="custom"), default=None)

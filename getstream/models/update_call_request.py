@@ -12,9 +12,7 @@ from getstream.models.call_settings_request import CallSettingsRequest
 @dataclass_json
 @dataclass
 class UpdateCallRequest:
-    custom: Optional[object] = field(
-        metadata=config(field_name="custom"), default=None
-    )
+    custom: Optional[object] = field(metadata=config(field_name="custom"), default=None)
     settings_override: Optional[CallSettingsRequest] = field(
         metadata=config(field_name="settings_override"), default=None
     )

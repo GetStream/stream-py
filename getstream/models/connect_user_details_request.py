@@ -2,7 +2,7 @@
 from dataclasses import dataclass, field
 from dataclasses_json import config, dataclass_json
 
-from typing import Dict, Optional
+from typing import Optional
 
 
 @dataclass_json
@@ -13,7 +13,5 @@ class ConnectUserDetailsRequest:
         metadata=config(field_name="language"), default=None
     )
     name: Optional[str] = field(metadata=config(field_name="name"), default=None)
-    custom: Optional[object] = field(
-        metadata=config(field_name="custom"), default=None
-    )
+    custom: Optional[object] = field(metadata=config(field_name="custom"), default=None)
     image: Optional[str] = field(metadata=config(field_name="image"), default=None)

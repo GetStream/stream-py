@@ -2,7 +2,7 @@
 from dataclasses import dataclass, field
 from dataclasses_json import config, dataclass_json
 
-from typing import Dict, List, Optional
+from typing import List, Optional
 from datetime import datetime
 from dateutil.parser import parse
 from marshmallow import fields
