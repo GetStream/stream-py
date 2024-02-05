@@ -9,6 +9,12 @@ from typing import Optional
 @dataclass
 class AudioSettingsRequest:
     default_device: str = field(metadata=config(field_name="default_device"))
+    redundant_coding_enabled: Optional[bool] = field(
+        metadata=config(field_name="redundant_coding_enabled"), default=None
+    )
+    speaker_default_on: Optional[bool] = field(
+        metadata=config(field_name="speaker_default_on"), default=None
+    )
     access_request_enabled: Optional[bool] = field(
         metadata=config(field_name="access_request_enabled"), default=None
     )
@@ -17,10 +23,4 @@ class AudioSettingsRequest:
     )
     opus_dtx_enabled: Optional[bool] = field(
         metadata=config(field_name="opus_dtx_enabled"), default=None
-    )
-    redundant_coding_enabled: Optional[bool] = field(
-        metadata=config(field_name="redundant_coding_enabled"), default=None
-    )
-    speaker_default_on: Optional[bool] = field(
-        metadata=config(field_name="speaker_default_on"), default=None
     )

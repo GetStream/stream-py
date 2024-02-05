@@ -15,24 +15,15 @@ class CallSessionResponse:
     participants_count_by_role: Dict[str, int] = field(
         metadata=config(field_name="participants_count_by_role")
     )
-    id: str = field(metadata=config(field_name="id"))
+    accepted_by: Dict[str, datetime] = field(metadata=config(field_name="accepted_by"))
     participants: List[CallParticipantResponse] = field(
         metadata=config(field_name="participants")
     )
     rejected_by: Dict[str, datetime] = field(metadata=config(field_name="rejected_by"))
-    accepted_by: Dict[str, datetime] = field(metadata=config(field_name="accepted_by"))
-    live_started_at: Optional[datetime] = field(
+    id: str = field(metadata=config(field_name="id"))
+    ended_at: Optional[datetime] = field(
         metadata=config(
-            field_name="live_started_at",
-            encoder=lambda d: d.isoformat() if d is not None else None,
-            decoder=parse,
-            mm_field=fields.DateTime(format="iso"),
-        ),
-        default=None,
-    )
-    started_at: Optional[datetime] = field(
-        metadata=config(
-            field_name="started_at",
+            field_name="ended_at",
             encoder=lambda d: d.isoformat() if d is not None else None,
             decoder=parse,
             mm_field=fields.DateTime(format="iso"),
@@ -48,9 +39,18 @@ class CallSessionResponse:
         ),
         default=None,
     )
-    ended_at: Optional[datetime] = field(
+    live_started_at: Optional[datetime] = field(
         metadata=config(
-            field_name="ended_at",
+            field_name="live_started_at",
+            encoder=lambda d: d.isoformat() if d is not None else None,
+            decoder=parse,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+        default=None,
+    )
+    started_at: Optional[datetime] = field(
+        metadata=config(
+            field_name="started_at",
             encoder=lambda d: d.isoformat() if d is not None else None,
             decoder=parse,
             mm_field=fields.DateTime(format="iso"),

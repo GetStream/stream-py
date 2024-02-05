@@ -8,6 +8,9 @@ from typing import Optional
 @dataclass_json
 @dataclass
 class GoLiveRequest:
+    recording_storage_name: Optional[str] = field(
+        metadata=config(field_name="recording_storage_name"), default=None
+    )
     start_hls: Optional[bool] = field(
         metadata=config(field_name="start_hls"), default=None
     )

@@ -9,6 +9,7 @@ from getstream.models.user_request import UserRequest
 @dataclass_json
 @dataclass
 class CreateDeviceRequest:
+    id: Optional[str] = field(metadata=config(field_name="id"), default=None)
     push_provider: Optional[str] = field(
         metadata=config(field_name="push_provider"), default=None
     )
@@ -22,4 +23,3 @@ class CreateDeviceRequest:
     voip_token: Optional[bool] = field(
         metadata=config(field_name="voip_token"), default=None
     )
-    id: Optional[str] = field(metadata=config(field_name="id"), default=None)

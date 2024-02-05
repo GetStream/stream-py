@@ -2,7 +2,7 @@
 from dataclasses import dataclass, field
 from dataclasses_json import config, dataclass_json
 
-from typing import Dict, Optional
+from typing import Optional
 from datetime import datetime
 from dateutil.parser import parse
 from marshmallow import fields
@@ -12,7 +12,7 @@ from getstream.models.call_settings_request import CallSettingsRequest
 @dataclass_json
 @dataclass
 class UpdateCallRequest:
-    custom: Optional[Dict[str, object]] = field(
+    custom: Optional[Dict[str,]] = field(
         metadata=config(field_name="custom"), default=None
     )
     settings_override: Optional[CallSettingsRequest] = field(

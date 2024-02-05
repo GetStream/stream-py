@@ -8,6 +8,9 @@ from typing import List, Optional
 @dataclass_json
 @dataclass
 class MuteUsersRequest:
+    screenshare: Optional[bool] = field(
+        metadata=config(field_name="screenshare"), default=None
+    )
     screenshare_audio: Optional[bool] = field(
         metadata=config(field_name="screenshare_audio"), default=None
     )
@@ -18,7 +21,4 @@ class MuteUsersRequest:
     audio: Optional[bool] = field(metadata=config(field_name="audio"), default=None)
     mute_all_users: Optional[bool] = field(
         metadata=config(field_name="mute_all_users"), default=None
-    )
-    screenshare: Optional[bool] = field(
-        metadata=config(field_name="screenshare"), default=None
     )
