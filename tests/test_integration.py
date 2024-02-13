@@ -103,11 +103,11 @@ def test_should_be_able_to_create_external_storage(client: Stream):
         ),
     )
 
-# def test_should_be_able_to_list_external_storage(client: Stream):
-#     response = client.video.list_external_storage()
-#     assert 'my-s3' in response.data().external_storages
-#     assert response.data().external_storages['my-s3'].bucket == 'my-bucket'
-#     assert response.data().external_storages['my-s3'].path == 'directory_name/'
+def test_should_be_able_to_list_external_storage(client: Stream):
+    response = client.video.list_external_storage()
+    assert 'my-s3' in response.data().external_storages
+    assert response.data().external_storages['my-s3'].bucket == 'my-bucket'
+    assert response.data().external_storages['my-s3'].path == 'directory_name/'
 
 # def test_should_be_able_to_update_external_storage(client: Stream):
 #     client.video.update_external_storage('my-s3', 
@@ -130,10 +130,10 @@ def test_should_be_able_to_create_external_storage(client: Stream):
 #     assert response.data().external_storages['my-s3'].bucket == 'my-bucket'
 #     assert response.data().external_storages['my-s3'].path == 'directory_name/subdirectory/'
 
-# def test_should_be_able_to_delete_external_storage(client:Stream):
-    # client.video.delete_external_storage('my-s3')
-    # response = client.video.list_external_storage()
-    # assert 'my-s3' not in response.data().external_storages.keys()
+def test_should_be_able_to_delete_external_storage(client:Stream):
+    client.video.delete_external_storage('my-s3')
+    response = client.video.list_external_storage()
+    assert 'my-s3' not in response.data().external_storages.keys()
                                                    
 def test_create_call_type(client: Stream):
     response = client.video.create_call_type(
