@@ -567,6 +567,7 @@ class VideoClient(VideoBaseClient):
         name: str,
         grants: Optional[Dict[str, List[str]]] = None,
         notification_settings: Optional[NotificationSettingsRequest] = None,
+        external_storage: Optional[str] = None,
         settings: Optional[CallSettingsRequest] = None,
         **kwargs
     ) -> StreamResponse[UpdateCallTypeResponse]:
@@ -577,6 +578,7 @@ class VideoClient(VideoBaseClient):
             name=name,
             grants=grants,
             notification_settings=notification_settings,
+            external_storage=external_storage,
             settings=settings,
             **kwargs,
         )
@@ -822,82 +824,6 @@ class Call:
             ring=ring,
             **kwargs,
         )
-
-    def list_external_storage(
-        self, **kwargs
-    ) -> StreamResponse[ListExternalStorageResponse]:
-        """
-        List external storage
-        """
-        return self._client.list_external_storage(self._type, self._id, **kwargs)
-
-    def create_external_storage(
-        self,
-        storage_type: str,
-        bucket: str,
-        name: str,
-        aws_s3: Optional[S3Request] = None,
-        azure_blob: Optional[AzureRequest] = None,
-        gcs_credentials: Optional[str] = None,
-        path: Optional[str] = None,
-        **kwargs
-    ) -> StreamResponse[CreateExternalStorageResponse]:
-        """
-        Create external storage
-        """
-        return self._client.create_external_storage(
-            self._type,
-            self._id,
-            storage_type=storage_type,
-            bucket=bucket,
-            name=name,
-            aws_s3=aws_s3,
-            azure_blob=azure_blob,
-            gcs_credentials=gcs_credentials,
-            path=path,
-            **kwargs,
-        )
-
-    def delete_external_storage(
-        self, **kwargs
-    ) -> StreamResponse[DeleteExternalStorageResponse]:
-        """
-        Delete external storage
-        """
-        return self._client.delete_external_storage(self._type, self._id, **kwargs)
-
-    def update_external_storage(
-        self,
-        bucket: str,
-        storage_type: str,
-        azure_blob: Optional[AzureRequest] = None,
-        gcs_credentials: Optional[str] = None,
-        path: Optional[str] = None,
-        aws_s3: Optional[S3Request] = None,
-        **kwargs
-    ) -> StreamResponse[UpdateExternalStorageResponse]:
-        """
-        Update External Storage
-        """
-        return self._client.update_external_storage(
-            self._type,
-            self._id,
-            bucket=bucket,
-            storage_type=storage_type,
-            azure_blob=azure_blob,
-            gcs_credentials=gcs_credentials,
-            path=path,
-            aws_s3=aws_s3,
-            **kwargs,
-        )
-
-    def check_external_storage(
-        self, **kwargs
-    ) -> StreamResponse[CheckExternalStorageResponse]:
-        """
-        Check External Storage
-        """
-        return self._client.check_external_storage(self._type, self._id, **kwargs)
 
     def end(self, **kwargs) -> StreamResponse[EndCallResponse]:
         """

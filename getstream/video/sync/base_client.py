@@ -376,7 +376,7 @@ class VideoBaseClient(BaseClient):
             query_params[key] = value
 
         return self.get(
-            "/video/external_storage",
+            "/external_storage",
             ListExternalStorageResponse,
             query_params=query_params,
             path_params=path_params,
@@ -414,7 +414,7 @@ class VideoBaseClient(BaseClient):
             query_params[key] = value
 
         return self.post(
-            "/call/external_storage",
+            "/external_storage",
             CreateExternalStorageResponse,
             query_params=query_params,
             path_params=path_params,
@@ -434,7 +434,7 @@ class VideoBaseClient(BaseClient):
             query_params[key] = value
 
         return self.delete(
-            "/call/external_storage/{name}",
+            "/external_storage/{name}",
             DeleteExternalStorageResponse,
             query_params=query_params,
             path_params=path_params,
@@ -472,7 +472,7 @@ class VideoBaseClient(BaseClient):
             query_params[key] = value
 
         return self.put(
-            "/call/external_storage/{name}",
+            "/external_storage/{name}",
             UpdateExternalStorageResponse,
             query_params=query_params,
             path_params=path_params,
@@ -492,7 +492,7 @@ class VideoBaseClient(BaseClient):
             query_params[key] = value
 
         return self.get(
-            "/call/external_storage/{name}/check",
+            "/external_storage/{name}/check",
             CheckExternalStorageResponse,
             query_params=query_params,
             path_params=path_params,
@@ -994,6 +994,7 @@ class VideoBaseClient(BaseClient):
         grants: Optional[Dict[str, List[str]]] = None,
         notification_settings: Optional[NotificationSettingsRequest] = None,
         settings: Optional[CallSettingsRequest] = None,
+        external_storage: Optional[str] = None,
         **kwargs
     ) -> StreamResponse[UpdateCallTypeResponse]:
         """
@@ -1009,6 +1010,8 @@ class VideoBaseClient(BaseClient):
             json["notification_settings"] = notification_settings.to_dict()
         if settings is not None:
             json["settings"] = settings.to_dict()
+        if external_storage is not None:
+            json["external_storage"] = external_storage
         for key, value in kwargs.items():
             json[key] = value
 
