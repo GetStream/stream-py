@@ -77,14 +77,14 @@ def test_create_token_with_expiration(client: Stream):
 def test_creating_storage_with_reserved_name_should_fail(client: Stream):
     with pytest.raises(Exception) as exc_info:
         client.video.create_external_storage(
-            bucket='my-bucket',
-            name='stream-s3',
-            storage_type='s3',
-            path='directory_name/',
+            bucket="my-bucket",
+            name="stream-s3",
+            storage_type="s3",
+            path="directory_name/",
             aws_s3=S3Request(
-                s3_region='us-east-1',
-                s3_api_key='my-access-key',
-                s3_secret='my-secret',
+                s3_region="us-east-1",
+                s3_api_key="my-access-key",
+                s3_secret="my-secret",
             ),
         )
     assert "stream-s3 name reserved for internal use" in str(exc_info.value)
@@ -92,49 +92,57 @@ def test_creating_storage_with_reserved_name_should_fail(client: Stream):
 
 def test_should_be_able_to_create_external_storage(client: Stream):
     client.video.create_external_storage(
-        bucket='my-bucket',
-        name='my-s3',
-        storage_type='s3',
-        path='directory_name/',
+        bucket="my-bucket",
+        name="my-s3",
+        storage_type="s3",
+        path="directory_name/",
         aws_s3=S3Request(
-            s3_region='us-east-1',
-            s3_api_key='my-access-key',
-            s3_secret='my-secret',
+            s3_region="us-east-1",
+            s3_api_key="my-access-key",
+            s3_secret="my-secret",
         ),
     )
 
+
 def test_should_be_able_to_list_external_storage(client: Stream):
     response = client.video.list_external_storage()
-    assert 'my-s3' in response.data().external_storages
-    assert response.data().external_storages['my-s3'].bucket == 'my-bucket'
-    assert response.data().external_storages['my-s3'].path == 'directory_name/'
+    assert "my-s3" in response.data().external_storages
+    assert response.data().external_storages["my-s3"].bucket == "my-bucket"
+    assert response.data().external_storages["my-s3"].path == "directory_name/"
+
 
 # def test_should_be_able_to_update_external_storage(client: Stream):
-#     client.video.update_external_storage('my-s3', 
-#         bucket= 'my-bucket',
-#         storage_type= 's3',
-#         path= 'directory_name/subdirectory/',
-#         aws_s3= S3Request(
-#             s3_region='us-east-1',
-#             s3_api_key='my-access-key',
-#             s3_secret='my-secret',
+#     client.video.update_external_storage(
+#         "my-s3",
+#         bucket="my-bucket",
+#         storage_type="s3",
+#         path="directory_name/subdirectory/",
+#         aws_s3=S3Request(
+#             s3_region="us-east-1",
+#             s3_api_key="my-access-key",
+#             s3_secret="my-secret",
 #         ),
 #     )
 
-#     client.video.update_call_type('default', external_storage='my-s3')
-#     response = client.video.get_call_type('default')
-#     assert response.data().settings.external_storage == 'my-s3'
+#     client.video.update_call_type("default", external_storage="my-s3")
+#     response = client.video.get_call_type("default")
+#     assert response.data().settings.external_storage == "my-s3"
 
 #     response = client.video.list_external_storage()
-#     assert 'my-s3' in response.data().external_storages
-#     assert response.data().external_storages['my-s3'].bucket == 'my-bucket'
-#     assert response.data().external_storages['my-s3'].path == 'directory_name/subdirectory/'
+#     assert "my-s3" in response.data().external_storages
+#     assert response.data().external_storages["my-s3"].bucket == "my-bucket"
+#     assert (
+#         response.data().external_storages["my-s3"].path
+#         == "directory_name/subdirectory/"
+#     )
 
-def test_should_be_able_to_delete_external_storage(client:Stream):
-    client.video.delete_external_storage('my-s3')
+
+def test_should_be_able_to_delete_external_storage(client: Stream):
+    client.video.delete_external_storage("my-s3")
     response = client.video.list_external_storage()
-    assert 'my-s3' not in response.data().external_storages.keys()
-                                                   
+    assert "my-s3" not in response.data().external_storages.keys()
+
+
 def test_create_call_type(client: Stream):
     response = client.video.create_call_type(
         name=CALL_TYPE_NAME,

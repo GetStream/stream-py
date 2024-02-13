@@ -34,4 +34,6 @@ class CallSettingsResponse:
         metadata=config(field_name="transcription")
     )
     video: VideoSettings = field(metadata=config(field_name="video"))
-    external_storage: Optional[str] = field(metadata=config(field_name="external_storage"), default=None)
+    external_storage: Optional[str] = field(
+        metadata=config(field_name="external_storage"), default=None
+    )
