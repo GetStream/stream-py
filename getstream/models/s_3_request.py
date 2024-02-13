@@ -8,10 +8,10 @@ from typing import Optional
 @dataclass_json
 @dataclass
 class S3Request:
-    s_3_region: str = field(metadata=config(field_name="s3_region"))
-    s_3_api_key: Optional[str] = field(
+    s3_region: str = field(metadata=config(field_name="s3_region"))
+    s3_api_key: Optional[str] = field(
         metadata=config(field_name="s3_api_key"), default=None
     )
-    s_3_secret: Optional[str] = field(
+    s3_secret: Optional[str] = field(
         metadata=config(field_name="s3_secret"), default=None
     )

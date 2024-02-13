@@ -1,5 +1,6 @@
 # THIS FILE IS GENERATED FROM github.com/GetStream/protocol/tree/main/openapi-gen/templates/python/type.tmpl
 from dataclasses import dataclass, field
+from typing import Optional
 from dataclasses_json import config, dataclass_json
 
 from getstream.models.audio_settings import AudioSettings
@@ -33,3 +34,4 @@ class CallSettingsResponse:
         metadata=config(field_name="transcription")
     )
     video: VideoSettings = field(metadata=config(field_name="video"))
+    external_storage: Optional[str] = field(metadata=config(field_name="external_storage"), default=None)
