@@ -1,3 +1,4 @@
+from getstream.models.list_transcriptions_response import ListTranscriptionsResponse
 from getstream.stream_response import StreamResponse
 from typing import Optional, List, Dict
 from datetime import datetime
@@ -210,6 +211,7 @@ class VideoClient(VideoBaseClient):
         start_recording: Optional[bool] = None,
         start_transcription: Optional[bool] = None,
         recording_storage_name: Optional[str] = None,
+        transcription_storage_name: Optional[str] = None,
         **kwargs
     ) -> StreamResponse[GoLiveResponse]:
         """
@@ -222,6 +224,7 @@ class VideoClient(VideoBaseClient):
             start_recording=start_recording,
             start_transcription=start_transcription,
             recording_storage_name=recording_storage_name,
+            transcription_storage_name=transcription_storage_name,
             **kwargs,
         )
 
@@ -370,12 +373,30 @@ class VideoClient(VideoBaseClient):
         )
 
     def start_transcription(
-        self, call_type: str, call_id: str, **kwargs
+        self,
+        call_type: str,
+        call_id: str,
+        transcription_external_storage: Optional[str] = None,
+        **kwargs
     ) -> StreamResponse[StartTranscriptionResponse]:
         """
         Start transcription
         """
         return super().start_transcription(
+            call_type=call_type,
+            call_id=call_id,
+            transcription_external_storage=transcription_external_storage,
+            **kwargs,
+        )
+
+    # list_transcriptions
+    def list_transcriptions(
+        self, call_type: str, call_id: str, **kwargs
+    ) -> StreamResponse[ListTranscriptionsResponse]:
+        """
+        List transcriptions
+        """
+        return super().list_transcriptions(
             call_type=call_type,
             call_id=call_id,
             **kwargs,
@@ -516,6 +537,7 @@ class VideoClient(VideoBaseClient):
         grants: Optional[Dict[str, List[str]]] = None,
         notification_settings: Optional[NotificationSettingsRequest] = None,
         settings: Optional[CallSettingsRequest] = None,
+        external_storage: Optional[str] = None,
         **kwargs
     ) -> StreamResponse[CreateCallTypeResponse]:
         """
@@ -526,6 +548,7 @@ class VideoClient(VideoBaseClient):
             grants=grants,
             notification_settings=notification_settings,
             settings=settings,
+            external_storage=external_storage,
             **kwargs,
         )
 
@@ -767,6 +790,8 @@ class Call:
         start_hls: Optional[bool] = None,
         start_recording: Optional[bool] = None,
         start_transcription: Optional[bool] = None,
+        recording_storage_name: Optional[str] = None,
+        transcription_storage_name: Optional[str] = None,
         **kwargs
     ) -> StreamResponse[GoLiveResponse]:
         """
@@ -778,6 +803,8 @@ class Call:
             start_hls=start_hls,
             start_recording=start_recording,
             start_transcription=start_transcription,
+            recording_storage_name=recording_storage_name,
+            transcription_storage_name=transcription_storage_name,
             **kwargs,
         )
 
@@ -894,14 +921,25 @@ class Call:
         """
         return self._client.start_recording(self._call_type, self._call_id, **kwargs)
 
-    def start_transcription(
+    def list_transcriptions(
         self, **kwargs
+    ) -> StreamResponse[ListTranscriptionsResponse]:
+        """
+        List transcriptions
+        """
+        return self._client.list_transcriptions(self._type, self._id, **kwargs)
+
+    def start_transcription(
+        self, transcription_external_storage: Optional[str] = None, **kwargs
     ) -> StreamResponse[StartTranscriptionResponse]:
         """
         Start transcription
         """
         return self._client.start_transcription(
-            self._call_type, self._call_id, **kwargs
+            self._call_type,
+            self._call_id,
+            transcription_external_storage=transcription_external_storage,
+            **kwargs,
         )
 
     def stop_hls_broadcasting(
