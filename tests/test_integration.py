@@ -108,8 +108,13 @@ def test_should_be_able_to_create_external_storage(client: Stream):
 def test_should_be_able_to_list_external_storage(client: Stream):
     response = client.video.list_external_storage()
     assert EXTERNAL_STORAGE_NAME in response.data().external_storages
-    assert response.data().external_storages[EXTERNAL_STORAGE_NAME].bucket == "my-bucket"
-    assert response.data().external_storages[EXTERNAL_STORAGE_NAME].path == "directory_name/"
+    assert (
+        response.data().external_storages[EXTERNAL_STORAGE_NAME].bucket == "my-bucket"
+    )
+    assert (
+        response.data().external_storages[EXTERNAL_STORAGE_NAME].path
+        == "directory_name/"
+    )
 
 
 # def test_should_be_able_to_update_external_storage(client: Stream):
