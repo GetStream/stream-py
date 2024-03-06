@@ -31,6 +31,7 @@ TIMEOUT = 6
 CALL_ID = str(uuid.uuid4())
 CALL_TYPE = "default"
 CALL_TYPE_NAME = f"calltype{uuid.uuid4()}"
+EXTERNAL_STORAGE_NAME = f"storage{uuid.uuid4()}"
 
 
 @pytest.fixture(scope="module")
@@ -93,7 +94,7 @@ def test_creating_storage_with_reserved_name_should_fail(client: Stream):
 def test_should_be_able_to_create_external_storage(client: Stream):
     client.video.create_external_storage(
         bucket="my-bucket",
-        name="my-s3-bis",
+        name=EXTERNAL_STORAGE_NAME,
         storage_type="s3",
         path="directory_name/",
         aws_s3=S3Request(
@@ -106,14 +107,14 @@ def test_should_be_able_to_create_external_storage(client: Stream):
 
 def test_should_be_able_to_list_external_storage(client: Stream):
     response = client.video.list_external_storage()
-    assert "my-s3-bis" in response.data().external_storages
-    assert response.data().external_storages["my-s3-bis"].bucket == "my-bucket"
-    assert response.data().external_storages["my-s3-bis"].path == "directory_name/"
+    assert EXTERNAL_STORAGE_NAME in response.data().external_storages
+    assert response.data().external_storages[EXTERNAL_STORAGE_NAME].bucket == "my-bucket"
+    assert response.data().external_storages[EXTERNAL_STORAGE_NAME].path == "directory_name/"
 
 
 # def test_should_be_able_to_update_external_storage(client: Stream):
 #     client.video.update_external_storage(
-#         "my-s3-bis",
+#         EXTERNAL_STORAGE_NAME,
 #         bucket="my-bucket",
 #         storage_type="s3",
 #         path="directory_name/subdirectory/",
@@ -124,23 +125,23 @@ def test_should_be_able_to_list_external_storage(client: Stream):
 #         ),
 #     )
 
-#     client.video.update_call_type("default", external_storage="my-s3-bis")
+#     client.video.update_call_type("default", external_storage=EXTERNAL_STORAGE_NAME)
 #     response = client.video.get_call_type("default")
-#     assert response.data().settings.external_storage == "my-s3-bis"
+#     assert response.data().settings.external_storage == EXTERNAL_STORAGE_NAME
 
 #     response = client.video.list_external_storage()
-#     assert "my-s3-bis" in response.data().external_storages
-#     assert response.data().external_storages["my-s3-bis"].bucket == "my-bucket"
+#     assert EXTERNAL_STORAGE_NAME in response.data().external_storages
+#     assert response.data().external_storages[EXTERNAL_STORAGE_NAME].bucket == "my-bucket"
 #     assert (
-#         response.data().external_storages["my-s3-bis"].path
+#         response.data().external_storages[EXTERNAL_STORAGE_NAME].path
 #         == "directory_name/subdirectory/"
 #     )
 
 
 def test_should_be_able_to_delete_external_storage(client: Stream):
-    client.video.delete_external_storage("my-s3-bis")
+    client.video.delete_external_storage(name=EXTERNAL_STORAGE_NAME)
     response = client.video.list_external_storage()
-    assert "my-s3-bis" not in response.data().external_storages.keys()
+    assert EXTERNAL_STORAGE_NAME not in response.data().external_storages
 
 
 def test_create_call_type(client: Stream):
