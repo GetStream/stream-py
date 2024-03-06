@@ -10,6 +10,7 @@ from getstream.models.delete_external_storage_response import (
     DeleteExternalStorageResponse,
 )
 from getstream.models.list_external_storage_response import ListExternalStorageResponse
+from getstream.models.list_transcriptions_response import ListTranscriptionsResponse
 from getstream.models.s_3_request import S3Request
 from getstream.models.update_external_storage_response import (
     UpdateExternalStorageResponse,
@@ -288,6 +289,7 @@ class VideoBaseClient(BaseClient):
         start_recording: Optional[bool] = None,
         start_transcription: Optional[bool] = None,
         recording_storage_name: Optional[str] = None,
+        transcription_storage_name: Optional[str] = None,
         **kwargs
     ) -> StreamResponse[GoLiveResponse]:
         """
@@ -302,6 +304,8 @@ class VideoBaseClient(BaseClient):
             json["start_hls"] = start_hls
         if recording_storage_name is not None:
             json["recording_storage_name"] = recording_storage_name
+        if transcription_storage_name is not None:
+            json["transcription_storage_name"] = transcription_storage_name
         if start_recording is not None:
             json["start_recording"] = start_recording
         if start_transcription is not None:
@@ -685,16 +689,43 @@ class VideoBaseClient(BaseClient):
             json=json,
         )
 
+    def list_transcriptions(
+        self, type: str, id: str, **kwargs
+    ) -> StreamResponse[ListTranscriptionsResponse]:
+        """
+        List transcriptions
+        """
+        query_params = {}
+        path_params = {}
+        path_params["type"] = type
+        path_params["id"] = id
+        for key, value in kwargs.items():
+            query_params[key] = value
+
+        return self.get(
+            "/video/call/{type}/{id}/transcriptions",
+            ListTranscriptionsResponse,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
     def start_transcription(
-        self, call_type: str, call_id: str, **kwargs
+        self,
+        call_type: str,
+        call_id: str,
+        transcription_external_storage: Optional[str] = None,
+        **kwargs
     ) -> StreamResponse[StartTranscriptionResponse]:
         """
         Start transcription
         """
         query_params = {}
         path_params = {}
+        json = {}
         path_params["call_type"] = call_type
         path_params["call_id"] = call_id
+        if transcription_external_storage is not None:
+            json["transcription_external_storage"] = transcription_external_storage
         for key, value in kwargs.items():
             query_params[key] = value
 
@@ -703,6 +734,7 @@ class VideoBaseClient(BaseClient):
             StartTranscriptionResponse,
             query_params=query_params,
             path_params=path_params,
+            json=json,
         )
 
     def stop_hls_broadcasting(
@@ -928,6 +960,7 @@ class VideoBaseClient(BaseClient):
         grants: Optional[Dict[str, List[str]]] = None,
         notification_settings: Optional[NotificationSettingsRequest] = None,
         settings: Optional[CallSettingsRequest] = None,
+        external_storage: Optional[str] = None,
         **kwargs
     ) -> StreamResponse[CreateCallTypeResponse]:
         """
@@ -937,6 +970,8 @@ class VideoBaseClient(BaseClient):
         path_params = {}
         json = {}
         json["name"] = name
+        if external_storage is not None:
+            json["external_storage"] = external_storage
         if grants is not None:
             json["grants"] = grants
         if notification_settings is not None:
