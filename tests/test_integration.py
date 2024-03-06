@@ -111,6 +111,7 @@ def test_should_be_able_to_list_external_storage(client: Stream):
     assert (
         response.data().external_storages[EXTERNAL_STORAGE_NAME].bucket == "my-bucket"
     )
+    # fmt: off
     assert (
         response.data().external_storages[EXTERNAL_STORAGE_NAME].path == "directory_name/"
     )
