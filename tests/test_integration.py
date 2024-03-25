@@ -13,7 +13,6 @@ from getstream.models.event_notification_settings_request import (
     EventNotificationSettingsRequest,
 )
 from getstream.models.geofence_settings_request import GeofenceSettingsRequest
-from getstream.models.layout_settings_request import LayoutSettingsRequest
 
 from getstream.models.notification_settings_request import NotificationSettingsRequest
 from getstream.models.own_capability import OwnCapability
