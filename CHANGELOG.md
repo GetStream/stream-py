@@ -1,3 +1,7 @@
+# v0.3.0 (25-03-2023): External Storage and Transcriptions
+- New: Support for external storage endpoints
+- New: Support for transcriptions endpoints
+
 # v0.2.0 (06-12-2023): Support User management endpoints
 
 - New: reactivate_users and deactivate_users
