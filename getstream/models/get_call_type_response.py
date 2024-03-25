@@ -2,18 +2,17 @@
 from dataclasses import dataclass, field
 from dataclasses_json import config, dataclass_json
 
-from typing import List, Dict
+from typing import List, Dict, Optional
 from datetime import datetime
 from dateutil.parser import parse
 from marshmallow import fields
-from getstream.models.call_settings_response import CallSettingsResponse
 from getstream.models.notification_settings import NotificationSettings
+from getstream.models.call_settings_response import CallSettingsResponse
 
 
 @dataclass_json
 @dataclass
 class GetCallTypeResponse:
-    name: str = field(metadata=config(field_name="name"))
     notification_settings: NotificationSettings = field(
         metadata=config(field_name="notification_settings")
     )
@@ -36,3 +35,7 @@ class GetCallTypeResponse:
     )
     duration: str = field(metadata=config(field_name="duration"))
     grants: Dict[str, List[str]] = field(metadata=config(field_name="grants"))
+    name: str = field(metadata=config(field_name="name"))
+    external_storage: Optional[str] = field(
+        metadata=config(field_name="external_storage"), default=None
+    )

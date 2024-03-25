@@ -3,11 +3,13 @@ from dataclasses import dataclass, field
 from dataclasses_json import config, dataclass_json
 
 from typing import List
-from getstream.models.edge_response import EdgeResponse
+from getstream.models.call_transcription import CallTranscription
 
 
 @dataclass_json
 @dataclass
-class GetEdgesResponse:
-    edges: List[EdgeResponse] = field(metadata=config(field_name="edges"))
+class ListTranscriptionsResponse:
     duration: str = field(metadata=config(field_name="duration"))
+    transcriptions: List[CallTranscription] = field(
+        metadata=config(field_name="transcriptions")
+    )

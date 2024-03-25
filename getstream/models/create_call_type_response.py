@@ -2,7 +2,7 @@
 from dataclasses import dataclass, field
 from dataclasses_json import config, dataclass_json
 
-from typing import List, Dict
+from typing import List, Dict, Optional
 from datetime import datetime
 from dateutil.parser import parse
 from marshmallow import fields
@@ -35,4 +35,7 @@ class CreateCallTypeResponse:
     name: str = field(metadata=config(field_name="name"))
     notification_settings: NotificationSettings = field(
         metadata=config(field_name="notification_settings")
+    )
+    external_storage: Optional[str] = field(
+        metadata=config(field_name="external_storage"), default=None
     )

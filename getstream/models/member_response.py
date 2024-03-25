@@ -2,7 +2,7 @@
 from dataclasses import dataclass, field
 from dataclasses_json import config, dataclass_json
 
-from typing import Dict, Optional
+from typing import Optional
 from datetime import datetime
 from dateutil.parser import parse
 from marshmallow import fields
@@ -12,8 +12,6 @@ from getstream.models.user_response import UserResponse
 @dataclass_json
 @dataclass
 class MemberResponse:
-    user: UserResponse = field(metadata=config(field_name="user"))
-    user_id: str = field(metadata=config(field_name="user_id"))
     created_at: datetime = field(
         metadata=config(
             field_name="created_at",
@@ -22,7 +20,7 @@ class MemberResponse:
             mm_field=fields.DateTime(format="iso"),
         )
     )
-    custom: Dict[str, object] = field(metadata=config(field_name="custom"))
+    custom: object = field(metadata=config(field_name="custom"))
     updated_at: datetime = field(
         metadata=config(
             field_name="updated_at",
@@ -31,6 +29,8 @@ class MemberResponse:
             mm_field=fields.DateTime(format="iso"),
         )
     )
+    user: UserResponse = field(metadata=config(field_name="user"))
+    user_id: str = field(metadata=config(field_name="user_id"))
     deleted_at: Optional[datetime] = field(
         metadata=config(
             field_name="deleted_at",

@@ -11,6 +11,7 @@ class TestCompatUtils(unittest.TestCase):
             id="123",
             name="John Doe",
             role="admin",
+            language="en",
             teams=["dev", "marketing"],
             custom={"location": "New York", "age": 30},
         )
@@ -19,6 +20,7 @@ class TestCompatUtils(unittest.TestCase):
             id="123",
             name="John Doe",
             role="admin",
+            language="en",
             teams=["dev", "marketing"],
             created_at="2021-01-01T00:00:00.000000Z",
             updated_at="2021-01-01T00:00:00.000000Z",
@@ -30,6 +32,7 @@ class TestCompatUtils(unittest.TestCase):
         expected_dict = {
             "id": "123",
             "name": "John Doe",
+            "language": "en",
             "role": "admin",
             "teams": ["dev", "marketing"],
             "image": None,
@@ -43,6 +46,7 @@ class TestCompatUtils(unittest.TestCase):
         chat_user_dict = {
             "id": "123",
             "role": "admin",
+            "language": "en",
             "teams": ["dev", "marketing"],
             "created_at": "2021-01-01T00:00:00.000000Z",
             "updated_at": "2021-01-01T00:00:00.000000Z",

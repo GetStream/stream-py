@@ -5,20 +5,26 @@ from dataclasses_json import config, dataclass_json
 from datetime import datetime
 from dateutil.parser import parse
 from marshmallow import fields
-from getstream.models.user_response import UserResponse
 
 
 @dataclass_json
 @dataclass
-class CallParticipantResponse:
-    user: UserResponse = field(metadata=config(field_name="user"))
-    user_session_id: str = field(metadata=config(field_name="user_session_id"))
-    joined_at: datetime = field(
+class CallTranscription:
+    start_time: datetime = field(
         metadata=config(
-            field_name="joined_at",
+            field_name="start_time",
             encoder=lambda d: d.isoformat(),
             decoder=parse,
             mm_field=fields.DateTime(format="iso"),
         )
     )
-    role: str = field(metadata=config(field_name="role"))
+    url: str = field(metadata=config(field_name="url"))
+    end_time: datetime = field(
+        metadata=config(
+            field_name="end_time",
+            encoder=lambda d: d.isoformat(),
+            decoder=parse,
+            mm_field=fields.DateTime(format="iso"),
+        )
+    )
+    filename: str = field(metadata=config(field_name="filename"))

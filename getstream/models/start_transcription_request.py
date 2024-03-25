@@ -7,5 +7,7 @@ from typing import Optional
 
 @dataclass_json
 @dataclass
-class SendEventRequest:
-    custom: Optional[object] = field(metadata=config(field_name="custom"), default=None)
+class StartTranscriptionRequest:
+    transcription_external_storage: Optional[str] = field(
+        metadata=config(field_name="transcription_external_storage"), default=None
+    )

@@ -2,10 +2,8 @@
 from dataclasses import dataclass, field
 from dataclasses_json import config, dataclass_json
 
-from typing import Optional
-
 
 @dataclass_json
 @dataclass
-class SendEventRequest:
-    custom: Optional[object] = field(metadata=config(field_name="custom"), default=None)
+class CheckExternalStorageResponse:
+    duration: str = field(metadata=config(field_name="duration"))

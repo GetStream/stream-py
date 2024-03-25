@@ -2,7 +2,7 @@
 from dataclasses import dataclass, field
 from dataclasses_json import config, dataclass_json
 
-from typing import List, Dict, Optional
+from typing import List, Optional
 from datetime import datetime
 from dateutil.parser import parse
 from marshmallow import fields
@@ -12,16 +12,7 @@ from marshmallow import fields
 @dataclass
 class UserResponse:
     role: str = field(metadata=config(field_name="role"))
-    updated_at: datetime = field(
-        metadata=config(
-            field_name="updated_at",
-            encoder=lambda d: d.isoformat(),
-            decoder=parse,
-            mm_field=fields.DateTime(format="iso"),
-        )
-    )
-    custom: Dict[str, object] = field(metadata=config(field_name="custom"))
-    id: str = field(metadata=config(field_name="id"))
+    teams: List[str] = field(metadata=config(field_name="teams"))
     created_at: datetime = field(
         metadata=config(
             field_name="created_at",
@@ -30,10 +21,17 @@ class UserResponse:
             mm_field=fields.DateTime(format="iso"),
         )
     )
-    teams: Optional[List[str]] = field(
-        metadata=config(field_name="teams"), default=None
+    language: str = field(metadata=config(field_name="language"))
+    custom: object = field(metadata=config(field_name="custom"))
+    id: str = field(metadata=config(field_name="id"))
+    updated_at: datetime = field(
+        metadata=config(
+            field_name="updated_at",
+            encoder=lambda d: d.isoformat(),
+            decoder=parse,
+            mm_field=fields.DateTime(format="iso"),
+        )
     )
-
     deleted_at: Optional[datetime] = field(
         metadata=config(
             field_name="deleted_at",
@@ -43,5 +41,5 @@ class UserResponse:
         ),
         default=None,
     )
-    name: Optional[str] = field(metadata=config(field_name="name"), default=None)
     image: Optional[str] = field(metadata=config(field_name="image"), default=None)
+    name: Optional[str] = field(metadata=config(field_name="name"), default=None)

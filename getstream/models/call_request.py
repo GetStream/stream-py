@@ -2,18 +2,24 @@
 from dataclasses import dataclass, field
 from dataclasses_json import config, dataclass_json
 
-from typing import Dict, List, Optional
+from typing import List, Optional
 from datetime import datetime
 from dateutil.parser import parse
 from marshmallow import fields
+from getstream.models.member_request import MemberRequest
 from getstream.models.call_settings_request import CallSettingsRequest
 from getstream.models.user_request import UserRequest
-from getstream.models.member_request import MemberRequest
 
 
 @dataclass_json
 @dataclass
 class CallRequest:
+    members: Optional[List[MemberRequest]] = field(
+        metadata=config(field_name="members"), default=None
+    )
+    settings_override: Optional[CallSettingsRequest] = field(
+        metadata=config(field_name="settings_override"), default=None
+    )
     starts_at: Optional[datetime] = field(
         metadata=config(
             field_name="starts_at",
@@ -30,12 +36,4 @@ class CallRequest:
     created_by_id: Optional[str] = field(
         metadata=config(field_name="created_by_id"), default=None
     )
-    custom: Optional[Dict[str, object]] = field(
-        metadata=config(field_name="custom"), default=None
-    )
-    members: Optional[List[MemberRequest]] = field(
-        metadata=config(field_name="members"), default=None
-    )
-    settings_override: Optional[CallSettingsRequest] = field(
-        metadata=config(field_name="settings_override"), default=None
-    )
+    custom: Optional[object] = field(metadata=config(field_name="custom"), default=None)

@@ -2,12 +2,14 @@
 from dataclasses import dataclass, field
 from dataclasses_json import config, dataclass_json
 
-from typing import List
-from getstream.models.edge_response import EdgeResponse
+from typing import Dict
+from getstream.models.external_storage_response import ExternalStorageResponse
 
 
 @dataclass_json
 @dataclass
-class GetEdgesResponse:
-    edges: List[EdgeResponse] = field(metadata=config(field_name="edges"))
+class ListExternalStorageResponse:
     duration: str = field(metadata=config(field_name="duration"))
+    external_storages: Dict[str, ExternalStorageResponse] = field(
+        metadata=config(field_name="external_storages")
+    )

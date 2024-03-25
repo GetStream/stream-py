@@ -17,3 +17,9 @@ class GoLiveRequest:
     start_transcription: Optional[bool] = field(
         metadata=config(field_name="start_transcription"), default=None
     )
+    transcription_storage_name: Optional[str] = field(
+        metadata=config(field_name="transcription_storage_name"), default=None
+    )
+    recording_storage_name: Optional[str] = field(
+        metadata=config(field_name="recording_storage_name"), default=None
+    )
