@@ -83,7 +83,7 @@ def test_delete_user(client: Stream):
         id=user_id, role="admin", custom={"premium": True}, name=user_id
     )
     client.upsert_users(users=users)
-    client.delete_user(user_id=user_id)
+    client.delete_users(user_ids=[user_id])
     response = client.query_users(limit=10)
     # check that user id is not in the response
     user_ids = [user.id for user in response.users]
