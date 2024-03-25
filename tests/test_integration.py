@@ -1,4 +1,5 @@
 import time
+from getstream.models.layout_settings_request import LayoutSettingsRequest
 from getstream.models.s_3_request import S3Request
 import pytest
 import os
@@ -94,22 +95,28 @@ class TestExternalStorage:
             storage_type="s3",
             path="directory_name/",
             aws_s3=S3Request(
-                s3_region="us-east-1", s3_api_key="my-access-key", s3_secret="my-secret"
+                s3_region="us-east-1",
+                s3_api_key="my-access-key",
+                s3_secret="my-secret",
             ),
         )
 
     def test_should_be_able_to_list_external_storage(self, client: Stream):
         response = client.video.list_external_storage()
-        assert EXTERNAL_STORAGE_NAME in [
-            storage.name for storage in response.data().external_storages
-        ]
+        assert EXTERNAL_STORAGE_NAME in response.data().external_storages
+        assert (
+            response.data().external_storages[EXTERNAL_STORAGE_NAME].bucket
+            == "my-bucket"
+        )
+        # fmt: off
+        assert (
+            response.data().external_storages[EXTERNAL_STORAGE_NAME].path == "directory_name/"
+        )
 
     def test_should_be_able_to_delete_external_storage(self, client: Stream):
         client.video.delete_external_storage(name=EXTERNAL_STORAGE_NAME)
         response = client.video.list_external_storage()
-        assert EXTERNAL_STORAGE_NAME not in [
-            storage.name for storage in response.data().external_storages
-        ]
+        assert EXTERNAL_STORAGE_NAME not in response.data().external_storages
 
 
 class TestCallTypes:
@@ -118,10 +125,12 @@ class TestCallTypes:
             name=CALL_TYPE_NAME,
             settings=CallSettingsRequest(
                 audio=AudioSettingsRequest(
-                    default_device="speaker", mic_default_on=True
+                    default_device="speaker",
+                    mic_default_on=True,
                 ),
                 screensharing=ScreensharingSettingsRequest(
-                    access_request_enabled=False, enabled=True
+                    access_request_enabled=False,
+                    enabled=True,
                 ),
             ),
             notification_settings=NotificationSettingsRequest(
@@ -146,25 +155,110 @@ class TestCallTypes:
                 ],
             },
         )
+
         assert response.data().name == CALL_TYPE_NAME
+        assert response.data().settings.audio.mic_default_on is True
+        assert response.data().settings.audio.default_device == "speaker"
+        assert response.data().grants["admin"] is not None
+        assert response.data().grants["user"] is not None
+        assert response.data().settings.screensharing.access_request_enabled is False
+        assert response.data().settings.screensharing.enabled is True
+        assert response.data().notification_settings.enabled is True
+        assert response.data().notification_settings.session_started.enabled is False
+        assert response.data().notification_settings.call_notification.enabled is True
+        assert response.data().notification_settings.call_notification.apns.title == (
+            "{{ user.display_name }} invites you to a call"
+        )
 
     def test_update_call_type(self, client: Stream):
         response = client.video.update_call_type(
             name=CALL_TYPE_NAME,
             settings=CallSettingsRequest(
                 audio=AudioSettingsRequest(
-                    default_device="earpiece", mic_default_on=False
+                    default_device="earpiece",
+                    mic_default_on=False,
                 ),
-                recording=RecordSettingsRequest(mode="disabled"),
-                backstage=BackstageSettingsRequest(enabled=True),
+                recording=RecordSettingsRequest(
+                    mode="disabled",
+                ),
+                backstage=BackstageSettingsRequest(
+                    enabled=True,
+                ),
             ),
             grants={"host": [OwnCapability.JOIN_BACKSTAGE.to_str()]},
         )
         assert response.data().settings.audio.mic_default_on is False
+        assert response.data().settings.audio.default_device == "earpiece"
+        assert response.data().settings.recording.mode == "disabled"
+        assert response.data().settings.backstage.enabled is True
+        assert response.data().grants["host"] == ["join-backstage"]
 
     def test_read_call_type(self, client: Stream):
         response = client.video.get_call_type(name=CALL_TYPE_NAME)
         assert response.data().name == CALL_TYPE_NAME
+
+    def test_update_layout(self, client: Stream):
+        layout_options = {
+            "logo.image_url": "https://theme.zdassets.com/theme_assets/9442057/efc3820e436f9150bc8cf34267fff4df052a1f9c.png",
+            "logo.horizontal_position": "center",
+            "title.text": "Building Stream Video Q&A",
+            "title.horizontal_position": "center",
+            "title.color": "black",
+            "participant_label.border_radius": "0px",
+            "participant.border_radius": "0px",
+            "layout.spotlight.participants_bar_position": "top",
+            "layout.background_color": "#f2f2f2",
+            "participant.placeholder_background_color": "#1f1f1f",
+            "layout.single-participant.padding_inline": "20%",
+            "participant_label.background_color": "transparent",
+        }
+
+        client.video.update_call_type(
+            CALL_TYPE_NAME,
+            settings=CallSettingsRequest(
+                recording=RecordSettingsRequest(
+                    mode="available",
+                    audio_only=False,
+                    quality="1080p",
+                    layout=LayoutSettingsRequest(
+                        name="spotlight",
+                        options=layout_options,
+                    ),
+                ),
+            ),
+        )
+
+    def test_custom_recording_style_css(self, client: Stream):
+        client.video.update_call_type(
+            CALL_TYPE_NAME,
+            settings=CallSettingsRequest(
+                recording=RecordSettingsRequest(
+                    mode="available",
+                    audio_only=False,
+                    quality="1080p",
+                    layout=LayoutSettingsRequest(
+                        name="spotlight",
+                        external_css_url="https://path/to/custom.css",
+                    ),
+                ),
+            ),
+        )
+
+    def test_custom_recording_website(self, client: Stream):
+        client.video.update_call_type(
+            CALL_TYPE_NAME,
+            settings=CallSettingsRequest(
+                recording=RecordSettingsRequest(
+                    mode="available",
+                    audio_only=False,
+                    quality="1080p",
+                    layout=LayoutSettingsRequest(
+                        name="custom",
+                        external_app_url="https://path/to/layout/app",
+                    ),
+                ),
+            ),
+        ),
 
     def test_delete_call_type(self, client: Stream):
         try:
@@ -172,7 +266,7 @@ class TestCallTypes:
         except Exception:
             time.sleep(2)
             response = client.video.delete_call_type(name=CALL_TYPE_NAME)
-        assert response.status_code() == 200
+            assert response.status_code() == 200
 
 
 class TestCalls:
@@ -181,18 +275,27 @@ class TestCalls:
             data=CallRequest(
                 created_by_id="john",
                 settings_override=CallSettingsRequest(
-                    geofencing=GeofenceSettingsRequest(names=["canada"]),
-                    screensharing=ScreensharingSettingsRequest(enabled=False),
+                    geofencing=GeofenceSettingsRequest(
+                        names=[
+                            "canada",
+                        ]
+                    ),
+                    screensharing=ScreensharingSettingsRequest(
+                        enabled=False,
+                    ),
                 ),
             ),
         )
         assert response.data().call.created_by.id == "john"
+        assert response.data().call.settings.geofencing.names == ["canada"]
+        assert response.data().call.settings.screensharing.enabled is False
 
     def test_update_call(self, call: Call):
         response = call.update(
             settings_override=CallSettingsRequest(
                 audio=AudioSettingsRequest(
-                    mic_default_on=True, default_device="speaker"
+                    mic_default_on=True,
+                    default_device="speaker",
                 ),
             ),
         )
@@ -202,7 +305,7 @@ class TestCalls:
         response = call.get(
             data=CallRequest(
                 created_by_id="john",
-            )
+            ),
         )
         assert CALL_ID in response.data().call.ingress.rtmp.address
 
@@ -213,7 +316,9 @@ class TestCalls:
     def test_enable_call_recording(self, call: Call):
         response = call.update(
             settings_override=CallSettingsRequest(
-                recording=RecordSettingsRequest(mode="available"),
+                recording=RecordSettingsRequest(
+                    mode="available",
+                )
             ),
         )
         assert response.data().call.settings.recording.mode == "available"
@@ -221,7 +326,9 @@ class TestCalls:
     def test_enable_backstage_mode(self, call: Call):
         response = call.update(
             settings_override=CallSettingsRequest(
-                backstage=BackstageSettingsRequest(enabled=True),
+                backstage=BackstageSettingsRequest(
+                    enabled=True,
+                ),
             ),
         )
         assert response.data().call.settings.backstage.enabled is True
