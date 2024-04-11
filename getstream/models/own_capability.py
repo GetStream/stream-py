@@ -27,6 +27,7 @@ class OwnCapability:
     UPDATE_CALL_MEMBER: Final[str] = "update-call-member"
     UPDATE_CALL_PERMISSIONS: Final[str] = "update-call-permissions"
     UPDATE_CALL_SETTINGS: Final[str] = "update-call-settings"
+    ENABLE_NOISE_CANCELLATION: Final[str] = "enable-noise-cancellation"
 
     _values: "ClassVar[dict[str, str]]" = {
         k: v for k, v in vars().items() if not k.startswith("_")
