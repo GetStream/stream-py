@@ -115,7 +115,7 @@ class TestExternalStorage:
 
     def test_should_be_able_to_delete_external_storage(self, client: Stream):
         client.video.delete_external_storage(name=EXTERNAL_STORAGE_NAME)
-        time.sleep(2)
+        time.sleep(3)
         response = client.video.list_external_storage()
         assert EXTERNAL_STORAGE_NAME not in response.data().external_storages
 
