@@ -1,6 +1,7 @@
 # THIS FILE IS GENERATED FROM github.com/GetStream/protocol/tree/main/openapi-gen/templates/python/type.tmpl
 from typing import Final, ClassVar, Optional
 
+
 class OwnCapability:
     BLOCK_USERS: Final[str] = "block-users"
     CREATE_CALL: Final[str] = "create-call"
@@ -26,18 +27,17 @@ class OwnCapability:
     UPDATE_CALL_MEMBER: Final[str] = "update-call-member"
     UPDATE_CALL_PERMISSIONS: Final[str] = "update-call-permissions"
     UPDATE_CALL_SETTINGS: Final[str] = "update-call-settings"
-    
+
     _values: 'ClassVar[dict[str, str]]' = {k: v for k, v in vars().items() if not k.startswith('_')}
 
     @classmethod
     def from_str(cls, value: str) -> Optional[str]:
         """Return the corresponding constant value for a given string, or None if not found."""
         return cls._values.get(value.upper(), None)
-    
+
     @staticmethod
     def to_str(value: str) -> Optional[str]:
         """Return the string representation of a constant value, or None if the value is not valid."""
         if value in OwnCapability._values.values():
             return value
         return None
-
