@@ -27,6 +27,7 @@ class OwnCapability(Enum):
     UPDATE_CALL_MEMBER = "update-call-member"
     UPDATE_CALL_PERMISSIONS = "update-call-permissions"
     UPDATE_CALL_SETTINGS = "update-call-settings"
+    ENABLE_NOISE_CANCELLATION = "enable-noise-cancellation"
 
     @classmethod
     def from_str(cls, value: str) -> "OwnCapability":
