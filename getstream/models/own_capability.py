@@ -28,7 +28,9 @@ class OwnCapability:
     UPDATE_CALL_PERMISSIONS: Final[str] = "update-call-permissions"
     UPDATE_CALL_SETTINGS: Final[str] = "update-call-settings"
 
-    _values: 'ClassVar[dict[str, str]]' = {k: v for k, v in vars().items() if not k.startswith('_')}
+    _values: "ClassVar[dict[str, str]]" = {
+        k: v for k, v in vars().items() if not k.startswith("_")
+    }
 
     @classmethod
     def from_str(cls, value: str) -> Optional[str]:
