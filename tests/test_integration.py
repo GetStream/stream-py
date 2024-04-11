@@ -146,13 +146,13 @@ class TestCallTypes:
             ),
             grants={
                 "admin": [
-                    OwnCapability.SEND_AUDIO.to_str(),
-                    OwnCapability.SEND_VIDEO.to_str(),
-                    OwnCapability.MUTE_USERS.to_str(),
+                    OwnCapability.SEND_AUDIO,
+                    OwnCapability.SEND_VIDEO,
+                    OwnCapability.MUTE_USERS,
                 ],
                 "user": [
-                    OwnCapability.SEND_AUDIO.to_str(),
-                    OwnCapability.SEND_VIDEO.to_str(),
+                    OwnCapability.SEND_AUDIO,
+                    OwnCapability.SEND_VIDEO,
                 ],
             },
         )
@@ -186,7 +186,7 @@ class TestCallTypes:
                     enabled=True,
                 ),
             ),
-            grants={"host": [OwnCapability.JOIN_BACKSTAGE.to_str()]},
+            grants={"host": [OwnCapability.JOIN_BACKSTAGE]},
         )
         assert response.data().settings.audio.mic_default_on is False
         assert response.data().settings.audio.default_device == "earpiece"
