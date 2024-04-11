@@ -1,4 +1,7 @@
-# v0.3.0 (25-03-2023): External Storage and Transcriptions
+# v0.4.0 (11-04-2024): Fix OwnCapability enum
+- Fix/Breaking: OwnCapability as an enum was causing issues, we changed it to a class with Final attributes
+
+# v0.3.0 (25-03-2024): External Storage and Transcriptions
 - New: Support for external storage endpoints
 - New: Support for transcriptions endpoints
 

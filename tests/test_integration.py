@@ -115,7 +115,7 @@ class TestExternalStorage:
 
     def test_should_be_able_to_delete_external_storage(self, client: Stream):
         client.video.delete_external_storage(name=EXTERNAL_STORAGE_NAME)
-        time.sleep(2)
+        time.sleep(3)
         response = client.video.list_external_storage()
         assert EXTERNAL_STORAGE_NAME not in response.data().external_storages
 
@@ -146,13 +146,13 @@ class TestCallTypes:
             ),
             grants={
                 "admin": [
-                    OwnCapability.SEND_AUDIO.to_str(),
-                    OwnCapability.SEND_VIDEO.to_str(),
-                    OwnCapability.MUTE_USERS.to_str(),
+                    OwnCapability.SEND_AUDIO,
+                    OwnCapability.SEND_VIDEO,
+                    OwnCapability.MUTE_USERS,
                 ],
                 "user": [
-                    OwnCapability.SEND_AUDIO.to_str(),
-                    OwnCapability.SEND_VIDEO.to_str(),
+                    OwnCapability.SEND_AUDIO,
+                    OwnCapability.SEND_VIDEO,
                 ],
             },
         )
@@ -186,7 +186,7 @@ class TestCallTypes:
                     enabled=True,
                 ),
             ),
-            grants={"host": [OwnCapability.JOIN_BACKSTAGE.to_str()]},
+            grants={"host": [OwnCapability.JOIN_BACKSTAGE]},
         )
         assert response.data().settings.audio.mic_default_on is False
         assert response.data().settings.audio.default_device == "earpiece"
