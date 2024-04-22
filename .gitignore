@@ -14,3 +14,10 @@
 *.pyc
 dist/*
 dist/*
+*.log
+.python-version
+pyvenv.cfg
+.idea*
+bin/*
+lib/*
+shell.nix

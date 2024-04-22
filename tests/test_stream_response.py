@@ -34,8 +34,8 @@ class TestStreamResponse(TestCase):
         self.stream_response_dict = StreamResponse(self.response, self.data_dict)
 
     def test_data(self):
-        self.assertEqual(self.stream_response_dummy.data().value, "SomeValue")
-        self.assertEqual(self.stream_response_dict.data()["key"], "SomeValue")
+        self.assertEqual(self.stream_response_dummy.data.value, "SomeValue")
+        self.assertEqual(self.stream_response_dict.data["key"], "SomeValue")
 
     def test_headers(self):
         self.assertEqual(self.stream_response_dummy.headers(), self.response.headers)
@@ -66,9 +66,3 @@ class TestStreamResponse(TestCase):
         self.assertEqual(
             rate_limit_dict.reset, dt_parse("2022-01-01").replace(tzinfo=timezone.utc)
         )
-
-
-if __name__ == "__main__":
-    from unittest import main
-
-    main()

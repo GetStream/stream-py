@@ -1,63 +1,57 @@
-from typing import Dict
-from getstream.models.user_request import UserRequest
-from getstream.models.user_response import UserResponse
-
-RESERVED_KEYWORDS = [
-    "ban_expires",
-    "banned",
-    "id",
-    "invisible",
-    "language",
-    "push_notifications",
-    "revoke_tokens_issued_before",
-    "role",
-    "teams",
-    "created_at",
-    "deactivated_at",
-    "deleted_at",
-    "last_active",
-    "online",
-    "updated_at",
-    "shadow_banned",
-    "name",
-    "image",
-]
+import json
+from urllib.parse import quote
+from datetime import datetime
 
 
-def to_chat_user_dict(user: UserRequest) -> Dict[str, object]:
+def datetime_from_unix_ns(ts):
     """
-    Convert UserRequest instance to a chat dictionary
-    i.e. put chat_dict["custom"] fields to the root level
+    Converts a unix timestamp to a datetime object
+    :param ts: nanoseconds since epoch
+    :return: datetime object
     """
-    # Convert UserRequest instance to dictionary
-    chat_dict = user.to_dict()
+    if ts is None:
+        return None
+    return datetime.utcfromtimestamp(ts / 1e9)
 
-    # Unpack the custom fields to the root level
-    if "custom" in chat_dict and chat_dict["custom"] is not None:
-        chat_dict.update(chat_dict["custom"])
-        del chat_dict["custom"]
-
-    return chat_dict
-
-
-def from_chat_user_dict(chat_user: Dict[str, object]) -> UserResponse:
+def encode_query_param(value):
     """
-    Reverse operation of to_chat_user_dict
-     i.e. put root fields that are not reserved keywords to the "custom" field
+    Encodes a value into a string suitable for use as a URL query parameter.
+
+    Args:
+        value: The value to encode, which can be a primitive, list, or dictionary.
+
+    Returns:
+        A string representation of the value, encoded according to its type:
+        - primitive types are directly converted to strings,
+        - lists of ints and strings are encoded as comma-separated values,
+          with commas within strings being URI-escaped,
+        - dictionaries and other objects are encoded using JSON.
     """
-    custom_fields = {}
-    keys_to_remove = []
+    if hasattr(value, 'to_json') and callable(value.to_json):
+        return value.to_json()
+    if isinstance(value, (str, int, bool, type(None))):
+        return str(value)
+    elif isinstance(value, list):
+        # Process each element, escaping commas in the string representation
+        return ','.join(quote(str(v)) for v in value)
+    else:
+        # For dictionaries or any other types of objects
+        return json.dumps(value)
 
-    for key, value in chat_user.items():
-        # If the key is a reserved keyword, skip it
-        if key not in RESERVED_KEYWORDS:
-            custom_fields[key] = value
-            keys_to_remove.append(key)
 
-    # If there are custom fields, update the dictionary
-    if custom_fields:
-        chat_user["custom"] = custom_fields
-        for key in keys_to_remove:
-            del chat_user[key]
+def request_to_dict(value):
+    """
+    Converts a request value to a dictionary.
+    Args:
+    value: The input value which could be None, a dictionary, or an object with a to_dict() method.
 
-    return UserResponse.from_dict(chat_user)
+    Returns:
+    A dictionary representation of the input, or the input itself if it does not meet conversion criteria.
+    """
+    if value is None:
+        return {}
+    if isinstance(value, dict):
+        return value
+    if hasattr(value, 'to_dict') and callable(value.to_dict):
+        return value.to_dict()
+    return value
