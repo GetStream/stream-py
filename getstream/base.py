@@ -148,6 +148,7 @@ class BaseClient(BaseConfig, ABC):
     def close(self):
         self.client.close()
 
+
 class StreamAPIException(Exception):
     def __init__(self, response: str) -> None:
         self.api_error: Optional[APIError] = None

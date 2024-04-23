@@ -18,11 +18,11 @@ class Stream(CommonClient):
     BASE_URL = "https://stream-io-api.com"
 
     def __init__(
-            self,
-            api_key: str,
-            api_secret: str,
-            timeout=None,
-            base_url=None,
+        self,
+        api_key: str,
+        api_secret: str,
+        timeout=None,
+        base_url=None,
     ):
         if api_key is None:
             raise ValueError("api_key is required")
@@ -54,30 +54,30 @@ class Stream(CommonClient):
         )
 
     def create_token(
-            self,
-            user_id: str,
-            expiration: int = None,
+        self,
+        user_id: str,
+        expiration: int = None,
     ):
         return self._create_token(user_id=user_id, expiration=expiration)
 
     def create_call_token(
-            self,
-            user_id: str,
-            call_cids: List[str] = None,
-            role: str = None,
-            expiration: int = None,
+        self,
+        user_id: str,
+        call_cids: List[str] = None,
+        role: str = None,
+        expiration: int = None,
     ):
         return self._create_token(
             user_id=user_id, call_cids=call_cids, role=role, expiration=expiration
         )
 
     def _create_token(
-            self,
-            user_id: str = None,
-            channel_cids: List[str] = None,
-            call_cids: List[str] = None,
-            role: str = None,
-            expiration=None,
+        self,
+        user_id: str = None,
+        channel_cids: List[str] = None,
+        call_cids: List[str] = None,
+        role: str = None,
+        expiration=None,
     ):
         now = int(time.time())
 

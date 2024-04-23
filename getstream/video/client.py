@@ -1,4 +1,5 @@
 from getstream.video.rest_client import VideoRestClient
+from getstream.video.call import Call
 
 
 class VideoClient(VideoRestClient):
@@ -17,3 +18,5 @@ class VideoClient(VideoRestClient):
             timeout=timeout,
         )
 
+    def call(self, call_type: str, id: str) -> Call:
+        return Call(self, call_type, id)

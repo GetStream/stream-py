@@ -1,3 +1,3 @@
-from tests.fixtures import client
+from tests.fixtures import client, call
 
-__all__ = ['client']
+__all__ = ["client", "call"]

@@ -1,7 +1,11 @@
 import os
+import uuid
 
 import pytest
 from getstream import Stream
+
+CALL_TYPE = "default"
+CALL_ID = str(uuid.uuid4())
 
 STREAM_BASE_URL = os.environ.get("STREAM_BASE_URL")
 STREAM_API_KEY = os.environ.get("STREAM_API_KEY")
@@ -17,3 +21,8 @@ def client():
         timeout=TIMEOUT,
         base_url=STREAM_BASE_URL,
     )
+
+
+@pytest.fixture
+def call(client: Stream):
+    return client.video.call(CALL_TYPE, CALL_ID)

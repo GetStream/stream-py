@@ -5,10 +5,10 @@ import httpx
 
 from getstream.rate_limit import RateLimitInfo, extract_rate_limit
 
-T = typing.TypeVar('T')
+T = typing.TypeVar("T")
+
 
 class StreamResponse(Generic[T]):
-
     def __init__(self, response: httpx.Response, data: T):
         self.__headers = response.headers
         self.__status_code = response.status_code

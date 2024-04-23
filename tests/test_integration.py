@@ -2,16 +2,28 @@ import time
 import pytest
 import uuid
 import jwt
-from getstream.models import S3Request, CallSettingsRequest, OwnCapability, AudioSettingsRequest, \
-    ScreensharingSettingsRequest, RecordSettingsRequest, BackstageSettingsRequest, GeofenceSettingsRequest, CallRequest, \
-    LayoutSettingsRequest, NotificationSettings, EventNotificationSettings, APNS
+from getstream.models import (
+    S3Request,
+    CallSettingsRequest,
+    OwnCapability,
+    AudioSettingsRequest,
+    ScreensharingSettingsRequest,
+    RecordSettingsRequest,
+    BackstageSettingsRequest,
+    GeofenceSettingsRequest,
+    CallRequest,
+    LayoutSettingsRequest,
+    NotificationSettings,
+    EventNotificationSettings,
+    APNS,
+)
 
 from getstream.stream import Stream
+from getstream.video.call import Call
 
-CALL_ID = str(uuid.uuid4())
-CALL_TYPE = "default"
 CALL_TYPE_NAME = f"calltype{uuid.uuid4()}"
 EXTERNAL_STORAGE_NAME = f"storage{uuid.uuid4()}"
+
 
 def test_create_token(client: Stream):
     token = client.create_token(user_id="tommaso")
@@ -19,6 +31,7 @@ def test_create_token(client: Stream):
     decoded = jwt.decode(token, client.api_secret, algorithms=["HS256"])
     assert decoded["iat"] is not None
     assert decoded["user_id"] == "tommaso"
+
 
 def test_create_token_with_expiration(client: Stream):
     token = client.create_token(user_id="tommaso", expiration=10)
@@ -60,21 +73,21 @@ class TestExternalStorage:
 
     def test_should_be_able_to_list_external_storage(self, client: Stream):
         response = client.video.list_external_storage()
-        assert EXTERNAL_STORAGE_NAME in response.data().external_storages
+        assert EXTERNAL_STORAGE_NAME in response.data.external_storages
         # fmt: off
         assert (
-            response.data().external_storages[EXTERNAL_STORAGE_NAME].bucket == "my-bucket"
+            response.data.external_storages[EXTERNAL_STORAGE_NAME].bucket == "my-bucket"
         )
         # fmt: off
         assert (
-            response.data().external_storages[EXTERNAL_STORAGE_NAME].path == "directory_name/"
+            response.data.external_storages[EXTERNAL_STORAGE_NAME].path == "directory_name/"
         )
 
     def test_should_be_able_to_delete_external_storage(self, client: Stream):
         client.video.delete_external_storage(name=EXTERNAL_STORAGE_NAME)
         time.sleep(3)
         response = client.video.list_external_storage()
-        assert EXTERNAL_STORAGE_NAME not in response.data().external_storages
+        assert EXTERNAL_STORAGE_NAME not in response.data.external_storages
 
 
 class TestCallTypes:
@@ -95,12 +108,31 @@ class TestCallTypes:
                 enabled=True,
                 call_notification=EventNotificationSettings(
                     apns=APNS(
-                        title="{{ user.display_name }} invites you to a call",
-                        body=""
+                        title="{{ user.display_name }} invites you to a call", body=""
                     ),
                     enabled=True,
                 ),
-                session_started=EventNotificationSettings(enabled=False),
+                session_started=EventNotificationSettings(
+                    apns=APNS(
+                        body="",
+                        title="{{ user.display_name }} invites you to a call",
+                    ),
+                    enabled=False,
+                ),
+                call_live_started=EventNotificationSettings(
+                    apns=APNS(
+                        body="",
+                        title="{{ user.display_name }} invites you to a call",
+                    ),
+                    enabled=False,
+                ),
+                call_ring=EventNotificationSettings(
+                    apns=APNS(
+                        body="",
+                        title="{{ user.display_name }} invites you to a call",
+                    ),
+                    enabled=False,
+                ),
             ),
             grants={
                 "admin": [
@@ -115,17 +147,17 @@ class TestCallTypes:
             },
         )
 
-        assert response.data().name == CALL_TYPE_NAME
-        assert response.data().settings.audio.mic_default_on is True
-        assert response.data().settings.audio.default_device == "speaker"
-        assert response.data().grants["admin"] is not None
-        assert response.data().grants["user"] is not None
-        assert response.data().settings.screensharing.access_request_enabled is False
-        assert response.data().settings.screensharing.enabled is True
-        assert response.data().notification_settings.enabled is True
-        assert response.data().notification_settings.session_started.enabled is False
-        assert response.data().notification_settings.call_notification.enabled is True
-        assert response.data().notification_settings.call_notification.apns.title == (
+        assert response.data.name == CALL_TYPE_NAME
+        assert response.data.settings.audio.mic_default_on is True
+        assert response.data.settings.audio.default_device == "speaker"
+        assert response.data.grants["admin"] is not None
+        assert response.data.grants["user"] is not None
+        assert response.data.settings.screensharing.access_request_enabled is False
+        assert response.data.settings.screensharing.enabled is True
+        assert response.data.notification_settings.enabled is True
+        assert response.data.notification_settings.session_started.enabled is False
+        assert response.data.notification_settings.call_notification.enabled is True
+        assert response.data.notification_settings.call_notification.apns.title == (
             "{{ user.display_name }} invites you to a call"
         )
 
@@ -146,15 +178,15 @@ class TestCallTypes:
             ),
             grants={"host": [OwnCapability.JOIN_BACKSTAGE]},
         )
-        assert response.data().settings.audio.mic_default_on is False
-        assert response.data().settings.audio.default_device == "earpiece"
-        assert response.data().settings.recording.mode == "disabled"
-        assert response.data().settings.backstage.enabled is True
-        assert response.data().grants["host"] == ["join-backstage"]
+        assert response.data.settings.audio.mic_default_on is False
+        assert response.data.settings.audio.default_device == "earpiece"
+        assert response.data.settings.recording.mode == "disabled"
+        assert response.data.settings.backstage.enabled is True
+        assert response.data.grants["host"] == ["join-backstage"]
 
     def test_read_call_type(self, client: Stream):
         response = client.video.get_call_type(name=CALL_TYPE_NAME)
-        assert response.data().name == CALL_TYPE_NAME
+        assert response.data.name == CALL_TYPE_NAME
 
     def test_update_layout(self, client: Stream):
         layout_options = {
@@ -230,7 +262,7 @@ class TestCallTypes:
 
 class TestCalls:
     def test_create_call(self, call: Call):
-        response = call.create(
+        response = call.get_or_create(
             data=CallRequest(
                 created_by_id="john",
                 settings_override=CallSettingsRequest(
@@ -245,9 +277,9 @@ class TestCalls:
                 ),
             ),
         )
-        assert response.data().call.created_by.id == "john"
-        assert response.data().call.settings.geofencing.names == ["canada"]
-        assert response.data().call.settings.screensharing.enabled is False
+        assert response.data.call.created_by.id == "john"
+        assert response.data.call.settings.geofencing.names == ["canada"]
+        assert response.data.call.settings.screensharing.enabled is False
 
     def test_update_call(self, call: Call):
         response = call.update(
@@ -258,19 +290,19 @@ class TestCalls:
                 ),
             ),
         )
-        assert response.data().call.settings.audio.mic_default_on is True
+        assert response.data.call.settings.audio.mic_default_on is True
 
     def test_rtmp_address(self, call: Call):
-        response = call.get(
+        response = call.get_or_create(
             data=CallRequest(
                 created_by_id="john",
             ),
         )
-        assert CALL_ID in response.data().call.ingress.rtmp.address
+        assert call.id in response.data.call.ingress.rtmp.address
 
     def test_query_calls(self, client: Stream):
         response = client.video.query_calls()
-        assert len(response.data().calls) >= 1
+        assert len(response.data.calls) >= 1
 
     def test_enable_call_recording(self, call: Call):
         response = call.update(
@@ -280,7 +312,7 @@ class TestCalls:
                 )
             ),
         )
-        assert response.data().call.settings.recording.mode == "available"
+        assert response.data.call.settings.recording.mode == "available"
 
     def test_enable_backstage_mode(self, call: Call):
         response = call.update(
@@ -290,4 +322,4 @@ class TestCalls:
                 ),
             ),
         )
-        assert response.data().call.settings.backstage.enabled is True
+        assert response.data.call.settings.backstage.enabled is True

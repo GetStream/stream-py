@@ -1,41 +1,54 @@
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 
 from getstream.models import OwnCapability
-from getstream.utils import encode_query_param, datetime_from_unix_ns, request_to_dict
+from getstream.utils import (
+    datetime_from_unix_ns,
+    encode_datetime,
+    build_query_param,
+    build_body_dict,
+)
 from dataclasses_json import DataClassJsonMixin, config
 
-def test_primitive_string():
-    assert encode_query_param("hello") == "hello"
+
+class MockJsonSerializable:
+    def to_json(self):
+        return '{"type": "Mock"}'
 
 
-def test_primitive_int():
-    assert encode_query_param(123) == "123"
+def test_build_query_param_with_various_types():
+    mock_obj = MockJsonSerializable()
+    params = build_query_param(
+        num=123,
+        text="hello",
+        flag=True,
+        none_value=None,
+        list_val=[1, 2, "three, maybe"],
+        obj=mock_obj,
+        dict_val={"a": 1, "b": "two"},
+    )
+    assert params == {
+        "num": "123",
+        "text": "hello",
+        "flag": "true",
+        "list_val": "1,2,three%2C%20maybe",
+        "obj": '{"type": "Mock"}',
+        "dict_val": '{"a": 1, "b": "two"}',
+    }
 
 
-def test_primitive_bool():
-    assert encode_query_param(True) == "True"
-    assert encode_query_param(False) == "False"
+def test_build_query_param_with_none():
+    assert build_query_param(value=None) == {}
 
 
-def test_none_type():
-    assert encode_query_param(None) == "None"
+def test_build_query_param_with_empty():
+    assert build_query_param() == {}
 
 
-def test_list_of_ints():
-    assert encode_query_param([1, 2, 3]) == "1,2,3"
-
-
-def test_list_with_strings():
-    assert encode_query_param(["apple", "banana", "cherry, tart"]) == "apple,banana,cherry%2C%20tart"
-
-
-def test_list_with_mixed_types():
-    assert encode_query_param([1, "hello, world", True]) == "1,hello%2C%20world,True"
-
-
-def test_dictionary():
-    assert encode_query_param({"a": 1, "b": "yes, no"}) == '{"a": 1, "b": "yes, no"}'
+def test_build_query_param_with_booleans():
+    params = build_query_param(true_val=True, false_val=False)
+    assert params["true_val"] == "true"
+    assert params["false_val"] == "false"
 
 
 def test_datetime_from_valid_unix_ns():
@@ -72,40 +85,92 @@ def test_future_timestamp():
     assert datetime_from_unix_ns(timestamp_ns) == expected_datetime
 
 
-# Helper class to test the conversion of objects with to_dict method
 class MockObjectWithToDict:
     def to_dict(self):
-        return {'key': 'value'}
+        return {"type": "Mock", "valid": True}
 
 
-# Tests using pytest
-def test_request_to_dict_with_none():
-    assert request_to_dict(None) == {}
-
-
-def test_request_to_dict_with_dict():
-    input_dict = {'a': 1, 'b': 2}
-    assert request_to_dict(input_dict) == input_dict
-
-
-def test_request_to_dict_with_object_having_to_dict():
+def test_with_to_dict_method():
     obj = MockObjectWithToDict()
-    assert request_to_dict(obj) == {'key': 'value'}
+    result = build_body_dict(obj=obj)
+    expected = {"obj": {"type": "Mock", "valid": True}}
+    assert result == expected, "Failed to serialize object with to_dict method"
 
 
-def test_request_to_dict_with_primitive_type():
-    assert request_to_dict(123) == 123
-    assert request_to_dict("test string") == "test string"
+def test_with_nested_dictionaries():
+    result = build_body_dict(
+        info={"name": "John", "address": {"street": "123 Elm St", "city": "Somewhere"}}
+    )
+    expected = {
+        "info": {
+            "name": "John",
+            "address": {"street": "123 Elm St", "city": "Somewhere"},
+        }
+    }
+    assert result == expected, "Failed to handle nested dictionaries"
 
 
-def test_request_to_dict_with_list():
-    input_list = [1, 2, 3]
-    assert request_to_dict(input_list) == input_list
+def test_with_lists_and_dicts():
+    result = build_body_dict(data=[1, 2, {"num": 3}, [4, 5]])
+    expected = {"data": [1, 2, {"num": 3}, [4, 5]]}
+    assert (
+        result == expected
+    ), "Failed to handle lists containing dictionaries and other lists"
+
+
+def test_empty_input():
+    result = build_body_dict()
+    assert result == {}, "Failed to handle empty input correctly"
+
+
+# Additional test for complex nested structures
+def test_complex_nested_structures():
+    result = build_body_dict(
+        user={
+            "id": 1,
+            "profile": MockObjectWithToDict(),
+            "history": [2010, 2012, {"year": 2014}],
+        }
+    )
+    expected = {
+        "user": {
+            "id": 1,
+            "profile": {"type": "Mock", "valid": True},
+            "history": [2010, 2012, {"year": 2014}],
+        }
+    }
+    assert result == expected, "Failed to handle complex nested structures"
+
+
+def test_encode_datetime_with_none():
+    assert encode_datetime(None) is None, "Should return None when input is None"
+
+
+def test_encode_datetime_with_valid_datetime():
+    date = datetime(2022, 1, 1, 15, 30, 45)
+    expected = "2022-01-01T15:30:45"
+    assert (
+        encode_datetime(date) == expected
+    ), f"Expected {expected}, got {encode_datetime(date)}"
+
+
+def test_encode_datetime_with_timezone_aware_datetime():
+    date = datetime(2022, 1, 1, 15, 30, 45, tzinfo=timezone.utc)
+    expected = "2022-01-01T15:30:45+00:00"
+    assert (
+        encode_datetime(date) == expected
+    ), f"Expected {expected}, got {encode_datetime(date)}"
 
 
 @dataclass
 class TestRequest(DataClassJsonMixin):
-    own_capabilities: 'List[OwnCapability]' = field(metadata=config(field_name="own_capabilities"))
+    own_capabilities: "List[OwnCapability]" = field(
+        metadata=config(field_name="own_capabilities")
+    )
+
+
 def test_encode_own_capability():
     obj = TestRequest(own_capabilities=[OwnCapability.BLOCK_USERS, "custom-value"])
-    assert request_to_dict(obj) == {'own_capabilities': ['block-users', "custom-value"]}
+    assert build_body_dict(obj=obj) == {
+        "obj": {"own_capabilities": ["block-users", "custom-value"]}
+    }

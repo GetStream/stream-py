@@ -1,6 +1,22 @@
 import json
+from typing import Optional
 from urllib.parse import quote
 from datetime import datetime
+
+
+def encode_datetime(date: Optional[datetime]) -> Optional[str]:
+    """
+    Encodes a datetime object into an ISO 8601 formatted string.
+
+    Args:
+    date (Optional[datetime]): The datetime object to encode.
+
+    Returns:
+    Optional[str]: The ISO 8601 string representation of the datetime, or None if input is None.
+    """
+    if date is None:
+        return None
+    return date.isoformat()
 
 
 def datetime_from_unix_ns(ts):
@@ -13,45 +29,64 @@ def datetime_from_unix_ns(ts):
         return None
     return datetime.utcfromtimestamp(ts / 1e9)
 
-def encode_query_param(value):
+
+def build_query_param(**kwargs):
     """
-    Encodes a value into a string suitable for use as a URL query parameter.
+    Constructs a dictionary of query parameters from keyword arguments.
+
+    This function handles various data types:
+    - JSON-serializable objects with a `to_json` method will be serialized using that method.
+    - Booleans are converted to lowercase strings.
+    - Lists are converted to comma-separated strings with URL-encoded values.
+    - Other types (strings, integers, dictionaries) are handled appropriately.
 
     Args:
-        value: The value to encode, which can be a primitive, list, or dictionary.
+        **kwargs: Arbitrary keyword arguments representing potential query parameters.
 
     Returns:
-        A string representation of the value, encoded according to its type:
-        - primitive types are directly converted to strings,
-        - lists of ints and strings are encoded as comma-separated values,
-          with commas within strings being URI-escaped,
-        - dictionaries and other objects are encoded using JSON.
+        dict: A dictionary where keys are parameter names and values are URL-ready strings.
     """
-    if hasattr(value, 'to_json') and callable(value.to_json):
-        return value.to_json()
-    if isinstance(value, (str, int, bool, type(None))):
-        return str(value)
-    elif isinstance(value, list):
-        # Process each element, escaping commas in the string representation
-        return ','.join(quote(str(v)) for v in value)
-    else:
-        # For dictionaries or any other types of objects
-        return json.dumps(value)
+    params = {}
+    for key, value in kwargs.items():
+        if value is None:
+            continue
+        if hasattr(value, "to_json") and callable(value.to_json):
+            params[key] = value.to_json()
+        elif isinstance(value, bool):
+            params[key] = str(value).lower()
+        elif isinstance(value, (str, int)):
+            params[key] = str(value)
+        elif isinstance(value, list):
+            # Process each element, escaping commas in the string representation
+            params[key] = ",".join(quote(str(v)) for v in value)
+        else:
+            # For dictionaries or any other types of objects
+            params[key] = json.dumps(value)
+    return params
 
 
-def request_to_dict(value):
+def build_body_dict(**kwargs):
     """
-    Converts a request value to a dictionary.
+    Constructs a dictionary for the body of a request, handling nested structures.
+    If an object has a `to_dict` method, it calls this method to serialize the object.
+    It handles nested dictionaries and lists recursively.
+
     Args:
-    value: The input value which could be None, a dictionary, or an object with a to_dict() method.
+        **kwargs: Keyword arguments representing keys and values to be included in the body dictionary.
 
     Returns:
-    A dictionary representation of the input, or the input itself if it does not meet conversion criteria.
+        dict: A dictionary with keys corresponding to kwargs keys and values processed, potentially recursively.
     """
-    if value is None:
-        return {}
-    if isinstance(value, dict):
-        return value
-    if hasattr(value, 'to_dict') and callable(value.to_dict):
-        return value.to_dict()
-    return value
+
+    def handle_value(value):
+        if hasattr(value, "to_dict") and callable(value.to_dict):
+            return value.to_dict()
+        elif isinstance(value, dict):
+            return {k: handle_value(v) for k, v in value.items()}
+        elif isinstance(value, list):
+            return [handle_value(v) for v in value]
+        else:
+            return value
+
+    data = {key: handle_value(value) for key, value in kwargs.items()}
+    return data

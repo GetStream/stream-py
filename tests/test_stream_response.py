@@ -70,10 +70,13 @@ class TestStreamResponse(TestCase):
 
     def test_response_with_enum(self):
         from getstream.models import CallStateResponseFields
-        obj = CallStateResponseFields.from_dict({
-            "blocked_users": [],
-            "members": [],
-            "own_capabilities": ["block-users", "asd"],
-            "call": None
-        })
+
+        obj = CallStateResponseFields.from_dict(
+            {
+                "blocked_users": [],
+                "members": [],
+                "own_capabilities": ["block-users", "asd"],
+                "call": None,
+            }
+        )
         self.assertEqual(obj.own_capabilities, [OwnCapability.BLOCK_USERS, "asd"])
