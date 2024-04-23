@@ -1,3 +1,4 @@
+from getstream.models import OwnCapability
 from httpx import Response
 from datetime import timezone
 from dateutil.parser import parse as dt_parse
@@ -66,3 +67,13 @@ class TestStreamResponse(TestCase):
         self.assertEqual(
             rate_limit_dict.reset, dt_parse("2022-01-01").replace(tzinfo=timezone.utc)
         )
+
+    def test_response_with_enum(self):
+        from getstream.models import CallStateResponseFields
+        obj = CallStateResponseFields.from_dict({
+            "blocked_users": [],
+            "members": [],
+            "own_capabilities": ["block-users", "asd"],
+            "call": None
+        })
+        self.assertEqual(obj.own_capabilities, [OwnCapability.BLOCK_USERS, "asd"])

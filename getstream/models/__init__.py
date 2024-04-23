@@ -4,9 +4,8 @@ from dataclasses_json import DataClassJsonMixin
 from dataclasses_json import config as dc_config
 from datetime import datetime
 from marshmallow import fields
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Final
 from getstream.utils import datetime_from_unix_ns
-
 
 
 @dataclass
@@ -17,7 +16,7 @@ class APIError(DataClassJsonMixin):
     more_info: str = dc_field(metadata=dc_config(field_name="more_info"))
     status_code: int = dc_field(metadata=dc_config(field_name="StatusCode"))
     details: 'List[int]' = dc_field(metadata=dc_config(field_name="details"))
-    exception_fields: Optional[Dict[str, object]] = dc_field(default=None, metadata=dc_config(field_name="exception_fields"))
+    exception_fields: 'Optional[Dict[str, str]]' = dc_field(default=None, metadata=dc_config(field_name="exception_fields"))
 
 @dataclass
 class APNConfig(DataClassJsonMixin):
@@ -89,9 +88,9 @@ class App(DataClassJsonMixin):
     call_types: 'Dict[str, Optional[CallType]]' = dc_field(metadata=dc_config(field_name="call_types"))
     channel_configs: 'Dict[str, Optional[ChannelConfig]]' = dc_field(metadata=dc_config(field_name="channel_configs"))
     file_upload_config: 'FileUploadConfig' = dc_field(metadata=dc_config(field_name="file_upload_config"))
-    grants: Dict[str, object] = dc_field(metadata=dc_config(field_name="grants"))
+    grants: 'Dict[str, List[str]]' = dc_field(metadata=dc_config(field_name="grants"))
     image_upload_config: 'FileUploadConfig' = dc_field(metadata=dc_config(field_name="image_upload_config"))
-    policies: Dict[str, object] = dc_field(metadata=dc_config(field_name="policies"))
+    policies: 'Dict[str, List[Policy]]' = dc_field(metadata=dc_config(field_name="policies"))
     push_notifications: 'PushNotificationFields' = dc_field(metadata=dc_config(field_name="push_notifications"))
     auto_translation_enabled: Optional[bool] = dc_field(default=None, metadata=dc_config(field_name="auto_translation_enabled"))
     before_message_send_hook_url: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="before_message_send_hook_url"))
@@ -149,6 +148,26 @@ class AudioSettings(DataClassJsonMixin):
     noise_cancellation: 'Optional[NoiseCancellationSettings]' = dc_field(default=None, metadata=dc_config(field_name="noise_cancellation"))
 
 @dataclass
+class AudioSettingsRequest(DataClassJsonMixin):
+    default_device: str = dc_field(metadata=dc_config(field_name="default_device"))
+    access_request_enabled: Optional[bool] = dc_field(default=None, metadata=dc_config(field_name="access_request_enabled"))
+    mic_default_on: Optional[bool] = dc_field(default=None, metadata=dc_config(field_name="mic_default_on"))
+    opus_dtx_enabled: Optional[bool] = dc_field(default=None, metadata=dc_config(field_name="opus_dtx_enabled"))
+    redundant_coding_enabled: Optional[bool] = dc_field(default=None, metadata=dc_config(field_name="redundant_coding_enabled"))
+    speaker_default_on: Optional[bool] = dc_field(default=None, metadata=dc_config(field_name="speaker_default_on"))
+    noise_cancellation: 'Optional[NoiseCancellationSettings]' = dc_field(default=None, metadata=dc_config(field_name="noise_cancellation"))
+
+@dataclass
+class AudioSettingsResponse(DataClassJsonMixin):
+    access_request_enabled: bool = dc_field(metadata=dc_config(field_name="access_request_enabled"))
+    default_device: str = dc_field(metadata=dc_config(field_name="default_device"))
+    mic_default_on: bool = dc_field(metadata=dc_config(field_name="mic_default_on"))
+    opus_dtx_enabled: bool = dc_field(metadata=dc_config(field_name="opus_dtx_enabled"))
+    redundant_coding_enabled: bool = dc_field(metadata=dc_config(field_name="redundant_coding_enabled"))
+    speaker_default_on: bool = dc_field(metadata=dc_config(field_name="speaker_default_on"))
+    noise_cancellation: 'Optional[NoiseCancellationSettings]' = dc_field(default=None, metadata=dc_config(field_name="noise_cancellation"))
+
+@dataclass
 class AutomodDetails(DataClassJsonMixin):
     action: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="action"))
     original_message_type: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="original_message_type"))
@@ -165,6 +184,14 @@ class AzureRequest(DataClassJsonMixin):
 
 @dataclass
 class BackstageSettings(DataClassJsonMixin):
+    enabled: bool = dc_field(metadata=dc_config(field_name="enabled"))
+
+@dataclass
+class BackstageSettingsRequest(DataClassJsonMixin):
+    enabled: Optional[bool] = dc_field(default=None, metadata=dc_config(field_name="enabled"))
+
+@dataclass
+class BackstageSettingsResponse(DataClassJsonMixin):
     enabled: bool = dc_field(metadata=dc_config(field_name="enabled"))
 
 @dataclass
@@ -290,9 +317,9 @@ class CallResponse(DataClassJsonMixin):
 class CallSessionResponse(DataClassJsonMixin):
     id: str = dc_field(metadata=dc_config(field_name="id"))
     participants: 'List[CallParticipantResponse]' = dc_field(metadata=dc_config(field_name="participants"))
-    accepted_by: Dict[str, object] = dc_field(metadata=dc_config(field_name="accepted_by"))
-    participants_count_by_role: Dict[str, object] = dc_field(metadata=dc_config(field_name="participants_count_by_role"))
-    rejected_by: Dict[str, object] = dc_field(metadata=dc_config(field_name="rejected_by"))
+    accepted_by: 'Dict[str, datetime]' = dc_field(metadata=dc_config(field_name="accepted_by"))
+    participants_count_by_role: 'Dict[str, int]' = dc_field(metadata=dc_config(field_name="participants_count_by_role"))
+    rejected_by: 'Dict[str, datetime]' = dc_field(metadata=dc_config(field_name="rejected_by"))
     ended_at: Optional[datetime] = dc_field(default=None, metadata=dc_config(field_name="ended_at", encoder=lambda d: d.isoformat(), decoder=datetime_from_unix_ns, mm_field=fields.DateTime(format="iso")))
     live_ended_at: Optional[datetime] = dc_field(default=None, metadata=dc_config(field_name="live_ended_at", encoder=lambda d: d.isoformat(), decoder=datetime_from_unix_ns, mm_field=fields.DateTime(format="iso")))
     live_started_at: Optional[datetime] = dc_field(default=None, metadata=dc_config(field_name="live_started_at", encoder=lambda d: d.isoformat(), decoder=datetime_from_unix_ns, mm_field=fields.DateTime(format="iso")))
@@ -313,29 +340,29 @@ class CallSettings(DataClassJsonMixin):
 
 @dataclass
 class CallSettingsRequest(DataClassJsonMixin):
-    audio: 'Optional[AudioSettings]' = dc_field(default=None, metadata=dc_config(field_name="audio"))
-    backstage: 'Optional[BackstageSettings]' = dc_field(default=None, metadata=dc_config(field_name="backstage"))
+    audio: 'Optional[AudioSettingsRequest]' = dc_field(default=None, metadata=dc_config(field_name="audio"))
+    backstage: 'Optional[BackstageSettingsRequest]' = dc_field(default=None, metadata=dc_config(field_name="backstage"))
     broadcasting: 'Optional[BroadcastSettingsRequest]' = dc_field(default=None, metadata=dc_config(field_name="broadcasting"))
-    geofencing: 'Optional[GeofenceSettings]' = dc_field(default=None, metadata=dc_config(field_name="geofencing"))
+    geofencing: 'Optional[GeofenceSettingsRequest]' = dc_field(default=None, metadata=dc_config(field_name="geofencing"))
     recording: 'Optional[RecordSettingsRequest]' = dc_field(default=None, metadata=dc_config(field_name="recording"))
     ring: 'Optional[RingSettingsRequest]' = dc_field(default=None, metadata=dc_config(field_name="ring"))
-    screensharing: 'Optional[ScreensharingSettings]' = dc_field(default=None, metadata=dc_config(field_name="screensharing"))
-    thumbnails: 'Optional[ThumbnailsSettings]' = dc_field(default=None, metadata=dc_config(field_name="thumbnails"))
-    transcription: 'Optional[TranscriptionSettings]' = dc_field(default=None, metadata=dc_config(field_name="transcription"))
-    video: 'Optional[VideoSettings]' = dc_field(default=None, metadata=dc_config(field_name="video"))
+    screensharing: 'Optional[ScreensharingSettingsRequest]' = dc_field(default=None, metadata=dc_config(field_name="screensharing"))
+    thumbnails: 'Optional[ThumbnailsSettingsRequest]' = dc_field(default=None, metadata=dc_config(field_name="thumbnails"))
+    transcription: 'Optional[TranscriptionSettingsRequest]' = dc_field(default=None, metadata=dc_config(field_name="transcription"))
+    video: 'Optional[VideoSettingsRequest]' = dc_field(default=None, metadata=dc_config(field_name="video"))
 
 @dataclass
 class CallSettingsResponse(DataClassJsonMixin):
-    audio: 'AudioSettings' = dc_field(metadata=dc_config(field_name="audio"))
-    backstage: 'BackstageSettings' = dc_field(metadata=dc_config(field_name="backstage"))
+    audio: 'AudioSettingsResponse' = dc_field(metadata=dc_config(field_name="audio"))
+    backstage: 'BackstageSettingsResponse' = dc_field(metadata=dc_config(field_name="backstage"))
     broadcasting: 'BroadcastSettingsResponse' = dc_field(metadata=dc_config(field_name="broadcasting"))
-    geofencing: 'GeofenceSettings' = dc_field(metadata=dc_config(field_name="geofencing"))
+    geofencing: 'GeofenceSettingsResponse' = dc_field(metadata=dc_config(field_name="geofencing"))
     recording: 'RecordSettingsResponse' = dc_field(metadata=dc_config(field_name="recording"))
-    ring: 'RingSettings' = dc_field(metadata=dc_config(field_name="ring"))
-    screensharing: 'ScreensharingSettings' = dc_field(metadata=dc_config(field_name="screensharing"))
-    thumbnails: 'ThumbnailsSettings' = dc_field(metadata=dc_config(field_name="thumbnails"))
-    transcription: 'TranscriptionSettings' = dc_field(metadata=dc_config(field_name="transcription"))
-    video: 'VideoSettings' = dc_field(metadata=dc_config(field_name="video"))
+    ring: 'RingSettingsResponse' = dc_field(metadata=dc_config(field_name="ring"))
+    screensharing: 'ScreensharingSettingsResponse' = dc_field(metadata=dc_config(field_name="screensharing"))
+    thumbnails: 'ThumbnailsSettingsResponse' = dc_field(metadata=dc_config(field_name="thumbnails"))
+    transcription: 'TranscriptionSettingsResponse' = dc_field(metadata=dc_config(field_name="transcription"))
+    video: 'VideoSettingsResponse' = dc_field(metadata=dc_config(field_name="video"))
 
 @dataclass
 class CallStateResponseFields(DataClassJsonMixin):
@@ -382,7 +409,7 @@ class CallTypeResponse(DataClassJsonMixin):
     created_at: datetime = dc_field(metadata=dc_config(field_name="created_at", encoder=lambda d: d.isoformat(), decoder=datetime_from_unix_ns, mm_field=fields.DateTime(format="iso")))
     name: str = dc_field(metadata=dc_config(field_name="name"))
     updated_at: datetime = dc_field(metadata=dc_config(field_name="updated_at", encoder=lambda d: d.isoformat(), decoder=datetime_from_unix_ns, mm_field=fields.DateTime(format="iso")))
-    grants: Dict[str, object] = dc_field(metadata=dc_config(field_name="grants"))
+    grants: 'Dict[str, List[str]]' = dc_field(metadata=dc_config(field_name="grants"))
     notification_settings: 'NotificationSettings' = dc_field(metadata=dc_config(field_name="notification_settings"))
     settings: 'CallSettingsResponse' = dc_field(metadata=dc_config(field_name="settings"))
     external_storage: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="external_storage"))
@@ -477,7 +504,7 @@ class ChannelConfigWithInfo(DataClassJsonMixin):
     allowed_flag_reasons: Optional[List[str]] = dc_field(default=None, metadata=dc_config(field_name="allowed_flag_reasons"))
     blocklists: 'Optional[List[BlockListOptions]]' = dc_field(default=None, metadata=dc_config(field_name="blocklists"))
     automod_thresholds: 'Optional[Thresholds]' = dc_field(default=None, metadata=dc_config(field_name="automod_thresholds"))
-    grants: Optional[Dict[str, object]] = dc_field(default=None, metadata=dc_config(field_name="grants"))
+    grants: 'Optional[Dict[str, List[str]]]' = dc_field(default=None, metadata=dc_config(field_name="grants"))
 
 @dataclass
 class ChannelExport(DataClassJsonMixin):
@@ -622,7 +649,7 @@ class ChannelTypeConfig(DataClassJsonMixin):
     url_enrichment: bool = dc_field(metadata=dc_config(field_name="url_enrichment"))
     commands: 'List[Optional[Command]]' = dc_field(metadata=dc_config(field_name="commands"))
     permissions: 'List[PolicyRequest]' = dc_field(metadata=dc_config(field_name="permissions"))
-    grants: Dict[str, object] = dc_field(metadata=dc_config(field_name="grants"))
+    grants: 'Dict[str, List[str]]' = dc_field(metadata=dc_config(field_name="grants"))
     blocklist: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="blocklist"))
     blocklist_behavior: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="blocklist_behavior"))
     allowed_flag_reasons: Optional[List[str]] = dc_field(default=None, metadata=dc_config(field_name="allowed_flag_reasons"))
@@ -653,7 +680,7 @@ class CheckPushResponse(DataClassJsonMixin):
     skip_devices: Optional[bool] = dc_field(default=None, metadata=dc_config(field_name="skip_devices"))
     general_errors: Optional[List[str]] = dc_field(default=None, metadata=dc_config(field_name="general_errors"))
     device_errors: 'Optional[Dict[str, DeviceErrorInfo]]' = dc_field(default=None, metadata=dc_config(field_name="device_errors"))
-    rendered_message: Optional[Dict[str, object]] = dc_field(default=None, metadata=dc_config(field_name="rendered_message"))
+    rendered_message: 'Optional[Dict[str, str]]' = dc_field(default=None, metadata=dc_config(field_name="rendered_message"))
 
 @dataclass
 class CheckSNSRequest(DataClassJsonMixin):
@@ -711,7 +738,7 @@ class Config(DataClassJsonMixin):
     app_certificate: str = dc_field(metadata=dc_config(field_name="app_certificate"))
     app_id: str = dc_field(metadata=dc_config(field_name="app_id"))
     default_role: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="default_role"))
-    role_map: Optional[Dict[str, object]] = dc_field(default=None, metadata=dc_config(field_name="role_map"))
+    role_map: 'Optional[Dict[str, str]]' = dc_field(default=None, metadata=dc_config(field_name="role_map"))
 
 @dataclass
 class Coordinates(DataClassJsonMixin):
@@ -728,7 +755,7 @@ class CreateBlockListRequest(DataClassJsonMixin):
 class CreateCallTypeRequest(DataClassJsonMixin):
     name: str = dc_field(metadata=dc_config(field_name="name"))
     external_storage: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="external_storage"))
-    grants: Optional[Dict[str, object]] = dc_field(default=None, metadata=dc_config(field_name="grants"))
+    grants: 'Optional[Dict[str, List[str]]]' = dc_field(default=None, metadata=dc_config(field_name="grants"))
     notification_settings: 'Optional[NotificationSettings]' = dc_field(default=None, metadata=dc_config(field_name="notification_settings"))
     settings: 'Optional[CallSettingsRequest]' = dc_field(default=None, metadata=dc_config(field_name="settings"))
 
@@ -738,7 +765,7 @@ class CreateCallTypeResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
     name: str = dc_field(metadata=dc_config(field_name="name"))
     updated_at: datetime = dc_field(metadata=dc_config(field_name="updated_at", encoder=lambda d: d.isoformat(), decoder=datetime_from_unix_ns, mm_field=fields.DateTime(format="iso")))
-    grants: Dict[str, object] = dc_field(metadata=dc_config(field_name="grants"))
+    grants: 'Dict[str, List[str]]' = dc_field(metadata=dc_config(field_name="grants"))
     notification_settings: 'NotificationSettings' = dc_field(metadata=dc_config(field_name="notification_settings"))
     settings: 'CallSettingsResponse' = dc_field(metadata=dc_config(field_name="settings"))
     external_storage: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="external_storage"))
@@ -768,7 +795,7 @@ class CreateChannelTypeRequest(DataClassJsonMixin):
     blocklists: 'Optional[List[BlockListOptions]]' = dc_field(default=None, metadata=dc_config(field_name="blocklists"))
     commands: Optional[List[str]] = dc_field(default=None, metadata=dc_config(field_name="commands"))
     permissions: 'Optional[List[PolicyRequest]]' = dc_field(default=None, metadata=dc_config(field_name="permissions"))
-    grants: Optional[Dict[str, object]] = dc_field(default=None, metadata=dc_config(field_name="grants"))
+    grants: 'Optional[Dict[str, List[str]]]' = dc_field(default=None, metadata=dc_config(field_name="grants"))
 
 @dataclass
 class CreateChannelTypeResponse(DataClassJsonMixin):
@@ -796,7 +823,7 @@ class CreateChannelTypeResponse(DataClassJsonMixin):
     url_enrichment: bool = dc_field(metadata=dc_config(field_name="url_enrichment"))
     commands: List[str] = dc_field(metadata=dc_config(field_name="commands"))
     permissions: 'List[PolicyRequest]' = dc_field(metadata=dc_config(field_name="permissions"))
-    grants: Dict[str, object] = dc_field(metadata=dc_config(field_name="grants"))
+    grants: 'Dict[str, List[str]]' = dc_field(metadata=dc_config(field_name="grants"))
     blocklist: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="blocklist"))
     blocklist_behavior: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="blocklist_behavior"))
     allowed_flag_reasons: Optional[List[str]] = dc_field(default=None, metadata=dc_config(field_name="allowed_flag_reasons"))
@@ -910,7 +937,6 @@ class DataDogInfo(DataClassJsonMixin):
 
 @dataclass
 class DeactivateUserRequest(DataClassJsonMixin):
-    user_id: str = dc_field(metadata=dc_config(field_name="user_id"))
     created_by_id: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="created_by_id"))
     mark_messages_deleted: Optional[bool] = dc_field(default=None, metadata=dc_config(field_name="mark_messages_deleted"))
 
@@ -1237,6 +1263,14 @@ class GeofenceSettings(DataClassJsonMixin):
     names: List[str] = dc_field(metadata=dc_config(field_name="names"))
 
 @dataclass
+class GeofenceSettingsRequest(DataClassJsonMixin):
+    names: Optional[List[str]] = dc_field(default=None, metadata=dc_config(field_name="names"))
+
+@dataclass
+class GeofenceSettingsResponse(DataClassJsonMixin):
+    names: List[str] = dc_field(metadata=dc_config(field_name="names"))
+
+@dataclass
 class GeolocationResult(DataClassJsonMixin):
     accuracy_radius: int = dc_field(metadata=dc_config(field_name="accuracy_radius"))
     continent_code: str = dc_field(metadata=dc_config(field_name="continent_code"))
@@ -1286,7 +1320,7 @@ class GetCallTypeResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
     name: str = dc_field(metadata=dc_config(field_name="name"))
     updated_at: datetime = dc_field(metadata=dc_config(field_name="updated_at", encoder=lambda d: d.isoformat(), decoder=datetime_from_unix_ns, mm_field=fields.DateTime(format="iso")))
-    grants: Dict[str, object] = dc_field(metadata=dc_config(field_name="grants"))
+    grants: 'Dict[str, List[str]]' = dc_field(metadata=dc_config(field_name="grants"))
     notification_settings: 'NotificationSettings' = dc_field(metadata=dc_config(field_name="notification_settings"))
     settings: 'CallSettingsResponse' = dc_field(metadata=dc_config(field_name="settings"))
     external_storage: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="external_storage"))
@@ -1335,7 +1369,7 @@ class GetManyMessagesResponse(DataClassJsonMixin):
 class GetMessageResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
     message: 'MessageWithChannelResponse' = dc_field(metadata=dc_config(field_name="message"))
-    pending_message_metadata: Optional[Dict[str, object]] = dc_field(default=None, metadata=dc_config(field_name="pending_message_metadata"))
+    pending_message_metadata: 'Optional[Dict[str, str]]' = dc_field(default=None, metadata=dc_config(field_name="pending_message_metadata"))
 
 @dataclass
 class GetOGResponse(DataClassJsonMixin):
@@ -1438,14 +1472,14 @@ class HLSSettingsRequest(DataClassJsonMixin):
     quality_tracks: List[str] = dc_field(metadata=dc_config(field_name="quality_tracks"))
     auto_on: Optional[bool] = dc_field(default=None, metadata=dc_config(field_name="auto_on"))
     enabled: Optional[bool] = dc_field(default=None, metadata=dc_config(field_name="enabled"))
-    layout: 'Optional[LayoutSettings]' = dc_field(default=None, metadata=dc_config(field_name="layout"))
+    layout: 'Optional[LayoutSettingsRequest]' = dc_field(default=None, metadata=dc_config(field_name="layout"))
 
 @dataclass
 class HLSSettingsResponse(DataClassJsonMixin):
     auto_on: bool = dc_field(metadata=dc_config(field_name="auto_on"))
     enabled: bool = dc_field(metadata=dc_config(field_name="enabled"))
     quality_tracks: List[str] = dc_field(metadata=dc_config(field_name="quality_tracks"))
-    layout: 'LayoutSettings' = dc_field(metadata=dc_config(field_name="layout"))
+    layout: 'LayoutSettingsResponse' = dc_field(metadata=dc_config(field_name="layout"))
 
 @dataclass
 class HideChannelRequest(DataClassJsonMixin):
@@ -1543,6 +1577,20 @@ class LayoutSettings(DataClassJsonMixin):
     options: Optional[Dict[str, object]] = dc_field(default=None, metadata=dc_config(field_name="options"))
 
 @dataclass
+class LayoutSettingsRequest(DataClassJsonMixin):
+    name: str = dc_field(metadata=dc_config(field_name="name"))
+    external_app_url: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="external_app_url"))
+    external_css_url: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="external_css_url"))
+    options: Optional[Dict[str, object]] = dc_field(default=None, metadata=dc_config(field_name="options"))
+
+@dataclass
+class LayoutSettingsResponse(DataClassJsonMixin):
+    external_app_url: str = dc_field(metadata=dc_config(field_name="external_app_url"))
+    external_css_url: str = dc_field(metadata=dc_config(field_name="external_css_url"))
+    name: str = dc_field(metadata=dc_config(field_name="name"))
+    options: Optional[Dict[str, object]] = dc_field(default=None, metadata=dc_config(field_name="options"))
+
+@dataclass
 class LimitInfo(DataClassJsonMixin):
     limit: int = dc_field(metadata=dc_config(field_name="limit"))
     remaining: int = dc_field(metadata=dc_config(field_name="remaining"))
@@ -1617,7 +1665,7 @@ class Location(DataClassJsonMixin):
 @dataclass
 class MarkChannelsReadRequest(DataClassJsonMixin):
     user_id: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="user_id"))
-    read_by_channel: Optional[Dict[str, object]] = dc_field(default=None, metadata=dc_config(field_name="read_by_channel"))
+    read_by_channel: 'Optional[Dict[str, str]]' = dc_field(default=None, metadata=dc_config(field_name="read_by_channel"))
     user: 'Optional[UserRequest]' = dc_field(default=None, metadata=dc_config(field_name="user"))
 
 @dataclass
@@ -1680,8 +1728,8 @@ class Message(DataClassJsonMixin):
     mentioned_users: 'List[UserObject]' = dc_field(metadata=dc_config(field_name="mentioned_users"))
     own_reactions: 'List[Optional[Reaction]]' = dc_field(metadata=dc_config(field_name="own_reactions"))
     custom: Dict[str, object] = dc_field(metadata=dc_config(field_name="custom"))
-    reaction_counts: Dict[str, object] = dc_field(metadata=dc_config(field_name="reaction_counts"))
-    reaction_scores: Dict[str, object] = dc_field(metadata=dc_config(field_name="reaction_scores"))
+    reaction_counts: 'Dict[str, int]' = dc_field(metadata=dc_config(field_name="reaction_counts"))
+    reaction_scores: 'Dict[str, int]' = dc_field(metadata=dc_config(field_name="reaction_scores"))
     before_message_send_failed: Optional[bool] = dc_field(default=None, metadata=dc_config(field_name="before_message_send_failed"))
     command: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="command"))
     deleted_at: Optional[datetime] = dc_field(default=None, metadata=dc_config(field_name="deleted_at", encoder=lambda d: d.isoformat(), decoder=datetime_from_unix_ns, mm_field=fields.DateTime(format="iso")))
@@ -1693,8 +1741,8 @@ class Message(DataClassJsonMixin):
     quoted_message_id: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="quoted_message_id"))
     show_in_channel: Optional[bool] = dc_field(default=None, metadata=dc_config(field_name="show_in_channel"))
     thread_participants: 'Optional[List[UserObject]]' = dc_field(default=None, metadata=dc_config(field_name="thread_participants"))
-    i18n: Optional[Dict[str, object]] = dc_field(default=None, metadata=dc_config(field_name="i18n"))
-    image_labels: Optional[Dict[str, object]] = dc_field(default=None, metadata=dc_config(field_name="image_labels"))
+    i18n: 'Optional[Dict[str, str]]' = dc_field(default=None, metadata=dc_config(field_name="i18n"))
+    image_labels: 'Optional[Dict[str, List[str]]]' = dc_field(default=None, metadata=dc_config(field_name="image_labels"))
     pinned_by: 'Optional[UserObject]' = dc_field(default=None, metadata=dc_config(field_name="pinned_by"))
     poll: 'Optional[Poll]' = dc_field(default=None, metadata=dc_config(field_name="poll"))
     quoted_message: 'Optional[Message]' = dc_field(default=None, metadata=dc_config(field_name="quoted_message"))
@@ -1702,7 +1750,7 @@ class Message(DataClassJsonMixin):
 
 @dataclass
 class MessageActionRequest(DataClassJsonMixin):
-    form_data: Dict[str, object] = dc_field(metadata=dc_config(field_name="form_data"))
+    form_data: 'Dict[str, str]' = dc_field(metadata=dc_config(field_name="form_data"))
     id: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="ID"))
     user_id: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="user_id"))
     user: 'Optional[UserRequest]' = dc_field(default=None, metadata=dc_config(field_name="user"))
@@ -1818,8 +1866,8 @@ class MessageResponse(DataClassJsonMixin):
     mentioned_users: 'List[UserResponse]' = dc_field(metadata=dc_config(field_name="mentioned_users"))
     own_reactions: 'List[ReactionResponse]' = dc_field(metadata=dc_config(field_name="own_reactions"))
     custom: Dict[str, object] = dc_field(metadata=dc_config(field_name="custom"))
-    reaction_counts: Dict[str, object] = dc_field(metadata=dc_config(field_name="reaction_counts"))
-    reaction_scores: Dict[str, object] = dc_field(metadata=dc_config(field_name="reaction_scores"))
+    reaction_counts: 'Dict[str, int]' = dc_field(metadata=dc_config(field_name="reaction_counts"))
+    reaction_scores: 'Dict[str, int]' = dc_field(metadata=dc_config(field_name="reaction_scores"))
     user: 'UserResponse' = dc_field(metadata=dc_config(field_name="user"))
     command: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="command"))
     deleted_at: Optional[datetime] = dc_field(default=None, metadata=dc_config(field_name="deleted_at", encoder=lambda d: d.isoformat(), decoder=datetime_from_unix_ns, mm_field=fields.DateTime(format="iso")))
@@ -1831,8 +1879,8 @@ class MessageResponse(DataClassJsonMixin):
     quoted_message_id: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="quoted_message_id"))
     show_in_channel: Optional[bool] = dc_field(default=None, metadata=dc_config(field_name="show_in_channel"))
     thread_participants: 'Optional[List[UserResponse]]' = dc_field(default=None, metadata=dc_config(field_name="thread_participants"))
-    i18n: Optional[Dict[str, object]] = dc_field(default=None, metadata=dc_config(field_name="i18n"))
-    image_labels: Optional[Dict[str, object]] = dc_field(default=None, metadata=dc_config(field_name="image_labels"))
+    i18n: 'Optional[Dict[str, str]]' = dc_field(default=None, metadata=dc_config(field_name="i18n"))
+    image_labels: 'Optional[Dict[str, List[str]]]' = dc_field(default=None, metadata=dc_config(field_name="image_labels"))
     pinned_by: 'Optional[UserResponse]' = dc_field(default=None, metadata=dc_config(field_name="pinned_by"))
     poll: 'Optional[Poll]' = dc_field(default=None, metadata=dc_config(field_name="poll"))
     quoted_message: 'Optional[Message]' = dc_field(default=None, metadata=dc_config(field_name="quoted_message"))
@@ -1863,8 +1911,8 @@ class MessageWithChannelResponse(DataClassJsonMixin):
     own_reactions: 'List[ReactionResponse]' = dc_field(metadata=dc_config(field_name="own_reactions"))
     channel: 'ChannelResponse' = dc_field(metadata=dc_config(field_name="channel"))
     custom: Dict[str, object] = dc_field(metadata=dc_config(field_name="custom"))
-    reaction_counts: Dict[str, object] = dc_field(metadata=dc_config(field_name="reaction_counts"))
-    reaction_scores: Dict[str, object] = dc_field(metadata=dc_config(field_name="reaction_scores"))
+    reaction_counts: 'Dict[str, int]' = dc_field(metadata=dc_config(field_name="reaction_counts"))
+    reaction_scores: 'Dict[str, int]' = dc_field(metadata=dc_config(field_name="reaction_scores"))
     user: 'UserResponse' = dc_field(metadata=dc_config(field_name="user"))
     command: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="command"))
     deleted_at: Optional[datetime] = dc_field(default=None, metadata=dc_config(field_name="deleted_at", encoder=lambda d: d.isoformat(), decoder=datetime_from_unix_ns, mm_field=fields.DateTime(format="iso")))
@@ -1876,8 +1924,8 @@ class MessageWithChannelResponse(DataClassJsonMixin):
     quoted_message_id: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="quoted_message_id"))
     show_in_channel: Optional[bool] = dc_field(default=None, metadata=dc_config(field_name="show_in_channel"))
     thread_participants: 'Optional[List[UserResponse]]' = dc_field(default=None, metadata=dc_config(field_name="thread_participants"))
-    i18n: Optional[Dict[str, object]] = dc_field(default=None, metadata=dc_config(field_name="i18n"))
-    image_labels: Optional[Dict[str, object]] = dc_field(default=None, metadata=dc_config(field_name="image_labels"))
+    i18n: 'Optional[Dict[str, str]]' = dc_field(default=None, metadata=dc_config(field_name="i18n"))
+    image_labels: 'Optional[Dict[str, List[str]]]' = dc_field(default=None, metadata=dc_config(field_name="image_labels"))
     pinned_by: 'Optional[UserResponse]' = dc_field(default=None, metadata=dc_config(field_name="pinned_by"))
     poll: 'Optional[Poll]' = dc_field(default=None, metadata=dc_config(field_name="poll"))
     quoted_message: 'Optional[Message]' = dc_field(default=None, metadata=dc_config(field_name="quoted_message"))
@@ -1957,8 +2005,34 @@ class NullTime(DataClassJsonMixin):
 class OnlyUserID(DataClassJsonMixin):
     id: str = dc_field(metadata=dc_config(field_name="id"))
 
-@dataclass
-class OwnCapability(DataClassJsonMixin):pass
+OwnCapabilityType = NewType('OwnCapabilityType', str)
+
+class OwnCapability:
+    BLOCK_USERS: Final[OwnCapabilityType] = 'block-users'
+    CREATE_CALL: Final[OwnCapabilityType] = 'create-call'
+    CREATE_REACTION: Final[OwnCapabilityType] = 'create-reaction'
+    ENABLE_NOISE_CANCELLATION: Final[OwnCapabilityType] = 'enable-noise-cancellation'
+    END_CALL: Final[OwnCapabilityType] = 'end-call'
+    JOIN_BACKSTAGE: Final[OwnCapabilityType] = 'join-backstage'
+    JOIN_CALL: Final[OwnCapabilityType] = 'join-call'
+    JOIN_ENDED_CALL: Final[OwnCapabilityType] = 'join-ended-call'
+    MUTE_USERS: Final[OwnCapabilityType] = 'mute-users'
+    PIN_FOR_EVERYONE: Final[OwnCapabilityType] = 'pin-for-everyone'
+    READ_CALL: Final[OwnCapabilityType] = 'read-call'
+    REMOVE_CALL_MEMBER: Final[OwnCapabilityType] = 'remove-call-member'
+    SCREENSHARE: Final[OwnCapabilityType] = 'screenshare'
+    SEND_AUDIO: Final[OwnCapabilityType] = 'send-audio'
+    SEND_VIDEO: Final[OwnCapabilityType] = 'send-video'
+    START_BROADCAST_CALL: Final[OwnCapabilityType] = 'start-broadcast-call'
+    START_RECORD_CALL: Final[OwnCapabilityType] = 'start-record-call'
+    START_TRANSCRIPTION_CALL: Final[OwnCapabilityType] = 'start-transcription-call'
+    STOP_BROADCAST_CALL: Final[OwnCapabilityType] = 'stop-broadcast-call'
+    STOP_RECORD_CALL: Final[OwnCapabilityType] = 'stop-record-call'
+    STOP_TRANSCRIPTION_CALL: Final[OwnCapabilityType] = 'stop-transcription-call'
+    UPDATE_CALL: Final[OwnCapabilityType] = 'update-call'
+    UPDATE_CALL_MEMBER: Final[OwnCapabilityType] = 'update-call-member'
+    UPDATE_CALL_PERMISSIONS: Final[OwnCapabilityType] = 'update-call-permissions'
+    UPDATE_CALL_SETTINGS: Final[OwnCapabilityType] = 'update-call-settings'
 
 @dataclass
 class OwnUser(DataClassJsonMixin):
@@ -1998,7 +2072,7 @@ class PaginationParams(DataClassJsonMixin):
 class PendingMessage(DataClassJsonMixin):
     channel: 'Optional[Channel]' = dc_field(default=None, metadata=dc_config(field_name="channel"))
     message: 'Optional[Message]' = dc_field(default=None, metadata=dc_config(field_name="message"))
-    metadata: Optional[Dict[str, object]] = dc_field(default=None, metadata=dc_config(field_name="metadata"))
+    metadata: 'Optional[Dict[str, str]]' = dc_field(default=None, metadata=dc_config(field_name="metadata"))
     user: 'Optional[UserObject]' = dc_field(default=None, metadata=dc_config(field_name="user"))
 
 @dataclass
@@ -2060,8 +2134,8 @@ class Poll(DataClassJsonMixin):
     options: 'List[Optional[PollOption]]' = dc_field(metadata=dc_config(field_name="options"))
     own_votes: 'List[Optional[PollVote]]' = dc_field(metadata=dc_config(field_name="own_votes"))
     custom: Dict[str, object] = dc_field(metadata=dc_config(field_name="Custom"))
-    latest_votes_by_option: Dict[str, object] = dc_field(metadata=dc_config(field_name="latest_votes_by_option"))
-    vote_counts_by_option: Dict[str, object] = dc_field(metadata=dc_config(field_name="vote_counts_by_option"))
+    latest_votes_by_option: 'Dict[str, List[Optional[PollVote]]]' = dc_field(metadata=dc_config(field_name="latest_votes_by_option"))
+    vote_counts_by_option: 'Dict[str, int]' = dc_field(metadata=dc_config(field_name="vote_counts_by_option"))
     is_closed: Optional[bool] = dc_field(default=None, metadata=dc_config(field_name="is_closed"))
     max_votes_allowed: Optional[int] = dc_field(default=None, metadata=dc_config(field_name="max_votes_allowed"))
     voting_visibility: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="voting_visibility"))
@@ -2111,8 +2185,8 @@ class PollResponseData(DataClassJsonMixin):
     options: 'List[Optional[PollOptionResponseData]]' = dc_field(metadata=dc_config(field_name="options"))
     own_votes: 'List[Optional[PollVoteResponseData]]' = dc_field(metadata=dc_config(field_name="own_votes"))
     custom: Dict[str, object] = dc_field(metadata=dc_config(field_name="Custom"))
-    latest_votes_by_option: Dict[str, object] = dc_field(metadata=dc_config(field_name="latest_votes_by_option"))
-    vote_counts_by_option: Dict[str, object] = dc_field(metadata=dc_config(field_name="vote_counts_by_option"))
+    latest_votes_by_option: 'Dict[str, List[Optional[PollVoteResponseData]]]' = dc_field(metadata=dc_config(field_name="latest_votes_by_option"))
+    vote_counts_by_option: 'Dict[str, int]' = dc_field(metadata=dc_config(field_name="vote_counts_by_option"))
     is_closed: Optional[bool] = dc_field(default=None, metadata=dc_config(field_name="is_closed"))
     max_votes_allowed: Optional[int] = dc_field(default=None, metadata=dc_config(field_name="max_votes_allowed"))
     created_by: 'Optional[UserObject]' = dc_field(default=None, metadata=dc_config(field_name="created_by"))
@@ -2511,14 +2585,14 @@ class RecordSettingsRequest(DataClassJsonMixin):
     mode: str = dc_field(metadata=dc_config(field_name="mode"))
     audio_only: Optional[bool] = dc_field(default=None, metadata=dc_config(field_name="audio_only"))
     quality: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="quality"))
-    layout: 'Optional[LayoutSettings]' = dc_field(default=None, metadata=dc_config(field_name="layout"))
+    layout: 'Optional[LayoutSettingsRequest]' = dc_field(default=None, metadata=dc_config(field_name="layout"))
 
 @dataclass
 class RecordSettingsResponse(DataClassJsonMixin):
     audio_only: bool = dc_field(metadata=dc_config(field_name="audio_only"))
     mode: str = dc_field(metadata=dc_config(field_name="mode"))
     quality: str = dc_field(metadata=dc_config(field_name="quality"))
-    layout: 'LayoutSettings' = dc_field(metadata=dc_config(field_name="layout"))
+    layout: 'LayoutSettingsResponse' = dc_field(metadata=dc_config(field_name="layout"))
 
 @dataclass
 class Response(DataClassJsonMixin):
@@ -2535,6 +2609,11 @@ class RingSettings(DataClassJsonMixin):
 
 @dataclass
 class RingSettingsRequest(DataClassJsonMixin):
+    auto_cancel_timeout_ms: int = dc_field(metadata=dc_config(field_name="auto_cancel_timeout_ms"))
+    incoming_call_timeout_ms: int = dc_field(metadata=dc_config(field_name="incoming_call_timeout_ms"))
+
+@dataclass
+class RingSettingsResponse(DataClassJsonMixin):
     auto_cancel_timeout_ms: int = dc_field(metadata=dc_config(field_name="auto_cancel_timeout_ms"))
     incoming_call_timeout_ms: int = dc_field(metadata=dc_config(field_name="incoming_call_timeout_ms"))
 
@@ -2566,6 +2645,18 @@ class ScreensharingSettings(DataClassJsonMixin):
     target_resolution: 'Optional[TargetResolution]' = dc_field(default=None, metadata=dc_config(field_name="target_resolution"))
 
 @dataclass
+class ScreensharingSettingsRequest(DataClassJsonMixin):
+    access_request_enabled: Optional[bool] = dc_field(default=None, metadata=dc_config(field_name="access_request_enabled"))
+    enabled: Optional[bool] = dc_field(default=None, metadata=dc_config(field_name="enabled"))
+    target_resolution: 'Optional[TargetResolution]' = dc_field(default=None, metadata=dc_config(field_name="target_resolution"))
+
+@dataclass
+class ScreensharingSettingsResponse(DataClassJsonMixin):
+    access_request_enabled: bool = dc_field(metadata=dc_config(field_name="access_request_enabled"))
+    enabled: bool = dc_field(metadata=dc_config(field_name="enabled"))
+    target_resolution: 'Optional[TargetResolution]' = dc_field(default=None, metadata=dc_config(field_name="target_resolution"))
+
+@dataclass
 class SearchRequest(DataClassJsonMixin):
     filter_conditions: Dict[str, object] = dc_field(metadata=dc_config(field_name="filter_conditions"))
     limit: Optional[int] = dc_field(default=None, metadata=dc_config(field_name="limit"))
@@ -2578,7 +2669,7 @@ class SearchRequest(DataClassJsonMixin):
 @dataclass
 class SearchResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
-    results: 'List[Optional[SearchResult]]' = dc_field(metadata=dc_config(field_name="results"))
+    results: 'List[SearchResult]' = dc_field(metadata=dc_config(field_name="results"))
     next: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="next"))
     previous: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="previous"))
     results_warning: 'Optional[SearchWarning]' = dc_field(default=None, metadata=dc_config(field_name="results_warning"))
@@ -2607,8 +2698,8 @@ class SearchResultMessage(DataClassJsonMixin):
     mentioned_users: 'List[UserObject]' = dc_field(metadata=dc_config(field_name="mentioned_users"))
     own_reactions: 'List[Optional[Reaction]]' = dc_field(metadata=dc_config(field_name="own_reactions"))
     custom: Dict[str, object] = dc_field(metadata=dc_config(field_name="custom"))
-    reaction_counts: Dict[str, object] = dc_field(metadata=dc_config(field_name="reaction_counts"))
-    reaction_scores: Dict[str, object] = dc_field(metadata=dc_config(field_name="reaction_scores"))
+    reaction_counts: 'Dict[str, int]' = dc_field(metadata=dc_config(field_name="reaction_counts"))
+    reaction_scores: 'Dict[str, int]' = dc_field(metadata=dc_config(field_name="reaction_scores"))
     before_message_send_failed: Optional[bool] = dc_field(default=None, metadata=dc_config(field_name="before_message_send_failed"))
     command: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="command"))
     deleted_at: Optional[datetime] = dc_field(default=None, metadata=dc_config(field_name="deleted_at", encoder=lambda d: d.isoformat(), decoder=datetime_from_unix_ns, mm_field=fields.DateTime(format="iso")))
@@ -2621,8 +2712,8 @@ class SearchResultMessage(DataClassJsonMixin):
     show_in_channel: Optional[bool] = dc_field(default=None, metadata=dc_config(field_name="show_in_channel"))
     thread_participants: 'Optional[List[UserObject]]' = dc_field(default=None, metadata=dc_config(field_name="thread_participants"))
     channel: 'Optional[ChannelResponse]' = dc_field(default=None, metadata=dc_config(field_name="channel"))
-    i18n: Optional[Dict[str, object]] = dc_field(default=None, metadata=dc_config(field_name="i18n"))
-    image_labels: Optional[Dict[str, object]] = dc_field(default=None, metadata=dc_config(field_name="image_labels"))
+    i18n: 'Optional[Dict[str, str]]' = dc_field(default=None, metadata=dc_config(field_name="i18n"))
+    image_labels: 'Optional[Dict[str, List[str]]]' = dc_field(default=None, metadata=dc_config(field_name="image_labels"))
     pinned_by: 'Optional[UserObject]' = dc_field(default=None, metadata=dc_config(field_name="pinned_by"))
     poll: 'Optional[Poll]' = dc_field(default=None, metadata=dc_config(field_name="poll"))
     quoted_message: 'Optional[Message]' = dc_field(default=None, metadata=dc_config(field_name="quoted_message"))
@@ -2651,13 +2742,13 @@ class SendMessageRequest(DataClassJsonMixin):
     pending: Optional[bool] = dc_field(default=None, metadata=dc_config(field_name="pending"))
     skip_enrich_url: Optional[bool] = dc_field(default=None, metadata=dc_config(field_name="skip_enrich_url"))
     skip_push: Optional[bool] = dc_field(default=None, metadata=dc_config(field_name="skip_push"))
-    pending_message_metadata: Optional[Dict[str, object]] = dc_field(default=None, metadata=dc_config(field_name="pending_message_metadata"))
+    pending_message_metadata: 'Optional[Dict[str, str]]' = dc_field(default=None, metadata=dc_config(field_name="pending_message_metadata"))
 
 @dataclass
 class SendMessageResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
     message: 'MessageResponse' = dc_field(metadata=dc_config(field_name="message"))
-    pending_message_metadata: Optional[Dict[str, object]] = dc_field(default=None, metadata=dc_config(field_name="pending_message_metadata"))
+    pending_message_metadata: 'Optional[Dict[str, str]]' = dc_field(default=None, metadata=dc_config(field_name="pending_message_metadata"))
 
 @dataclass
 class SendReactionRequest(DataClassJsonMixin):
@@ -2861,7 +2952,25 @@ class ThumbnailsSettings(DataClassJsonMixin):
     enabled: bool = dc_field(metadata=dc_config(field_name="enabled"))
 
 @dataclass
+class ThumbnailsSettingsRequest(DataClassJsonMixin):
+    enabled: Optional[bool] = dc_field(default=None, metadata=dc_config(field_name="enabled"))
+
+@dataclass
+class ThumbnailsSettingsResponse(DataClassJsonMixin):
+    enabled: bool = dc_field(metadata=dc_config(field_name="enabled"))
+
+@dataclass
 class TranscriptionSettings(DataClassJsonMixin):
+    closed_caption_mode: str = dc_field(metadata=dc_config(field_name="closed_caption_mode"))
+    mode: str = dc_field(metadata=dc_config(field_name="mode"))
+
+@dataclass
+class TranscriptionSettingsRequest(DataClassJsonMixin):
+    mode: str = dc_field(metadata=dc_config(field_name="mode"))
+    closed_caption_mode: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="closed_caption_mode"))
+
+@dataclass
+class TranscriptionSettingsResponse(DataClassJsonMixin):
     closed_caption_mode: str = dc_field(metadata=dc_config(field_name="closed_caption_mode"))
     mode: str = dc_field(metadata=dc_config(field_name="mode"))
 
@@ -2992,7 +3101,7 @@ class UpdateAppRequest(DataClassJsonMixin):
     datadog_info: 'Optional[DataDogInfo]' = dc_field(default=None, metadata=dc_config(field_name="datadog_info"))
     file_upload_config: 'Optional[FileUploadConfig]' = dc_field(default=None, metadata=dc_config(field_name="file_upload_config"))
     firebase_config: 'Optional[FirebaseConfig]' = dc_field(default=None, metadata=dc_config(field_name="firebase_config"))
-    grants: Optional[Dict[str, object]] = dc_field(default=None, metadata=dc_config(field_name="grants"))
+    grants: 'Optional[Dict[str, List[str]]]' = dc_field(default=None, metadata=dc_config(field_name="grants"))
     hms_options: 'Optional[Config]' = dc_field(default=None, metadata=dc_config(field_name="hms_options"))
     huawei_config: 'Optional[HuaweiConfig]' = dc_field(default=None, metadata=dc_config(field_name="huawei_config"))
     image_upload_config: 'Optional[FileUploadConfig]' = dc_field(default=None, metadata=dc_config(field_name="image_upload_config"))
@@ -3032,7 +3141,7 @@ class UpdateCallResponse(DataClassJsonMixin):
 @dataclass
 class UpdateCallTypeRequest(DataClassJsonMixin):
     external_storage: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="external_storage"))
-    grants: Optional[Dict[str, object]] = dc_field(default=None, metadata=dc_config(field_name="grants"))
+    grants: 'Optional[Dict[str, List[str]]]' = dc_field(default=None, metadata=dc_config(field_name="grants"))
     notification_settings: 'Optional[NotificationSettings]' = dc_field(default=None, metadata=dc_config(field_name="notification_settings"))
     settings: 'Optional[CallSettingsRequest]' = dc_field(default=None, metadata=dc_config(field_name="settings"))
 
@@ -3042,7 +3151,7 @@ class UpdateCallTypeResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
     name: str = dc_field(metadata=dc_config(field_name="name"))
     updated_at: datetime = dc_field(metadata=dc_config(field_name="updated_at", encoder=lambda d: d.isoformat(), decoder=datetime_from_unix_ns, mm_field=fields.DateTime(format="iso")))
-    grants: Dict[str, object] = dc_field(metadata=dc_config(field_name="grants"))
+    grants: 'Dict[str, List[str]]' = dc_field(metadata=dc_config(field_name="grants"))
     notification_settings: 'NotificationSettings' = dc_field(metadata=dc_config(field_name="notification_settings"))
     settings: 'CallSettingsResponse' = dc_field(metadata=dc_config(field_name="settings"))
     external_storage: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="external_storage"))
@@ -3113,7 +3222,7 @@ class UpdateChannelTypeRequest(DataClassJsonMixin):
     commands: Optional[List[str]] = dc_field(default=None, metadata=dc_config(field_name="commands"))
     permissions: 'Optional[List[PolicyRequest]]' = dc_field(default=None, metadata=dc_config(field_name="permissions"))
     automod_thresholds: 'Optional[Thresholds]' = dc_field(default=None, metadata=dc_config(field_name="automod_thresholds"))
-    grants: Optional[Dict[str, object]] = dc_field(default=None, metadata=dc_config(field_name="grants"))
+    grants: 'Optional[Dict[str, List[str]]]' = dc_field(default=None, metadata=dc_config(field_name="grants"))
 
 @dataclass
 class UpdateChannelTypeResponse(DataClassJsonMixin):
@@ -3141,7 +3250,7 @@ class UpdateChannelTypeResponse(DataClassJsonMixin):
     url_enrichment: bool = dc_field(metadata=dc_config(field_name="url_enrichment"))
     commands: List[str] = dc_field(metadata=dc_config(field_name="commands"))
     permissions: 'List[PolicyRequest]' = dc_field(metadata=dc_config(field_name="permissions"))
-    grants: Dict[str, object] = dc_field(metadata=dc_config(field_name="grants"))
+    grants: 'Dict[str, List[str]]' = dc_field(metadata=dc_config(field_name="grants"))
     blocklist: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="blocklist"))
     blocklist_behavior: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="blocklist_behavior"))
     allowed_flag_reasons: Optional[List[str]] = dc_field(default=None, metadata=dc_config(field_name="allowed_flag_reasons"))
@@ -3189,7 +3298,7 @@ class UpdateMessagePartialRequest(DataClassJsonMixin):
 class UpdateMessagePartialResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
     message: 'Optional[Message]' = dc_field(default=None, metadata=dc_config(field_name="message"))
-    pending_message_metadata: Optional[Dict[str, object]] = dc_field(default=None, metadata=dc_config(field_name="pending_message_metadata"))
+    pending_message_metadata: 'Optional[Dict[str, str]]' = dc_field(default=None, metadata=dc_config(field_name="pending_message_metadata"))
 
 @dataclass
 class UpdateMessageRequest(DataClassJsonMixin):
@@ -3200,7 +3309,7 @@ class UpdateMessageRequest(DataClassJsonMixin):
 class UpdateMessageResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
     message: 'Message' = dc_field(metadata=dc_config(field_name="message"))
-    pending_message_metadata: Optional[Dict[str, object]] = dc_field(default=None, metadata=dc_config(field_name="pending_message_metadata"))
+    pending_message_metadata: 'Optional[Dict[str, str]]' = dc_field(default=None, metadata=dc_config(field_name="pending_message_metadata"))
 
 @dataclass
 class UpdatePollOptionRequest(DataClassJsonMixin):
@@ -3418,6 +3527,22 @@ class VideoSettings(DataClassJsonMixin):
     target_resolution: 'TargetResolution' = dc_field(metadata=dc_config(field_name="target_resolution"))
 
 @dataclass
+class VideoSettingsRequest(DataClassJsonMixin):
+    access_request_enabled: Optional[bool] = dc_field(default=None, metadata=dc_config(field_name="access_request_enabled"))
+    camera_default_on: Optional[bool] = dc_field(default=None, metadata=dc_config(field_name="camera_default_on"))
+    camera_facing: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="camera_facing"))
+    enabled: Optional[bool] = dc_field(default=None, metadata=dc_config(field_name="enabled"))
+    target_resolution: 'Optional[TargetResolution]' = dc_field(default=None, metadata=dc_config(field_name="target_resolution"))
+
+@dataclass
+class VideoSettingsResponse(DataClassJsonMixin):
+    access_request_enabled: bool = dc_field(metadata=dc_config(field_name="access_request_enabled"))
+    camera_default_on: bool = dc_field(metadata=dc_config(field_name="camera_default_on"))
+    camera_facing: str = dc_field(metadata=dc_config(field_name="camera_facing"))
+    enabled: bool = dc_field(metadata=dc_config(field_name="enabled"))
+    target_resolution: 'TargetResolution' = dc_field(metadata=dc_config(field_name="target_resolution"))
+
+@dataclass
 class VoteData(DataClassJsonMixin):
     answer_text: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="answer_text"))
     option_id: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="option_id"))
@@ -3471,6 +3596,9 @@ class XiaomiConfigFields(DataClassJsonMixin):
     enabled: bool = dc_field(metadata=dc_config(field_name="enabled"))
     package_name: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="package_name"))
     secret: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="secret"))
+
+
+
 
 
 
