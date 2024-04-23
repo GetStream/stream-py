@@ -1,3 +1,4 @@
+from dataclasses_json import DataClassJsonMixin, config
 from getstream.models import OwnCapability
 from httpx import Response
 from datetime import timezone
@@ -6,14 +7,20 @@ from getstream.rate_limit import RateLimitInfo
 from getstream.stream_response import StreamResponse
 
 from unittest import TestCase
-from dataclasses import dataclass
-from typing import Any
+from dataclasses import dataclass, field
+from typing import Any, List
 
 
 @dataclass
 class Dummy:
     value: Any
 
+
+@dataclass
+class MockRequest(DataClassJsonMixin):
+    own_capabilities: List[OwnCapability] = field(
+        metadata=config(field_name="own_capabilities")
+    )
 
 class TestStreamResponse(TestCase):
     def setUp(self):
@@ -69,14 +76,9 @@ class TestStreamResponse(TestCase):
         )
 
     def test_response_with_enum(self):
-        from getstream.models import CallStateResponseFields
-
-        obj = CallStateResponseFields.from_dict(
+        obj = MockRequest.from_dict(
             {
-                "blocked_users": [],
-                "members": [],
                 "own_capabilities": ["block-users", "asd"],
-                "call": None,
             }
         )
         self.assertEqual(obj.own_capabilities, [OwnCapability.BLOCK_USERS, "asd"])

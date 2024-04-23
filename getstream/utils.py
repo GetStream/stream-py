@@ -1,7 +1,7 @@
 import json
 from typing import Optional
 from urllib.parse import quote
-from datetime import datetime
+from datetime import datetime, UTC
 
 
 def encode_datetime(date: Optional[datetime]) -> Optional[str]:
@@ -27,7 +27,7 @@ def datetime_from_unix_ns(ts):
     """
     if ts is None:
         return None
-    return datetime.utcfromtimestamp(ts / 1e9)
+    return datetime.fromtimestamp(ts / 1e9, tz=UTC)
 
 
 def build_query_param(**kwargs):
