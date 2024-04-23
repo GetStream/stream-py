@@ -146,16 +146,45 @@ class BaseClient(BaseConfig, ABC):
         return self._parse_response(response, data_type or Dict[str, Any])
 
     def close(self):
+        """
+        Close HTTPX client.
+        """
         self.client.close()
 
 
 class StreamAPIException(Exception):
-    def __init__(self, response: str) -> None:
+    """
+    A custom exception for handling errors from a Stream API response.
+
+    This exception is raised when an API call encounters an issue, providing
+    detailed information from the HTTP response. It attempts to parse the response
+    content into a structured API error. If the response content is not JSON or
+    lacks the expected structure, it will simply report the HTTP status code.
+
+    Attributes:
+        api_error (Optional[APIError]): An optional APIError object that is
+            populated if the response content contains structured error information.
+        rate_limit_info (RateLimitInfo): Information about the API's rate limiting
+            controls extracted from the response headers.
+        http_response (httpx.Response): The full HTTP response object from httpx.
+        status_code (int): The HTTP status code from the response.
+
+    Args:
+        response (httpx.Response): The HTTP response received from the Stream API.
+
+    Raises:
+        ValueError: If the response content cannot be parsed into JSON, indicating
+            that the server's response was not in the expected format.
+    """
+
+    def __init__(self, response: httpx.Response) -> None:
         self.api_error: Optional[APIError] = None
         self.rate_limit_info = extract_rate_limit(response)
+        self.http_response = response
+        self.status_code = response.status_code
 
         try:
-            parsed_response: Dict = json.loads(response.text)
+            parsed_response: Dict = json.loads(response.content)
             self.api_error = APIError.from_dict(parsed_response)
         except ValueError:
             pass

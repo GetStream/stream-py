@@ -28,6 +28,10 @@ python-dotenv = "^1.0.0"
 pytest = "^7.3.1"
 flake8 = "^6.0.0"
 
+
+[tool.poetry.group.dev-dependencies.dependencies]
+python-dotenv = "^1.0.1"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"

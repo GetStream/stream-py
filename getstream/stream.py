@@ -15,7 +15,7 @@ class Stream(CommonClient):
     Contains methods to interact with Video and Chat modules of Stream API.
     """
 
-    BASE_URL = "https://stream-io-api.com"
+    BASE_URL = "https://chat.stream-io-api.com/"
 
     def __init__(
         self,
@@ -31,7 +31,9 @@ class Stream(CommonClient):
         self.api_key = api_key
         self.api_secret = api_secret
         self.timeout = timeout
-        self.base_url = base_url or self.BASE_URL
+        self.base_url = self.BASE_URL
+        if base_url:
+            self.base_url = base_url
         self.token = self._create_token()
         super().__init__(self.api_key, self.base_url, self.token, self.timeout)
 
