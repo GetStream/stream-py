@@ -34,4 +34,5 @@ jobs:
       env:
         STREAM_API_KEY: ${{ secrets.VIDEO_API_KEY }}
         STREAM_API_SECRET: ${{ secrets.VIDEO_API_SECRET }}
+        STREAM_BASE_URL: ${{ secrets.STREAM_BASE_URL }}
       run: poetry run pytest tests/ getstream/
