@@ -25,6 +25,8 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
         cache: 'poetry'
+    - name: Install deps
+      run: poetry install
     - name: Black
       run: poetry run black getstream/ tests/
       continue-on-error: false
