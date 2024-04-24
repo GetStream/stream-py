@@ -15,10 +15,7 @@ def build_path(path: str, path_params: dict) -> str:
     if path_params is None:
         return path
     for k, v in path_params.items():
-        path_params[k] = str(
-            quote(v, safe="")
-        )  # in case of special characters in the path. Known cases: chat message ids.
-
+        path_params[k] = quote(str(v), safe="")
     return path.format(**path_params)
 
 

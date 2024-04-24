@@ -29,29 +29,20 @@ def test_create_user(client: Stream):
     assert token
 
 
-
-
-def test_create_call(client: Stream):
+def test_create_call_with_members(client: Stream):
     import uuid
     from getstream.models import (
         CallRequest,
-        CallSettingsRequest,
-        BroadcastSettingsRequest,
-        HLSSettingsRequest,
+        MemberRequest,
     )
 
     call = client.video.call("default", uuid.uuid4())
     call.get_or_create(
         data=CallRequest(
             created_by_id="tommaso-id",
-            settings_override=CallSettingsRequest(
-                broadcasting=BroadcastSettingsRequest(
-                    enabled=True,
-                    hls=HLSSettingsRequest(
-                        enabled=True,
-                        quality_tracks=["480p", "720p", "1080p"],
-                    ),
-                ),
-            ),
+            members=[
+                MemberRequest(user_id="thierry-id"),
+                MemberRequest(user_id="tommaso-id"),
+            ],
         ),
     )
