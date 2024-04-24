@@ -12,35 +12,26 @@ jobs:
   test:
     environment: ci
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
     steps:
     - name: Check out repo
-      uses: actions/checkout@v2
-
-    - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/checkout@v4
+    - name: Install poetry
+      run: pipx install poetry
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
       with:
-        python-version: 3.8
-
-    - name: Install Poetry
-      uses: snok/install-poetry@v1
-        
-    - name: Cache dependencies
-      uses: actions/cache@v2
-      with:
-        path: ~/.cache/pypoetry/virtualenvs
-        key: ${{ runner.os }}-python-${{ hashFiles('./pyproject.toml') }}
-        
-    - name: Install dependencies
-      run: poetry install
-      
-    - name: Run linting check
-      run: poetry run flake8
-      
-    - name: Check Black formatting
-      run: poetry run black --check .
-
+        python-version: ${{ matrix.python-version }}
+        cache: 'poetry'
+    - name: Lint with Ruff
+      run: |
+        pip install ruff
+        ruff --output-format=github .
+      continue-on-error: false
     - name: Run tests
       env:
-        VIDEO_API_KEY: ${{ secrets.VIDEO_API_KEY }}
-        VIDEO_API_SECRET: ${{ secrets.VIDEO_API_SECRET }}
-      run: poetry run pytest tests/
+        STREAM_API_KEY: ${{ secrets.VIDEO_API_KEY }}
+        STREAM_API_SECRET: ${{ secrets.VIDEO_API_SECRET }}
+      run: poetry run pytest tests/ getstream/

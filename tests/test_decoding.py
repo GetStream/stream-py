@@ -1,7 +1,8 @@
 from dataclasses import dataclass, field
 from datetime import datetime, timezone, UTC
+from typing import List
 
-from getstream.models import OwnCapability
+from getstream.models import OwnCapability, OwnCapabilityType
 from getstream.utils import (
     datetime_from_unix_ns,
     encode_datetime,
@@ -164,7 +165,7 @@ def test_encode_datetime_with_timezone_aware_datetime():
 
 @dataclass
 class MockRequest(DataClassJsonMixin):
-    own_capabilities: "List[OwnCapability]" = field(
+    own_capabilities: "List[OwnCapabilityType]" = field(
         metadata=config(field_name="own_capabilities")
     )
 

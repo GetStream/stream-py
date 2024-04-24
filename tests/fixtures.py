@@ -13,7 +13,6 @@ def client():
     return Stream(
         api_key=os.environ.get("STREAM_API_KEY"),
         api_secret=os.environ.get("STREAM_API_SECRET"),
-        timeout=6.0,
         base_url=os.environ.get("STREAM_BASE_URL"),
     )
 

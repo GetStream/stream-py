@@ -22,6 +22,7 @@ class MockRequest(DataClassJsonMixin):
         metadata=config(field_name="own_capabilities")
     )
 
+
 class TestStreamResponse(TestCase):
     def setUp(self):
         headers = {

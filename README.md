@@ -1,12 +1,12 @@
-# Stream Video Client Library
+# Official Python SDK for [Stream](https://getstream.io/)
 
-The Stream Client Library provides a simple way to interact with the Stream API for managing video and chat services. This Python library makes it easy to create, manage, and authenticate video calls and chat sessions programmatically.
+[![build](https://github.com/GetStream/stream-py/workflows/build/badge.svg)](https://github.com/GetStream/stream-chat-python/actions) [![PyPI version](https://badge.fury.io/py/getstream.svg)](http://badge.fury.io/py/getstream) ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/getstream.svg)
 
 ## Features
 
 - Video call creation and management
 - Chat session creation and management
-- Token generation for user authentication with support for roles and call IDs
+- Token generation for user authentication
 
 ## Installation
 
@@ -15,8 +15,6 @@ To install the Stream Client Library, run the following command:
 ```sh
 pip install getstream
 ```
-
-Replace `stream` with the actual package name you'll use when publishing your library.
 
 ## Usage
 
@@ -28,7 +26,17 @@ from getstream import Stream
 client = Stream(api_key="your_api_key", api_secret="your_api_secret")
 ```
 
-### Video Calls
+### Users and Authentication
+
+```python
+# Create a user token to connect with a client-side SDK
+token = client.create_token("jane")
+
+# Ensure a user exists
+
+```
+
+### Video API - Calls
 
 To create a video call, use the `client.video.call` method:
 
@@ -57,7 +65,16 @@ response = call.create(
 print(response)
 ```
 
-### Chat Sessions
+### App configuration
+
+```python
+# Video: update settings for a call type
+
+# Chat: update settings for a channel type
+```
+
+
+### Chat API - Channels
 
 To work with chat sessions, use the `client.chat` object and implement the desired chat methods in the `Chat` class:
 
@@ -65,40 +82,6 @@ To work with chat sessions, use the `client.chat` object and implement the desir
 chat_instance = client.chat
 
 # Implement and call chat-related methods with chat_instance
-```
-
-### User Authentication
-
-To generate a JWT token for user authentication with role and call ID support, use the `client.create_token` method:
-
-```python
-token = client.create_token("admin-user", call_cids=[call.cid], role="admin")
-```
-
-### Cli for signing tokens
-
-You can sign tokens by running the cli
-
-```sh
-poetry run create-token --api-key API_KEY --api-secret API_SECRET --user-id USER_ID [--expiration EXPIRATION]
-```
-
-Or you can use docker
-First, build the image:
-
-```sh
-docker build -t stream-py .
-```
-
-Then run the container
-
-```sh
-docker run -it --rm stream-py --api-key API_KEY --api-secret API_SECRET
-```
-
-Or use the published one 
-```sh
-docker run -it --rm ghcr.io/getstream/stream-py:main --api-key API_KEY --api-secret API_SECRET --user-id
 ```
 
 ## Development
@@ -118,13 +101,13 @@ poetry shell
 
 To run tests, create a `.env` using the `.env.example` and adjust it to have valid API credentials 
 ```sh
-poetry run pytest tests/
+poetry run pytest tests/ getstream/
 ```
 
 Before pushing changes make sure to run the linter:
 
 ```sh
-poetry run black getstream/ tests/
+poetry run ruff check tests getstream --fix
 ```
 
 ## License

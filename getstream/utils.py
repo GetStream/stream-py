@@ -3,6 +3,35 @@ from typing import Optional
 from urllib.parse import quote
 from datetime import datetime, UTC
 
+import validators
+from urllib.parse import urlparse, urlunparse
+
+
+def validate_and_clean_url(url):
+    """
+    Validates a given URL and removes any trailing slashes.
+
+    Args:
+        url (str): The URL to validate and clean.
+
+    Returns:
+        str: The validated URL without trailing slashes, or raises an exception if invalid.
+
+    Raises:
+        ValueError: If the URL is not valid.
+    """
+
+    if not validators.url(url):
+        raise ValueError("Provided string is not a valid URL.")
+
+    parsed_url = urlparse(url)
+    if parsed_url.scheme not in ("http", "https"):
+        raise ValueError("Provided URL is not a valid HTTP URL.")
+
+    path = parsed_url.path.rstrip("/")
+    cleaned_url = urlunparse(parsed_url._replace(path=path))
+    return cleaned_url
+
 
 def encode_datetime(date: Optional[datetime]) -> Optional[str]:
     """
