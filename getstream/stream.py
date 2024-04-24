@@ -3,10 +3,10 @@ import jwt
 from functools import cached_property
 from typing import List
 
-from getstream.chat import ChatClient
-from getstream.common import CommonClient
+from getstream.chat.client import ChatClient
+from getstream.common.client import CommonClient
 from getstream.utils import validate_and_clean_url
-from getstream.video import VideoClient
+from getstream.video.client import VideoClient
 
 BASE_URL = "https://chat.stream-io-api.com/"
 
