@@ -3,6 +3,7 @@ from getstream.stream_response import StreamResponse
 
 
 class Call:
+
     def __init__(
         self, client, call_type: str, call_id: str = None, custom_data: Dict = None
     ):

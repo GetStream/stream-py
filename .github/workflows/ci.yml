@@ -25,10 +25,8 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
         cache: 'poetry'
-    - name: Lint with Ruff
-      run: |
-        pip install ruff
-        ruff --output-format=github .
+    - name: Black
+      run: poetry run black getstream/ tests/
       continue-on-error: false
     - name: Run tests
       env:

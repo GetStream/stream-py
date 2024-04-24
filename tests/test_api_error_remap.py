@@ -2,6 +2,7 @@ import unittest
 
 from getstream.models import APIError
 
+
 class TestAPIError(unittest.TestCase):
     def test_from_dict(self):
         # Define a dictionary that simulates the data you receive

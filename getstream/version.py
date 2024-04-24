@@ -1,3 +1,1 @@
-import importlib.metadata
-
-VERSION = importlib.metadata.version('getstream')
+VERSION = "0.4.0"

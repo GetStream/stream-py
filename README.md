@@ -29,11 +29,30 @@ client = Stream(api_key="your_api_key", api_secret="your_api_secret")
 ### Users and Authentication
 
 ```python
-# Create a user token to connect with a client-side SDK
-token = client.create_token("jane")
+from getstream.models import UserRequest
 
-# Ensure a user exists
+# sync two users using the update_users method, both users will get insert or updated
+client.update_users(users={
+    "tommaso-id": UserRequest(
+        id="tommaso-id",
+        name="tommaso",
+        role="admin",
+        custom={
+            "country": "NL"
+        }
+    ),
+    "thierry-id": UserRequest(
+        id="thierry-id",
+        name="thierry",
+        role="admin",
+        custom={
+            "country": "US"
+        }
+    ),
+})
 
+# Create a JWT token for the user to connect client-side (e.g. browser/mobile app)
+token = client.create_token("tommaso-id")
 ```
 
 ### Video API - Calls
@@ -42,27 +61,23 @@ To create a video call, use the `client.video.call` method:
 
 ```python
 import uuid
+from getstream.models import CallRequest, CallSettingsRequest, BroadcastSettingsRequest, HLSSettingsRequest
 
-call = client.video.call(
-    call_type = "livestream",
-    call_id = uuid.uuid4())
-)
-
-response = call.create(
-        data=CallRequest(
-            created_by_id="admin-user",
-            settings_override=CallSettingsRequest(
-                broadcasting=BroadcastSettingsRequest(
+call = client.video.call("default", uuid.uuid4())
+call.get_or_create(
+    data=CallRequest(
+        created_by_id="tommaso-id",
+        settings_override=CallSettingsRequest(
+            broadcasting=BroadcastSettingsRequest(
+                enabled=True,
+                hls=HLSSettingsRequest(
                     enabled=True,
-                    hls=HlssettingsRequest(
-                        enabled=True,
-                        quality_tracks=["480p", "720p", "1080p"],
-                    ),
+                    quality_tracks=["480p", "720p", "1080p"],
                 ),
             ),
         ),
-    )
-print(response)
+    ),
+)
 ```
 
 ### App configuration
@@ -107,7 +122,7 @@ poetry run pytest tests/ getstream/
 Before pushing changes make sure to run the linter:
 
 ```sh
-poetry run ruff check tests getstream --fix
+poetry run black getstream/ tests/
 ```
 
 ## License

@@ -25,11 +25,8 @@ flake8 = "^6.0.0"
 
 [tool.poetry.group.dev-dependencies.dependencies]
 python-dotenv = "^1.0.1"
-ruff = "^0.4.1"
+black = "^24.4.0"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
-
-[tool.ruff.lint]
-ignore = ["F405", "F403"]
