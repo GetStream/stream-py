@@ -94,7 +94,7 @@ To work with chat sessions, use the `client.chat` object and implement the desir
 ```python
 chat_instance = client.chat
 
-# Implement and call chat-related methods with chat_instance
+# TODO: implement and call chat-related methods with chat_instance
 ```
 
 ## Development
