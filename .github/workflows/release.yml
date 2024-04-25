@@ -11,6 +11,8 @@ jobs:
     name: 🚀 Release
     if: github.event.pull_request.merged && startsWith(github.head_ref, 'release-')
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -20,8 +22,6 @@ jobs:
           python-version: "3.12"
       - name: Install poetry
         run: pipx install poetry
-      - name: Setup poetry
-        run: poetry config pypi-token.pypi "${{ secrets.PYPI_TOKEN }}"
       - name: Build project
         run: poetry build
       - name: Publish to PyPi
