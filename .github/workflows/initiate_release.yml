@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "The new version number with 'v' prefix. Example: v1.40.1"
+        description: "The new version number following semantic versioning convention. Example: 1.40.1"
         required: true
 
 jobs:
@@ -16,7 +16,7 @@ jobs:
         with:
           fetch-depth: 0 # gives the changelog generator access to all previous commits
 
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
@@ -36,7 +36,7 @@ jobs:
           git push -q -u origin "release-$VERSION"
 
       - name: Get changelog diff
-        uses: actions/github-script@v5
+        uses: actions/github-script@v7
         with:
           script: |
             const get_change_log_diff = require('./scripts/get_changelog_diff.js')
