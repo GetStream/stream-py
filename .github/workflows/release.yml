@@ -24,8 +24,8 @@ jobs:
         run: pipx install poetry
       - name: Build project
         run: poetry build
-      - name: Publish to PyPi
-        run: poetry publish
+      - name: Publish package distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
       - name: Create release on GitHub
         uses: ncipollo/release-action@v1
         with:
