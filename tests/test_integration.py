@@ -208,20 +208,22 @@ class TestCallTypes:
         )
 
     def test_custom_recording_website(self, client: Stream):
-        client.video.update_call_type(
-            CALL_TYPE_NAME,
-            settings=CallSettingsRequest(
-                recording=RecordSettingsRequest(
-                    mode="available",
-                    audio_only=False,
-                    quality="1080p",
-                    layout=LayoutSettingsRequest(
-                        name="custom",
-                        external_app_url="https://path/to/layout/app",
+        (
+            client.video.update_call_type(
+                CALL_TYPE_NAME,
+                settings=CallSettingsRequest(
+                    recording=RecordSettingsRequest(
+                        mode="available",
+                        audio_only=False,
+                        quality="1080p",
+                        layout=LayoutSettingsRequest(
+                            name="custom",
+                            external_app_url="https://path/to/layout/app",
+                        ),
                     ),
                 ),
             ),
-        ),
+        )
 
     def test_delete_call_type(self, client: Stream):
         try:

@@ -5,7 +5,6 @@ from getstream.utils import build_query_param, build_body_dict
 
 
 class ChatRestClient(BaseClient):
-
     def __init__(self, api_key: str, base_url: str, timeout: float, token: str):
         """
         Initializes ChatClient with BaseClient instance
@@ -22,7 +21,6 @@ class ChatRestClient(BaseClient):
         )
 
     def list_block_lists(self) -> StreamResponse[ListBlockListResponse]:
-
         return self.get("/api/v2/chat/blocklists", ListBlockListResponse)
 
     def create_block_list(
@@ -524,7 +522,6 @@ class ChatRestClient(BaseClient):
         )
 
     def list_channel_types(self) -> StreamResponse[ListChannelTypesResponse]:
-
         return self.get("/api/v2/chat/channeltypes", ListChannelTypesResponse)
 
     def create_channel_type(
@@ -673,7 +670,6 @@ class ChatRestClient(BaseClient):
         )
 
     def list_commands(self) -> StreamResponse[ListCommandsResponse]:
-
         return self.get("/api/v2/chat/commands", ListCommandsResponse)
 
     def create_command(
@@ -1493,7 +1489,6 @@ class ChatRestClient(BaseClient):
         )
 
     def unread_counts(self) -> StreamResponse[WrappedUnreadCountsResponse]:
-
         return self.get("/api/v2/chat/unread", WrappedUnreadCountsResponse)
 
     def unread_counts_batch(

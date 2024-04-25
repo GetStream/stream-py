@@ -5,7 +5,6 @@ from getstream.utils import build_query_param, build_body_dict
 
 
 class VideoRestClient(BaseClient):
-
     def __init__(self, api_key: str, base_url: str, timeout: float, token: str):
         """
         Initializes VideoClient with BaseClient instance
@@ -538,7 +537,6 @@ class VideoRestClient(BaseClient):
         )
 
     def list_call_types(self) -> StreamResponse[ListCallTypeResponse]:
-
         return self.get("/api/v2/video/calltypes", ListCallTypeResponse)
 
     def create_call_type(
@@ -605,11 +603,9 @@ class VideoRestClient(BaseClient):
         )
 
     def get_edges(self) -> StreamResponse[GetEdgesResponse]:
-
         return self.get("/api/v2/video/edges", GetEdgesResponse)
 
     def list_external_storage(self) -> StreamResponse[ListExternalStorageResponse]:
-
         return self.get("/api/v2/video/external_storage", ListExternalStorageResponse)
 
     def create_external_storage(

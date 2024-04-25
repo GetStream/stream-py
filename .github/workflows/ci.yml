@@ -21,6 +21,8 @@ jobs:
     steps:
     - name: Check out repo
       uses: actions/checkout@v4
+    - uses: chartboost/ruff-action@v1
+      continue-on-error: false
     - name: Install poetry
       run: pipx install poetry
     - name: Set up Python ${{ matrix.python-version }}
@@ -30,9 +32,6 @@ jobs:
         cache: 'poetry'
     - name: Install deps
       run: poetry install
-    - name: Black
-      run: poetry run black getstream/ tests/
-      continue-on-error: false
     - name: Run tests
       env:
         STREAM_BASE_URL: ${{ vars.STREAM_BASE_URL }}
