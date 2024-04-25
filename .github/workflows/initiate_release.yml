@@ -23,13 +23,6 @@ jobs:
       - name: Install poetry
         run: pipx install poetry
 
-      - name: Get changelog diff
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const get_change_log_diff = require('./scripts/get_changelog_diff.js')
-            core.exportVariable('CHANGELOG', get_change_log_diff())
-
       - name: Open pull request
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -40,4 +33,3 @@ jobs:
             Make sure to use squash & merge when merging!
             Once this is merged, another job will kick off automatically and publish the package.
             # :memo: Changelog
-            ${{ env.CHANGELOG }}"
