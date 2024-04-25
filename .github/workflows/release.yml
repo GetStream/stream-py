@@ -38,3 +38,4 @@ jobs:
           body: ${{ env.VERSION }}
           tag: ${{ env.VERSION }}
           token: ${{ secrets.GITHUB_TOKEN }}
+          generateReleaseNotes: true
