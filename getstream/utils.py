@@ -57,6 +57,7 @@ def datetime_from_unix_ns(ts):
         return None
     if isinstance(ts, str):
         ts = int(ts)
+    # TODO: perhaps not a bad idea to try and parse the string using isoformat as well
     return datetime.fromtimestamp(ts / 1e9, tz=UTC)
 
 
