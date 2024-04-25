@@ -23,6 +23,18 @@ jobs:
       - name: Install poetry
         run: pipx install poetry
 
+      - name: Update version.py and push release branch
+        env:
+          VERSION: ${{ github.event.inputs.version }}
+        run: |
+          poetry version $VERSION
+          sed -i "s/^VERSION = \".*\"/VERSION = \"$VERSION\"/" getstream/version.py
+          git config --global user.name 'github-actions'
+          git config --global user.email 'release@getstream.io'
+          git checkout -q -b "release-$VERSION"
+          git commit -am "chore(release): $VERSION"
+          git push -q -u origin "release-$VERSION"
+
       - name: Open pull request
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
