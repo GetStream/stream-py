@@ -120,7 +120,7 @@ poetry run pytest tests/ getstream/
 Before pushing changes make sure to run the linter:
 
 ```sh
-poetry run black getstream/ tests/
+poetry run ruff format getstream/ tests/
 ```
 
 ## License

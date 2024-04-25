@@ -5,7 +5,6 @@ from getstream.utils import build_query_param, build_body_dict
 
 
 class CommonRestClient(BaseClient):
-
     def __init__(self, api_key: str, base_url: str, timeout: float, token: str):
         """
         Initializes CommonClient with BaseClient instance
@@ -22,7 +21,6 @@ class CommonRestClient(BaseClient):
         )
 
     def get_app(self) -> StreamResponse[GetApplicationResponse]:
-
         return self.get("/api/v2/app", GetApplicationResponse)
 
     def update_app(
@@ -215,7 +213,6 @@ class CommonRestClient(BaseClient):
         return self.post("/api/v2/import_urls", CreateImportURLResponse, json=json)
 
     def list_imports(self) -> StreamResponse[ListImportsResponse]:
-
         return self.get("/api/v2/imports", ListImportsResponse)
 
     def create_import(
@@ -240,7 +237,6 @@ class CommonRestClient(BaseClient):
         return self.get("/api/v2/og", GetOGResponse, query_params=query_params)
 
     def list_permissions(self) -> StreamResponse[ListPermissionsResponse]:
-
         return self.get("/api/v2/permissions", ListPermissionsResponse)
 
     def get_permission(self, id: str) -> StreamResponse[GetCustomPermissionResponse]:
@@ -255,7 +251,6 @@ class CommonRestClient(BaseClient):
         )
 
     def list_push_providers(self) -> StreamResponse[ListPushProvidersResponse]:
-
         return self.get("/api/v2/push_providers", ListPushProvidersResponse)
 
     def upsert_push_provider(
@@ -298,7 +293,6 @@ class CommonRestClient(BaseClient):
         )
 
     def list_roles(self) -> StreamResponse[ListRolesResponse]:
-
         return self.get("/api/v2/roles", ListRolesResponse)
 
     def create_role(self, name: str) -> StreamResponse[CreateRoleResponse]:
