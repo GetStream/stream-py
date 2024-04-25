@@ -1,9 +1,12 @@
 import json
 from typing import Optional
 from urllib.parse import quote
-from datetime import datetime, UTC
+from datetime import datetime
+from datetime import timezone
 import validators
 from urllib.parse import urlparse, urlunparse
+
+UTC = timezone.utc
 
 
 def validate_and_clean_url(url):
