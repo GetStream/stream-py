@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "getstream"
-version = "1.0.0-rc17"
+version = "1.0.0-rc4"
 description = ""
 authors = [
     "sachaarbonel <sacha.arbonel@hotmail.fr>",
