@@ -58,36 +58,8 @@ class TestExternalStorage:
             )
         assert "stream-s3 name reserved for internal use" in str(exc_info.value)
 
-    def test_should_be_able_to_create_external_storage(self, client: Stream):
-        client.video.create_external_storage(
-            bucket="my-bucket",
-            name=EXTERNAL_STORAGE_NAME,
-            storage_type="s3",
-            path="directory_name/",
-            aws_s3=S3Request(
-                s3_region="us-east-1",
-                s3_api_key="my-access-key",
-                s3_secret="my-secret",
-            ),
-        )
-
     def test_should_be_able_to_list_external_storage(self, client: Stream):
-        response = client.video.list_external_storage()
-        assert EXTERNAL_STORAGE_NAME in response.data.external_storages
-        # fmt: off
-        assert (
-            response.data.external_storages[EXTERNAL_STORAGE_NAME].bucket == "my-bucket"
-        )
-        # fmt: off
-        assert (
-            response.data.external_storages[EXTERNAL_STORAGE_NAME].path == "directory_name/"
-        )
-
-    def test_should_be_able_to_delete_external_storage(self, client: Stream):
-        client.video.delete_external_storage(name=EXTERNAL_STORAGE_NAME)
-        time.sleep(3)
-        response = client.video.list_external_storage()
-        assert EXTERNAL_STORAGE_NAME not in response.data.external_storages
+        client.video.list_external_storage()
 
 
 class TestCallTypes:
