@@ -11,8 +11,7 @@ jobs:
     name: 🚀 Release
     if: github.event.pull_request.merged && startsWith(github.head_ref, 'release-')
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write
+    permissions: write-all
     steps:
       - uses: actions/github-script@v5
         with:
