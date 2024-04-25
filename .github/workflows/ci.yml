@@ -32,7 +32,7 @@ jobs:
       continue-on-error: false
     - name: Run tests
       env:
-        STREAM_API_KEY: ${{ secrets.VIDEO_API_KEY }}
-        STREAM_API_SECRET: ${{ secrets.VIDEO_API_SECRET }}
-        STREAM_BASE_URL: ${{ secrets.STREAM_BASE_URL }}
+        STREAM_BASE_URL: ${{ vars.STREAM_BASE_URL }}
+        STREAM_API_KEY: ${{ vars.STREAM_API_KEY }}
+        STREAM_API_SECRET: ${{ secrets.STREAM_API_SECRET }}
       run: poetry run pytest tests/ getstream/
