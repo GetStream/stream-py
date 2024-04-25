@@ -1,60 +1,193 @@
-import time
-from typing import List
+import json
+from typing import Any, Dict, Optional, Type, get_origin
 
-import jwt
+from getstream.models import APIError
+from getstream.rate_limit import extract_rate_limit
+from getstream.stream_response import StreamResponse
+from getstream.generic import T
+import httpx
+from getstream.config import BaseConfig
+from urllib.parse import quote
+from abc import ABC
 
 
-class BaseStream:
-    def __init__(self, api_key: str, api_secret: str):
-        self.api_key = api_key
-        self.api_secret = api_secret
+def build_path(path: str, path_params: dict) -> str:
+    if path_params is None:
+        return path
+    for k, v in path_params.items():
+        path_params[k] = quote(str(v), safe="")
+    return path.format(**path_params)
 
-    def create_token(
+
+class BaseClient(BaseConfig, ABC):
+    def __init__(
         self,
-        user_id: str,
-        expiration: int = None,
+        api_key,
+        base_url=None,
+        token=None,
+        timeout=None,
     ):
-        return self._create_token(user_id=user_id, expiration=expiration)
-
-    def create_call_token(
-        self,
-        user_id: str,
-        call_cids: List[str] = None,
-        role: str = None,
-        expiration: int = None,
-    ):
-        return self._create_token(
-            user_id=user_id, call_cids=call_cids, role=role, expiration=expiration
+        super().__init__(
+            api_key=api_key,
+            base_url=base_url,
+            token=token,
+            timeout=timeout,
+        )
+        self.client = httpx.Client(
+            base_url=self.base_url,
+            headers=self.headers,
+            params=self.params,
+            timeout=httpx.Timeout(self.timeout),
         )
 
-    def _create_token(
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+    def _parse_response(
+        self, response: httpx.Response, data_type: Type[T]
+    ) -> StreamResponse[T]:
+        if response.status_code >= 399:
+            raise StreamAPIException(
+                response=response,
+            )
+
+        try:
+            parsed_result = json.loads(response.text) if response.text else {}
+
+            if hasattr(data_type, "from_dict"):
+                data = data_type.from_dict(parsed_result, infer_missing=True)
+            elif get_origin(data_type) is not dict:
+                raise AttributeError(f"{data_type.__name__} has no 'from_dict' method")
+            else:
+                data = parsed_result
+
+        except ValueError:
+            raise StreamAPIException(
+                response=response,
+            )
+
+        return StreamResponse(response, data)
+
+    def patch(
         self,
-        user_id: str = None,
-        channel_cids: List[str] = None,
-        call_cids: List[str] = None,
-        role: str = None,
-        expiration=None,
-    ):
-        now = int(time.time())
+        path,
+        data_type: Optional[Type[T]] = None,
+        path_params: Optional[Dict[str, str]] = None,
+        query_params: Optional[Dict[str, str]] = None,
+        *args,
+        **kwargs,
+    ) -> StreamResponse[T]:
+        response = self.client.patch(
+            build_path(path, path_params), params=query_params, *args, **kwargs
+        )
+        return self._parse_response(response, data_type or Dict[str, Any])
 
-        claims = {
-            "iat": now,
-        }
+    def get(
+        self,
+        path,
+        data_type: Optional[Type[T]] = None,
+        path_params: Optional[Dict[str, str]] = None,
+        query_params: Optional[Dict[str, str]] = None,
+        *args,
+        **kwargs,
+    ) -> StreamResponse[T]:
+        response = self.client.get(
+            build_path(path, path_params), params=query_params, *args, **kwargs
+        )
+        return self._parse_response(response, data_type or Dict[str, Any])
 
-        if channel_cids is not None:
-            claims["channel_cids"] = channel_cids
+    def post(
+        self,
+        path,
+        data_type: Optional[Type[T]] = None,
+        path_params: Optional[Dict[str, str]] = None,
+        query_params: Optional[Dict[str, str]] = None,
+        *args,
+        **kwargs,
+    ) -> StreamResponse[T]:
+        response = self.client.post(
+            build_path(path, path_params), params=query_params, *args, **kwargs
+        )
 
-        if call_cids is not None:
-            claims["call_cids"] = call_cids
+        return self._parse_response(response, data_type or Dict[str, Any])
 
-        if role is not None:
-            claims["role"] = role
+    def put(
+        self,
+        path,
+        data_type: Optional[Type[T]] = None,
+        path_params: Optional[Dict[str, str]] = None,
+        query_params: Optional[Dict[str, str]] = None,
+        *args,
+        **kwargs,
+    ) -> StreamResponse[T]:
+        response = self.client.put(
+            build_path(path, path_params), params=query_params, *args, **kwargs
+        )
+        return self._parse_response(response, data_type or Dict[str, Any])
 
-        if user_id is not None:
-            claims["user_id"] = user_id
+    def delete(
+        self,
+        path,
+        data_type: Optional[Type[T]] = None,
+        path_params: Optional[Dict[str, str]] = None,
+        query_params: Optional[Dict[str, str]] = None,
+        *args,
+        **kwargs,
+    ) -> StreamResponse[T]:
+        response = self.client.delete(
+            build_path(path, path_params), params=query_params, *args, **kwargs
+        )
+        return self._parse_response(response, data_type or Dict[str, Any])
 
-        if expiration is not None:
-            claims["exp"] = now + expiration
+    def close(self):
+        """
+        Close HTTPX client.
+        """
+        self.client.close()
 
-        token = jwt.encode(claims, self.api_secret, algorithm="HS256")
-        return token
+
+class StreamAPIException(Exception):
+    """
+    A custom exception for handling errors from a Stream API response.
+
+    This exception is raised when an API call encounters an issue, providing
+    detailed information from the HTTP response. It attempts to parse the response
+    content into a structured API error. If the response content is not JSON or
+    lacks the expected structure, it will simply report the HTTP status code.
+
+    Attributes:
+        api_error (Optional[APIError]): An optional APIError object that is
+            populated if the response content contains structured error information.
+        rate_limit_info (RateLimitInfo): Information about the API's rate limiting
+            controls extracted from the response headers.
+        http_response (httpx.Response): The full HTTP response object from httpx.
+        status_code (int): The HTTP status code from the response.
+
+    Args:
+        response (httpx.Response): The HTTP response received from the Stream API.
+
+    Raises:
+        ValueError: If the response content cannot be parsed into JSON, indicating
+            that the server's response was not in the expected format.
+    """
+
+    def __init__(self, response: httpx.Response) -> None:
+        self.api_error: Optional[APIError] = None
+        self.rate_limit_info = extract_rate_limit(response)
+        self.http_response = response
+        self.status_code = response.status_code
+
+        try:
+            parsed_response: Dict = json.loads(response.content)
+            self.api_error = APIError.from_dict(parsed_response)
+        except ValueError:
+            pass
+
+    def __str__(self) -> str:
+        if self.api_error:
+            return f'Stream error code {self.api_error.code}: {self.api_error.message}"'
+        else:
+            return f"Stream error HTTP code: {self.status_code}"

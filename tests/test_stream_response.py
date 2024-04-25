@@ -1,3 +1,5 @@
+from dataclasses_json import DataClassJsonMixin, config
+from getstream.models import OwnCapability
 from httpx import Response
 from datetime import timezone
 from dateutil.parser import parse as dt_parse
@@ -5,13 +7,20 @@ from getstream.rate_limit import RateLimitInfo
 from getstream.stream_response import StreamResponse
 
 from unittest import TestCase
-from dataclasses import dataclass
-from typing import Any
+from dataclasses import dataclass, field
+from typing import Any, List
 
 
 @dataclass
 class Dummy:
     value: Any
+
+
+@dataclass
+class MockRequest(DataClassJsonMixin):
+    own_capabilities: List[OwnCapability] = field(
+        metadata=config(field_name="own_capabilities")
+    )
 
 
 class TestStreamResponse(TestCase):
@@ -34,8 +43,8 @@ class TestStreamResponse(TestCase):
         self.stream_response_dict = StreamResponse(self.response, self.data_dict)
 
     def test_data(self):
-        self.assertEqual(self.stream_response_dummy.data().value, "SomeValue")
-        self.assertEqual(self.stream_response_dict.data()["key"], "SomeValue")
+        self.assertEqual(self.stream_response_dummy.data.value, "SomeValue")
+        self.assertEqual(self.stream_response_dict.data["key"], "SomeValue")
 
     def test_headers(self):
         self.assertEqual(self.stream_response_dummy.headers(), self.response.headers)
@@ -67,8 +76,10 @@ class TestStreamResponse(TestCase):
             rate_limit_dict.reset, dt_parse("2022-01-01").replace(tzinfo=timezone.utc)
         )
 
-
-if __name__ == "__main__":
-    from unittest import main
-
-    main()
+    def test_response_with_enum(self):
+        obj = MockRequest.from_dict(
+            {
+                "own_capabilities": ["block-users", "asd"],
+            }
+        )
+        self.assertEqual(obj.own_capabilities, [OwnCapability.BLOCK_USERS, "asd"])

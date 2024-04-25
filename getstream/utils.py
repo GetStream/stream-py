@@ -1,63 +1,126 @@
-from typing import Dict
-from getstream.models.user_request import UserRequest
-from getstream.models.user_response import UserResponse
+import json
+from typing import Optional
+from urllib.parse import quote
+from datetime import datetime
+from datetime import timezone
+import validators
+from urllib.parse import urlparse, urlunparse
 
-RESERVED_KEYWORDS = [
-    "ban_expires",
-    "banned",
-    "id",
-    "invisible",
-    "language",
-    "push_notifications",
-    "revoke_tokens_issued_before",
-    "role",
-    "teams",
-    "created_at",
-    "deactivated_at",
-    "deleted_at",
-    "last_active",
-    "online",
-    "updated_at",
-    "shadow_banned",
-    "name",
-    "image",
-]
+UTC = timezone.utc
 
 
-def to_chat_user_dict(user: UserRequest) -> Dict[str, object]:
+def validate_and_clean_url(url):
     """
-    Convert UserRequest instance to a chat dictionary
-    i.e. put chat_dict["custom"] fields to the root level
+    Validates a given URL and removes any trailing slashes.
+
+    Args:
+        url (str): The URL to validate and clean.
+
+    Returns:
+        str: The validated URL without trailing slashes, or raises an exception if invalid.
+
+    Raises:
+        ValueError: If the URL is not valid.
     """
-    # Convert UserRequest instance to dictionary
-    chat_dict = user.to_dict()
 
-    # Unpack the custom fields to the root level
-    if "custom" in chat_dict and chat_dict["custom"] is not None:
-        chat_dict.update(chat_dict["custom"])
-        del chat_dict["custom"]
+    if not validators.url(url):
+        raise ValueError("Provided string is not a valid URL.")
 
-    return chat_dict
+    parsed_url = urlparse(url)
+    if parsed_url.scheme not in ("http", "https"):
+        raise ValueError("Provided URL is not a valid HTTP URL.")
+
+    path = parsed_url.path.rstrip("/")
+    cleaned_url = urlunparse(parsed_url._replace(path=path))
+    return cleaned_url
 
 
-def from_chat_user_dict(chat_user: Dict[str, object]) -> UserResponse:
+def encode_datetime(date: Optional[datetime]) -> Optional[str]:
     """
-    Reverse operation of to_chat_user_dict
-     i.e. put root fields that are not reserved keywords to the "custom" field
+    Encodes a datetime object into an ISO 8601 formatted string.
+
+    Args:
+    date (Optional[datetime]): The datetime object to encode.
+
+    Returns:
+    Optional[str]: The ISO 8601 string representation of the datetime, or None if input is None.
     """
-    custom_fields = {}
-    keys_to_remove = []
+    if date is None:
+        return None
+    return date.isoformat()
 
-    for key, value in chat_user.items():
-        # If the key is a reserved keyword, skip it
-        if key not in RESERVED_KEYWORDS:
-            custom_fields[key] = value
-            keys_to_remove.append(key)
 
-    # If there are custom fields, update the dictionary
-    if custom_fields:
-        chat_user["custom"] = custom_fields
-        for key in keys_to_remove:
-            del chat_user[key]
+def datetime_from_unix_ns(ts):
+    """
+    Converts a unix timestamp to a datetime object
+    :param ts: nanoseconds since epoch
+    :return: datetime object
+    """
+    if ts is None:
+        return None
+    if isinstance(ts, str):
+        ts = int(ts)
+    # TODO: perhaps not a bad idea to try and parse the string using isoformat as well
+    return datetime.fromtimestamp(ts / 1e9, tz=UTC)
 
-    return UserResponse.from_dict(chat_user)
+
+def build_query_param(**kwargs):
+    """
+    Constructs a dictionary of query parameters from keyword arguments.
+
+    This function handles various data types:
+    - JSON-serializable objects with a `to_json` method will be serialized using that method.
+    - Booleans are converted to lowercase strings.
+    - Lists are converted to comma-separated strings with URL-encoded values.
+    - Other types (strings, integers, dictionaries) are handled appropriately.
+
+    Args:
+        **kwargs: Arbitrary keyword arguments representing potential query parameters.
+
+    Returns:
+        dict: A dictionary where keys are parameter names and values are URL-ready strings.
+    """
+    params = {}
+    for key, value in kwargs.items():
+        if value is None:
+            continue
+        if hasattr(value, "to_json") and callable(value.to_json):
+            params[key] = value.to_json()
+        elif isinstance(value, bool):
+            params[key] = str(value).lower()
+        elif isinstance(value, (str, int)):
+            params[key] = str(value)
+        elif isinstance(value, list):
+            # Process each element, escaping commas in the string representation
+            params[key] = ",".join(quote(str(v)) for v in value)
+        else:
+            # For dictionaries or any other types of objects
+            params[key] = json.dumps(value)
+    return params
+
+
+def build_body_dict(**kwargs):
+    """
+    Constructs a dictionary for the body of a request, handling nested structures.
+    If an object has a `to_dict` method, it calls this method to serialize the object.
+    It handles nested dictionaries and lists recursively.
+
+    Args:
+        **kwargs: Keyword arguments representing keys and values to be included in the body dictionary.
+
+    Returns:
+        dict: A dictionary with keys corresponding to kwargs keys and values processed, potentially recursively.
+    """
+
+    def handle_value(value):
+        if hasattr(value, "to_dict") and callable(value.to_dict):
+            return value.to_dict()
+        elif isinstance(value, dict):
+            return {k: handle_value(v) for k, v in value.items()}
+        elif isinstance(value, list):
+            return [handle_value(v) for v in value]
+        else:
+            return value
+
+    data = {key: handle_value(value) for key, value in kwargs.items()}
+    return data

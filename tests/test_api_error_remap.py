@@ -1,6 +1,6 @@
 import unittest
 
-from getstream.models.api_error import ApiError
+from getstream.models import APIError
 
 
 class TestAPIError(unittest.TestCase):
@@ -17,14 +17,10 @@ class TestAPIError(unittest.TestCase):
         }
 
         # Use the static method from_dict() to convert the dict to an APIError instance
-        error = ApiError.from_dict(input_data)
+        error = APIError.from_dict(input_data)
 
         # validate the data was loaded correctly
         self.assertEqual(error.status_code, 404)
         self.assertEqual(error.code, 12345)
         self.assertEqual(error.details, [1, 2, 3])
         self.assertEqual(error.duration, "1m30s")
-
-
-if __name__ == "__main__":
-    unittest.main()
