@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from datetime import datetime, timezone, UTC
+from datetime import datetime, timezone
 from typing import List
 
 from getstream.models import OwnCapability, OwnCapabilityType
@@ -54,8 +54,8 @@ def test_build_query_param_with_booleans():
 
 def test_datetime_from_valid_unix_ns():
     # Example timestamp: January 1, 2020, 00:00:00 UTC in nanoseconds
-    timestamp_ns = 1577836800000000000
-    expected_datetime = datetime(2020, 1, 1, 0, 0, tzinfo=UTC)
+    timestamp_ns = "1577836800000000000"
+    expected_datetime = datetime(2020, 1, 1, 0, 0, tzinfo=timezone.utc)
     assert datetime_from_unix_ns(timestamp_ns) == expected_datetime
 
 
@@ -65,8 +65,8 @@ def test_datetime_from_none():
 
 def test_datetime_precision():
     # Timestamp with more precision: January 1, 2020, 00:00:00.123456789 UTC
-    timestamp_ns = 1577836800123456789
-    expected_datetime = datetime(2020, 1, 1, 0, 0, 0, 123457, tzinfo=UTC)
+    timestamp_ns = "1577836800123456789"
+    expected_datetime = datetime(2020, 1, 1, 0, 0, 0, 123457, tzinfo=timezone.utc)
     result_datetime = datetime_from_unix_ns(timestamp_ns)
     # Testing up to microseconds precision because Python's datetime only supports microseconds
     assert result_datetime == expected_datetime
@@ -74,15 +74,15 @@ def test_datetime_precision():
 
 def test_negative_timestamp():
     # Negative timestamp: Before January 1, 1970, e.g., December 31, 1969, 23:59:59 UTC
-    timestamp_ns = -1000000000
-    expected_datetime = datetime(1969, 12, 31, 23, 59, 59, tzinfo=UTC)
+    timestamp_ns = "-1000000000"
+    expected_datetime = datetime(1969, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
     assert datetime_from_unix_ns(timestamp_ns) == expected_datetime
 
 
 def test_future_timestamp():
     # Future timestamp: January 1, 2100, 00:00:00 UTC
-    timestamp_ns = 4102444800000000000
-    expected_datetime = datetime(2100, 1, 1, 0, 0, tzinfo=UTC)
+    timestamp_ns = "4102444800000000000"
+    expected_datetime = datetime(2100, 1, 1, 0, 0, tzinfo=timezone.utc)
     assert datetime_from_unix_ns(timestamp_ns) == expected_datetime
 
 

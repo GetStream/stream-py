@@ -58,7 +58,7 @@ class BaseClient(BaseConfig, ABC):
             parsed_result = json.loads(response.text) if response.text else {}
 
             if hasattr(data_type, "from_dict"):
-                data = data_type.from_dict(parsed_result)
+                data = data_type.from_dict(parsed_result, infer_missing=True)
             elif get_origin(data_type) is not dict:
                 raise AttributeError(f"{data_type.__name__} has no 'from_dict' method")
             else:
