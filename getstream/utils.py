@@ -1,8 +1,7 @@
 import json
 from typing import Optional
 from urllib.parse import quote
-from datetime import datetime, timezone
-from dateutil.parser import parse
+from datetime import datetime, UTC
 import validators
 from urllib.parse import urlparse, urlunparse
 
@@ -56,7 +55,9 @@ def datetime_from_unix_ns(ts):
     """
     if ts is None:
         return None
-    return parse(ts)
+    if isinstance(ts, str):
+        ts = int(ts)
+    return datetime.fromtimestamp(ts / 1e9, tz=UTC)
 
 
 def build_query_param(**kwargs):
