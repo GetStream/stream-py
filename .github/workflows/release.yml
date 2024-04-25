@@ -14,6 +14,13 @@ jobs:
     permissions:
       id-token: write
     steps:
+      - uses: actions/github-script@v5
+        with:
+          script: |
+            // Getting the release version from the PR source branch
+            // Source branch looks like this: release-1.0.0
+            const version = context.payload.pull_request.head.ref.split('-')[1]
+            core.exportVariable('VERSION', version)
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
