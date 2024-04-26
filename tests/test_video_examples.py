@@ -14,15 +14,13 @@ def test_setup_client():
 def test_create_user(client: Stream):
     from getstream.models import UserRequest
 
-    client.update_users(
-        users={
-            "tommaso-id": UserRequest(
-                id="tommaso-id", name="tommaso", role="admin", custom={"country": "NL"}
-            ),
-            "thierry-id": UserRequest(
-                id="thierry-id", name="thierry", role="admin", custom={"country": "US"}
-            ),
-        }
+    client.upsert_users(
+        UserRequest(
+            id="tommaso-id", name="tommaso", role="admin", custom={"country": "NL"}
+        ),
+        UserRequest(
+            id="thierry-id", name="thierry", role="admin", custom={"country": "US"}
+        ),
     )
 
     token = client.create_token("tommaso-id")

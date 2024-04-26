@@ -511,30 +511,21 @@ class VideoRestClient(BaseClient):
 
     def query_calls(
         self,
-        connection_id: Optional[str] = None,
         limit: Optional[int] = None,
         next: Optional[str] = None,
         prev: Optional[str] = None,
-        watch: Optional[bool] = None,
         sort: Optional[List[Optional[SortParam]]] = None,
         filter_conditions: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[QueryCallsResponse]:
-        query_params = build_query_param(connection_id=connection_id)
         json = build_body_dict(
             limit=limit,
             next=next,
             prev=prev,
-            watch=watch,
             sort=sort,
             filter_conditions=filter_conditions,
         )
 
-        return self.post(
-            "/api/v2/video/calls",
-            QueryCallsResponse,
-            query_params=query_params,
-            json=json,
-        )
+        return self.post("/api/v2/video/calls", QueryCallsResponse, json=json)
 
     def list_call_types(self) -> StreamResponse[ListCallTypeResponse]:
         return self.get("/api/v2/video/calltypes", ListCallTypeResponse)

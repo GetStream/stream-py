@@ -16,6 +16,8 @@ from getstream.models import (
     NotificationSettings,
     EventNotificationSettings,
     APNS,
+    UserRequest,
+    QueryUsersPayload,
 )
 
 from getstream.stream import Stream
@@ -40,6 +42,44 @@ def test_create_token_with_expiration(client: Stream):
     assert decoded["iat"] is not None
     assert decoded["exp"] == decoded["iat"] + 10
     assert decoded["user_id"] == "tommaso"
+
+
+def test_teams(client: Stream):
+    call_id = str(uuid.uuid4())
+    user_id = str(uuid.uuid4())
+    response = client.upsert_users(UserRequest(id=user_id, teams=["red", "blue"]))
+    assert response.data.users[user_id].teams == ["red", "blue"]
+    call = client.video.call("default", call_id)
+    response = call.create(
+        data=CallRequest(
+            created_by_id=user_id,
+            team="blue",
+        )
+    )
+    assert response.data.call.team == "blue"
+
+    response = client.query_users(
+        QueryUsersPayload(
+            filter_conditions={"id": user_id, "teams": {"$in": ["red", "blue"]}}
+        )
+    )
+    assert len(response.data.users) > 0
+    assert user_id in [u.id for u in response.data.users]
+
+    response = client.query_users(
+        QueryUsersPayload(
+            filter_conditions={
+                "teams": None,
+            }
+        )
+    )
+    assert len([u for u in response.data.users if len(u.teams) > 0]) == 0
+
+    response = client.video.query_calls(
+        filter_conditions={"id": call_id, "team": {"$eq": "blue"}}
+    )
+
+    assert len(response.data.calls) > 0
 
 
 class TestExternalStorage:

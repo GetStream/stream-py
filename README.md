@@ -32,24 +32,14 @@ client = Stream(api_key="your_api_key", api_secret="your_api_secret")
 from getstream.models import UserRequest
 
 # sync two users using the update_users method, both users will get insert or updated
-client.update_users(users={
-    "tommaso-id": UserRequest(
-        id="tommaso-id",
-        name="tommaso",
-        role="admin",
-        custom={
-            "country": "NL"
-        }
+client.upsert_users(
+    UserRequest(
+        id="tommaso-id", name="tommaso", role="admin", custom={"country": "NL"}
     ),
-    "thierry-id": UserRequest(
-        id="thierry-id",
-        name="thierry",
-        role="admin",
-        custom={
-            "country": "US"
-        }
+    UserRequest(
+        id="thierry-id", name="thierry", role="admin", custom={"country": "US"}
     ),
-})
+)
 
 # Create a JWT token for the user to connect client-side (e.g. browser/mobile app)
 token = client.create_token("tommaso-id")
