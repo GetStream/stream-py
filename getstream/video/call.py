@@ -266,3 +266,5 @@ class Call:
         )
         self._sync_from_response(response.data)
         return response
+
+    create = get_or_create

@@ -923,6 +923,37 @@ class ChatRestClient(BaseClient):
             path_params=path_params,
         )
 
+    def query_reactions(
+        self,
+        id: str,
+        limit: Optional[int] = None,
+        next: Optional[str] = None,
+        prev: Optional[str] = None,
+        user_id: Optional[str] = None,
+        sort: Optional[List[Optional[SortParam]]] = None,
+        filter: Optional[Dict[str, object]] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[QueryReactionsResponse]:
+        path_params = {
+            "id": id,
+        }
+        json = build_body_dict(
+            limit=limit,
+            next=next,
+            prev=prev,
+            user_id=user_id,
+            sort=sort,
+            filter=filter,
+            user=user,
+        )
+
+        return self.post(
+            "/api/v2/chat/messages/{id}/reactions",
+            QueryReactionsResponse,
+            path_params=path_params,
+            json=json,
+        )
+
     def translate_message(
         self, id: str, language: str
     ) -> StreamResponse[MessageResponse]:

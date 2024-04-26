@@ -5,6 +5,7 @@ from typing import List
 
 from getstream.chat.client import ChatClient
 from getstream.common.client import CommonClient
+from getstream.models import UserRequest
 from getstream.utils import validate_and_clean_url
 from getstream.video.client import VideoClient
 
@@ -66,6 +67,15 @@ class Stream(CommonClient):
             token=self.token,
             timeout=self.timeout,
         )
+
+    def upsert_users(self, *users: UserRequest):
+        """
+        Creates or updates users. This method performs an "upsert" operation,
+        where it checks if each user already exists and updates their information
+        if they do, or creates a new user entry if they do not.
+        """
+        users_map = {u.id: u for u in users}
+        return self.update_users(users_map)
 
     def create_token(
         self,
