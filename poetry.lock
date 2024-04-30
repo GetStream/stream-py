@@ -408,18 +408,7 @@ files = [
 mypy-extensions = ">=0.3.0"
 typing-extensions = ">=3.7.4"
 
-[[package]]
-name = "validators"
-version = "0.28.1"
-description = "Python Data Validation for Humans™"
-optional = false
-python-versions = ">=3.8"
-files = [
-    {file = "validators-0.28.1-py3-none-any.whl", hash = "sha256:890c98789ad884037f059af6ea915ec2d667129d509180c2c590b8009a4c4219"},
-    {file = "validators-0.28.1.tar.gz", hash = "sha256:5ac88e7916c3405f0ce38ac2ac82a477fcf4d90dbbeddd04c8193171fc17f7dc"},
-]
-
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8.1,<4.0.0"
-content-hash = "f1bbffb0eaae55fe9245b34aa3aef2ac110820be150b9bf29cf75db918ee0f2b"
+content-hash = "02a3d9a5d8b7c7ee127dbe641ba8ac851a0d0991cf0a3d2b52563dec0ff8bd35"

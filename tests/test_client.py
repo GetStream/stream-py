@@ -25,6 +25,9 @@ def test_incorrect_client_throws_exception():
         Stream(api_key="xxx", api_secret="xxx", base_url="")
 
     with pytest.raises(ValueError):
+        Stream(api_key="xxx", api_secret="xxx", base_url="somethingbad-!")
+
+    with pytest.raises(ValueError):
         Stream(api_key="xxx", api_secret="xxx", base_url="ftp://example.com")
 
     with pytest.raises(ValueError):
