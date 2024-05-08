@@ -353,7 +353,7 @@ class VideoRestClient(BaseClient):
 
     def delete_recording(
         self, type: str, id: str, session: str, filename: str
-    ) -> StreamResponse[StartRecordingResponse]:
+    ) -> StreamResponse[DeleteRecordingResponse]:
         path_params = {
             "type": type,
             "id": id,
@@ -362,7 +362,7 @@ class VideoRestClient(BaseClient):
 
         return self.post(
             "/api/v2/video/call/{type}/{id}/delete_recording",
-            StartRecordingResponse,
+            DeleteRecordingResponse,
             path_params=path_params,
             json=json,
         )
