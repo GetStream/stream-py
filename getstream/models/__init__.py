@@ -6134,6 +6134,17 @@ class StartRecordingResponse(DataClassJsonMixin):
 
 
 @dataclass
+class DeleteRecordingRequest(DataClassJsonMixin):
+    session: str = dc_field(metadata=dc_config(field_name="session"))
+    filename: str = dc_field(metadata=dc_config(field_name="filename"))
+
+
+@dataclass
+class DeleteRecordingResponse(DataClassJsonMixin):
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
+
+
+@dataclass
 class StartTranscriptionRequest(DataClassJsonMixin):
     transcription_external_storage: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="transcription_external_storage")

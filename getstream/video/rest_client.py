@@ -351,6 +351,22 @@ class VideoRestClient(BaseClient):
             json=json,
         )
 
+    def delete_recording(
+        self, type: str, id: str, session: str, filename: str
+    ) -> StreamResponse[StartRecordingResponse]:
+        path_params = {
+            "type": type,
+            "id": id,
+        }
+        json = build_body_dict(session=session, filename=filename)
+
+        return self.post(
+            "/api/v2/video/call/{type}/{id}/delete_recording",
+            StartRecordingResponse,
+            path_params=path_params,
+            json=json,
+        )
+
     def start_transcription(
         self, type: str, id: str, transcription_external_storage: Optional[str] = None
     ) -> StreamResponse[StartTranscriptionResponse]:

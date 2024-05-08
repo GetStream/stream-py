@@ -192,6 +192,18 @@ class Call:
         self._sync_from_response(response.data)
         return response
 
+    def delete_recording(
+        self, session: str, filename: str
+    ) -> StreamResponse[DeleteRecordingResponse]:
+        response = self.client.delete_recording(
+            type=self.call_type,
+            id=self.id,
+            session=session,
+            filename=filename,
+        )
+        self._sync_from_response(response.data)
+        return response
+
     def start_transcription(
         self, transcription_external_storage: Optional[str] = None
     ) -> StreamResponse[StartTranscriptionResponse]:
