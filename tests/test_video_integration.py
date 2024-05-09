@@ -1,4 +1,5 @@
 import time
+
 import pytest
 import uuid
 import jwt
@@ -21,7 +22,7 @@ from getstream.models import (
 )
 
 from getstream.stream import Stream
-from getstream.video.call import Call
+from tests.base import VideoTestClass
 
 CALL_TYPE_NAME = f"calltype{uuid.uuid4()}"
 EXTERNAL_STORAGE_NAME = f"storage{uuid.uuid4()}"
@@ -82,7 +83,7 @@ def test_teams(client: Stream):
     assert len(response.data.calls) > 0
 
 
-class TestExternalStorage:
+class TestCallTypes:
     def test_creating_storage_with_reserved_name_should_fail(self, client: Stream):
         with pytest.raises(Exception) as exc_info:
             client.video.create_external_storage(
@@ -101,8 +102,6 @@ class TestExternalStorage:
     def test_should_be_able_to_list_external_storage(self, client: Stream):
         client.video.list_external_storage()
 
-
-class TestCallTypes:
     def test_create_call_type(self, client: Stream):
         response = client.video.create_call_type(
             name=CALL_TYPE_NAME,
@@ -274,9 +273,10 @@ class TestCallTypes:
             assert response.status_code() == 200
 
 
-class TestCalls:
-    def test_create_call(self, call: Call):
-        response = call.get_or_create(
+@pytest.mark.usefixtures("shared_call")
+class TestCall(VideoTestClass):
+    def test_create_call(self):
+        response = self.call.get_or_create(
             data=CallRequest(
                 created_by_id="john",
                 settings_override=CallSettingsRequest(
@@ -295,8 +295,8 @@ class TestCalls:
         assert response.data.call.settings.geofencing.names == ["canada"]
         assert response.data.call.settings.screensharing.enabled is False
 
-    def test_update_call(self, call: Call):
-        response = call.update(
+    def test_update_call(self):
+        response = self.call.update(
             settings_override=CallSettingsRequest(
                 audio=AudioSettingsRequest(
                     mic_default_on=True,
@@ -306,20 +306,20 @@ class TestCalls:
         )
         assert response.data.call.settings.audio.mic_default_on is True
 
-    def test_rtmp_address(self, call: Call):
-        response = call.get_or_create(
+    def test_rtmp_address(self):
+        response = self.call.get_or_create(
             data=CallRequest(
                 created_by_id="john",
             ),
         )
-        assert call.id in response.data.call.ingress.rtmp.address
+        assert self.call.id in response.data.call.ingress.rtmp.address
 
-    def test_query_calls(self, client: Stream):
-        response = client.video.query_calls()
+    def test_query_calls(self):
+        response = self.client.video.query_calls()
         assert len(response.data.calls) >= 1
 
-    def test_enable_call_recording(self, call: Call):
-        response = call.update(
+    def test_enable_call_recording(self):
+        response = self.call.update(
             settings_override=CallSettingsRequest(
                 recording=RecordSettingsRequest(
                     mode="available",
@@ -328,8 +328,8 @@ class TestCalls:
         )
         assert response.data.call.settings.recording.mode == "available"
 
-    def test_enable_backstage_mode(self, call: Call):
-        response = call.update(
+    def test_enable_backstage_mode(self):
+        response = self.call.update(
             settings_override=CallSettingsRequest(
                 backstage=BackstageSettingsRequest(
                     enabled=True,
