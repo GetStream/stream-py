@@ -94,6 +94,7 @@ To install the development dependencies, run the following command:
 
 ```sh
 poetry install
+pre-commit install
 ```
 
 To activate the virtual environment, run the following command:
@@ -102,16 +103,29 @@ To activate the virtual environment, run the following command:
 poetry shell
 ```
 
-To run tests, create a `.env` using the `.env.example` and adjust it to have valid API credentials 
+To run tests, create a `.env` using the `.env.example` and adjust it to have valid API credentials
 ```sh
 poetry run pytest tests/ getstream/
 ```
 
-Before pushing changes make sure to run the linter:
+Before pushing changes make sure to have git hooks installed correctly, so that you get linting done locally `pre-commit install`
+
+You can also run the code formatting yourself if needed:
 
 ```sh
 poetry run ruff format getstream/ tests/
 ```
+
+### Writing new tests
+
+pytest is used to run tests and to inject fixtures, simple tests can be written as simple python functions making assert calls. Make sure to have a look at the available test fixtures under `tests/fixtures.py`
+
+### Generate code from spec
+
+To regenerate the Python source from OpenAPI, just run the `./generate.sh` script from this repo.
+
+> [!NOTE]
+> Code generation currently relies on tooling that is not publicly available, only Stream devs can regenerate SDK source code from the OpenAPI spec.
 
 ## License
 

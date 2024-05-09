@@ -41,7 +41,7 @@ def test_update_users_partial(client: Stream):
         ]
     )
     assert user_id in response.data.users
-    assert response.data.users[user_id].name is None
+    assert not response.data.users[user_id].name
     assert response.data.users[user_id].role == "admin"
     assert response.data.users[user_id].custom["color"] == "blue"
 

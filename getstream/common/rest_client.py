@@ -111,6 +111,46 @@ class CommonRestClient(BaseClient):
 
         return self.patch("/api/v2/app", Response, json=json)
 
+    def list_block_lists(self) -> StreamResponse[ListBlockListResponse]:
+        return self.get("/api/v2/blocklists", ListBlockListResponse)
+
+    def create_block_list(
+        self, name: str, words: List[str], type: Optional[str] = None
+    ) -> StreamResponse[Response]:
+        json = build_body_dict(name=name, words=words, type=type)
+
+        return self.post("/api/v2/blocklists", Response, json=json)
+
+    def delete_block_list(self, name: str) -> StreamResponse[Response]:
+        path_params = {
+            "name": name,
+        }
+
+        return self.delete(
+            "/api/v2/blocklists/{name}", Response, path_params=path_params
+        )
+
+    def get_block_list(self, name: str) -> StreamResponse[GetBlockListResponse]:
+        path_params = {
+            "name": name,
+        }
+
+        return self.get(
+            "/api/v2/blocklists/{name}", GetBlockListResponse, path_params=path_params
+        )
+
+    def update_block_list(
+        self, name: str, words: Optional[List[str]] = None
+    ) -> StreamResponse[Response]:
+        path_params = {
+            "name": name,
+        }
+        json = build_body_dict(words=words)
+
+        return self.put(
+            "/api/v2/blocklists/{name}", Response, path_params=path_params, json=json
+        )
+
     def check_push(
         self,
         apn_template: Optional[str] = None,
@@ -230,6 +270,96 @@ class CommonRestClient(BaseClient):
         return self.get(
             "/api/v2/imports/{id}", GetImportResponse, path_params=path_params
         )
+
+    def unban(
+        self,
+        target_user_id: str,
+        channel_cid: Optional[str] = None,
+        created_by: Optional[str] = None,
+    ) -> StreamResponse[Response]:
+        query_params = build_query_param(
+            target_user_id=target_user_id,
+            channel_cid=channel_cid,
+            created_by=created_by,
+        )
+
+        return self.delete(
+            "/api/v2/moderation/ban", Response, query_params=query_params
+        )
+
+    def ban(
+        self,
+        target_user_id: str,
+        banned_by_id: Optional[str] = None,
+        channel_cid: Optional[str] = None,
+        ip_ban: Optional[bool] = None,
+        reason: Optional[str] = None,
+        shadow: Optional[bool] = None,
+        timeout: Optional[int] = None,
+        user_id: Optional[str] = None,
+        banned_by: Optional[UserRequest] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[Response]:
+        json = build_body_dict(
+            target_user_id=target_user_id,
+            banned_by_id=banned_by_id,
+            channel_cid=channel_cid,
+            ip_ban=ip_ban,
+            reason=reason,
+            shadow=shadow,
+            timeout=timeout,
+            user_id=user_id,
+            banned_by=banned_by,
+            user=user,
+        )
+
+        return self.post("/api/v2/moderation/ban", Response, json=json)
+
+    def flag(
+        self,
+        reason: Optional[str] = None,
+        target_message_id: Optional[str] = None,
+        target_user_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        custom: Optional[Dict[str, object]] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[FlagResponse]:
+        json = build_body_dict(
+            reason=reason,
+            target_message_id=target_message_id,
+            target_user_id=target_user_id,
+            user_id=user_id,
+            custom=custom,
+            user=user,
+        )
+
+        return self.post("/api/v2/moderation/flag", FlagResponse, json=json)
+
+    def mute_user(
+        self,
+        timeout: int,
+        user_id: Optional[str] = None,
+        target_ids: Optional[List[str]] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[MuteUserResponse]:
+        json = build_body_dict(
+            timeout=timeout, user_id=user_id, target_ids=target_ids, user=user
+        )
+
+        return self.post("/api/v2/moderation/mute", MuteUserResponse, json=json)
+
+    def unmute_user(
+        self,
+        timeout: int,
+        user_id: Optional[str] = None,
+        target_ids: Optional[List[str]] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[UnmuteResponse]:
+        json = build_body_dict(
+            timeout=timeout, user_id=user_id, target_ids=target_ids, user=user
+        )
+
+        return self.post("/api/v2/moderation/unmute", UnmuteResponse, json=json)
 
     def get_og(self, url: str) -> StreamResponse[GetOGResponse]:
         query_params = build_query_param(url=url)
