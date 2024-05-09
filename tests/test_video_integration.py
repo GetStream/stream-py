@@ -21,6 +21,7 @@ from getstream.models import (
     QueryUsersPayload,
 )
 
+from getstream.base import StreamAPIException
 from getstream.stream import Stream
 from tests.base import VideoTestClass
 
@@ -337,3 +338,7 @@ class TestCall(VideoTestClass):
             ),
         )
         assert response.data.call.settings.backstage.enabled is True
+
+    def test_delete_not_existing_recording(self):
+        with pytest.raises(StreamAPIException):
+            self.call.delete_recording("random_session", "random_filename")
