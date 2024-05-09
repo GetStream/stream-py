@@ -355,22 +355,6 @@ class VideoRestClient(BaseClient):
             json=json,
         )
 
-    def delete_recording(
-        self, type: str, id: str, session: str, filename: str
-    ) -> StreamResponse[DeleteRecordingResponse]:
-        path_params = {
-            "type": type,
-            "id": id,
-        }
-        json = build_body_dict(session=session, filename=filename)
-
-        return self.post(
-            "/api/v2/video/call/{type}/{id}/delete_recording",
-            DeleteRecordingResponse,
-            path_params=path_params,
-            json=json,
-        )
-
     def start_transcription(
         self, type: str, id: str, transcription_external_storage: Optional[str] = None
     ) -> StreamResponse[StartTranscriptionResponse]:
@@ -527,6 +511,22 @@ class VideoRestClient(BaseClient):
             UpdateUserPermissionsResponse,
             path_params=path_params,
             json=json,
+        )
+
+    def delete_recording(
+        self, type: str, id: str, session: str, filename: str
+    ) -> StreamResponse[DeleteRecordingResponse]:
+        path_params = {
+            "type": type,
+            "id": id,
+            "session": session,
+            "filename": filename,
+        }
+
+        return self.delete(
+            "/api/v2/video/call/{type}/{id}/{session}/{filename}",
+            DeleteRecordingResponse,
+            path_params=path_params,
         )
 
     def query_calls(
