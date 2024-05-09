@@ -113,6 +113,13 @@ Before pushing changes make sure to run the linter:
 poetry run ruff format getstream/ tests/
 ```
 
+### Generate code from spec
+
+To regenerate the Python source from OpenAPI, just run the `./generate.sh` script from this repo.
+
+> [!NOTE]  
+> Code generation currently relies on tooling that is not publicly available, only Stream devs can regenerate SDK source code from the OpenAPI spec.
+
 ## License
 
 This project is licensed under the [MIT License](LICENSE).

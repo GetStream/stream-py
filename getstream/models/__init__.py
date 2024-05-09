@@ -2720,7 +2720,9 @@ class FullUserResponse(DataClassJsonMixin):
         )
     )
     id: str = dc_field(metadata=dc_config(field_name="id"))
+    image: str = dc_field(metadata=dc_config(field_name="image"))
     language: str = dc_field(metadata=dc_config(field_name="language"))
+    name: str = dc_field(metadata=dc_config(field_name="name"))
     online: bool = dc_field(metadata=dc_config(field_name="online"))
     role: str = dc_field(metadata=dc_config(field_name="role"))
     shadow_banned: bool = dc_field(metadata=dc_config(field_name="shadow_banned"))
@@ -2764,9 +2766,6 @@ class FullUserResponse(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         ),
     )
-    image: Optional[str] = dc_field(
-        default=None, metadata=dc_config(field_name="image")
-    )
     invisible: Optional[bool] = dc_field(
         default=None, metadata=dc_config(field_name="invisible")
     )
@@ -2779,7 +2778,6 @@ class FullUserResponse(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         ),
     )
-    name: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="name"))
     revoke_tokens_issued_before: Optional[datetime] = dc_field(
         default=None,
         metadata=dc_config(
@@ -6592,6 +6590,7 @@ class TranscriptionSettings(DataClassJsonMixin):
         metadata=dc_config(field_name="closed_caption_mode")
     )
     mode: str = dc_field(metadata=dc_config(field_name="mode"))
+    languages: List[str] = dc_field(metadata=dc_config(field_name="languages"))
 
 
 @dataclass
@@ -6599,6 +6598,9 @@ class TranscriptionSettingsRequest(DataClassJsonMixin):
     mode: str = dc_field(metadata=dc_config(field_name="mode"))
     closed_caption_mode: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="closed_caption_mode")
+    )
+    languages: Optional[List[str]] = dc_field(
+        default=None, metadata=dc_config(field_name="languages")
     )
 
 
@@ -6608,6 +6610,7 @@ class TranscriptionSettingsResponse(DataClassJsonMixin):
         metadata=dc_config(field_name="closed_caption_mode")
     )
     mode: str = dc_field(metadata=dc_config(field_name="mode"))
+    languages: List[str] = dc_field(metadata=dc_config(field_name="languages"))
 
 
 @dataclass
@@ -7678,8 +7681,10 @@ class UserResponse(DataClassJsonMixin):
         )
     )
     id: str = dc_field(metadata=dc_config(field_name="id"))
+    image: str = dc_field(metadata=dc_config(field_name="image"))
     invisible: bool = dc_field(metadata=dc_config(field_name="invisible"))
     language: str = dc_field(metadata=dc_config(field_name="language"))
+    name: str = dc_field(metadata=dc_config(field_name="name"))
     online: bool = dc_field(metadata=dc_config(field_name="online"))
     role: str = dc_field(metadata=dc_config(field_name="role"))
     shadow_banned: bool = dc_field(metadata=dc_config(field_name="shadow_banned"))
@@ -7714,9 +7719,6 @@ class UserResponse(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         ),
     )
-    image: Optional[str] = dc_field(
-        default=None, metadata=dc_config(field_name="image")
-    )
     last_active: Optional[datetime] = dc_field(
         default=None,
         metadata=dc_config(
@@ -7726,7 +7728,6 @@ class UserResponse(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         ),
     )
-    name: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="name"))
     revoke_tokens_issued_before: Optional[datetime] = dc_field(
         default=None,
         metadata=dc_config(
