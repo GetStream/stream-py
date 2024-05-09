@@ -146,20 +146,24 @@ class Call:
         self,
         audio: Optional[bool] = None,
         mute_all_users: Optional[bool] = None,
+        muted_by_id: Optional[str] = None,
         screenshare: Optional[bool] = None,
         screenshare_audio: Optional[bool] = None,
         video: Optional[bool] = None,
         user_ids: Optional[List[str]] = None,
+        muted_by: Optional[UserRequest] = None,
     ) -> StreamResponse[MuteUsersResponse]:
         response = self.client.mute_users(
             type=self.call_type,
             id=self.id,
             audio=audio,
             mute_all_users=mute_all_users,
+            muted_by_id=muted_by_id,
             screenshare=screenshare,
             screenshare_audio=screenshare_audio,
             video=video,
             user_ids=user_ids,
+            muted_by=muted_by,
         )
         self._sync_from_response(response.data)
         return response

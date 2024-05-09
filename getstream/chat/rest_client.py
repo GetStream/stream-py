@@ -20,51 +20,6 @@ class ChatRestClient(BaseClient):
             token=token,
         )
 
-    def list_block_lists(self) -> StreamResponse[ListBlockListResponse]:
-        return self.get("/api/v2/chat/blocklists", ListBlockListResponse)
-
-    def create_block_list(
-        self, name: str, words: List[str], type: Optional[str] = None
-    ) -> StreamResponse[Response]:
-        json = build_body_dict(name=name, words=words, type=type)
-
-        return self.post("/api/v2/chat/blocklists", Response, json=json)
-
-    def delete_block_list(self, name: str) -> StreamResponse[Response]:
-        path_params = {
-            "name": name,
-        }
-
-        return self.delete(
-            "/api/v2/chat/blocklists/{name}", Response, path_params=path_params
-        )
-
-    def get_block_list(self, name: str) -> StreamResponse[GetBlockListResponse]:
-        path_params = {
-            "name": name,
-        }
-
-        return self.get(
-            "/api/v2/chat/blocklists/{name}",
-            GetBlockListResponse,
-            path_params=path_params,
-        )
-
-    def update_block_list(
-        self, name: str, words: Optional[List[str]] = None
-    ) -> StreamResponse[Response]:
-        path_params = {
-            "name": name,
-        }
-        json = build_body_dict(words=words)
-
-        return self.put(
-            "/api/v2/chat/blocklists/{name}",
-            Response,
-            path_params=path_params,
-            json=json,
-        )
-
     def query_channels(
         self,
         limit: Optional[int] = None,
@@ -727,6 +682,7 @@ class ChatRestClient(BaseClient):
         channels: List[ChannelExport],
         clear_deleted_message_text: Optional[bool] = None,
         export_users: Optional[bool] = None,
+        include_soft_deleted_channels: Optional[bool] = None,
         include_truncated_messages: Optional[bool] = None,
         version: Optional[str] = None,
     ) -> StreamResponse[ExportChannelsResponse]:
@@ -734,6 +690,7 @@ class ChatRestClient(BaseClient):
             channels=channels,
             clear_deleted_message_text=clear_deleted_message_text,
             export_users=export_users,
+            include_soft_deleted_channels=include_soft_deleted_channels,
             include_truncated_messages=include_truncated_messages,
             version=version,
         )
@@ -1035,6 +992,7 @@ class ChatRestClient(BaseClient):
         created_at_before: Optional[datetime] = None,
         id_around: Optional[str] = None,
         created_at_around: Optional[datetime] = None,
+        sort: Optional[List[Optional[SortParam]]] = None,
     ) -> StreamResponse[GetRepliesResponse]:
         query_params = build_query_param(
             id_gte=id_gte,
@@ -1047,6 +1005,7 @@ class ChatRestClient(BaseClient):
             created_at_before=created_at_before,
             id_around=id_around,
             created_at_around=created_at_around,
+            sort=sort,
         )
         path_params = {
             "parent_id": parent_id,
@@ -1059,71 +1018,6 @@ class ChatRestClient(BaseClient):
             path_params=path_params,
         )
 
-    def unban(
-        self,
-        target_user_id: str,
-        type: Optional[str] = None,
-        id: Optional[str] = None,
-        created_by: Optional[str] = None,
-    ) -> StreamResponse[Response]:
-        query_params = build_query_param(
-            target_user_id=target_user_id, type=type, id=id, created_by=created_by
-        )
-
-        return self.delete(
-            "/api/v2/chat/moderation/ban", Response, query_params=query_params
-        )
-
-    def ban(
-        self,
-        target_user_id: str,
-        banned_by_id: Optional[str] = None,
-        id: Optional[str] = None,
-        ip_ban: Optional[bool] = None,
-        reason: Optional[str] = None,
-        shadow: Optional[bool] = None,
-        timeout: Optional[int] = None,
-        type: Optional[str] = None,
-        user_id: Optional[str] = None,
-        banned_by: Optional[UserRequest] = None,
-        user: Optional[UserRequest] = None,
-    ) -> StreamResponse[Response]:
-        json = build_body_dict(
-            target_user_id=target_user_id,
-            banned_by_id=banned_by_id,
-            id=id,
-            ip_ban=ip_ban,
-            reason=reason,
-            shadow=shadow,
-            timeout=timeout,
-            type=type,
-            user_id=user_id,
-            banned_by=banned_by,
-            user=user,
-        )
-
-        return self.post("/api/v2/chat/moderation/ban", Response, json=json)
-
-    def flag(
-        self,
-        reason: Optional[str] = None,
-        target_message_id: Optional[str] = None,
-        target_user_id: Optional[str] = None,
-        user_id: Optional[str] = None,
-        custom: Optional[Dict[str, object]] = None,
-        user: Optional[UserRequest] = None,
-    ) -> StreamResponse[FlagResponse]:
-        json = build_body_dict(
-            reason=reason,
-            target_message_id=target_message_id,
-            target_user_id=target_user_id,
-            user_id=user_id,
-            custom=custom,
-            user=user,
-        )
-
-        return self.post("/api/v2/chat/moderation/flag", FlagResponse, json=json)
-
     def query_message_flags(
         self, payload: Optional[QueryMessageFlagsRequest] = None
     ) -> StreamResponse[QueryMessageFlagsResponse]:
@@ -1134,19 +1028,6 @@ class ChatRestClient(BaseClient):
             QueryMessageFlagsResponse,
             query_params=query_params,
         )
-
-    def mute_user(
-        self,
-        timeout: int,
-        user_id: Optional[str] = None,
-        target_ids: Optional[List[str]] = None,
-        user: Optional[UserRequest] = None,
-    ) -> StreamResponse[MuteUserResponse]:
-        json = build_body_dict(
-            timeout=timeout, user_id=user_id, target_ids=target_ids, user=user
-        )
-
-        return self.post("/api/v2/chat/moderation/mute", MuteUserResponse, json=json)
 
     def mute_channel(
         self,
@@ -1162,19 +1043,6 @@ class ChatRestClient(BaseClient):
         return self.post(
             "/api/v2/chat/moderation/mute/channel", MuteChannelResponse, json=json
         )
-
-    def unmute_user(
-        self,
-        timeout: int,
-        user_id: Optional[str] = None,
-        target_ids: Optional[List[str]] = None,
-        user: Optional[UserRequest] = None,
-    ) -> StreamResponse[UnmuteResponse]:
-        json = build_body_dict(
-            timeout=timeout, user_id=user_id, target_ids=target_ids, user=user
-        )
-
-        return self.post("/api/v2/chat/moderation/unmute", UnmuteResponse, json=json)
 
     def unmute_channel(
         self,
@@ -1457,6 +1325,7 @@ class ChatRestClient(BaseClient):
     def query_threads(
         self,
         limit: Optional[int] = None,
+        member_limit: Optional[int] = None,
         next: Optional[str] = None,
         participant_limit: Optional[int] = None,
         prev: Optional[str] = None,
@@ -1466,6 +1335,7 @@ class ChatRestClient(BaseClient):
     ) -> StreamResponse[QueryThreadsResponse]:
         json = build_body_dict(
             limit=limit,
+            member_limit=member_limit,
             next=next,
             participant_limit=participant_limit,
             prev=prev,
@@ -1482,11 +1352,13 @@ class ChatRestClient(BaseClient):
         connection_id: Optional[str] = None,
         reply_limit: Optional[int] = None,
         participant_limit: Optional[int] = None,
+        member_limit: Optional[int] = None,
     ) -> StreamResponse[GetThreadResponse]:
         query_params = build_query_param(
             connection_id=connection_id,
             reply_limit=reply_limit,
             participant_limit=participant_limit,
+            member_limit=member_limit,
         )
         path_params = {
             "message_id": message_id,
