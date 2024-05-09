@@ -157,3 +157,24 @@ def test_update_user_permissions(call: Call, get_user):
         user_id=alice.id,
         grant_permissions=[OwnCapability.SEND_AUDIO],
     )
+
+
+def test_deactivate_user(client: Stream, get_user):
+    alice = get_user()
+    bob = get_user()
+
+    # deactivate one user
+    client.deactivate_user(user_id=alice.id)
+
+    # reactivates the user
+    client.reactivate_user(user_id=alice.id)
+
+    # deactivates users in bulk, this is an async operation
+    response = client.deactivate_users(user_ids=[alice.id, bob.id])
+    task_id = response.data.task_id
+
+    # this is just an example, in reality it can take a few seconds for a task to be processed
+    task_status = client.get_task(task_id)
+
+    if task_status.data.status == "completed":
+        print(task_status.data.result)

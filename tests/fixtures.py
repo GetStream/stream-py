@@ -3,15 +3,12 @@ import uuid
 from typing import Dict
 
 import pytest
+
 from getstream import Stream
 from getstream.models import UserRequest, FullUserResponse
 
-CALL_TYPE = "default"
-CALL_ID = str(uuid.uuid4())
 
-
-@pytest.fixture
-def client():
+def _client():
     return Stream(
         api_key=os.environ.get("STREAM_API_KEY"),
         api_secret=os.environ.get("STREAM_API_SECRET"),
@@ -20,8 +17,23 @@ def client():
 
 
 @pytest.fixture
+def client():
+    return _client()
+
+
+@pytest.fixture
 def call(client: Stream):
-    return client.video.call(CALL_TYPE, CALL_ID)
+    return client.video.call("default", str(uuid.uuid4()))
+
+
+@pytest.fixture(scope="class")
+def shared_call(request):
+    """
+    Use this fixture to decorate test classes subclassing base.VideoTestClass
+
+    """
+    request.cls.client = _client()
+    request.cls.call = request.cls.client.video.call("default", str(uuid.uuid4()))
 
 
 @pytest.fixture

@@ -113,6 +113,10 @@ Before pushing changes make sure to run the linter:
 poetry run ruff format getstream/ tests/
 ```
 
+### Writing new tests
+
+pytest is used to run tests and to inject fixtures, simple tests can be written as simple python functions making assert calls. Make sure to have a look at the available test fixtures under `tests/fixtures.py`
+
 ### Generate code from spec
 
 To regenerate the Python source from OpenAPI, just run the `./generate.sh` script from this repo.
