@@ -513,6 +513,22 @@ class VideoRestClient(BaseClient):
             json=json,
         )
 
+    def delete_recording(
+        self, type: str, id: str, session: str, filename: str
+    ) -> StreamResponse[DeleteRecordingResponse]:
+        path_params = {
+            "type": type,
+            "id": id,
+            "session": session,
+            "filename": filename,
+        }
+
+        return self.delete(
+            "/api/v2/video/call/{type}/{id}/{session}/{filename}",
+            DeleteRecordingResponse,
+            path_params=path_params,
+        )
+
     def query_calls(
         self,
         limit: Optional[int] = None,
