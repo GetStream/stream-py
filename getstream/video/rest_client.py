@@ -311,6 +311,22 @@ class VideoRestClient(BaseClient):
             json=json,
         )
 
+    def delete_recording(
+        self, type: str, id: str, session: str, filename: str
+    ) -> StreamResponse[DeleteRecordingResponse]:
+        path_params = {
+            "type": type,
+            "id": id,
+            "session": session,
+            "filename": filename,
+        }
+
+        return self.delete(
+            "/api/v2/video/call/{type}/{id}/recording/{session}/{filename}",
+            DeleteRecordingResponse,
+            path_params=path_params,
+        )
+
     def list_recordings(
         self, type: str, id: str
     ) -> StreamResponse[ListRecordingsResponse]:
@@ -439,6 +455,22 @@ class VideoRestClient(BaseClient):
         return self.post(
             "/api/v2/video/call/{type}/{id}/stop_transcription",
             StopTranscriptionResponse,
+            path_params=path_params,
+        )
+
+    def delete_transcription(
+        self, type: str, id: str, session: str, filename: str
+    ) -> StreamResponse[DeleteTranscriptionResponse]:
+        path_params = {
+            "type": type,
+            "id": id,
+            "session": session,
+            "filename": filename,
+        }
+
+        return self.delete(
+            "/api/v2/video/call/{type}/{id}/transcription/{session}/{filename}",
+            DeleteTranscriptionResponse,
             path_params=path_params,
         )
 
@@ -599,85 +631,3 @@ class VideoRestClient(BaseClient):
 
     def get_edges(self) -> StreamResponse[GetEdgesResponse]:
         return self.get("/api/v2/video/edges", GetEdgesResponse)
-
-    def list_external_storage(self) -> StreamResponse[ListExternalStorageResponse]:
-        return self.get("/api/v2/video/external_storage", ListExternalStorageResponse)
-
-    def create_external_storage(
-        self,
-        bucket: str,
-        name: str,
-        storage_type: str,
-        gcs_credentials: Optional[str] = None,
-        path: Optional[str] = None,
-        aws_s3: Optional[S3Request] = None,
-        azure_blob: Optional[AzureRequest] = None,
-    ) -> StreamResponse[CreateExternalStorageResponse]:
-        json = build_body_dict(
-            bucket=bucket,
-            name=name,
-            storage_type=storage_type,
-            gcs_credentials=gcs_credentials,
-            path=path,
-            aws_s3=aws_s3,
-            azure_blob=azure_blob,
-        )
-
-        return self.post(
-            "/api/v2/video/external_storage", CreateExternalStorageResponse, json=json
-        )
-
-    def delete_external_storage(
-        self, name: str
-    ) -> StreamResponse[DeleteExternalStorageResponse]:
-        path_params = {
-            "name": name,
-        }
-
-        return self.delete(
-            "/api/v2/video/external_storage/{name}",
-            DeleteExternalStorageResponse,
-            path_params=path_params,
-        )
-
-    def update_external_storage(
-        self,
-        name: str,
-        bucket: str,
-        storage_type: str,
-        gcs_credentials: Optional[str] = None,
-        path: Optional[str] = None,
-        aws_s3: Optional[S3Request] = None,
-        azure_blob: Optional[AzureRequest] = None,
-    ) -> StreamResponse[UpdateExternalStorageResponse]:
-        path_params = {
-            "name": name,
-        }
-        json = build_body_dict(
-            bucket=bucket,
-            storage_type=storage_type,
-            gcs_credentials=gcs_credentials,
-            path=path,
-            aws_s3=aws_s3,
-            azure_blob=azure_blob,
-        )
-
-        return self.put(
-            "/api/v2/video/external_storage/{name}",
-            UpdateExternalStorageResponse,
-            path_params=path_params,
-            json=json,
-        )
-
-    def check_external_storage(
-        self, name: str
-    ) -> StreamResponse[CheckExternalStorageResponse]:
-        path_params = {
-            "name": name,
-        }
-
-        return self.get(
-            "/api/v2/video/external_storage/{name}/check",
-            CheckExternalStorageResponse,
-            path_params=path_params,
-        )
