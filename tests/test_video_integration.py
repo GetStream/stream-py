@@ -21,6 +21,7 @@ from getstream.models import (
     QueryUsersPayload,
 )
 
+from getstream.base import StreamAPIException
 from getstream.stream import Stream
 from tests.base import VideoTestClass
 
@@ -86,7 +87,7 @@ def test_teams(client: Stream):
 class TestCallTypes:
     def test_creating_storage_with_reserved_name_should_fail(self, client: Stream):
         with pytest.raises(Exception) as exc_info:
-            client.video.create_external_storage(
+            client.create_external_storage(
                 bucket="my-bucket",
                 name="stream-s3",
                 storage_type="s3",
@@ -100,7 +101,7 @@ class TestCallTypes:
         assert "stream-s3 name reserved for internal use" in str(exc_info.value)
 
     def test_should_be_able_to_list_external_storage(self, client: Stream):
-        client.video.list_external_storage()
+        client.list_external_storage()
 
     def test_create_call_type(self, client: Stream):
         response = client.video.create_call_type(
@@ -337,3 +338,7 @@ class TestCall(VideoTestClass):
             ),
         )
         assert response.data.call.settings.backstage.enabled is True
+
+    def test_delete_not_existing_recording(self):
+        with pytest.raises(StreamAPIException):
+            self.call.delete_recording("random_session", "random_filename")
