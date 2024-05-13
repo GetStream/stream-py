@@ -175,15 +175,6 @@ class Call:
         self._sync_from_response(response.data)
         return response
 
-    def delete_recording(
-        self, session: str, filename: str
-    ) -> StreamResponse[DeleteRecordingResponse]:
-        response = self.client.delete_recording(
-            type=self.call_type, id=self.id, session=session, filename=filename
-        )
-        self._sync_from_response(response.data)
-        return response
-
     def list_recordings(self) -> StreamResponse[ListRecordingsResponse]:
         response = self.client.list_recordings(type=self.call_type, id=self.id)
         self._sync_from_response(response.data)
@@ -243,15 +234,6 @@ class Call:
         self._sync_from_response(response.data)
         return response
 
-    def delete_transcription(
-        self, session: str, filename: str
-    ) -> StreamResponse[DeleteTranscriptionResponse]:
-        response = self.client.delete_transcription(
-            type=self.call_type, id=self.id, session=session, filename=filename
-        )
-        self._sync_from_response(response.data)
-        return response
-
     def list_transcriptions(self) -> StreamResponse[ListTranscriptionsResponse]:
         response = self.client.list_transcriptions(type=self.call_type, id=self.id)
         self._sync_from_response(response.data)
@@ -293,6 +275,15 @@ class Call:
         self, session: str, filename: str
     ) -> StreamResponse[DeleteRecordingResponse]:
         response = self.client.delete_recording(
+            type=self.call_type, id=self.id, session=session, filename=filename
+        )
+        self._sync_from_response(response.data)
+        return response
+
+    def delete_transcription(
+        self, session: str, filename: str
+    ) -> StreamResponse[DeleteTranscriptionResponse]:
+        response = self.client.delete_transcription(
             type=self.call_type, id=self.id, session=session, filename=filename
         )
         self._sync_from_response(response.data)
