@@ -280,4 +280,13 @@ class Call:
         self._sync_from_response(response.data)
         return response
 
+    def delete_transcription(
+        self, session: str, filename: str
+    ) -> StreamResponse[DeleteTranscriptionResponse]:
+        response = self.client.delete_transcription(
+            type=self.call_type, id=self.id, session=session, filename=filename
+        )
+        self._sync_from_response(response.data)
+        return response
+
     create = get_or_create

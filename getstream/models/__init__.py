@@ -2269,6 +2269,11 @@ class DeleteRecordingResponse(DataClassJsonMixin):
 
 
 @dataclass
+class DeleteTranscriptionResponse(DataClassJsonMixin):
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
+
+
+@dataclass
 class DeleteUsersRequest(DataClassJsonMixin):
     user_ids: List[str] = dc_field(metadata=dc_config(field_name="user_ids"))
     calls: Optional[str] = dc_field(
