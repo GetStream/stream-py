@@ -149,17 +149,22 @@ class VideoRestClient(BaseClient):
         )
 
     def send_call_event(
-        self, type: str, id: str, event: EventRequest
-    ) -> StreamResponse[SendEventResponse]:
+        self,
+        type: str,
+        id: str,
+        user_id: Optional[str] = None,
+        custom: Optional[Dict[str, object]] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[SendCallEventResponse]:
         path_params = {
             "type": type,
             "id": id,
         }
-        json = build_body_dict(event=event)
+        json = build_body_dict(user_id=user_id, custom=custom, user=user)
 
         return self.post(
             "/api/v2/video/call/{type}/{id}/event",
-            SendEventResponse,
+            SendCallEventResponse,
             path_params=path_params,
             json=json,
         )

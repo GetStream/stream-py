@@ -72,9 +72,14 @@ class Call:
         self._sync_from_response(response.data)
         return response
 
-    def send_call_event(self, event: EventRequest) -> StreamResponse[SendEventResponse]:
+    def send_call_event(
+        self,
+        user_id: Optional[str] = None,
+        custom: Optional[Dict[str, object]] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[SendCallEventResponse]:
         response = self.client.send_call_event(
-            type=self.call_type, id=self.id, event=event
+            type=self.call_type, id=self.id, user_id=user_id, custom=custom, user=user
         )
         self._sync_from_response(response.data)
         return response
