@@ -85,6 +85,16 @@ def test_block_unblock_user_from_calls(client: Stream, call: Call, get_user):
     assert len(response.data.call.blocked_user_ids) == 0
 
 
+def test_send_custom_event(client: Stream, call: Call, get_user):
+    user = get_user()
+    call.get_or_create(
+        data=CallRequest(
+            created_by_id="tommaso-id",
+        )
+    )
+    call.send_call_event(user_id=user.id, custom={"bananas": "good"})
+
+
 def test_update_settings(call: Call):
     user_id = str(uuid.uuid4())
 

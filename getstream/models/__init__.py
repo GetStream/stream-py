@@ -6066,13 +6066,26 @@ class SearchWarning(DataClassJsonMixin):
 
 
 @dataclass
-class SendEventRequest(DataClassJsonMixin):
-    event: "EventRequest" = dc_field(metadata=dc_config(field_name="event"))
+class SendCallEventRequest(DataClassJsonMixin):
+    user_id: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="user_id")
+    )
+    custom: Optional[Dict[str, object]] = dc_field(
+        default=None, metadata=dc_config(field_name="custom")
+    )
+    user: "Optional[UserRequest]" = dc_field(
+        default=None, metadata=dc_config(field_name="user")
+    )
 
 
 @dataclass
-class SendEventResponse(DataClassJsonMixin):
+class SendCallEventResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
+
+
+@dataclass
+class SendEventRequest(DataClassJsonMixin):
+    event: "EventRequest" = dc_field(metadata=dc_config(field_name="event"))
 
 
 @dataclass
@@ -7889,6 +7902,9 @@ class UserStats(DataClassJsonMixin):
         metadata=dc_config(field_name="session_stats")
     )
     info: "UserInfoResponse" = dc_field(metadata=dc_config(field_name="info"))
+    rating: Optional[int] = dc_field(
+        default=None, metadata=dc_config(field_name="rating")
+    )
 
 
 @dataclass
