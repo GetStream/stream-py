@@ -3487,10 +3487,6 @@ class LimitsSettings(DataClassJsonMixin):
     max_duration_seconds: Optional[int] = dc_field(
         default=None, metadata=dc_config(field_name="max_duration_seconds")
     )
-    max_participant_combined_resolution: Optional[str] = dc_field(
-        default=None,
-        metadata=dc_config(field_name="max_participant_combined_resolution"),
-    )
     max_participants: Optional[int] = dc_field(
         default=None, metadata=dc_config(field_name="max_participants")
     )
@@ -3501,10 +3497,6 @@ class LimitsSettingsRequest(DataClassJsonMixin):
     max_duration_seconds: Optional[int] = dc_field(
         default=None, metadata=dc_config(field_name="max_duration_seconds")
     )
-    max_participant_combined_resolution: Optional[str] = dc_field(
-        default=None,
-        metadata=dc_config(field_name="max_participant_combined_resolution"),
-    )
     max_participants: Optional[int] = dc_field(
         default=None, metadata=dc_config(field_name="max_participants")
     )
@@ -3514,10 +3506,6 @@ class LimitsSettingsRequest(DataClassJsonMixin):
 class LimitsSettingsResponse(DataClassJsonMixin):
     max_duration_seconds: Optional[int] = dc_field(
         default=None, metadata=dc_config(field_name="max_duration_seconds")
-    )
-    max_participant_combined_resolution: Optional[str] = dc_field(
-        default=None,
-        metadata=dc_config(field_name="max_participant_combined_resolution"),
     )
     max_participants: Optional[int] = dc_field(
         default=None, metadata=dc_config(field_name="max_participants")
