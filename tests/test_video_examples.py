@@ -6,6 +6,7 @@ from getstream.models import (
     CallSettingsRequest,
     ScreensharingSettingsRequest,
     OwnCapability,
+    LimitsSettingsRequest,
 )
 from getstream.video.call import Call
 
@@ -188,3 +189,40 @@ def test_deactivate_user(client: Stream, get_user):
 
     if task_status.data.status == "completed":
         print(task_status.data.result)
+
+
+def test_create_call_with_session_timer(call: Call):
+    user_id = str(uuid.uuid4())
+    # create a call and set its max duration to 1 hour
+    response = call.get_or_create(
+        data=CallRequest(
+            created_by_id=user_id,
+            settings_override=CallSettingsRequest(
+                limits=LimitsSettingsRequest(
+                    max_duration_seconds=3600,
+                ),
+            ),
+        )
+    )
+
+    assert response.data.call.settings.limits.max_duration_seconds == 3600
+
+    # raise the max duration to 2 hours
+    response = call.update(
+        settings_override=CallSettingsRequest(
+            limits=LimitsSettingsRequest(
+                max_duration_seconds=7200,
+            ),
+        )
+    )
+    assert response.data.call.settings.limits.max_duration_seconds == 7200
+
+    # remove the max duration
+    response = call.update(
+        settings_override=CallSettingsRequest(
+            limits=LimitsSettingsRequest(
+                max_duration_seconds=0,
+            ),
+        )
+    )
+    assert response.data.call.settings.limits.max_duration_seconds == 0
