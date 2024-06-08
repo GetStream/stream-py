@@ -226,3 +226,18 @@ def test_create_call_with_session_timer(call: Call):
         )
     )
     assert response.data.call.settings.limits.max_duration_seconds == 0
+
+
+def test_user_blocking(client: Stream, get_user):
+    alice = get_user()
+    bob = get_user()
+
+    client.block_users(blocked_user_id=bob.id, user_id=alice.id)
+    response = client.get_blocked_users(user_id=alice.id)
+    assert len(response.data.blocks) == 1
+    assert response.data.blocks[0].user_id == alice.id
+    assert response.data.blocks[0].blocked_user_id == bob.id
+
+    client.unblock_users(blocked_user_id=bob.id, user_id=alice.id)
+    response = client.get_blocked_users(user_id=alice.id)
+    assert len(response.data.blocks) == 0
