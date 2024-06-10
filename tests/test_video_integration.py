@@ -145,6 +145,12 @@ class TestCallTypes:
                     ),
                     enabled=False,
                 ),
+                call_missed=EventNotificationSettings(
+                    apns=APNS(
+                        title="{{ user.display_name }} invites you to a call", body=""
+                    ),
+                    enabled=True,
+                ),
             ),
             grants={
                 "admin": [
