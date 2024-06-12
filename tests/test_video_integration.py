@@ -352,3 +352,10 @@ class TestCall(VideoTestClass):
     def test_delete_not_existing_transcription(self):
         with pytest.raises(StreamAPIException):
             self.call.delete_transcription("random_session", "random_filename")
+
+    def test_delete_call(self):
+        self.call.delete()
+        response = self.client.video.query_calls(
+            filter_conditions={"id": self.call.id, "team": {"$eq": "blue"}}
+        )
+        assert len(response.data.calls) == 0
