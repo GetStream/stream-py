@@ -148,18 +148,39 @@ class VideoRestClient(BaseClient):
             json=json,
         )
 
-    def send_call_event(
-        self, type: str, id: str, event: EventRequest
-    ) -> StreamResponse[SendEventResponse]:
+    def delete_call(
+        self, type: str, id: str, hard: Optional[bool] = None
+    ) -> StreamResponse[DeleteCallResponse]:
         path_params = {
             "type": type,
             "id": id,
         }
-        json = build_body_dict(event=event)
+        json = build_body_dict(hard=hard)
+
+        return self.post(
+            "/api/v2/video/call/{type}/{id}/delete",
+            DeleteCallResponse,
+            path_params=path_params,
+            json=json,
+        )
+
+    def send_call_event(
+        self,
+        type: str,
+        id: str,
+        user_id: Optional[str] = None,
+        custom: Optional[Dict[str, object]] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[SendCallEventResponse]:
+        path_params = {
+            "type": type,
+            "id": id,
+        }
+        json = build_body_dict(user_id=user_id, custom=custom, user=user)
 
         return self.post(
             "/api/v2/video/call/{type}/{id}/event",
-            SendEventResponse,
+            SendCallEventResponse,
             path_params=path_params,
             json=json,
         )
@@ -524,8 +545,24 @@ class VideoRestClient(BaseClient):
         }
 
         return self.delete(
-            "/api/v2/video/call/{type}/{id}/{session}/{filename}",
+            "/api/v2/video/call/{type}/{id}/{session}/recordings/{filename}",
             DeleteRecordingResponse,
+            path_params=path_params,
+        )
+
+    def delete_transcription(
+        self, type: str, id: str, session: str, filename: str
+    ) -> StreamResponse[DeleteTranscriptionResponse]:
+        path_params = {
+            "type": type,
+            "id": id,
+            "session": session,
+            "filename": filename,
+        }
+
+        return self.delete(
+            "/api/v2/video/call/{type}/{id}/{session}/transcriptions/{filename}",
+            DeleteTranscriptionResponse,
             path_params=path_params,
         )
 

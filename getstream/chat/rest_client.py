@@ -721,6 +721,22 @@ class ChatRestClient(BaseClient):
             "/api/v2/chat/members", MembersResponse, query_params=query_params
         )
 
+    def query_message_history(
+        self,
+        filter: Dict[str, object],
+        limit: Optional[int] = None,
+        next: Optional[str] = None,
+        prev: Optional[str] = None,
+        sort: Optional[List[Optional[SortParam]]] = None,
+    ) -> StreamResponse[QueryMessageHistoryResponse]:
+        json = build_body_dict(
+            filter=filter, limit=limit, next=next, prev=prev, sort=sort
+        )
+
+        return self.post(
+            "/api/v2/chat/messages/history", QueryMessageHistoryResponse, json=json
+        )
+
     def delete_message(
         self, id: str, hard: Optional[bool] = None, deleted_by: Optional[str] = None
     ) -> StreamResponse[DeleteMessageResponse]:
@@ -982,6 +998,8 @@ class ChatRestClient(BaseClient):
     def get_replies(
         self,
         parent_id: str,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
         id_gte: Optional[str] = None,
         id_gt: Optional[str] = None,
         id_lte: Optional[str] = None,
@@ -995,6 +1013,8 @@ class ChatRestClient(BaseClient):
         sort: Optional[List[Optional[SortParam]]] = None,
     ) -> StreamResponse[GetRepliesResponse]:
         query_params = build_query_param(
+            limit=limit,
+            offset=offset,
             id_gte=id_gte,
             id_gt=id_gt,
             id_lte=id_lte,

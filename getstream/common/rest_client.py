@@ -547,6 +547,27 @@ class CommonRestClient(BaseClient):
 
         return self.post("/api/v2/users", UpdateUsersResponse, json=json)
 
+    def get_blocked_users(
+        self, user_id: Optional[str] = None
+    ) -> StreamResponse[GetBlockedUsersResponse]:
+        query_params = build_query_param(user_id=user_id)
+
+        return self.get(
+            "/api/v2/users/block", GetBlockedUsersResponse, query_params=query_params
+        )
+
+    def block_users(
+        self,
+        blocked_user_id: str,
+        user_id: Optional[str] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[BlockUsersResponse]:
+        json = build_body_dict(
+            blocked_user_id=blocked_user_id, user_id=user_id, user=user
+        )
+
+        return self.post("/api/v2/users/block", BlockUsersResponse, json=json)
+
     def deactivate_users(
         self,
         user_ids: List[str],
@@ -605,6 +626,18 @@ class CommonRestClient(BaseClient):
         json = build_body_dict(user_ids=user_ids)
 
         return self.post("/api/v2/users/restore", Response, json=json)
+
+    def unblock_users(
+        self,
+        blocked_user_id: str,
+        user_id: Optional[str] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[UnblockUsersResponse]:
+        json = build_body_dict(
+            blocked_user_id=blocked_user_id, user_id=user_id, user=user
+        )
+
+        return self.post("/api/v2/users/unblock", UnblockUsersResponse, json=json)
 
     def deactivate_user(
         self,

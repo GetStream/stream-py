@@ -72,9 +72,19 @@ class Call:
         self._sync_from_response(response.data)
         return response
 
-    def send_call_event(self, event: EventRequest) -> StreamResponse[SendEventResponse]:
+    def delete(self, hard: Optional[bool] = None) -> StreamResponse[DeleteCallResponse]:
+        response = self.client.delete_call(type=self.call_type, id=self.id, hard=hard)
+        self._sync_from_response(response.data)
+        return response
+
+    def send_call_event(
+        self,
+        user_id: Optional[str] = None,
+        custom: Optional[Dict[str, object]] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[SendCallEventResponse]:
         response = self.client.send_call_event(
-            type=self.call_type, id=self.id, event=event
+            type=self.call_type, id=self.id, user_id=user_id, custom=custom, user=user
         )
         self._sync_from_response(response.data)
         return response
@@ -275,6 +285,15 @@ class Call:
         self, session: str, filename: str
     ) -> StreamResponse[DeleteRecordingResponse]:
         response = self.client.delete_recording(
+            type=self.call_type, id=self.id, session=session, filename=filename
+        )
+        self._sync_from_response(response.data)
+        return response
+
+    def delete_transcription(
+        self, session: str, filename: str
+    ) -> StreamResponse[DeleteTranscriptionResponse]:
+        response = self.client.delete_transcription(
             type=self.call_type, id=self.id, session=session, filename=filename
         )
         self._sync_from_response(response.data)
