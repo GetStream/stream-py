@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from dataclasses import field as dc_field
-from dataclasses_json import DataClassJsonMixin
-from dataclasses_json import config as dc_config
+from dataclasses_json import DataClassJsonMixin, config as dc_config
 from datetime import datetime
 from marshmallow import fields
 from typing import List, Dict, Optional, Final, NewType
@@ -7975,6 +7974,22 @@ class UpsertPushProviderResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
     push_provider: "PushProviderResponse" = dc_field(
         metadata=dc_config(field_name="push_provider")
+    )
+
+
+@dataclass
+class UserBlock(DataClassJsonMixin):
+    blocked_by_user_id: str = dc_field(
+        metadata=dc_config(field_name="blocked_by_user_id")
+    )
+    blocked_user_id: str = dc_field(metadata=dc_config(field_name="blocked_user_id"))
+    created_at: datetime = dc_field(
+        metadata=dc_config(
+            field_name="created_at",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        )
     )
 
 

@@ -6,6 +6,7 @@ from getstream.models import (
     CallSettingsRequest,
     ScreensharingSettingsRequest,
     OwnCapability,
+    LimitsSettingsRequest,
 )
 from getstream.video.call import Call
 
@@ -83,6 +84,16 @@ def test_block_unblock_user_from_calls(client: Stream, call: Call, get_user):
     call.unblock_user(bad_user.id)
     response = call.get()
     assert len(response.data.call.blocked_user_ids) == 0
+
+
+def test_send_custom_event(client: Stream, call: Call, get_user):
+    user = get_user()
+    call.get_or_create(
+        data=CallRequest(
+            created_by_id="tommaso-id",
+        )
+    )
+    call.send_call_event(user_id=user.id, custom={"bananas": "good"})
 
 
 def test_update_settings(call: Call):
@@ -178,3 +189,55 @@ def test_deactivate_user(client: Stream, get_user):
 
     if task_status.data.status == "completed":
         print(task_status.data.result)
+
+
+def test_create_call_with_session_timer(call: Call):
+    user_id = str(uuid.uuid4())
+    # create a call and set its max duration to 1 hour
+    response = call.get_or_create(
+        data=CallRequest(
+            created_by_id=user_id,
+            settings_override=CallSettingsRequest(
+                limits=LimitsSettingsRequest(
+                    max_duration_seconds=3600,
+                ),
+            ),
+        )
+    )
+
+    assert response.data.call.settings.limits.max_duration_seconds == 3600
+
+    # raise the max duration to 2 hours
+    response = call.update(
+        settings_override=CallSettingsRequest(
+            limits=LimitsSettingsRequest(
+                max_duration_seconds=7200,
+            ),
+        )
+    )
+    assert response.data.call.settings.limits.max_duration_seconds == 7200
+
+    # remove the max duration
+    response = call.update(
+        settings_override=CallSettingsRequest(
+            limits=LimitsSettingsRequest(
+                max_duration_seconds=0,
+            ),
+        )
+    )
+    assert response.data.call.settings.limits.max_duration_seconds == 0
+
+
+def test_user_blocking(client: Stream, get_user):
+    alice = get_user()
+    bob = get_user()
+
+    client.block_users(blocked_user_id=bob.id, user_id=alice.id)
+    response = client.get_blocked_users(user_id=alice.id)
+    assert len(response.data.blocks) == 1
+    assert response.data.blocks[0].user_id == alice.id
+    assert response.data.blocks[0].blocked_user_id == bob.id
+
+    client.unblock_users(blocked_user_id=bob.id, user_id=alice.id)
+    response = client.get_blocked_users(user_id=alice.id)
+    assert len(response.data.blocks) == 0
