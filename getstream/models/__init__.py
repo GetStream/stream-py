@@ -383,6 +383,9 @@ class AzureRequest(DataClassJsonMixin):
 @dataclass
 class BackstageSettings(DataClassJsonMixin):
     enabled: bool = dc_field(metadata=dc_config(field_name="enabled"))
+    join_ahead_time_seconds: Optional[int] = dc_field(
+        default=None, metadata=dc_config(field_name="join_ahead_time_seconds")
+    )
 
 
 @dataclass
@@ -390,11 +393,17 @@ class BackstageSettingsRequest(DataClassJsonMixin):
     enabled: Optional[bool] = dc_field(
         default=None, metadata=dc_config(field_name="enabled")
     )
+    join_ahead_time_seconds: Optional[int] = dc_field(
+        default=None, metadata=dc_config(field_name="join_ahead_time_seconds")
+    )
 
 
 @dataclass
 class BackstageSettingsResponse(DataClassJsonMixin):
     enabled: bool = dc_field(metadata=dc_config(field_name="enabled"))
+    join_ahead_time_seconds: Optional[int] = dc_field(
+        default=None, metadata=dc_config(field_name="join_ahead_time_seconds")
+    )
 
 
 @dataclass
@@ -519,10 +528,19 @@ class BlockUsersRequest(DataClassJsonMixin):
 
 @dataclass
 class BlockUsersResponse(DataClassJsonMixin):
-    duration: str = dc_field(metadata=dc_config(field_name="duration"))
-    blocks: "List[Optional[UserBlock]]" = dc_field(
-        metadata=dc_config(field_name="blocks")
+    blocked_by_user_id: str = dc_field(
+        metadata=dc_config(field_name="blocked_by_user_id")
     )
+    blocked_user_id: str = dc_field(metadata=dc_config(field_name="blocked_user_id"))
+    created_at: datetime = dc_field(
+        metadata=dc_config(
+            field_name="created_at",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        )
+    )
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
 
 
 @dataclass
@@ -661,6 +679,9 @@ class CallResponse(DataClassJsonMixin):
         metadata=dc_config(field_name="current_session_id")
     )
     id: str = dc_field(metadata=dc_config(field_name="id"))
+    join_ahead_time_seconds: int = dc_field(
+        metadata=dc_config(field_name="join_ahead_time_seconds")
+    )
     recording: bool = dc_field(metadata=dc_config(field_name="recording"))
     transcribing: bool = dc_field(metadata=dc_config(field_name="transcribing"))
     type: str = dc_field(metadata=dc_config(field_name="type"))
@@ -7718,22 +7739,6 @@ class UpsertPushProviderResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
     push_provider: "PushProviderResponse" = dc_field(
         metadata=dc_config(field_name="push_provider")
-    )
-
-
-@dataclass
-class UserBlock(DataClassJsonMixin):
-    blocked_by_user_id: str = dc_field(
-        metadata=dc_config(field_name="blocked_by_user_id")
-    )
-    blocked_user_id: str = dc_field(metadata=dc_config(field_name="blocked_user_id"))
-    created_at: datetime = dc_field(
-        metadata=dc_config(
-            field_name="created_at",
-            encoder=encode_datetime,
-            decoder=datetime_from_unix_ns,
-            mm_field=fields.DateTime(format="iso"),
-        )
     )
 
 
