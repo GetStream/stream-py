@@ -23,6 +23,7 @@ from getstream.models import (
 
 from getstream.base import StreamAPIException
 from getstream.stream import Stream
+from getstream.video.call import Call
 from tests.base import VideoTestClass
 
 CALL_TYPE_NAME = f"calltype{uuid.uuid4()}"
@@ -353,9 +354,60 @@ class TestCall(VideoTestClass):
         with pytest.raises(StreamAPIException):
             self.call.delete_transcription("random_session", "random_filename")
 
-    def test_delete_call(self):
-        self.call.delete()
-        response = self.client.video.query_calls(
-            filter_conditions={"id": self.call.id, "team": {"$eq": "blue"}}
+class TestDeleteCall():
+    def test_soft_delete(self, call: Call):
+        response = call.get_or_create(
+            data=CallRequest(
+                created_by_id="john",
+            ),
         )
-        assert len(response.data.calls) == 0
+        response = call.delete()
+        assert response.data.call is not None
+        assert response.data.task_id is None
+
+        with pytest.raises(StreamAPIException) as exc_info:
+            response = call.get()
+        msg = exc_info.value.api_error.message
+        assert "Can't find call with id" in msg
+
+
+    def test_hard_delete(self, client: Stream, call: Call):
+        response = call.get_or_create(
+            data=CallRequest(
+                created_by_id="john",
+            ),
+        )
+        response = call.delete(hard=True)
+        assert response.data.call is not None
+        task_id = response.data.task_id
+        assert task_id is not None
+
+        response = wait_for_task(client, task_id)
+        cid = call.call_type+":"+call.id
+        assert response.data.result[cid]['status'] == 'ok'
+
+
+def wait_for_task(client, task_id, timeout_ms=10000, poll_interval_ms=1000):
+    """
+    Wait until the task is completed or timeout is reached.
+
+    Args:
+        client: The client used to make the API call.
+        task_id: The ID of the task to wait for.
+        timeout: The maximum amount of time to wait (in ms).
+        poll_interval: The interval between poll attempts (in ms).
+
+    Returns:
+        The final response from the API.
+
+    Raises:
+        TimeoutError: If the task is not completed within the timeout period.
+    """
+    start_time = time.time() * 1000  # Convert to milliseconds
+    while True:
+        response = client.get_task(id=task_id)
+        if response.data.status == "completed":
+            return response
+        if  (time.time() * 1000) - start_time > timeout_ms:
+            raise TimeoutError(f"Task {task_id} did not complete within {timeout_ms} seconds")
+        time.sleep(poll_interval_ms / 1000.0)
