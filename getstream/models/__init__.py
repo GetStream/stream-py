@@ -584,6 +584,115 @@ class BroadcastSettingsResponse(DataClassJsonMixin):
 
 
 @dataclass
+class Call(DataClassJsonMixin):
+    app_pk: int = dc_field(metadata=dc_config(field_name="AppPK"))
+    backstage: bool = dc_field(metadata=dc_config(field_name="Backstage"))
+    broadcast_egress: str = dc_field(metadata=dc_config(field_name="BroadcastEgress"))
+    cid: str = dc_field(metadata=dc_config(field_name="CID"))
+    created_at: datetime = dc_field(
+        metadata=dc_config(
+            field_name="CreatedAt",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        )
+    )
+    created_by_user_id: str = dc_field(metadata=dc_config(field_name="CreatedByUserID"))
+    current_session_id: str = dc_field(
+        metadata=dc_config(field_name="CurrentSessionID")
+    )
+    hls_playlist_url: str = dc_field(metadata=dc_config(field_name="HLSPlaylistURL"))
+    id: str = dc_field(metadata=dc_config(field_name="ID"))
+    record_egress: str = dc_field(metadata=dc_config(field_name="RecordEgress"))
+    team: str = dc_field(metadata=dc_config(field_name="Team"))
+    thumbnail_url: str = dc_field(metadata=dc_config(field_name="ThumbnailURL"))
+    transcribe_egress: str = dc_field(metadata=dc_config(field_name="TranscribeEgress"))
+    type: str = dc_field(metadata=dc_config(field_name="Type"))
+    updated_at: datetime = dc_field(
+        metadata=dc_config(
+            field_name="UpdatedAt",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        )
+    )
+    blocked_user_ids: List[str] = dc_field(
+        metadata=dc_config(field_name="BlockedUserIDs")
+    )
+    blocked_users: "List[UserObject]" = dc_field(
+        metadata=dc_config(field_name="BlockedUsers")
+    )
+    members: "List[Optional[CallMember]]" = dc_field(
+        metadata=dc_config(field_name="Members")
+    )
+    sfuids: List[str] = dc_field(metadata=dc_config(field_name="SFUIDs"))
+    custom: Dict[str, object] = dc_field(metadata=dc_config(field_name="Custom"))
+    deleted_at: Optional[datetime] = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="DeletedAt",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+    )
+    egress_updated_at: Optional[datetime] = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="EgressUpdatedAt",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+    )
+    ended_at: Optional[datetime] = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="EndedAt",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+    )
+    join_ahead_time_seconds: Optional[int] = dc_field(
+        default=None, metadata=dc_config(field_name="JoinAheadTimeSeconds")
+    )
+    last_heartbeat_at: Optional[datetime] = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="LastHeartbeatAt",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+    )
+    starts_at: Optional[datetime] = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="StartsAt",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+    )
+    call_type: "Optional[CallType]" = dc_field(
+        default=None, metadata=dc_config(field_name="CallType")
+    )
+    created_by: "Optional[UserObject]" = dc_field(
+        default=None, metadata=dc_config(field_name="CreatedBy")
+    )
+    session: "Optional[CallSession]" = dc_field(
+        default=None, metadata=dc_config(field_name="Session")
+    )
+    settings: "Optional[CallSettings]" = dc_field(
+        default=None, metadata=dc_config(field_name="Settings")
+    )
+    settings_overrides: "Optional[CallSettings]" = dc_field(
+        default=None, metadata=dc_config(field_name="SettingsOverrides")
+    )
+
+
+@dataclass
 class CallEvent(DataClassJsonMixin):
     description: str = dc_field(metadata=dc_config(field_name="description"))
     end_timestamp: int = dc_field(metadata=dc_config(field_name="end_timestamp"))
@@ -595,6 +704,41 @@ class CallEvent(DataClassJsonMixin):
 @dataclass
 class CallIngressResponse(DataClassJsonMixin):
     rtmp: "RTMPIngress" = dc_field(metadata=dc_config(field_name="rtmp"))
+
+
+@dataclass
+class CallMember(DataClassJsonMixin):
+    created_at: datetime = dc_field(
+        metadata=dc_config(
+            field_name="created_at",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        )
+    )
+    role: str = dc_field(metadata=dc_config(field_name="role"))
+    updated_at: datetime = dc_field(
+        metadata=dc_config(
+            field_name="updated_at",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        )
+    )
+    user_id: str = dc_field(metadata=dc_config(field_name="user_id"))
+    custom: Dict[str, object] = dc_field(metadata=dc_config(field_name="custom"))
+    deleted_at: Optional[datetime] = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="deleted_at",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+    )
+    user: "Optional[UserObject]" = dc_field(
+        default=None, metadata=dc_config(field_name="user")
+    )
 
 
 @dataclass
@@ -727,6 +871,97 @@ class CallResponse(DataClassJsonMixin):
     )
     thumbnails: "Optional[ThumbnailResponse]" = dc_field(
         default=None, metadata=dc_config(field_name="thumbnails")
+    )
+
+
+@dataclass
+class CallSession(DataClassJsonMixin):
+    app_pk: int = dc_field(metadata=dc_config(field_name="AppPK"))
+    call_id: str = dc_field(metadata=dc_config(field_name="CallID"))
+    call_type: str = dc_field(metadata=dc_config(field_name="CallType"))
+    created_at: datetime = dc_field(
+        metadata=dc_config(
+            field_name="CreatedAt",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        )
+    )
+    session_id: str = dc_field(metadata=dc_config(field_name="SessionID"))
+    participants: "List[UserObject]" = dc_field(
+        metadata=dc_config(field_name="Participants")
+    )
+    accepted_by: "Dict[str, datetime]" = dc_field(
+        metadata=dc_config(field_name="AcceptedBy")
+    )
+    missed_by: "Dict[str, datetime]" = dc_field(
+        metadata=dc_config(field_name="MissedBy")
+    )
+    rejected_by: "Dict[str, datetime]" = dc_field(
+        metadata=dc_config(field_name="RejectedBy")
+    )
+    deleted_at: Optional[datetime] = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="DeletedAt",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+    )
+    ended_at: Optional[datetime] = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="EndedAt",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+    )
+    live_ended_at: Optional[datetime] = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="LiveEndedAt",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+    )
+    live_started_at: Optional[datetime] = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="LiveStartedAt",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+    )
+    ring_at: Optional[datetime] = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="RingAt",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+    )
+    started_at: Optional[datetime] = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="StartedAt",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+    )
+    timer_ends_at: Optional[datetime] = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="TimerEndsAt",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
     )
 
 
@@ -2290,6 +2525,22 @@ class DeactivateUsersRequest(DataClassJsonMixin):
 class DeactivateUsersResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
     task_id: str = dc_field(metadata=dc_config(field_name="task_id"))
+
+
+@dataclass
+class DeleteCallRequest(DataClassJsonMixin):
+    hard: Optional[bool] = dc_field(default=None, metadata=dc_config(field_name="hard"))
+
+
+@dataclass
+class DeleteCallResponse(DataClassJsonMixin):
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    task_id: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="task_id")
+    )
+    call: "Optional[Call]" = dc_field(
+        default=None, metadata=dc_config(field_name="call")
+    )
 
 
 @dataclass

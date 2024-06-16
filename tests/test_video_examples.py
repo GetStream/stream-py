@@ -247,15 +247,13 @@ def test_user_blocking(client: Stream, get_user):
 
 def test_create_call_with_backstage_and_join_ahead_set(client: Stream, call: Call):
     user_id = str(uuid.uuid4())
-    min30s = timedelta(minutes=30)
-    in_next_30_mins = datetime.now() + min30s
-    dt = datetime.fromtimestamp(in_next_30_mins.timestamp(), timezone.utc)
+    starts_at = datetime.now(timezone.utc) + timedelta(minutes=30)
 
     # create a call and set backstage and join ahead time to 5 minutes
     call = client.video.call("livestream", uuid.uuid4())
     response = call.get_or_create(
         data=CallRequest(
-            starts_at=dt,
+            starts_at=starts_at,
             created_by_id=user_id,
             settings_override=CallSettingsRequest(
                 backstage=BackstageSettingsRequest(
