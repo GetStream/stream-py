@@ -355,7 +355,8 @@ class TestCall(VideoTestClass):
         with pytest.raises(StreamAPIException):
             self.call.delete_transcription("random_session", "random_filename")
 
-class TestDeleteCall():
+
+class TestDeleteCall:
     def test_soft_delete(self, call: Call):
         response = call.get_or_create(
             data=CallRequest(
@@ -371,7 +372,6 @@ class TestDeleteCall():
         msg = exc_info.value.api_error.message
         assert "Can't find call with id" in msg
 
-
     def test_hard_delete(self, client: Stream, call: Call):
         response = call.get_or_create(
             data=CallRequest(
@@ -384,5 +384,5 @@ class TestDeleteCall():
         assert task_id is not None
 
         response = wait_for_task(client, task_id)
-        cid = call.call_type+":"+call.id
-        assert response.data.result[cid]['status'] == 'ok'
+        cid = call.call_type + ":" + call.id
+        assert response.data.result[cid]["status"] == "ok"
