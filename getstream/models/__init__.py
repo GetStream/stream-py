@@ -2293,20 +2293,6 @@ class DeactivateUsersResponse(DataClassJsonMixin):
 
 
 @dataclass
-class DeleteCallRequest(DataClassJsonMixin):
-    hard: Optional[bool] = dc_field(default=None, metadata=dc_config(field_name="hard"))
-
-
-@dataclass
-class DeleteCallResponse(DataClassJsonMixin):
-    duration: str = dc_field(metadata=dc_config(field_name="duration"))
-    call: "CallResponse" = dc_field(metadata=dc_config(field_name="call"))
-    task_id: Optional[str] = dc_field(
-        default=None, metadata=dc_config(field_name="task_id")
-    )
-
-
-@dataclass
 class DeleteChannelResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
     channel: "Optional[ChannelResponse]" = dc_field(

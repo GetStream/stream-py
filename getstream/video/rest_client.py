@@ -148,22 +148,6 @@ class VideoRestClient(BaseClient):
             json=json,
         )
 
-    def delete_call(
-        self, type: str, id: str, hard: Optional[bool] = None
-    ) -> StreamResponse[DeleteCallResponse]:
-        path_params = {
-            "type": type,
-            "id": id,
-        }
-        json = build_body_dict(hard=hard)
-
-        return self.post(
-            "/api/v2/video/call/{type}/{id}/delete",
-            DeleteCallResponse,
-            path_params=path_params,
-            json=json,
-        )
-
     def send_call_event(
         self,
         type: str,
