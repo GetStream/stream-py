@@ -679,9 +679,6 @@ class CallResponse(DataClassJsonMixin):
         metadata=dc_config(field_name="current_session_id")
     )
     id: str = dc_field(metadata=dc_config(field_name="id"))
-    join_ahead_time_seconds: int = dc_field(
-        metadata=dc_config(field_name="join_ahead_time_seconds")
-    )
     recording: bool = dc_field(metadata=dc_config(field_name="recording"))
     transcribing: bool = dc_field(metadata=dc_config(field_name="transcribing"))
     type: str = dc_field(metadata=dc_config(field_name="type"))
@@ -711,6 +708,9 @@ class CallResponse(DataClassJsonMixin):
             decoder=datetime_from_unix_ns,
             mm_field=fields.DateTime(format="iso"),
         ),
+    )
+    join_ahead_time_seconds: Optional[int] = dc_field(
+        default=None, metadata=dc_config(field_name="join_ahead_time_seconds")
     )
     starts_at: Optional[datetime] = dc_field(
         default=None,
