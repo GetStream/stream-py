@@ -516,34 +516,6 @@ class BlockUserResponse(DataClassJsonMixin):
 
 
 @dataclass
-class BlockUsersRequest(DataClassJsonMixin):
-    blocked_user_id: str = dc_field(metadata=dc_config(field_name="blocked_user_id"))
-    user_id: Optional[str] = dc_field(
-        default=None, metadata=dc_config(field_name="user_id")
-    )
-    user: "Optional[UserRequest]" = dc_field(
-        default=None, metadata=dc_config(field_name="user")
-    )
-
-
-@dataclass
-class BlockUsersResponse(DataClassJsonMixin):
-    blocked_by_user_id: str = dc_field(
-        metadata=dc_config(field_name="blocked_by_user_id")
-    )
-    blocked_user_id: str = dc_field(metadata=dc_config(field_name="blocked_user_id"))
-    created_at: datetime = dc_field(
-        metadata=dc_config(
-            field_name="created_at",
-            encoder=encode_datetime,
-            decoder=datetime_from_unix_ns,
-            mm_field=fields.DateTime(format="iso"),
-        )
-    )
-    duration: str = dc_field(metadata=dc_config(field_name="duration"))
-
-
-@dataclass
 class BlockedUserResponse(DataClassJsonMixin):
     blocked_user_id: str = dc_field(metadata=dc_config(field_name="blocked_user_id"))
     created_at: datetime = dc_field(
@@ -2290,6 +2262,20 @@ class DeactivateUsersRequest(DataClassJsonMixin):
 class DeactivateUsersResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
     task_id: str = dc_field(metadata=dc_config(field_name="task_id"))
+
+
+@dataclass
+class DeleteCallRequest(DataClassJsonMixin):
+    hard: Optional[bool] = dc_field(default=None, metadata=dc_config(field_name="hard"))
+
+
+@dataclass
+class DeleteCallResponse(DataClassJsonMixin):
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    call: "CallResponse" = dc_field(metadata=dc_config(field_name="call"))
+    task_id: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="task_id")
+    )
 
 
 @dataclass

@@ -72,6 +72,11 @@ class Call:
         self._sync_from_response(response.data)
         return response
 
+    def delete(self, hard: Optional[bool] = None) -> StreamResponse[DeleteCallResponse]:
+        response = self.client.delete_call(type=self.call_type, id=self.id, hard=hard)
+        self._sync_from_response(response.data)
+        return response
+
     def send_call_event(
         self,
         user_id: Optional[str] = None,
