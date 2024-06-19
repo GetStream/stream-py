@@ -7,8 +7,10 @@ from getstream.models import (
     ScreensharingSettingsRequest,
     OwnCapability,
     LimitsSettingsRequest,
+    BackstageSettingsRequest,
 )
 from getstream.video.call import Call
+from datetime import datetime, timezone, timedelta
 
 
 def test_setup_client():
@@ -241,3 +243,45 @@ def test_user_blocking(client: Stream, get_user):
     client.unblock_users(blocked_user_id=bob.id, user_id=alice.id)
     response = client.get_blocked_users(user_id=alice.id)
     assert len(response.data.blocks) == 0
+
+
+def test_create_call_with_backstage_and_join_ahead_set(client: Stream, call: Call):
+    user_id = str(uuid.uuid4())
+    starts_at = datetime.now(timezone.utc) + timedelta(minutes=30)
+
+    # create a call and set backstage and join ahead time to 5 minutes
+    call = client.video.call("livestream", uuid.uuid4())
+    response = call.get_or_create(
+        data=CallRequest(
+            starts_at=starts_at,
+            created_by_id=user_id,
+            settings_override=CallSettingsRequest(
+                backstage=BackstageSettingsRequest(
+                    enabled=True,
+                    join_ahead_time_seconds=300,
+                ),
+            ),
+        )
+    )
+
+    assert response.data.call.join_ahead_time_seconds == 300
+
+    # raise the max duration to 10 minutes
+    response = call.update(
+        settings_override=CallSettingsRequest(
+            backstage=BackstageSettingsRequest(
+                join_ahead_time_seconds=600,
+            ),
+        )
+    )
+    assert response.data.call.join_ahead_time_seconds == 600
+
+    # remove the max duration
+    response = call.update(
+        settings_override=CallSettingsRequest(
+            backstage=BackstageSettingsRequest(
+                join_ahead_time_seconds=0,
+            ),
+        )
+    )
+    assert response.data.call.join_ahead_time_seconds == 0
