@@ -1,6 +1,7 @@
 from functools import update_wrapper
 import click
 
+import json
 
 def pass_client(f):
     """
@@ -19,12 +20,6 @@ def pass_client(f):
         return ctx.invoke(f, ctx.obj["client"], *args, **kwargs)
 
     return update_wrapper(new_func, f)
-
-# cli/utils.py
-
-import json
-import click
-from functools import update_wrapper
 
 def json_option(option_name):
     def decorator(f):

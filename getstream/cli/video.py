@@ -7,7 +7,6 @@ import uuid
 from getstream.video.call import Call
 from getstream.video.client import VideoClient
 from getstream.cli.utils import pass_client, json_option
-from pprint import pprint
 import json
 
 def print_result(result):
