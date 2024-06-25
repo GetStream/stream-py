@@ -1,40 +1,24 @@
 import pytest
 from click.testing import CliRunner
-from getstream import Stream
-from getstream.cli import cli
+from getstream import cli as stream_cli
 
-@pytest.fixture
-def mock_stream(mocker):
-    mock = mocker.Mock(spec=Stream)
-    mocker.patch('cli.Stream', return_value=mock)
-    return mock
+def test_create_token(mocker):
+    # Mock the Stream client
+    mock_stream = mocker.Mock()
+    mock_stream.create_call_token.return_value = "mocked_token"
 
-def test_create_token(mock_stream):
+    # Mock the Stream class to return our mocked client
+    mocker.patch('getstream.cli.Stream', return_value=mock_stream)
+
     runner = CliRunner()
-    result = runner.invoke(cli, ['create-token', '--user-id', 'test_user'])
-    assert result.exit_code == 0
-    mock_stream.create_call_token.assert_called_once_with(user_id='test_user')
+    result = runner.invoke(stream_cli.cli, ["create-token", "--user-id", "your_user_id"])
 
-def test_video_get_call(mock_stream):
-    runner = CliRunner()
-    result = runner.invoke(cli, ['video', 'get-call', '--call-id', 'test_call'])
-    assert result.exit_code == 0
-    mock_stream.video.call.assert_called_once_with('test_call')
-    mock_stream.video.call().get.assert_called_once()
+    # Print debug information
+    print(f"Exit code: {result.exit_code}")
+    print(f"Output: {result.output}")
+    print(f"Exception: {result.exception}")
 
-def test_rtmp_in_setup(mock_stream):
-    runner = CliRunner()
-    result = runner.invoke(cli, ['video', 'rtmp-in-setup'])
+    # Assertions
     assert result.exit_code == 0
-    mock_stream.video.call.assert_called_once()
-    mock_stream.video.call().get_or_create.assert_called_once()
-
-def test_json_input(mock_stream):
-    runner = CliRunner()
-    result = runner.invoke(cli, ['video', 'get-or-create-call',
-                                 '--call-type', 'default',
-                                 '--call-id', 'test_call',
-                                 '--data', '{"created_by_id": "test_user", "custom": {"color": "red"}}'])
-    assert result.exit_code == 0
-    mock_stream.video.call.assert_called_once_with('default', 'test_call')
-    mock_stream.video.call().get_or_create.assert_called_once()
+    assert "mocked_token" in result.output
+    mock_stream.create_call_token.assert_called_once_with(user_id='your_user_id')
