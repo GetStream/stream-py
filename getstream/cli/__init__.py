@@ -1,6 +1,6 @@
 import click
 from dotenv import load_dotenv
-
+from typing import Optional
 from getstream import Stream
 from getstream.cli.utils import pass_client
 from getstream.cli.video import video
@@ -27,7 +27,7 @@ def cli(ctx: click.Context, api_key: str, api_secret: str, base_url: str, timeou
 @click.option("--exp-seconds", type=int, default=None)
 @pass_client
 def create_token(
-    client: Stream, user_id: str, call_cid=None, role=None, exp_seconds=None
+    client: Stream, user_id: str, call_cid=None,  role: Optional[str] = None, exp_seconds=None
 ):
     if call_cid is not None and len(call_cid) > 0:
         print(
@@ -41,7 +41,7 @@ def create_token(
 
 cli.add_command(create_token)
 cli.add_command(video)
-
+#cli.add_command(chat)
 
 def main():
     load_dotenv()

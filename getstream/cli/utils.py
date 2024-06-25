@@ -19,3 +19,22 @@ def pass_client(f):
         return ctx.invoke(f, ctx.obj["client"], *args, **kwargs)
 
     return update_wrapper(new_func, f)
+
+# cli/utils.py
+
+import json
+import click
+from functools import update_wrapper
+
+def json_option(option_name):
+    def decorator(f):
+        def callback(ctx, param, value):
+            if value is not None:
+                try:
+                    return json.loads(value)
+                except json.JSONDecodeError:
+                    raise click.BadParameter("Invalid JSON")
+            return value
+
+        return click.option(option_name, callback=callback)(f)
+    return decorator
