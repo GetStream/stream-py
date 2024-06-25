@@ -23,7 +23,9 @@ from getstream.models import (
 
 from getstream.base import StreamAPIException
 from getstream.stream import Stream
+from getstream.video.call import Call
 from tests.base import VideoTestClass
+from tests.base import wait_for_task
 
 CALL_TYPE_NAME = f"calltype{uuid.uuid4()}"
 EXTERNAL_STORAGE_NAME = f"storage{uuid.uuid4()}"
@@ -352,3 +354,35 @@ class TestCall(VideoTestClass):
     def test_delete_not_existing_transcription(self):
         with pytest.raises(StreamAPIException):
             self.call.delete_transcription("random_session", "random_filename")
+
+
+class TestDeleteCall:
+    def test_soft_delete(self, call: Call):
+        response = call.get_or_create(
+            data=CallRequest(
+                created_by_id="john",
+            ),
+        )
+        response = call.delete()
+        assert response.data.call is not None
+        assert response.data.task_id is None
+
+        with pytest.raises(StreamAPIException) as exc_info:
+            response = call.get()
+        msg = exc_info.value.api_error.message
+        assert "Can't find call with id" in msg
+
+    def test_hard_delete(self, client: Stream, call: Call):
+        response = call.get_or_create(
+            data=CallRequest(
+                created_by_id="john",
+            ),
+        )
+        response = call.delete(hard=True)
+        assert response.data.call is not None
+        task_id = response.data.task_id
+        assert task_id is not None
+
+        response = wait_for_task(client, task_id)
+        cid = call.call_type + ":" + call.id
+        assert response.data.result[cid]["status"] == "ok"

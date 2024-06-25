@@ -383,6 +383,9 @@ class AzureRequest(DataClassJsonMixin):
 @dataclass
 class BackstageSettings(DataClassJsonMixin):
     enabled: bool = dc_field(metadata=dc_config(field_name="enabled"))
+    join_ahead_time_seconds: Optional[int] = dc_field(
+        default=None, metadata=dc_config(field_name="join_ahead_time_seconds")
+    )
 
 
 @dataclass
@@ -390,11 +393,17 @@ class BackstageSettingsRequest(DataClassJsonMixin):
     enabled: Optional[bool] = dc_field(
         default=None, metadata=dc_config(field_name="enabled")
     )
+    join_ahead_time_seconds: Optional[int] = dc_field(
+        default=None, metadata=dc_config(field_name="join_ahead_time_seconds")
+    )
 
 
 @dataclass
 class BackstageSettingsResponse(DataClassJsonMixin):
     enabled: bool = dc_field(metadata=dc_config(field_name="enabled"))
+    join_ahead_time_seconds: Optional[int] = dc_field(
+        default=None, metadata=dc_config(field_name="join_ahead_time_seconds")
+    )
 
 
 @dataclass
@@ -840,6 +849,9 @@ class CallResponse(DataClassJsonMixin):
             decoder=datetime_from_unix_ns,
             mm_field=fields.DateTime(format="iso"),
         ),
+    )
+    join_ahead_time_seconds: Optional[int] = dc_field(
+        default=None, metadata=dc_config(field_name="join_ahead_time_seconds")
     )
     starts_at: Optional[datetime] = dc_field(
         default=None,
@@ -2520,11 +2532,9 @@ class DeleteCallRequest(DataClassJsonMixin):
 @dataclass
 class DeleteCallResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    call: "CallResponse" = dc_field(metadata=dc_config(field_name="call"))
     task_id: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="task_id")
-    )
-    call: "Optional[Call]" = dc_field(
-        default=None, metadata=dc_config(field_name="call")
     )
 
 
