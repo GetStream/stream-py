@@ -37,7 +37,6 @@ def create_call_command(name, method):
         call = client.video.call(call_type, call_id)
         result = getattr(call, name)(**kwargs)
         print_result(result)
-        click.echo(result)
 
     sig = inspect.signature(method)
     for param_name, param in sig.parameters.items():
@@ -53,7 +52,6 @@ def create_video_command(name, method):
     def cmd(client, **kwargs):
         result = getattr(client.video, name)(**kwargs)
         print_result(result)
-        click.echo(result)
 
     sig = inspect.signature(method)
     for param_name, param in sig.parameters.items():
