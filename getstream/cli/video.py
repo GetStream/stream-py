@@ -44,7 +44,7 @@ def parse_complex_type(value, annotation):
             raise click.BadParameter(f"Invalid JSON for '{annotation}' parameter")
     return value
 
-def create_call_command(name, method):
+def create_call_command_from_method(name, method):
     @click.command(name=name)
     @click.option('--call-type', required=True, help='The type of the call')
     @click.option('--call-id', required=True, help='The ID of the call')
@@ -67,11 +67,11 @@ def create_call_command(name, method):
     for param_name, param in sig.parameters.items():
         if param_name in ['self', 'call_type', 'call_id']:
             continue
-        add_option(cmd, param_name, param)
+        add_option_from_arg(cmd, param_name, param)
 
     return cmd
 
-def create_video_command(name, method):
+def create_command_from_method(name, method):
     @click.command(name=name)
     @pass_client
     def cmd(client, **kwargs):
@@ -88,17 +88,18 @@ def create_video_command(name, method):
     for param_name, param in sig.parameters.items():
         if param_name == 'self':
             continue
-        add_option(cmd, param_name, param)
+        add_option_from_arg(cmd, param_name, param)
 
     return cmd
 
-def add_option(cmd, param_name, param):
+def add_option_from_arg(cmd, param_name, param):
     if param.annotation == str:
         cmd = click.option(f'--{param_name}', type=str)(cmd)
     elif param.annotation == int:
         cmd = click.option(f'--{param_name}', type=int)(cmd)
     elif param.annotation == bool:
         cmd = click.option(f'--{param_name}', is_flag=True)(cmd)
+    # TODO: improve this to handle more complex types
     elif param.annotation == list:
         cmd = click.option(f'--{param_name}', multiple=True)(cmd)
     elif param.annotation == dict:
@@ -138,8 +139,8 @@ video_commands = {
 }
 
 # Create the commands
-call_cmds = [create_call_command(name, command["method"]) for name, command in call_commands.items()]
-video_cmds = [create_video_command(name, command["method"]) for name, command in video_commands.items()]
+call_cmds = [create_call_command_from_method(name, command["method"]) for name, command in call_commands.items()]
+video_cmds = [create_command_from_method(name, command["method"]) for name, command in video_commands.items()]
 
 
 # Create a group for call commands
