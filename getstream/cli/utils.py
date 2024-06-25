@@ -22,6 +22,15 @@ def pass_client(f):
     return update_wrapper(new_func, f)
 
 def json_option(option_name):
+    """
+    Decorator that adds a JSON option to the decorated function, with this decorator you can write click commands like this
+
+    @click.command()
+    @json_option("--some-option")
+    def do_something(some_option):
+        pass
+
+    """
     def decorator(f):
         def callback(ctx, param, value):
             if value is not None:

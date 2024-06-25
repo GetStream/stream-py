@@ -8,24 +8,41 @@ from getstream.video.call import Call
 from getstream.video.client import VideoClient
 from getstream.cli.utils import pass_client, json_option
 import json
+from typing import get_origin, get_args, Union
 
-def print_result(result):
-    if isinstance(result, StreamResponse):
-        # TODO: verbose mode
-        # click.echo(f"Status Code: {result.status_code()}")
-        # click.echo("Headers:")
-        # for key, value in result.headers().items():
-        #     click.echo(f"  {key}: {value}")
-        click.echo("Data:")
-        click.echo(json.dumps(result.data.to_dict(), indent=2, default=str))
-        # rate_limits = result.rate_limit()
-        # if rate_limits:
-        #     click.echo("Rate Limits:")
-        #     click.echo(f"  Limit: {rate_limits.limit}")
-        #     click.echo(f"  Remaining: {rate_limits.remaining}")
-        #     click.echo(f"  Reset: {rate_limits.reset}")
-    else:
-        click.echo(json.dumps(result, indent=2, default=str))
+def get_type_name(annotation):
+    """
+    Get the name of a type
+    """
+    if hasattr(annotation, '__name__'):
+        return annotation.__name__
+    elif hasattr(annotation, '_name'):
+        return annotation._name
+    elif get_origin(annotation):
+        origin = get_origin(annotation)
+        args = get_args(annotation)
+        if origin is Union and type(None) in args:
+            # This is an Optional type
+            return get_type_name(args[0])
+        return f"{origin.__name__}[{', '.join(get_type_name(arg) for arg in args)}]"
+    return str(annotation)
+
+
+def parse_complex_type(value, annotation):
+    """
+    Parse a complex type from a JSON string
+    """
+    if isinstance(value, str):
+        try:
+            data_dict = json.loads(value)
+            type_name = get_type_name(annotation)
+            if type_name in globals():
+                return globals()[type_name](**data_dict)
+            else:
+                return data_dict
+        except json.JSONDecodeError:
+            raise click.BadParameter(f"Invalid JSON for '{annotation}' parameter")
+    return value
 
 def create_call_command(name, method):
     @click.command(name=name)
@@ -34,6 +51,15 @@ def create_call_command(name, method):
     @pass_client
     def cmd(client, call_type, call_id, **kwargs):
         call = client.video.call(call_type, call_id)
+
+        # Parse complex types
+        sig = inspect.signature(method)
+        for param_name, param in sig.parameters.items():
+            if param_name in kwargs:
+                type_name = get_type_name(param.annotation)
+                if type_name not in ['str', 'int', 'bool', 'list', 'dict']:
+                    kwargs[param_name] = parse_complex_type(kwargs[param_name], param.annotation)
+
         result = getattr(call, name)(**kwargs)
         print_result(result)
 
@@ -49,6 +75,12 @@ def create_video_command(name, method):
     @click.command(name=name)
     @pass_client
     def cmd(client, **kwargs):
+        # Parse complex types
+        sig = inspect.signature(method)
+        for param_name, param in sig.parameters.items():
+            if param_name in kwargs and param.annotation.__name__ not in ['str', 'int', 'bool', 'list', 'dict']:
+                kwargs[param_name] = parse_complex_type(kwargs[param_name], param.annotation.__name__)
+
         result = getattr(client.video, name)(**kwargs)
         print_result(result)
 
@@ -72,10 +104,15 @@ def add_option(cmd, param_name, param):
     elif param.annotation == dict:
         cmd = json_option(f'--{param_name}')(cmd)
     else:
-        # print param
-        #print(f"Unsupported type: {param.annotation}")
-        cmd = click.option(f'--{param_name}')(cmd)
+        cmd = json_option(f'--{param_name}')(cmd)
     return cmd
+
+def print_result(result):
+    if isinstance(result, StreamResponse):
+        click.echo("Data:")
+        click.echo(json.dumps(result.data.to_dict(), indent=2, default=str))
+    else:
+        click.echo(json.dumps(result, indent=2, default=str))
 
 # Define the call commands
 call_commands = {
