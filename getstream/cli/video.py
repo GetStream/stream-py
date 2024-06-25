@@ -6,43 +6,8 @@ from getstream.stream_response import StreamResponse
 import uuid
 from getstream.video.call import Call
 from getstream.video.client import VideoClient
-from getstream.cli.utils import pass_client, json_option
+from getstream.cli.utils import pass_client, get_type_name, parse_complex_type, add_option_from_arg
 import json
-from typing import get_origin, get_args, Union
-
-def get_type_name(annotation):
-    """
-    Get the name of a type
-    """
-    if hasattr(annotation, '__name__'):
-        return annotation.__name__
-    elif hasattr(annotation, '_name'):
-        return annotation._name
-    elif get_origin(annotation):
-        origin = get_origin(annotation)
-        args = get_args(annotation)
-        if origin is Union and type(None) in args:
-            # This is an Optional type
-            return get_type_name(args[0])
-        return f"{origin.__name__}[{', '.join(get_type_name(arg) for arg in args)}]"
-    return str(annotation)
-
-
-def parse_complex_type(value, annotation):
-    """
-    Parse a complex type from a JSON string
-    """
-    if isinstance(value, str):
-        try:
-            data_dict = json.loads(value)
-            type_name = get_type_name(annotation)
-            if type_name in globals():
-                return globals()[type_name](**data_dict)
-            else:
-                return data_dict
-        except json.JSONDecodeError:
-            raise click.BadParameter(f"Invalid JSON for '{annotation}' parameter")
-    return value
 
 def create_call_command_from_method(name, method):
     @click.command(name=name)
@@ -92,21 +57,6 @@ def create_command_from_method(name, method):
 
     return cmd
 
-def add_option_from_arg(cmd, param_name, param):
-    if param.annotation == str:
-        cmd = click.option(f'--{param_name}', type=str)(cmd)
-    elif param.annotation == int:
-        cmd = click.option(f'--{param_name}', type=int)(cmd)
-    elif param.annotation == bool:
-        cmd = click.option(f'--{param_name}', is_flag=True)(cmd)
-    # TODO: improve this to handle more complex types
-    elif param.annotation == list:
-        cmd = click.option(f'--{param_name}', multiple=True)(cmd)
-    elif param.annotation == dict:
-        cmd = json_option(f'--{param_name}')(cmd)
-    else:
-        cmd = json_option(f'--{param_name}')(cmd)
-    return cmd
 
 def print_result(result):
     if isinstance(result, StreamResponse):
