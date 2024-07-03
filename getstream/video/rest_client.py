@@ -584,6 +584,13 @@ class VideoRestClient(BaseClient):
 
         return self.post("/api/v2/video/calls", QueryCallsResponse, json=json)
 
+    def delete_calls(
+        self, hard: Optional[bool] = None, cids: Optional[List[str]] = None
+    ) -> StreamResponse[DeleteCallsResponse]:
+        json = build_body_dict(hard=hard, cids=cids)
+
+        return self.post("/api/v2/video/calls/delete", DeleteCallsResponse, json=json)
+
     def list_call_types(self) -> StreamResponse[ListCallTypeResponse]:
         return self.get("/api/v2/video/calltypes", ListCallTypeResponse)
 

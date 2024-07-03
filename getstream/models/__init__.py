@@ -2307,6 +2307,31 @@ class DeleteCallResponse(DataClassJsonMixin):
 
 
 @dataclass
+class DeleteCallResult(DataClassJsonMixin):
+    error: str = dc_field(metadata=dc_config(field_name="error"))
+    status: str = dc_field(metadata=dc_config(field_name="status"))
+
+
+@dataclass
+class DeleteCallsRequest(DataClassJsonMixin):
+    hard: Optional[bool] = dc_field(default=None, metadata=dc_config(field_name="hard"))
+    cids: Optional[List[str]] = dc_field(
+        default=None, metadata=dc_config(field_name="cids")
+    )
+
+
+@dataclass
+class DeleteCallsResponse(DataClassJsonMixin):
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    task_id: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="task_id")
+    )
+    result: "Optional[Dict[str, Optional[DeleteCallResult]]]" = dc_field(
+        default=None, metadata=dc_config(field_name="result")
+    )
+
+
+@dataclass
 class DeleteChannelResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
     channel: "Optional[ChannelResponse]" = dc_field(
