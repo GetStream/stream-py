@@ -124,48 +124,37 @@ def get_type_name(annotation):
 
 def parse_complex_type(value, annotation):
     """
-    Parse a complex type from a JSON string.
-
-    This function attempts to parse a JSON string into a Python object.
-    If the annotation is a class, it tries to instantiate that class
-    with the parsed data. If that fails, it returns the parsed data as is.
+    Parse a complex type from a JSON string or return the original value if it's not JSON.
 
     Args:
-        value (str): The JSON string to parse.
+        value (str): The input value to parse.
         annotation (Type[Any]): The type annotation for the expected result.
 
     Returns:
         Any: The parsed data, either as an instance of the annotated class
-             or as a basic Python data structure.
+             or as a basic Python data structure, or the original value if not JSON.
 
     Raises:
-        click.BadParameter: If the input is not valid JSON.
-
-    Examples:
-        >>> parse_complex_type('{"x": 1, "y": 2}', dict)
-        {'x': 1, 'y': 2}
-        >>> class Point:
-        ...     def __init__(self, x, y):
-        ...         self.x = x
-        ...         self.y = y
-        >>> p = parse_complex_type('{"x": 1, "y": 2}', Point)
-        >>> isinstance(p, Point)
-        True
-        >>> p.x, p.y
-        (1, 2)
+        click.BadParameter: If the input is invalid JSON and the annotation expects a complex type.
     """
+    if value is None:
+        return None
+
     if isinstance(value, str):
         try:
-            data_dict = json.loads(value)
-            if isinstance(annotation, type):  # Check if annotation is a class
-                try:
-                    return annotation(**data_dict)
-                except TypeError:
-                    # If we can't instantiate the class, just return the dict
-                    return data_dict
-            return data_dict
+            data = json.loads(value)
         except json.JSONDecodeError:
-            raise click.BadParameter(f"Invalid JSON for '{annotation}' parameter")
+            if annotation in (dict, list) or (hasattr(annotation, '__origin__') and annotation.__origin__ in (dict, list)):
+                raise click.BadParameter(f"Invalid JSON for '{annotation}' parameter")
+            return value
+
+        if isinstance(annotation, type):  # Check if annotation is a class
+            try:
+                return annotation(**data)
+            except TypeError:
+                # If we can't instantiate the class, just return the parsed data
+                return data
+        return data
     return value
 
 
@@ -196,16 +185,30 @@ def add_option_from_arg(cmd, param_name, param):
         >>> hello.params[0].type
         <class 'str'>
     """
-    if param.annotation == str:
+    type_name = get_type_name(param.annotation)
+    print(f"Adding option for {param_name} with type {type_name}")
+    
+    if type_name == 'bool':
+        cmd = click.option(f'--{param_name}', is_flag=True, default=False)(cmd)
+    elif type_name == 'str':
         cmd = click.option(f'--{param_name}', type=str)(cmd)
-    elif param.annotation == int:
+    elif type_name == 'int':
         cmd = click.option(f'--{param_name}', type=int)(cmd)
-    elif param.annotation == bool:
-        cmd = click.option(f'--{param_name}', is_flag=True)(cmd)
-    elif get_origin(param.annotation) == list:
+    elif type_name.startswith('list'):
         cmd = click.option(f'--{param_name}', multiple=True)(cmd)
-    elif param.annotation == dict:
+    elif type_name == 'dict':
         cmd = json_option(f'--{param_name}')(cmd)
+    elif type_name.startswith('union') or type_name.startswith('Optional'):
+        cmd = click.option(f'--{param_name}', callback=parse_union_type)(cmd)
     else:
-        cmd = json_option(f'--{param_name}')(cmd)
+        cmd = click.option(f'--{param_name}', callback=lambda ctx, param, value: parse_complex_type(value, param.annotation))(cmd)
+    
     return cmd
+
+def parse_union_type(ctx, param, value):
+    if value is None:
+        return None
+    try:
+        return json.loads(value)
+    except json.JSONDecodeError:
+        return value  # If it's not valid JSON, return the original string

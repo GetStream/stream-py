@@ -41,27 +41,33 @@ def create_call_command_from_method(name, method):
     def cmd(client, call_type, call_id, **kwargs):
         call = client.video.call(call_type, call_id)
 
-        # Parse complex types
+        # Parse complex types and handle boolean flags
         sig = inspect.signature(method)
+        parsed_kwargs = {}
         for param_name, param in sig.parameters.items():
             if param_name in kwargs:
                 type_name = get_type_name(param.annotation)
-                if type_name not in ['str', 'int', 'bool', 'list', 'dict']:
-                    kwargs[param_name] = parse_complex_type(kwargs[param_name], param.annotation)
+                if type_name == 'bool':
+                    # For boolean flags, their presence means True
+                    parsed_kwargs[param_name] = True
+                elif type_name not in ['str', 'int', 'list']:
+                    parsed_kwargs[param_name] = parse_complex_type(kwargs[param_name], param.annotation)
+                else:
+                    parsed_kwargs[param_name] = kwargs[param_name]
 
         # Convert dashes to underscores for method name
         method_name = name.replace('-', '_')
-        result = getattr(call, method_name)(**kwargs)
+        result = getattr(call, method_name)(**parsed_kwargs)
         print_result(result)
 
     sig = inspect.signature(method)
     for param_name, param in sig.parameters.items():
         if param_name in ['self', 'call_type', 'call_id']:
             continue
-        add_option_from_arg(cmd, param_name, param)
+        cmd = add_option_from_arg(cmd, param_name, param)
 
     return cmd
-
+    
 def create_command_from_method(name, method):
     """
     Create a Click command from a method.
@@ -164,8 +170,27 @@ video_commands = {
 }
 
 # Create the commands
-call_cmds = [create_call_command_from_method(name, command["method"]) for name, command in call_commands.items()]
-video_cmds = [create_command_from_method(name, command["method"]) for name, command in video_commands.items()]
+call_cmds = []
+for name, command in call_commands.items():
+    try:
+        cmd = create_call_command_from_method(name, command["method"])
+        if cmd is not None:
+            call_cmds.append(cmd)
+        else:
+            print(f"Warning: Failed to create command for {name}")
+    except Exception as e:
+        print(f"Error creating command for {name}: {str(e)}")
+
+video_cmds = []
+for name, command in video_commands.items():
+    try:
+        cmd = create_command_from_method(name, command["method"])
+        if cmd is not None:
+            video_cmds.append(cmd)
+        else:
+            print(f"Warning: Failed to create command for {name}")
+    except Exception as e:
+        print(f"Error creating command for {name}: {str(e)}")
 
 
 # Create a group for call commands
@@ -175,7 +200,10 @@ def call():
     pass
 
 for cmd in call_cmds:
-    call.add_command(cmd)
+    if cmd is not None:
+        call.add_command(cmd)
+    else:
+        print(f"Warning: Skipping None command")
 
 # Add the commands to the CLI group
 @click.group()
@@ -186,7 +214,10 @@ def video():
 video.add_command(call)
 
 for cmd in video_cmds:
-    video.add_command(cmd)
+    if cmd is not None:
+        video.add_command(cmd)
+    else:
+        print(f"Warning: Skipping None command")
 
 @click.command()
 @click.option("--rtmp-user-id", default=f"{uuid.uuid4()}")

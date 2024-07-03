@@ -44,20 +44,40 @@ def test_parse_complex_type():
     # Test parsing a simple dict
     assert parse_complex_type('{"key": "value"}', dict) == {"key": "value"}
 
+    # Test parsing a string
+    assert parse_complex_type('simple string', str) == 'simple string'
+
+    # Test parsing an integer
+    assert parse_complex_type('42', int) == 42
+
     class MockComplex:
         def __init__(self, **kwargs):
             for key, value in kwargs.items():
                 setattr(self, key, value)
 
+    # Test parsing a complex object
     complex_json = '{"created_by_id": "user123", "custom": {"key": "value"}}'
     parsed_complex = parse_complex_type(complex_json, MockComplex)
     assert isinstance(parsed_complex, MockComplex)
     assert parsed_complex.created_by_id == "user123"
     assert parsed_complex.custom == {"key": "value"}
 
-    # Test invalid JSON
+    # Test invalid JSON for dict annotation
     with pytest.raises(click.BadParameter):
         parse_complex_type('invalid json', dict)
+
+    # Test invalid JSON for list annotation
+    with pytest.raises(click.BadParameter):
+        parse_complex_type('invalid json', list)
+
+    # Test invalid JSON for string annotation (should not raise an error)
+    assert parse_complex_type('invalid json', str) == 'invalid json'
+
+    # Test None value
+    assert parse_complex_type(None, dict) is None
+
+    # Test non-string, non-None value
+    assert parse_complex_type(42, int) == 42
 
 # Tests for add_option
 def test_add_option():
@@ -158,4 +178,31 @@ def test_cli_create_call_with_members(mocker, cli_runner):
     assert call_args['data']['members'][0]['user_id'] == "thierry-id"
     assert call_args['data']['members'][1]['user_id'] == "tommaso-id"
 
+def test_cli_mute_all(mocker, cli_runner):
+    mock_stream, mock_video_client, mock_call = mock_setup(mocker)
 
+    result = cli_runner.invoke(stream_cli.cli, [
+        "video", "call", "mute-users",
+        "--call-type", "default",
+        "--call-id", "123456",
+        "--muted_by_id", "user-id",
+        "--mute_all_users", "true",
+        "--audio", "true",
+    ])
+
+    print(f"Exit code: {result.exit_code}")
+    print(f"Output: {result.output}")
+    print(f"Exception: {result.exception}")
+
+    assert result.exit_code == 0
+    mock_video_client.call.assert_called_once_with("default", "123456")
+    mock_call.mute_users.assert_called_once_with(
+        muted_by_id="user-id",
+        mute_all_users=True,
+        audio=True,
+        screenshare=None,
+        screenshare_audio=None,
+        video=None,
+        user_ids=None,
+        muted_by=None
+    )
