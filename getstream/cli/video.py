@@ -6,8 +6,14 @@ from getstream.stream_response import StreamResponse
 import uuid
 from getstream.video.call import Call
 from getstream.video.client import VideoClient
-from getstream.cli.utils import pass_client, get_type_name, parse_complex_type, add_option_from_arg
+from getstream.cli.utils import (
+    pass_client,
+    get_type_name,
+    parse_complex_type,
+    add_option_from_arg,
+)
 import json
+
 
 def create_call_command_from_method(name, method):
     """
@@ -34,9 +40,10 @@ def create_call_command_from_method(name, method):
         >>> [p.name for p in cmd.params if isinstance(p, click.Option)]
         ['call-type', 'call-id']
     """
+
     @click.command(name=name)
-    @click.option('--call-type', required=True, help='The type of the call')
-    @click.option('--call-id', required=True, help='The ID of the call')
+    @click.option("--call-type", required=True, help="The type of the call")
+    @click.option("--call-id", required=True, help="The ID of the call")
     @pass_client
     def cmd(client, call_type, call_id, **kwargs):
         call = client.video.call(call_type, call_id)
@@ -47,27 +54,30 @@ def create_call_command_from_method(name, method):
         for param_name, param in sig.parameters.items():
             if param_name in kwargs:
                 type_name = get_type_name(param.annotation)
-                if type_name == 'bool':
+                if type_name == "bool":
                     # For boolean flags, their presence means True
                     parsed_kwargs[param_name] = True
-                elif type_name not in ['str', 'int', 'list']:
-                    parsed_kwargs[param_name] = parse_complex_type(kwargs[param_name], param.annotation)
+                elif type_name not in ["str", "int", "list"]:
+                    parsed_kwargs[param_name] = parse_complex_type(
+                        kwargs[param_name], param.annotation
+                    )
                 else:
                     parsed_kwargs[param_name] = kwargs[param_name]
 
         # Convert dashes to underscores for method name
-        method_name = name.replace('-', '_')
+        method_name = name.replace("-", "_")
         result = getattr(call, method_name)(**parsed_kwargs)
         print_result(result)
 
     sig = inspect.signature(method)
     for param_name, param in sig.parameters.items():
-        if param_name in ['self', 'call_type', 'call_id']:
+        if param_name in ["self", "call_type", "call_id"]:
             continue
         cmd = add_option_from_arg(cmd, param_name, param)
 
     return cmd
-    
+
+
 def create_command_from_method(name, method):
     """
     Create a Click command from a method.
@@ -92,21 +102,30 @@ def create_command_from_method(name, method):
         >>> [p.name for p in cmd.params if isinstance(p, click.Option)]
         ['limit']
     """
+
     @click.command(name=name)
     @pass_client
     def cmd(client, **kwargs):
         # Parse complex types
         sig = inspect.signature(method)
         for param_name, param in sig.parameters.items():
-            if param_name in kwargs and param.annotation.__name__ not in ['str', 'int', 'bool', 'list', 'dict']:
-                kwargs[param_name] = parse_complex_type(kwargs[param_name], param.annotation.__name__)
+            if param_name in kwargs and param.annotation.__name__ not in [
+                "str",
+                "int",
+                "bool",
+                "list",
+                "dict",
+            ]:
+                kwargs[param_name] = parse_complex_type(
+                    kwargs[param_name], param.annotation.__name__
+                )
 
         result = getattr(client.video, name)(**kwargs)
         print_result(result)
 
     sig = inspect.signature(method)
     for param_name, param in sig.parameters.items():
-        if param_name == 'self':
+        if param_name == "self":
             continue
         add_option_from_arg(cmd, param_name, param)
 
@@ -140,6 +159,7 @@ def print_result(result):
         click.echo(json.dumps(result.data.to_dict(), indent=2, default=str))
     else:
         click.echo(json.dumps(result, indent=2, default=str))
+
 
 # Define the call commands
 call_commands = {
@@ -199,17 +219,20 @@ def call():
     """Commands for specific calls"""
     pass
 
+
 for cmd in call_cmds:
     if cmd is not None:
         call.add_command(cmd)
     else:
         print(f"Warning: Skipping None command")
 
+
 # Add the commands to the CLI group
 @click.group()
 def video():
     """Video-related commands"""
     pass
+
 
 video.add_command(call)
 
@@ -218,6 +241,7 @@ for cmd in video_cmds:
         video.add_command(cmd)
     else:
         print(f"Warning: Skipping None command")
+
 
 @click.command()
 @click.option("--rtmp-user-id", default=f"{uuid.uuid4()}")
@@ -228,11 +252,21 @@ def rtmp_in_setup(client: Stream, rtmp_user_id: str):
             created_by_id=rtmp_user_id,
         ),
     )
-    print(f"RTMP URL: {call.data.call.ingress.rtmp.address}")
-    print(
-        f"RTMP Stream Token: {client.create_call_token(user_id=rtmp_user_id, call_cids=[call.data.call.cid])}"
+    viewer_call_token = client.create_call_token(
+        user_id=f"viewer-test-{uuid.uuid4()}", call_cids=[call.data.call.cid]
     )
-    print(f"React call link: https://pronto.getstream.io/join/{call.data.call.id}")
+    rtmp_call_token = client.create_call_token(
+        user_id=rtmp_user_id, call_cids=[call.data.call.cid]
+    )
+    print(f"RTMP URL: {call.data.call.ingress.rtmp.address}")
+    print(f"RTMP Stream Token: {rtmp_call_token}")
+    print(
+        f"React call link: https://pronto.getstream.io/join/{call.data.call.id}?api_key={client.api_key}&token={viewer_call_token}"
+    )
+    print(f"""FFMPEG test command: \
+ffmpeg -re -stream_loop 400 -i ./SampleVideo_1280x720_30mb.mp4 -c:v libx264 -preset veryfast -b:v 3000k \
+-maxrate 3000k -bufsize 6000k -pix_fmt yuv420p -g 50 -c:a aac -b:a 160k -ac 2 \
+-f flv {call.data.call.ingress.rtmp.address}/{rtmp_call_token}""")
 
 
 video.add_command(rtmp_in_setup)

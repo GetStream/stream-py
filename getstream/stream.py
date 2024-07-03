@@ -123,7 +123,7 @@ class Stream(CommonClient):
         user_id: Optional[str] = None,
         channel_cids: Optional[List[str]] = None,
         call_cids: Optional[List[str]] = None,
-        role:  Optional[str] = None,
+        role: Optional[str] = None,
         expiration=None,
     ):
         now = int(time.time())

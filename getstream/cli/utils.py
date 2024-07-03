@@ -6,6 +6,7 @@ from typing import get_origin, get_args, List, Dict, Optional, Union
 
 import json
 
+
 def pass_client(f):
     """
     Decorator that adds the Stream client to the decorated function, with this decorator you can write click commands like this
@@ -23,6 +24,7 @@ def pass_client(f):
         return ctx.invoke(f, ctx.obj["client"], *args, **kwargs)
 
     return update_wrapper(new_func, f)
+
 
 def json_option(option_name):
     """
@@ -54,6 +56,7 @@ def json_option(option_name):
         <class 'dict'>
         {'key': 'value'}
     """
+
     def decorator(f):
         def callback(ctx, param, value):
             if value is not None:
@@ -64,6 +67,7 @@ def json_option(option_name):
             return value
 
         return click.option(option_name, callback=callback)(f)
+
     return decorator
 
 
@@ -93,10 +97,10 @@ def get_type_name(annotation):
         'union[str, int]'
     """
     if annotation is Optional:
-        return 'Optional'
+        return "Optional"
     if annotation is Union:
-        return 'Union'
-    
+        return "Union"
+
     origin = get_origin(annotation)
     if origin is not None:
         if origin is Union:
@@ -104,21 +108,21 @@ def get_type_name(annotation):
             if len(args) == 2 and type(None) in args:
                 # This is an Optional type
                 other_type = next(arg for arg in args if arg is not type(None))
-                return f'union[{get_type_name(other_type)}, NoneType]'
+                return f"union[{get_type_name(other_type)}, NoneType]"
             else:
-                args_str = ', '.join(get_type_name(arg) for arg in args)
-                return f'union[{args_str}]'
+                args_str = ", ".join(get_type_name(arg) for arg in args)
+                return f"union[{args_str}]"
         else:
             args = get_args(annotation)
             origin_name = origin.__name__.lower()
             if args:
-                args_str = ', '.join(get_type_name(arg) for arg in args)
+                args_str = ", ".join(get_type_name(arg) for arg in args)
                 return f"{origin_name}[{args_str}]"
             return origin_name
-    
-    if hasattr(annotation, '__name__'):
+
+    if hasattr(annotation, "__name__"):
         return annotation.__name__
-    
+
     return str(annotation)
 
 
@@ -144,7 +148,10 @@ def parse_complex_type(value, annotation):
         try:
             data = json.loads(value)
         except json.JSONDecodeError:
-            if annotation in (dict, list) or (hasattr(annotation, '__origin__') and annotation.__origin__ in (dict, list)):
+            if annotation in (dict, list) or (
+                hasattr(annotation, "__origin__")
+                and annotation.__origin__ in (dict, list)
+            ):
                 raise click.BadParameter(f"Invalid JSON for '{annotation}' parameter")
             return value
 
@@ -187,23 +194,29 @@ def add_option_from_arg(cmd, param_name, param):
     """
     type_name = get_type_name(param.annotation)
     print(f"Adding option for {param_name} with type {type_name}")
-    
-    if type_name == 'bool':
-        cmd = click.option(f'--{param_name}', is_flag=True, default=False)(cmd)
-    elif type_name == 'str':
-        cmd = click.option(f'--{param_name}', type=str)(cmd)
-    elif type_name == 'int':
-        cmd = click.option(f'--{param_name}', type=int)(cmd)
-    elif type_name.startswith('list'):
-        cmd = click.option(f'--{param_name}', multiple=True)(cmd)
-    elif type_name == 'dict':
-        cmd = json_option(f'--{param_name}')(cmd)
-    elif type_name.startswith('union') or type_name.startswith('Optional'):
-        cmd = click.option(f'--{param_name}', callback=parse_union_type)(cmd)
+
+    if type_name == "bool":
+        cmd = click.option(f"--{param_name}", is_flag=True, default=False)(cmd)
+    elif type_name == "str":
+        cmd = click.option(f"--{param_name}", type=str)(cmd)
+    elif type_name == "int":
+        cmd = click.option(f"--{param_name}", type=int)(cmd)
+    elif type_name.startswith("list"):
+        cmd = click.option(f"--{param_name}", multiple=True)(cmd)
+    elif type_name == "dict":
+        cmd = json_option(f"--{param_name}")(cmd)
+    elif type_name.startswith("union") or type_name.startswith("Optional"):
+        cmd = click.option(f"--{param_name}", callback=parse_union_type)(cmd)
     else:
-        cmd = click.option(f'--{param_name}', callback=lambda ctx, param, value: parse_complex_type(value, param.annotation))(cmd)
-    
+        cmd = click.option(
+            f"--{param_name}",
+            callback=lambda ctx, param, value: parse_complex_type(
+                value, param.annotation
+            ),
+        )(cmd)
+
     return cmd
+
 
 def parse_union_type(ctx, param, value):
     if value is None:
