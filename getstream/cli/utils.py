@@ -1,7 +1,8 @@
 from functools import update_wrapper
 import click
 
-from typing import get_origin, get_args, Union
+from typing import get_origin, get_args, List, Dict, Optional, Union
+
 
 import json
 
@@ -46,37 +47,48 @@ def json_option(option_name):
     return decorator
 
 
-
 def get_type_name(annotation):
-    """
-    Get the name of a type
-    """
+    if annotation is Optional:
+        return 'Optional'
+    if annotation is Union:
+        return 'Union'
+    
+    origin = get_origin(annotation)
+    if origin is not None:
+        if origin is Union:
+            args = get_args(annotation)
+            if len(args) == 2 and type(None) in args:
+                # This is an Optional type
+                other_type = next(arg for arg in args if arg is not type(None))
+                return f'union[{get_type_name(other_type)}, NoneType]'
+            else:
+                args_str = ', '.join(get_type_name(arg) for arg in args)
+                return f'union[{args_str}]'
+        else:
+            args = get_args(annotation)
+            origin_name = origin.__name__.lower()
+            if args:
+                args_str = ', '.join(get_type_name(arg) for arg in args)
+                return f"{origin_name}[{args_str}]"
+            return origin_name
+    
     if hasattr(annotation, '__name__'):
         return annotation.__name__
-    elif hasattr(annotation, '_name'):
-        return annotation._name
-    elif get_origin(annotation):
-        origin = get_origin(annotation)
-        args = get_args(annotation)
-        if origin is Union and type(None) in args:
-            # This is an Optional type
-            return get_type_name(args[0])
-        return f"{origin.__name__}[{', '.join(get_type_name(arg) for arg in args)}]"
+    
     return str(annotation)
 
 
 def parse_complex_type(value, annotation):
-    """
-    Parse a complex type from a JSON string
-    """
     if isinstance(value, str):
         try:
             data_dict = json.loads(value)
-            type_name = get_type_name(annotation)
-            if type_name in globals():
-                return globals()[type_name](**data_dict)
-            else:
-                return data_dict
+            if isinstance(annotation, type):  # Check if annotation is a class
+                try:
+                    return annotation(**data_dict)
+                except TypeError:
+                    # If we can't instantiate the class, just return the dict
+                    return data_dict
+            return data_dict
         except json.JSONDecodeError:
             raise click.BadParameter(f"Invalid JSON for '{annotation}' parameter")
     return value
@@ -89,8 +101,7 @@ def add_option_from_arg(cmd, param_name, param):
         cmd = click.option(f'--{param_name}', type=int)(cmd)
     elif param.annotation == bool:
         cmd = click.option(f'--{param_name}', is_flag=True)(cmd)
-    # TODO: improve this to handle more complex types
-    elif param.annotation == list:
+    elif get_origin(param.annotation) == list:
         cmd = click.option(f'--{param_name}', multiple=True)(cmd)
     elif param.annotation == dict:
         cmd = json_option(f'--{param_name}')(cmd)

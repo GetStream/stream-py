@@ -30,38 +30,29 @@ def test_create_token(mocker):
     assert "mocked_token" in result.output
     mock_stream.create_call_token.assert_called_once_with(user_id='your_user_id')
 
-
-
-
-# Tests for get_type_name
 def test_get_type_name():
     assert get_type_name(str) == 'str'
     assert get_type_name(int) == 'int'
     assert get_type_name(bool) == 'bool'
-    # assert get_type_name(List[str]) == 'list[str]'
-    # assert get_type_name(Dict[str, int]) == 'dict[str, int]'
-    # assert get_type_name(Optional[str]) == 'str'
-    # assert get_type_name(Union[str, int]) == 'Union[str, int]'
-    assert get_type_name(CallRequest) == 'CallRequest'
+    assert get_type_name(List[str]) == 'list[str]'
+    assert get_type_name(Dict[str, int]) == 'dict[str, int]'
+    assert get_type_name(Optional[str]) == 'union[str, NoneType]'
+    assert get_type_name(Union[str, int]) == 'union[str, int]'
 
-# Tests for parse_complex_type
 def test_parse_complex_type():
     # Test parsing a simple dict
     assert parse_complex_type('{"key": "value"}', dict) == {"key": "value"}
 
-    # Test parsing a CallRequest
-    call_request_json = '{"created_by_id": "user123", "custom": {"key": "value"}}'
-    parsed_call_request = parse_complex_type(call_request_json, CallRequest)
-    # assert isinstance(parsed_call_request, CallRequest)
-    # assert parsed_call_request.created_by_id == "user123"
-    # assert parsed_call_request.custom == {"key": "value"}
+    class MockComplex:
+        def __init__(self, **kwargs):
+            for key, value in kwargs.items():
+                setattr(self, key, value)
 
-    # # Test parsing a CallSettingsRequest
-    # settings_json = '{"audio": {"access_request_enabled": true}, "video": {"enabled": true}}'
-    # parsed_settings = parse_complex_type(settings_json, CallSettingsRequest)
-    # assert isinstance(parsed_settings, CallSettingsRequest)
-    # assert parsed_settings.audio.access_request_enabled == True
-    # assert parsed_settings.video.enabled == True
+    complex_json = '{"created_by_id": "user123", "custom": {"key": "value"}}'
+    parsed_complex = parse_complex_type(complex_json, MockComplex)
+    assert isinstance(parsed_complex, MockComplex)
+    assert parsed_complex.created_by_id == "user123"
+    assert parsed_complex.custom == {"key": "value"}
 
     # Test invalid JSON
     with pytest.raises(click.BadParameter):
@@ -90,9 +81,9 @@ def test_add_option():
     assert cmd.params[-1].is_flag
 
     # Test adding a list option
-    # cmd = add_option_from_arg(dummy_cmd, 'list_param', inspect.Parameter('list_param', inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=List[str]))
-    # assert any(option.name == 'list_param' for option in cmd.params)
-    # assert cmd.params[-1].multiple
+    cmd = add_option_from_arg(dummy_cmd, 'list_param', inspect.Parameter('list_param', inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=List[str]))
+    assert any(option.name == 'list_param' for option in cmd.params)
+    assert cmd.params[-1].multiple
 
     # Test adding a complex option
     cmd = add_option_from_arg(dummy_cmd, 'complex_param', inspect.Parameter('complex_param', inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=CallRequest))
