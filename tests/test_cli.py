@@ -100,7 +100,7 @@ def test_video_call_get_or_create(mocker):
     mock_stream.video = mock_video_client
     mock_video_client.call.return_value = mock_call
 
-    # Mock the get_or_create method
+    # Mock the get-or-create method
     mock_response = mocker.Mock()
     mock_response.data.to_dict.return_value = {
         "call": {
@@ -124,7 +124,7 @@ def test_video_call_get_or_create(mocker):
 
     runner = CliRunner()
     result = runner.invoke(stream_cli.cli, [
-        "video", "call", "get_or_create",
+        "video", "call", "get-or-create",
         "--call-type", "default",
         "--call-id", "18632",
         "--members_limit", "10",

@@ -49,7 +49,9 @@ def create_call_command_from_method(name, method):
                 if type_name not in ['str', 'int', 'bool', 'list', 'dict']:
                     kwargs[param_name] = parse_complex_type(kwargs[param_name], param.annotation)
 
-        result = getattr(call, name)(**kwargs)
+        # Convert dashes to underscores for method name
+        method_name = name.replace('-', '_')
+        result = getattr(call, method_name)(**kwargs)
         print_result(result)
 
     sig = inspect.signature(method)
@@ -138,21 +140,21 @@ call_commands = {
     "get": {"method": Call.get},
     "update": {"method": Call.update},
     "delete": {"method": Call.delete},
-    "get_or_create": {"method": Call.get_or_create},
+    "get-or-create": {"method": Call.get_or_create},
     # Add more call commands as needed
 }
 
 # Define the video commands
 video_commands = {
-    "query_call_members": {"method": VideoClient.query_call_members},
-    "query_call_stats": {"method": VideoClient.query_call_stats},
-    "query_calls": {"method": VideoClient.query_calls},
-    "list_call_types": {"method": VideoClient.list_call_types},
-    "create_call_type": {"method": VideoClient.create_call_type},
-    "delete_call_type": {"method": VideoClient.delete_call_type},
-    "get_call_type": {"method": VideoClient.get_call_type},
-    "update_call_type": {"method": VideoClient.update_call_type},
-    "get_edges": {"method": VideoClient.get_edges},
+    "query-call-members": {"method": VideoClient.query_call_members},
+    "query-call-stats": {"method": VideoClient.query_call_stats},
+    "query-calls": {"method": VideoClient.query_calls},
+    "list-call-types": {"method": VideoClient.list_call_types},
+    "create-call-type": {"method": VideoClient.create_call_type},
+    "delete-call-type": {"method": VideoClient.delete_call_type},
+    "get-call-type": {"method": VideoClient.get_call_type},
+    "update-call-type": {"method": VideoClient.update_call_type},
+    "get-edges": {"method": VideoClient.get_edges},
     # Add more video commands as needed
 }
 
