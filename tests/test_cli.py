@@ -7,6 +7,7 @@ from getstream.models import CallRequest, CallSettingsRequest
 from getstream.cli.utils import get_type_name, parse_complex_type, add_option_from_arg
 import click
 import json
+from tests.fixtures import mock_setup, cli_runner
 
 
 def test_create_token(mocker):
@@ -150,3 +151,25 @@ def test_video_call_get_or_create(mocker):
     assert isinstance(call_args["data"], dict)
     assert call_args["data"]["created_by_id"] == "user123"
     assert call_args["data"]["custom"] == {"key": "value"}
+
+def test_cli_create_call_with_members(mocker):
+    """
+    poetry run python -m getstream.cli video call get-or-create --call-type default --call-id 123456 --data '{"created_by_id": "tommaso-id", "members": [{"user_id": "thierry-id"}, {"user_id": "tommaso-id"}]}'
+    """
+    mock_stream = mocker.Mock()
+    mock_video_client = mocker.Mock()
+    mock_call = mocker.Mock()
+    mock_stream.video = mock_video_client
+    mock_video_client.call.return_value = mock_call
+    mocker.patch('getstream.cli.Stream', return_value=mock_stream)
+
+    runner = CliRunner()
+    result = runner.invoke(stream_cli.cli, [
+        "video", "call", "get-or-create",
+        "--call-type", "default",
+        "--call-id", "123456",
+        "--data", '{"created_by_id": "tommaso-id", "members": [{"user_id": "thierry-id"}, {"user_id": "tommaso-id"}]}'
+    ])
+
+    assert result.exit_code == 0
+    mock_call.get_or_create.assert_called_once()
