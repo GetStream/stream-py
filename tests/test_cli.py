@@ -1,4 +1,3 @@
-from click.testing import CliRunner
 import inspect
 from getstream import cli as stream_cli
 import pytest
@@ -10,7 +9,7 @@ import json
 from tests.fixtures import mock_setup, cli_runner
 
 
-def test_create_token(mocker):
+def test_create_token(mocker,cli_runner):
     # Mock the Stream client
     mock_stream = mocker.Mock()
     mock_stream.create_call_token.return_value = "mocked_token"
@@ -18,8 +17,7 @@ def test_create_token(mocker):
     # Mock the Stream class to return our mocked client
     mocker.patch('getstream.cli.Stream', return_value=mock_stream)
 
-    runner = CliRunner()
-    result = runner.invoke(stream_cli.cli, ["create-token", "--user-id", "your_user_id"])
+    result = cli_runner.invoke(stream_cli.cli, ["create-token", "--user-id", "your_user_id"])
 
     # Print debug information
     print(f"Exit code: {result.exit_code}")
@@ -206,3 +204,56 @@ def test_cli_mute_all(mocker, cli_runner):
         user_ids=None,
         muted_by=None
     )
+
+def test_cli_block_user_from_call(mocker,cli_runner):
+    """
+    poetry run python -m getstream.cli video call block-user --call-type default --call-id 123456 --user_id bad-user-id
+    """
+    mock_setup(mocker)
+    result = cli_runner.invoke(stream_cli.cli, [
+        "video", "call", "block-user",
+        "--call-type", "default",
+        "--call-id", "123456",
+        "--user_id", "bad-user-id"
+    ])
+    assert result.exit_code == 0
+
+def test_cli_unblock_user_from_call(mocker,cli_runner):
+    """
+    poetry run python -m getstream.cli video call unblock-user --call-type default --call-id 123456 --user_id bad-user-id
+    """
+    mock_setup(mocker)
+    result = cli_runner.invoke(stream_cli.cli, [
+        "video", "call", "unblock-user",
+        "--call-type", "default",
+        "--call-id", "123456",
+        "--user_id", "bad-user-id"
+    ])
+    assert result.exit_code == 0
+
+def test_cli_send_custom_event(mocker,cli_runner):
+    """
+    poetry run python -m getstream.cli video call send-event --call-type default --call-id 123456 --user_id user-id --custom '{"bananas": "good"}'
+    """
+    mock_setup(mocker)
+    result = cli_runner.invoke(stream_cli.cli, [
+        "video", "call", "send-event",
+        "--call-type", "default",
+        "--call-id", "123456",
+        "--user_id", "user-id",
+        "--custom", '{"bananas": "good"}'
+    ])
+    assert result.exit_code == 0
+
+def test_cli_update_settings(mocker,cli_runner):
+    """
+    poetry run python -m getstream.cli video call update --call-type default --call-id 123456 --settings_override '{"screensharing": {"enabled": true, "access_request_enabled": true}}'
+    """
+    mock_setup(mocker)
+    result = cli_runner.invoke(stream_cli.cli, [
+        "video", "call", "update",
+        "--call-type", "default",
+        "--call-id", "123456",
+        "--settings_override", '{"screensharing": {"enabled": true, "access_request_enabled": true}}'
+    ])
+    assert result.exit_code == 0
