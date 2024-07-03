@@ -386,3 +386,22 @@ class TestDeleteCall:
         response = wait_for_task(client, task_id)
         cid = call.call_type + ":" + call.id
         assert response.data.result[cid]["status"] == "ok"
+
+    def test_delete_calls(self, client: Stream):
+        call1 = client.video.call("default", str(uuid.uuid4()))
+        call1.get_or_create(
+            data=CallRequest(
+                created_by_id="john",
+            ),
+        )
+
+        call2 = client.video.call("default", str(uuid.uuid4()))
+        call2.get_or_create(
+            data=CallRequest(
+                created_by_id="john",
+            ),
+        )
+        cid1 = call1.call_type + ":" + call1.id
+        cid2 = call2.call_type + ":" + call2.id
+        response = client.video.delete_calls(hard=False, cids=[cid1, cid2])
+        # TODO: check response
