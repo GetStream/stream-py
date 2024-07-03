@@ -6,6 +6,8 @@ from typing import Optional, List, Dict, Union
 from getstream.models import CallRequest, CallSettingsRequest
 from getstream.cli.utils import get_type_name, parse_complex_type, add_option_from_arg
 import click
+import json
+
 
 def test_create_token(mocker):
     # Mock the Stream client
@@ -97,3 +99,63 @@ def test_add_option():
     assert any(option.name == 'complex_param' for option in cmd.params)
     # Check if it's using json_option (this might need to be adjusted based on how you've implemented json_option)
     assert cmd.params[-1].type == click.STRING  # Assuming json_option uses STRING type
+
+
+def test_video_call_get_or_create(mocker):
+    # Mock the Stream client
+    mock_stream = mocker.Mock()
+    mock_video_client = mocker.Mock()
+    mock_call = mocker.Mock()
+    mock_stream.video = mock_video_client
+    mock_video_client.call.return_value = mock_call
+
+    # Mock the get_or_create method
+    mock_response = mocker.Mock()
+    mock_response.data.to_dict.return_value = {
+        "call": {
+            "cid": "default:18632",
+            "created_at": "2023-07-03T12:00:00Z",
+            "updated_at": "2023-07-03T12:00:00Z",
+            "members_limit": 10,
+            # Add other expected fields here
+        }
+    }
+    mock_call.get_or_create.return_value = mock_response
+
+    # Mock the json.dumps function to return a predictable string
+    mocker.patch('json.dumps', return_value='{"cid": "default:18632", "members_limit": 10, "mocked": "json"}')
+
+    # Mock the Stream class to return our mocked client
+    mocker.patch('getstream.cli.Stream', return_value=mock_stream)
+
+    # Prepare test data
+    json_data = '{"created_by_id": "user123", "custom": {"key": "value"}}'
+
+    runner = CliRunner()
+    result = runner.invoke(stream_cli.cli, [
+        "video", "call", "get_or_create",
+        "--call-type", "default",
+        "--call-id", "18632",
+        "--members_limit", "10",
+        "--data", json_data
+    ])
+
+    # Print debug information
+    print(f"Exit code: {result.exit_code}")
+    print(f"Output: {result.output}")
+    print(f"Exception: {result.exception}")
+
+    # Assertions
+    assert result.exit_code == 0
+    assert '"cid": "default:18632"' in result.output
+    assert '"members_limit": 10' in result.output
+    assert '"mocked": "json"' in result.output
+
+    # Verify the mocked method was called with correct arguments
+    mock_video_client.call.assert_called_once_with("default", "18632")
+    mock_call.get_or_create.assert_called_once()
+    call_args = mock_call.get_or_create.call_args[1]
+    assert call_args["members_limit"] == 10
+    assert isinstance(call_args["data"], dict)
+    assert call_args["data"]["created_by_id"] == "user123"
+    assert call_args["data"]["custom"] == {"key": "value"}
