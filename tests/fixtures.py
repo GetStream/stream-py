@@ -1,12 +1,31 @@
 import os
 import uuid
 from typing import Dict
-
+from click.testing import CliRunner
 import pytest
 
 from getstream import Stream
 from getstream.models import UserRequest, FullUserResponse
 
+def mock_setup(mocker):
+    mock_stream = mocker.Mock()
+    mock_video_client = mocker.Mock()
+    mock_call = mocker.Mock()
+    mock_stream.video = mock_video_client
+    mock_video_client.call.return_value = mock_call
+    mocker.patch('getstream.cli.Stream', return_value=mock_stream)
+    return mock_stream, mock_video_client, mock_call
+
+
+@pytest.fixture
+def cli_runner():
+    """
+    Fixture to create a CliRunner instance.
+    
+    Returns:
+        CliRunner: An instance of CliRunner for invoking CLI commands in tests.
+    """
+    return CliRunner()
 
 def _client():
     return Stream(
