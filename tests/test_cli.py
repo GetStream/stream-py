@@ -2,11 +2,10 @@ import inspect
 from getstream import cli as stream_cli
 import pytest
 from typing import Optional, List, Dict, Union
-from getstream.models import CallRequest, CallSettingsRequest
+from getstream.models import CallRequest
 from getstream.cli.utils import get_type_name, parse_complex_type, add_option_from_arg
 import click
-import json
-from tests.fixtures import mock_setup, cli_runner
+from tests.fixtures import mock_setup
 
 
 def test_create_token(mocker, cli_runner):

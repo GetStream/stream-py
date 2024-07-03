@@ -1,6 +1,6 @@
 import click
 from dotenv import load_dotenv
-from typing import Optional, List
+from typing import Optional
 from getstream import Stream
 from getstream.cli.utils import pass_client
 from getstream.cli.video import video

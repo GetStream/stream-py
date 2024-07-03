@@ -224,7 +224,7 @@ for cmd in call_cmds:
     if cmd is not None:
         call.add_command(cmd)
     else:
-        print(f"Warning: Skipping None command")
+        print("Warning: Skipping None command")
 
 
 # Add the commands to the CLI group
@@ -240,7 +240,7 @@ for cmd in video_cmds:
     if cmd is not None:
         video.add_command(cmd)
     else:
-        print(f"Warning: Skipping None command")
+        print("Warning: Skipping None command")
 
 
 @click.command()

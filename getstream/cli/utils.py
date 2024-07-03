@@ -1,7 +1,7 @@
 from functools import update_wrapper
 import click
 
-from typing import get_origin, get_args, List, Dict, Optional, Union
+from typing import get_origin, get_args, Optional, Union
 
 
 import json
