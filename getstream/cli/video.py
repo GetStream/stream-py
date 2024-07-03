@@ -10,6 +10,30 @@ from getstream.cli.utils import pass_client, get_type_name, parse_complex_type, 
 import json
 
 def create_call_command_from_method(name, method):
+    """
+    Create a Click command for a call-specific method.
+
+    This function dynamically creates a Click command based on a given call method.
+    It includes options for call type and ID, and inspects the method's parameters
+    to create corresponding Click options.
+
+    Args:
+        name (str): The name of the command to create.
+        method (Callable): The call method to convert into a Click command.
+
+    Returns:
+        click.Command: A Click command that wraps the given call method.
+
+    Example:
+        >>> class Call:
+        ...     def get(self, call_type: str, call_id: str):
+        ...         pass
+        >>> cmd = create_call_command_from_method('get', Call.get)
+        >>> cmd.name
+        'get'
+        >>> [p.name for p in cmd.params if isinstance(p, click.Option)]
+        ['call-type', 'call-id']
+    """
     @click.command(name=name)
     @click.option('--call-type', required=True, help='The type of the call')
     @click.option('--call-id', required=True, help='The ID of the call')
@@ -37,6 +61,29 @@ def create_call_command_from_method(name, method):
     return cmd
 
 def create_command_from_method(name, method):
+    """
+    Create a Click command from a method.
+
+    This function dynamically creates a Click command based on a given method.
+    It inspects the method's parameters and creates corresponding Click options.
+
+    Args:
+        name (str): The name of the command to create.
+        method (Callable): The method to convert into a Click command.
+
+    Returns:
+        click.Command: A Click command that wraps the given method.
+
+    Example:
+        >>> class VideoClient:
+        ...     def query_calls(self, limit: int = 10):
+        ...         pass
+        >>> cmd = create_command_from_method('query_calls', VideoClient.query_calls)
+        >>> cmd.name
+        'query_calls'
+        >>> [p.name for p in cmd.params if isinstance(p, click.Option)]
+        ['limit']
+    """
     @click.command(name=name)
     @pass_client
     def cmd(client, **kwargs):
@@ -59,6 +106,27 @@ def create_command_from_method(name, method):
 
 
 def print_result(result):
+    """
+    Print the result of a command execution.
+
+    This function handles different types of results and prints them
+    in a formatted manner. It specifically handles StreamResponse objects
+    and falls back to JSON serialization for other types.
+
+    Args:
+        result (Any): The result to print. Can be a StreamResponse or any JSON-serializable object.
+
+    Example:
+        >>> class MockResponse:
+        ...     def __init__(self):
+        ...         self.data = type('Data', (), {'to_dict': lambda: {'key': 'value'}})()
+        >>> mock_result = MockResponse()
+        >>> print_result(mock_result)
+        Data:
+        {
+          "key": "value"
+        }
+    """
     if isinstance(result, StreamResponse):
         click.echo("Data:")
         click.echo(json.dumps(result.data.to_dict(), indent=2, default=str))
