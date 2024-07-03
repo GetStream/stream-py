@@ -26,13 +26,33 @@ def pass_client(f):
 
 def json_option(option_name):
     """
-    Decorator that adds a JSON option to the decorated function, with this decorator you can write click commands like this
+    Create a Click option that parses JSON input.
 
-    @click.command()
-    @json_option("--some-option")
-    def do_something(some_option):
-        pass
+    This decorator creates a Click option that expects a JSON string as input.
+    It attempts to parse the input string as JSON and passes the resulting
+    Python object to the command function.
 
+    Args:
+        option_name (str): The name of the option to create.
+
+    Returns:
+        Callable: A decorator that adds a JSON-parsing option to a Click command.
+
+    Raises:
+        click.BadParameter: If the input cannot be parsed as valid JSON.
+
+    Examples:
+        >>> @click.command()
+        ... @json_option('--data')
+        ... def cmd(data):
+        ...     click.echo(type(data))
+        ...     click.echo(data)
+        ...
+        >>> runner = CliRunner()
+        >>> result = runner.invoke(cmd, ['--data', '{"key": "value"}'])
+        >>> print(result.output)
+        <class 'dict'>
+        {'key': 'value'}
     """
     def decorator(f):
         def callback(ctx, param, value):
@@ -48,6 +68,30 @@ def json_option(option_name):
 
 
 def get_type_name(annotation):
+    """
+    Get a string representation of a type annotation.
+
+    This function handles various type hints, including basic types,
+    List, Dict, Optional, and Union. It provides a consistent string
+    representation for each type, which can be useful for generating
+    documentation or type checking.
+
+    Args:
+        annotation (Any): The type annotation to convert to a string.
+
+    Returns:
+        str: A string representation of the type annotation.
+
+    Examples:
+        >>> get_type_name(str)
+        'str'
+        >>> get_type_name(List[int])
+        'list[int]'
+        >>> get_type_name(Optional[str])
+        'union[str, NoneType]'
+        >>> get_type_name(Union[str, int])
+        'union[str, int]'
+    """
     if annotation is Optional:
         return 'Optional'
     if annotation is Union:
@@ -79,6 +123,37 @@ def get_type_name(annotation):
 
 
 def parse_complex_type(value, annotation):
+    """
+    Parse a complex type from a JSON string.
+
+    This function attempts to parse a JSON string into a Python object.
+    If the annotation is a class, it tries to instantiate that class
+    with the parsed data. If that fails, it returns the parsed data as is.
+
+    Args:
+        value (str): The JSON string to parse.
+        annotation (Type[Any]): The type annotation for the expected result.
+
+    Returns:
+        Any: The parsed data, either as an instance of the annotated class
+             or as a basic Python data structure.
+
+    Raises:
+        click.BadParameter: If the input is not valid JSON.
+
+    Examples:
+        >>> parse_complex_type('{"x": 1, "y": 2}', dict)
+        {'x': 1, 'y': 2}
+        >>> class Point:
+        ...     def __init__(self, x, y):
+        ...         self.x = x
+        ...         self.y = y
+        >>> p = parse_complex_type('{"x": 1, "y": 2}', Point)
+        >>> isinstance(p, Point)
+        True
+        >>> p.x, p.y
+        (1, 2)
+    """
     if isinstance(value, str):
         try:
             data_dict = json.loads(value)
@@ -95,6 +170,32 @@ def parse_complex_type(value, annotation):
 
 
 def add_option_from_arg(cmd, param_name, param):
+    """
+    Add a Click option to a command based on a function parameter.
+
+    This function inspects the given parameter and adds an appropriate
+    Click option to the command. It handles basic types (str, int, bool),
+    as well as more complex types like lists and dicts.
+
+    Args:
+        cmd (Callable): The Click command to add the option to.
+        param_name (str): The name of the parameter.
+        param (Parameter): The inspect.Parameter object representing the function parameter.
+
+    Returns:
+        Callable: The modified Click command with the new option added.
+
+    Examples:
+        >>> @click.command()
+        ... def hello():
+        ...     pass
+        >>> param = inspect.Parameter('name', inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=str)
+        >>> hello = add_option_from_arg(hello, 'name', param)
+        >>> hello.params[0].name
+        'name'
+        >>> hello.params[0].type
+        <class 'str'>
+    """
     if param.annotation == str:
         cmd = click.option(f'--{param_name}', type=str)(cmd)
     elif param.annotation == int:
