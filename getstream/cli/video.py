@@ -169,7 +169,7 @@ call_commands = {
     "get-or-create": {"method": Call.get_or_create},
     "block-user": {"method": Call.block_user},
     "unblock-user": {"method": Call.unblock_user},
-    "send-event": {"method": Call.send_call_event},
+    "send-call-event": {"method": Call.send_call_event},
     "mute-users": {"method": Call.mute_users},
     "update-user-permissions": {"method": Call.update_user_permissions},
     # Add more call commands as needed

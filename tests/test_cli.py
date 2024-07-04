@@ -5,7 +5,7 @@ from typing import Optional, List, Dict, Union
 from getstream.models import CallRequest
 from getstream.cli.utils import get_type_name, parse_complex_type, add_option_from_arg
 import click
-from tests.fixtures import mock_setup
+from tests.fixtures import mock_setup, cli_runner
 
 
 def test_create_token(mocker, cli_runner):
@@ -319,7 +319,7 @@ def test_cli_unblock_user_from_call(mocker, cli_runner):
 
 def test_cli_send_custom_event(mocker, cli_runner):
     """
-    poetry run python -m getstream.cli video call send-event --call-type default --call-id 123456 --user_id user-id --custom '{"bananas": "good"}'
+    poetry run python -m getstream.cli video call send-call-event --call-type default --call-id 123456 --user_id user-id --custom '{"bananas": "good"}'
     """
     mock_setup(mocker)
     result = cli_runner.invoke(
@@ -327,7 +327,7 @@ def test_cli_send_custom_event(mocker, cli_runner):
         [
             "video",
             "call",
-            "send-event",
+            "send-call-event",
             "--call-type",
             "default",
             "--call-id",
