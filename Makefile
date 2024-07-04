@@ -22,6 +22,12 @@ PROJECT_NAME := getstream
 # Default target
 .DEFAULT_GOAL := help
 
+# Docker image name
+IMAGE_NAME := getstream-cli
+
+# GitHub Container Registry
+GHCR_REPO := ghcr.io/$(shell echo ${GITHUB_REPOSITORY} | tr '[:upper:]' '[:lower:]')
+
 .PHONY: help
 help:
 	@echo "Available commands:"
@@ -37,6 +43,9 @@ help:
 	@echo "  pipx-uninstall: Uninstall the project from pipx"
 	@echo "  build      : Build the project"
 	@echo "  publish    : Publish the project to PyPI"
+	@echo "  docker-build : Build Docker image"
+	@echo "  docker-run   : Run Docker container (use CMD='command' to specify CLI command)"
+	@echo "  docker-push  : Push Docker image to GitHub Container Registry"
 
 .PHONY: install
 install:
@@ -89,3 +98,16 @@ build:
 .PHONY: publish
 publish:
 	$(POETRY) publish
+
+.PHONY: docker-build
+docker-build:
+	docker build -t $(IMAGE_NAME) .
+
+.PHONY: docker-run
+docker-run:
+	docker run -e STREAM_API_KEY=$(STREAM_API_KEY) -e STREAM_API_SECRET=$(STREAM_API_SECRET) $(IMAGE_NAME) $(CMD)
+
+.PHONY: docker-push
+docker-push:
+	docker tag $(IMAGE_NAME) $(GHCR_REPO):$(VERSION)
+	docker push $(GHCR_REPO):$(VERSION)
