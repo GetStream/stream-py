@@ -4,6 +4,9 @@ PYTHON := python3
 # Poetry
 POETRY := poetry
 
+# pipx
+PIPX := pipx
+
 # Virtual environment
 VENV := .venv
 
@@ -12,6 +15,9 @@ SRC_DIR := getstream
 
 # Test directory
 TEST_DIR := tests
+
+# Project name (assuming it's the same as the directory name)
+PROJECT_NAME := getstream
 
 # Default target
 .DEFAULT_GOAL := help
@@ -27,6 +33,10 @@ help:
 	@echo "  format     : Format code"
 	@echo "  clean      : Remove build artifacts and cache files"
 	@echo "  run        : Run the CLI application"
+	@echo "  pipx-install: Install the project globally using pipx"
+	@echo "  pipx-uninstall: Uninstall the project from pipx"
+	@echo "  build      : Build the project"
+	@echo "  publish    : Publish the project to PyPI"
 
 .PHONY: install
 install:
@@ -63,3 +73,19 @@ clean:
 .PHONY: run
 run:
 	$(POETRY) run cli
+
+.PHONY: pipx-install
+pipx-install:
+	$(PIPX) install --editable .
+
+.PHONY: pipx-uninstall
+pipx-uninstall:
+	$(PIPX) uninstall $(PROJECT_NAME)
+
+.PHONY: build
+build:
+	$(POETRY) build
+
+.PHONY: publish
+publish:
+	$(POETRY) publish
