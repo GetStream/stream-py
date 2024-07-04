@@ -7,14 +7,50 @@
 - Video call creation and management
 - Chat session creation and management
 - Token generation for user authentication
+- Command-line interface (CLI) for easy interaction
+- Docker support for containerized usage
 
 ## Installation
 
-To install the Stream Client Library, run the following command:
+You can install the Stream Client Library using pip or pipx.
+
+### Using pip
+
+To install using pip, run the following command:
 
 ```sh
 pip install getstream
 ```
+
+### Using pipx
+
+For a more isolated and manageable installation, especially for CLI tools, we recommend using pipx. Pipx installs the package in its own virtual environment, making it available globally while keeping it isolated from other Python packages.
+
+First, install pipx if you haven't already:
+
+```sh
+python -m pip install --user pipx
+python -m pipx ensurepath
+```
+
+Then, install the Stream Client Library using pipx:
+
+```sh
+pipx install getstream
+```
+
+This will make the `getstream` CLI command available globally on your system.
+
+> [!NOTE]
+> Using pipx is particularly beneficial for the CLI functionality of the Stream SDK. It ensures that the CLI is always available without affecting your other Python projects or global Python environment.
+
+After installation with pipx, you can run CLI commands directly:
+
+```sh
+getstream create-token --user-id your_user_id
+```
+
+For library usage in your Python projects, the standard pip installation is recommended.
 
 ## Usage
 
@@ -76,7 +112,6 @@ call.get_or_create(
 # Chat: update settings for a channel type
 ```
 
-
 ### Chat API - Channels
 
 To work with chat sessions, use the `client.chat` object and implement the desired chat methods in the `Chat` class:
@@ -85,6 +120,58 @@ To work with chat sessions, use the `client.chat` object and implement the desir
 chat_instance = client.chat
 
 # TODO: implement and call chat-related methods with chat_instance
+```
+
+## Command-Line Interface (CLI)
+
+The Stream SDK includes a CLI for easy interaction with the API. You can use it to perform various operations such as creating tokens, managing video calls, and more.
+
+To use the CLI, run:
+
+```sh
+python -m getstream.cli [command] [options]
+```
+
+For example, to create a token:
+
+```sh
+python -m getstream.cli create-token --user-id your_user_id
+```
+
+For more information on available commands, run:
+
+```sh
+python -m getstream.cli --help
+```
+
+## Docker Support
+
+The Stream SDK can be run in a Docker container. This is useful for deployment and consistent development environments.
+
+### Building the Docker Image
+
+To build the Docker image, run:
+
+```sh
+make docker-build
+```
+
+### Running Commands in Docker
+
+To run a CLI command using Docker:
+
+```sh
+make docker-run CMD='create-token --user-id your_user_id'
+```
+
+Make sure to set the `STREAM_API_KEY` and `STREAM_API_SECRET` environment variables when running Docker commands.
+
+### Pushing the Docker Image
+
+To push the Docker image to the GitHub Container Registry (usually done by CI):
+
+```sh
+make docker-push VERSION=1.0.0
 ```
 
 ## Development
@@ -105,7 +192,7 @@ poetry shell
 
 To run tests, create a `.env` using the `.env.example` and adjust it to have valid API credentials
 ```sh
-poetry run pytest tests/ getstream/
+make test
 ```
 
 Before pushing changes make sure to have git hooks installed correctly, so that you get linting done locally `pre-commit install`
@@ -113,7 +200,19 @@ Before pushing changes make sure to have git hooks installed correctly, so that 
 You can also run the code formatting yourself if needed:
 
 ```sh
-poetry run ruff format getstream/ tests/
+make format
+```
+
+To run the linter:
+
+```sh
+make lint
+```
+
+To fix linter issues automatically:
+
+```sh
+make fix
 ```
 
 ### Writing new tests
