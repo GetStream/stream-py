@@ -45,7 +45,8 @@ def create_call_command_from_method(name, method):
     @click.option("--call-type", required=True, help="The type of the call")
     @click.option("--call-id", required=True, help="The ID of the call")
     @pass_client
-    def cmd(client, call_type, call_id, **kwargs):
+    def cmd(client:Stream, app_name:str,call_type:str, call_id:str, **kwargs):
+
         call = client.video.call(call_type, call_id)
 
         # Parse complex types and handle boolean flags
@@ -105,7 +106,7 @@ def create_command_from_method(name, method):
 
     @click.command(name=name)
     @pass_client
-    def cmd(client, **kwargs):
+    def cmd(client:Stream,app_name:str, **kwargs):
         # Parse complex types
         sig = inspect.signature(method)
         for param_name, param in sig.parameters.items():
@@ -246,7 +247,7 @@ for cmd in video_cmds:
 @click.command()
 @click.option("--rtmp-user-id", default=f"{uuid.uuid4()}")
 @pass_client
-def rtmp_in_setup(client: Stream, rtmp_user_id: str):
+def rtmp_in_setup(client: Stream,app_name:str, rtmp_user_id: str):
     call = client.video.call("default", f"rtmp-in-{uuid.uuid4()}").get_or_create(
         data=CallRequest(
             created_by_id=rtmp_user_id,

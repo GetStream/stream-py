@@ -21,8 +21,7 @@ def pass_client(f):
 
     @click.pass_context
     def new_func(ctx, *args, **kwargs):
-        return ctx.invoke(f, ctx.obj["client"], *args, **kwargs)
-
+        return ctx.invoke(f, ctx.obj["client"], ctx.obj["app_name"], *args, **kwargs)
     return update_wrapper(new_func, f)
 
 
