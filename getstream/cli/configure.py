@@ -42,6 +42,15 @@ def configure(profile, api_key, api_secret, app_name):
 
 def get_credentials(profile='default'):
     config = get_config()
+
+     # First, try to get credentials from environment variables
+    api_key = os.environ.get('STREAM_API_KEY')
+    api_secret = os.environ.get('STREAM_API_SECRET')
+    
+    # If environment variables are set, use them and return
+    if api_key and api_secret:
+        return api_key, api_secret, None  # Note: app_name is not available from env vars
+    
     if not config.has_section(profile):
         click.echo(f"Error: Profile '{profile}' not found.")
         click.echo(f"Config file path: {CONFIG_PATH}")
