@@ -21,8 +21,9 @@ def install_completion_command():
         with open(path, 'w') as f:
             f.write(script)
         click.echo(f"Completion script installed at {path}")
-        click.echo(f"Add the following line to your ~/.{shell}rc:")
-        click.echo(f"source {path}")
+        click.echo(f"Add the following line to your ~/.{shell}rc by running:")
+        click.echo(f"echo 'source {path}' >> ~/.{shell}rc")
+        click.echo(f"Then restart your shell or run 'source ~/.{shell}rc' to enable completion.")
     
     return install_completion
 
