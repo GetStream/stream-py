@@ -193,7 +193,6 @@ def add_option_from_arg(cmd, param_name, param):
         <class 'str'>
     """
     type_name = get_type_name(param.annotation)
-    print(f"Adding option for {param_name} with type {type_name}")
 
     if type_name == "bool":
         cmd = click.option(f"--{param_name}", is_flag=True, default=False)(cmd)
