@@ -36,4 +36,4 @@ build-backend = "poetry.core.masonry.api"
 ignore = ["F405", "F403"]
 
 [tool.poetry.scripts]
-cli = "getstream.cli:main"
+stream-cli = "getstream.cli:main"
