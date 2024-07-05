@@ -18,7 +18,6 @@ click = "^8.1.7"
 
 [tool.poetry.group.dev.dependencies]
 python-dateutil = "^2.8.2"
-python-dotenv = "^1.0.0"
 pytest = "^7.3.1"
 flake8 = "^6.0.0"
 
@@ -36,4 +35,13 @@ build-backend = "poetry.core.masonry.api"
 ignore = ["F405", "F403"]
 
 [tool.poetry.scripts]
-stream-cli = "getstream.cli:main"
+stream-cli = { callable = "getstream.cli:main", extras = ["cli"] }
+
+[tool.poetry.plugins."getstream.completion"]
+stream-cli = "getstream.cli.completion:completion"
+
+[tool.poetry.group.cli]
+optional = true
+
+[tool.poetry.group.cli.dependencies]
+python-dotenv = "^1.0.0"
