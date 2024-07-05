@@ -36,8 +36,7 @@ python -m pipx ensurepath
 Then, install the Stream Client Library using pipx:
 
 ```sh
-pipx install getstream[cli]
-pipx upgrade getstream
+pipx install getstream
 ```
 
 To uninstall the package, run:
@@ -54,8 +53,19 @@ This will make the `getstream` CLI command available globally on your system.
 After installation with pipx, you can run CLI commands directly:
 
 ```sh
-getstream create-token --user-id your_user_id
+stream-cli create-token --user-id your_user_id
 ```
+
+### Configuration and Completion
+
+Your Stream CLI configuration and completion scripts are stored in `~/.stream-cli/`.
+
+To set up:
+
+1. Run `stream-cli configure` to set up your configuration.
+2. Install completion for your shell:`stream-cli install-completion --shell bash  # or zsh, or fish`
+3. Add the suggested line to your shell's RC file (e.g., ~/.bashrc, ~/.zshrc, or ~/.config/fish/config.fish).
+4. Restart your shell or source the RC file.
 
 For library usage in your Python projects, the standard pip installation is recommended.
 
