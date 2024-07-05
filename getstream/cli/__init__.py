@@ -1,7 +1,8 @@
 import click
 from typing import Optional
 from getstream import Stream
-from getstream.cli.configure import configure, debug_config, debug_permissions, get_credentials, show_config
+from getstream.cli.completion import install_completion_command
+from getstream.cli.configure import configure, get_credentials, show_config
 from getstream.cli.utils import pass_client
 from getstream.cli.video import video
 from getstream.stream import BASE_URL
@@ -13,6 +14,10 @@ from getstream.stream import BASE_URL
 @click.pass_context
 def cli(ctx, profile, base_url, timeout):
     ctx.ensure_object(dict)
+    
+    if ctx.invoked_subcommand == 'configure':
+        return  # Skip credential check for 'configure' command
+    
     api_key, api_secret, app_name = get_credentials(profile)
     if api_key is None or api_secret is None:
         click.echo(f"Error: Unable to load credentials for profile '{profile}'.")
@@ -46,8 +51,9 @@ def create_token(
     else:
         print(client.create_call_token(user_id=user_id))
 
-cli.add_command(debug_config)
-cli.add_command(debug_permissions)
+cli.add_command(install_completion_command())
+# cli.add_command(debug_config)
+# cli.add_command(debug_permissions)
 cli.add_command(configure)
 cli.add_command(show_config)
 cli.add_command(create_token)
