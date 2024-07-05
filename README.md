@@ -36,7 +36,14 @@ python -m pipx ensurepath
 Then, install the Stream Client Library using pipx:
 
 ```sh
-pipx install getstream
+pipx install getstream[cli]
+pipx upgrade getstream
+```
+
+To uninstall the package, run:
+
+```sh
+pipx uninstall getstream
 ```
 
 This will make the `getstream` CLI command available globally on your system.
