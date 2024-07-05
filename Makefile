@@ -81,7 +81,7 @@ clean:
 
 .PHONY: run
 run:
-	$(POETRY) run cli
+	$(POETRY) run stream-cli
 
 .PHONY: pipx-install
 pipx-install:
