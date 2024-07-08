@@ -21,7 +21,7 @@ def cli(ctx, profile, base_url, timeout):
     api_key, api_secret, app_name = get_credentials(profile)
     if api_key is None or api_secret is None:
         click.echo(f"Error: Unable to load credentials for profile '{profile}'.")
-        click.echo(f"Please run 'stream-cli configure' to set up your profile.")
+        click.echo("Please run 'stream-cli configure' to set up your profile.")
         ctx.exit(1)
     ctx.obj["client"] = Stream(
         api_key=api_key, api_secret=api_secret, timeout=timeout, base_url=base_url

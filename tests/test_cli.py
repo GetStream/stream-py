@@ -5,10 +5,10 @@ from typing import Optional, List, Dict, Union
 from getstream.models import CallRequest
 from getstream.cli.utils import get_type_name, parse_complex_type, add_option_from_arg
 import click
-from tests.fixtures import mock_setup, cli_runner
+from tests.fixtures import mock_setup, cli_runner # noqa
 
 
-def test_create_token(mocker, cli_runner):
+def test_create_token(mocker, cli_runner): # noqa
     # Mock the Stream client
     mock_stream = mocker.Mock()
     mock_stream.create_call_token.return_value = "mocked_token"
@@ -147,7 +147,7 @@ def test_add_option():
     assert cmd.params[-1].type == click.STRING  # Assuming json_option uses STRING type
 
 
-def test_video_call_get_or_create(mocker, cli_runner):
+def test_video_call_get_or_create(mocker, cli_runner): # noqa
     mock_stream, mock_video_client, mock_call = mock_setup(mocker)
 
     # Mock the get_or_create method
@@ -200,7 +200,7 @@ def test_video_call_get_or_create(mocker, cli_runner):
     assert call_args["data"]["members_limit"] == 10
 
 
-def test_cli_create_call_with_members(mocker, cli_runner):
+def test_cli_create_call_with_members(mocker, cli_runner): # noqa
     mock_stream, mock_video_client, mock_call = mock_setup(mocker)
 
     result = cli_runner.invoke(
@@ -233,7 +233,7 @@ def test_cli_create_call_with_members(mocker, cli_runner):
     assert call_args["data"]["members"][1]["user_id"] == "tommaso-id"
 
 
-def test_cli_mute_all(mocker, cli_runner):
+def test_cli_mute_all(mocker, cli_runner): # noqa
     mock_stream, mock_video_client, mock_call = mock_setup(mocker)
 
     result = cli_runner.invoke(
@@ -273,7 +273,7 @@ def test_cli_mute_all(mocker, cli_runner):
     )
 
 
-def test_cli_block_user_from_call(mocker, cli_runner):
+def test_cli_block_user_from_call(mocker, cli_runner): # noqa
     """
     poetry run python -m getstream.cli video call block-user --call-type default --call-id 123456 --user_id bad-user-id
     """
@@ -295,7 +295,7 @@ def test_cli_block_user_from_call(mocker, cli_runner):
     assert result.exit_code == 0
 
 
-def test_cli_unblock_user_from_call(mocker, cli_runner):
+def test_cli_unblock_user_from_call(mocker, cli_runner): # noqa
     """
     poetry run python -m getstream.cli video call unblock-user --call-type default --call-id 123456 --user_id bad-user-id
     """
@@ -317,7 +317,7 @@ def test_cli_unblock_user_from_call(mocker, cli_runner):
     assert result.exit_code == 0
 
 
-def test_cli_send_custom_event(mocker, cli_runner):
+def test_cli_send_custom_event(mocker, cli_runner): # noqa
     """
     poetry run python -m getstream.cli video call send-call-event --call-type default --call-id 123456 --user_id user-id --custom '{"bananas": "good"}'
     """
@@ -341,7 +341,7 @@ def test_cli_send_custom_event(mocker, cli_runner):
     assert result.exit_code == 0
 
 
-def test_cli_update_settings(mocker, cli_runner):
+def test_cli_update_settings(mocker, cli_runner): # noqa
     """
     poetry run python -m getstream.cli video call update --call-type default --call-id 123456 --settings_override '{"screensharing": {"enabled": true, "access_request_enabled": true}}'
     """
