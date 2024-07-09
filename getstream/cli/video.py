@@ -165,6 +165,7 @@ def print_result(result):
 # Define the call commands
 call_commands = {
     "get": {"method": Call.get},
+    "end": {"method": Call.end},
     "update": {"method": Call.update},
     "delete": {"method": Call.delete},
     "get-or-create": {"method": Call.get_or_create},
