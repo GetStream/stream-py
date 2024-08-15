@@ -48,16 +48,28 @@ def encode_datetime(date: Optional[datetime]) -> Optional[str]:
 
 def datetime_from_unix_ns(ts):
     """
-    Converts a unix timestamp to a datetime object
+    Converts a unix timestamp to a datetime object, handling large values
     :param ts: nanoseconds since epoch
     :return: datetime object
     """
     if ts is None:
         return None
     if isinstance(ts, str):
-        ts = int(ts)
-    # TODO: perhaps not a bad idea to try and parse the string using isoformat as well
-    return datetime.fromtimestamp(ts / 1e9, tz=UTC)
+        try:
+            ts = int(ts)
+        except ValueError:
+            # If it's not a valid integer string, try parsing as ISO format
+            try:
+                return datetime.fromisoformat(ts.rstrip('Z')).replace(tzinfo=timezone.utc)
+            except ValueError:
+                return None
+    
+    # Handle large timestamp values
+    try:
+        return datetime.fromtimestamp(ts / 1e9, tz=timezone.utc)
+    except (OSError, OverflowError):
+        # For extremely large values, fallback to max representable datetime
+        return datetime.max.replace(tzinfo=timezone.utc)
 
 
 def build_query_param(**kwargs):

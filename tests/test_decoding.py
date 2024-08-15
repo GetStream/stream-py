@@ -85,6 +85,21 @@ def test_future_timestamp():
     expected_datetime = datetime(2100, 1, 1, 0, 0, tzinfo=timezone.utc)
     assert datetime_from_unix_ns(timestamp_ns) == expected_datetime
 
+def test_extremely_large_timestamp():
+    # Extremely large timestamp that would cause an overflow
+    timestamp_ns = "9223372036854775807000000000"  # max int64 * 1e9
+    result = datetime_from_unix_ns(timestamp_ns)
+    assert result == datetime.max.replace(tzinfo=timezone.utc)
+
+def test_invalid_string_timestamp():
+    invalid_timestamp = "not_a_timestamp"
+    assert datetime_from_unix_ns(invalid_timestamp) is None
+
+def test_iso_format_string():
+    iso_timestamp = "2023-05-01T12:34:56Z"
+    expected_datetime = datetime(2023, 5, 1, 12, 34, 56, tzinfo=timezone.utc)
+    assert datetime_from_unix_ns(iso_timestamp) == expected_datetime
+
 
 class MockObjectWithToDict:
     def to_dict(self):
