@@ -28,7 +28,7 @@ class ChatRestClient(BaseClient):
         offset: Optional[int] = None,
         state: Optional[bool] = None,
         user_id: Optional[str] = None,
-        sort: Optional[List[Optional[SortParam]]] = None,
+        sort: Optional[List[Optional[SortParamRequest]]] = None,
         filter_conditions: Optional[Dict[str, object]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[QueryChannelsResponse]:
@@ -203,7 +203,7 @@ class ChatRestClient(BaseClient):
 
     def delete_file(
         self, type: str, id: str, url: Optional[str] = None
-    ) -> StreamResponse[FileDeleteResponse]:
+    ) -> StreamResponse[Response]:
         query_params = build_query_param(url=url)
         path_params = {
             "type": type,
@@ -212,7 +212,7 @@ class ChatRestClient(BaseClient):
 
         return self.delete(
             "/api/v2/chat/channels/{type}/{id}/file",
-            FileDeleteResponse,
+            Response,
             query_params=query_params,
             path_params=path_params,
         )
@@ -260,7 +260,7 @@ class ChatRestClient(BaseClient):
 
     def delete_image(
         self, type: str, id: str, url: Optional[str] = None
-    ) -> StreamResponse[FileDeleteResponse]:
+    ) -> StreamResponse[Response]:
         query_params = build_query_param(url=url)
         path_params = {
             "type": type,
@@ -269,7 +269,7 @@ class ChatRestClient(BaseClient):
 
         return self.delete(
             "/api/v2/chat/channels/{type}/{id}/image",
-            FileDeleteResponse,
+            Response,
             query_params=query_params,
             path_params=path_params,
         )
@@ -546,13 +546,15 @@ class ChatRestClient(BaseClient):
             "/api/v2/chat/channeltypes/{name}", Response, path_params=path_params
         )
 
-    def get_channel_type(self, name: str) -> StreamResponse[Response]:
+    def get_channel_type(self, name: str) -> StreamResponse[GetChannelTypeResponse]:
         path_params = {
             "name": name,
         }
 
         return self.get(
-            "/api/v2/chat/channeltypes/{name}", Response, path_params=path_params
+            "/api/v2/chat/channeltypes/{name}",
+            GetChannelTypeResponse,
+            path_params=path_params,
         )
 
     def update_channel_type(
@@ -727,7 +729,7 @@ class ChatRestClient(BaseClient):
         limit: Optional[int] = None,
         next: Optional[str] = None,
         prev: Optional[str] = None,
-        sort: Optional[List[Optional[SortParam]]] = None,
+        sort: Optional[List[Optional[SortParamRequest]]] = None,
     ) -> StreamResponse[QueryMessageHistoryResponse]:
         json = build_body_dict(
             filter=filter, limit=limit, next=next, prev=prev, sort=sort
@@ -903,7 +905,7 @@ class ChatRestClient(BaseClient):
         next: Optional[str] = None,
         prev: Optional[str] = None,
         user_id: Optional[str] = None,
-        sort: Optional[List[Optional[SortParam]]] = None,
+        sort: Optional[List[Optional[SortParamRequest]]] = None,
         filter: Optional[Dict[str, object]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[QueryReactionsResponse]:
@@ -1010,7 +1012,7 @@ class ChatRestClient(BaseClient):
         created_at_before: Optional[datetime] = None,
         id_around: Optional[str] = None,
         created_at_around: Optional[datetime] = None,
-        sort: Optional[List[Optional[SortParam]]] = None,
+        sort: Optional[List[Optional[SortParamRequest]]] = None,
     ) -> StreamResponse[GetRepliesResponse]:
         query_params = build_query_param(
             limit=limit,
@@ -1125,7 +1127,7 @@ class ChatRestClient(BaseClient):
         max_votes_allowed: Optional[int] = None,
         user_id: Optional[str] = None,
         voting_visibility: Optional[str] = None,
-        options: Optional[List[Optional[PollOption]]] = None,
+        options: Optional[List[Optional[PollOptionRequest]]] = None,
         custom: Optional[Dict[str, object]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[PollResponse]:
@@ -1153,7 +1155,7 @@ class ChatRestClient(BaseClient):
         limit: Optional[int] = None,
         next: Optional[str] = None,
         prev: Optional[str] = None,
-        sort: Optional[List[Optional[SortParam]]] = None,
+        sort: Optional[List[Optional[SortParamRequest]]] = None,
         filter: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[QueryPollsResponse]:
         query_params = build_query_param(user_id=user_id)
@@ -1303,7 +1305,7 @@ class ChatRestClient(BaseClient):
         limit: Optional[int] = None,
         next: Optional[str] = None,
         prev: Optional[str] = None,
-        sort: Optional[List[Optional[SortParam]]] = None,
+        sort: Optional[List[Optional[SortParamRequest]]] = None,
         filter: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[PollVotesResponse]:
         query_params = build_query_param(user_id=user_id)

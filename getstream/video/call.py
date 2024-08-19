@@ -20,6 +20,7 @@ class Call:
         members_limit: Optional[int] = None,
         ring: Optional[bool] = None,
         notify: Optional[bool] = None,
+        video: Optional[bool] = None,
     ) -> StreamResponse[GetCallResponse]:
         response = self.client.get_call(
             type=self.call_type,
@@ -27,6 +28,7 @@ class Call:
             members_limit=members_limit,
             ring=ring,
             notify=notify,
+            video=video,
         )
         self._sync_from_response(response.data)
         return response
@@ -52,6 +54,7 @@ class Call:
         members_limit: Optional[int] = None,
         notify: Optional[bool] = None,
         ring: Optional[bool] = None,
+        video: Optional[bool] = None,
         data: Optional[CallRequest] = None,
     ) -> StreamResponse[GetOrCreateCallResponse]:
         response = self.client.get_or_create_call(
@@ -60,6 +63,7 @@ class Call:
             members_limit=members_limit,
             notify=notify,
             ring=ring,
+            video=video,
             data=data,
         )
         self._sync_from_response(response.data)
@@ -118,6 +122,7 @@ class Call:
         recording_storage_name: Optional[str] = None,
         start_hls: Optional[bool] = None,
         start_recording: Optional[bool] = None,
+        start_rtmp_broadcasts: Optional[bool] = None,
         start_transcription: Optional[bool] = None,
         transcription_storage_name: Optional[str] = None,
     ) -> StreamResponse[GoLiveResponse]:
@@ -127,6 +132,7 @@ class Call:
             recording_storage_name=recording_storage_name,
             start_hls=start_hls,
             start_recording=start_recording,
+            start_rtmp_broadcasts=start_rtmp_broadcasts,
             start_transcription=start_transcription,
             transcription_storage_name=transcription_storage_name,
         )
@@ -187,6 +193,47 @@ class Call:
 
     def list_recordings(self) -> StreamResponse[ListRecordingsResponse]:
         response = self.client.list_recordings(type=self.call_type, id=self.id)
+        self._sync_from_response(response.data)
+        return response
+
+    def start_rtmp_broadcast(
+        self,
+        name: str,
+        stream_url: str,
+        password: Optional[str] = None,
+        quality: Optional[str] = None,
+        stream_key: Optional[str] = None,
+        username: Optional[str] = None,
+        layout: Optional[LayoutSettings] = None,
+    ) -> StreamResponse[StartRTMPBroadcastsResponse]:
+        response = self.client.start_rtmp_broadcast(
+            type=self.call_type,
+            id=self.id,
+            name=name,
+            stream_url=stream_url,
+            password=password,
+            quality=quality,
+            stream_key=stream_key,
+            username=username,
+            layout=layout,
+        )
+        self._sync_from_response(response.data)
+        return response
+
+    def stop_all_rtmp_broadcasts(self) -> StreamResponse[StopAllRTMPBroadcastsResponse]:
+        response = self.client.stop_all_rtmp_broadcasts(type=self.call_type, id=self.id)
+        self._sync_from_response(response.data)
+        return response
+
+    def stop_rtmp_broadcast(
+        self,
+        name: str,
+    ) -> StreamResponse[StopRTMPBroadcastsResponse]:
+        response = self.client.stop_rtmp_broadcast(
+            type=self.call_type,
+            id=self.id,
+            name=name,
+        )
         self._sync_from_response(response.data)
         return response
 

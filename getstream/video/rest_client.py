@@ -27,7 +27,7 @@ class VideoRestClient(BaseClient):
         limit: Optional[int] = None,
         next: Optional[str] = None,
         prev: Optional[str] = None,
-        sort: Optional[List[Optional[SortParam]]] = None,
+        sort: Optional[List[Optional[SortParamRequest]]] = None,
         filter_conditions: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[QueryCallMembersResponse]:
         json = build_body_dict(
@@ -49,7 +49,7 @@ class VideoRestClient(BaseClient):
         limit: Optional[int] = None,
         next: Optional[str] = None,
         prev: Optional[str] = None,
-        sort: Optional[List[Optional[SortParam]]] = None,
+        sort: Optional[List[Optional[SortParamRequest]]] = None,
         filter_conditions: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[QueryCallStatsResponse]:
         json = build_body_dict(
@@ -69,9 +69,10 @@ class VideoRestClient(BaseClient):
         members_limit: Optional[int] = None,
         ring: Optional[bool] = None,
         notify: Optional[bool] = None,
+        video: Optional[bool] = None,
     ) -> StreamResponse[GetCallResponse]:
         query_params = build_query_param(
-            members_limit=members_limit, ring=ring, notify=notify
+            members_limit=members_limit, ring=ring, notify=notify, video=video
         )
         path_params = {
             "type": type,
@@ -115,6 +116,7 @@ class VideoRestClient(BaseClient):
         members_limit: Optional[int] = None,
         notify: Optional[bool] = None,
         ring: Optional[bool] = None,
+        video: Optional[bool] = None,
         data: Optional[CallRequest] = None,
     ) -> StreamResponse[GetOrCreateCallResponse]:
         path_params = {
@@ -122,7 +124,11 @@ class VideoRestClient(BaseClient):
             "id": id,
         }
         json = build_body_dict(
-            members_limit=members_limit, notify=notify, ring=ring, data=data
+            members_limit=members_limit,
+            notify=notify,
+            ring=ring,
+            video=video,
+            data=data,
         )
 
         return self.post(
@@ -225,6 +231,7 @@ class VideoRestClient(BaseClient):
         recording_storage_name: Optional[str] = None,
         start_hls: Optional[bool] = None,
         start_recording: Optional[bool] = None,
+        start_rtmp_broadcasts: Optional[bool] = None,
         start_transcription: Optional[bool] = None,
         transcription_storage_name: Optional[str] = None,
     ) -> StreamResponse[GoLiveResponse]:
@@ -236,6 +243,7 @@ class VideoRestClient(BaseClient):
             recording_storage_name=recording_storage_name,
             start_hls=start_hls,
             start_recording=start_recording,
+            start_rtmp_broadcasts=start_rtmp_broadcasts,
             start_transcription=start_transcription,
             transcription_storage_name=transcription_storage_name,
         )
@@ -344,6 +352,73 @@ class VideoRestClient(BaseClient):
             "/api/v2/video/call/{type}/{id}/recordings",
             ListRecordingsResponse,
             path_params=path_params,
+        )
+
+    def start_rtmp_broadcast(
+        self,
+        type: str,
+        id: str,
+        name: str,
+        stream_url: str,
+        password: Optional[str] = None,
+        quality: Optional[str] = None,
+        stream_key: Optional[str] = None,
+        username: Optional[str] = None,
+        layout: Optional[LayoutSettings] = None,
+    ) -> StreamResponse[StartRTMPBroadcastsResponse]:
+        path_params = {
+            "type": type,
+            "id": id,
+        }
+        json = build_body_dict(
+            name=name,
+            stream_url=stream_url,
+            password=password,
+            quality=quality,
+            stream_key=stream_key,
+            username=username,
+            layout=layout,
+        )
+
+        return self.post(
+            "/api/v2/video/call/{type}/{id}/rtmp_broadcasts",
+            StartRTMPBroadcastsResponse,
+            path_params=path_params,
+            json=json,
+        )
+
+    def stop_all_rtmp_broadcasts(
+        self, type: str, id: str
+    ) -> StreamResponse[StopAllRTMPBroadcastsResponse]:
+        path_params = {
+            "type": type,
+            "id": id,
+        }
+
+        return self.post(
+            "/api/v2/video/call/{type}/{id}/rtmp_broadcasts/stop",
+            StopAllRTMPBroadcastsResponse,
+            path_params=path_params,
+        )
+
+    def stop_rtmp_broadcast(
+        self,
+        type: str,
+        id: str,
+        name: str,
+    ) -> StreamResponse[StopRTMPBroadcastsResponse]:
+        path_params = {
+            "type": type,
+            "id": id,
+            "name": name,
+        }
+        json = build_body_dict()
+
+        return self.post(
+            "/api/v2/video/call/{type}/{id}/rtmp_broadcasts/{name}/stop",
+            StopRTMPBroadcastsResponse,
+            path_params=path_params,
+            json=json,
         )
 
     def start_hls_broadcasting(
@@ -571,7 +646,7 @@ class VideoRestClient(BaseClient):
         limit: Optional[int] = None,
         next: Optional[str] = None,
         prev: Optional[str] = None,
-        sort: Optional[List[Optional[SortParam]]] = None,
+        sort: Optional[List[Optional[SortParamRequest]]] = None,
         filter_conditions: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[QueryCallsResponse]:
         json = build_body_dict(
