@@ -34,8 +34,12 @@ class CommonRestClient(BaseClient):
         disable_auth_checks: Optional[bool] = None,
         disable_permissions_checks: Optional[bool] = None,
         enforce_unique_usernames: Optional[str] = None,
+        feeds_moderation_enabled: Optional[bool] = None,
+        feeds_v2_region: Optional[str] = None,
         image_moderation_enabled: Optional[bool] = None,
         migrate_permissions_to_v2: Optional[bool] = None,
+        moderation_enabled: Optional[bool] = None,
+        moderation_webhook_url: Optional[str] = None,
         multi_tenant_enabled: Optional[bool] = None,
         permission_version: Optional[str] = None,
         reminders_interval: Optional[int] = None,
@@ -49,6 +53,7 @@ class CommonRestClient(BaseClient):
         sqs_url: Optional[str] = None,
         video_provider: Optional[str] = None,
         webhook_url: Optional[str] = None,
+        allowed_flag_reasons: Optional[List[str]] = None,
         image_moderation_block_labels: Optional[List[str]] = None,
         image_moderation_labels: Optional[List[str]] = None,
         user_search_disallowed_roles: Optional[List[str]] = None,
@@ -76,8 +81,12 @@ class CommonRestClient(BaseClient):
             disable_auth_checks=disable_auth_checks,
             disable_permissions_checks=disable_permissions_checks,
             enforce_unique_usernames=enforce_unique_usernames,
+            feeds_moderation_enabled=feeds_moderation_enabled,
+            feeds_v2_region=feeds_v2_region,
             image_moderation_enabled=image_moderation_enabled,
             migrate_permissions_to_v2=migrate_permissions_to_v2,
+            moderation_enabled=moderation_enabled,
+            moderation_webhook_url=moderation_webhook_url,
             multi_tenant_enabled=multi_tenant_enabled,
             permission_version=permission_version,
             reminders_interval=reminders_interval,
@@ -91,6 +100,7 @@ class CommonRestClient(BaseClient):
             sqs_url=sqs_url,
             video_provider=video_provider,
             webhook_url=webhook_url,
+            allowed_flag_reasons=allowed_flag_reasons,
             image_moderation_block_labels=image_moderation_block_labels,
             image_moderation_labels=image_moderation_labels,
             user_search_disallowed_roles=user_search_disallowed_roles,
@@ -352,96 +362,6 @@ class CommonRestClient(BaseClient):
         return self.get(
             "/api/v2/imports/{id}", GetImportResponse, path_params=path_params
         )
-
-    def unban(
-        self,
-        target_user_id: str,
-        channel_cid: Optional[str] = None,
-        created_by: Optional[str] = None,
-    ) -> StreamResponse[Response]:
-        query_params = build_query_param(
-            target_user_id=target_user_id,
-            channel_cid=channel_cid,
-            created_by=created_by,
-        )
-
-        return self.delete(
-            "/api/v2/moderation/ban", Response, query_params=query_params
-        )
-
-    def ban(
-        self,
-        target_user_id: str,
-        banned_by_id: Optional[str] = None,
-        channel_cid: Optional[str] = None,
-        ip_ban: Optional[bool] = None,
-        reason: Optional[str] = None,
-        shadow: Optional[bool] = None,
-        timeout: Optional[int] = None,
-        user_id: Optional[str] = None,
-        banned_by: Optional[UserRequest] = None,
-        user: Optional[UserRequest] = None,
-    ) -> StreamResponse[Response]:
-        json = build_body_dict(
-            target_user_id=target_user_id,
-            banned_by_id=banned_by_id,
-            channel_cid=channel_cid,
-            ip_ban=ip_ban,
-            reason=reason,
-            shadow=shadow,
-            timeout=timeout,
-            user_id=user_id,
-            banned_by=banned_by,
-            user=user,
-        )
-
-        return self.post("/api/v2/moderation/ban", Response, json=json)
-
-    def flag(
-        self,
-        reason: Optional[str] = None,
-        target_message_id: Optional[str] = None,
-        target_user_id: Optional[str] = None,
-        user_id: Optional[str] = None,
-        custom: Optional[Dict[str, object]] = None,
-        user: Optional[UserRequest] = None,
-    ) -> StreamResponse[FlagResponse]:
-        json = build_body_dict(
-            reason=reason,
-            target_message_id=target_message_id,
-            target_user_id=target_user_id,
-            user_id=user_id,
-            custom=custom,
-            user=user,
-        )
-
-        return self.post("/api/v2/moderation/flag", FlagResponse, json=json)
-
-    def mute_user(
-        self,
-        timeout: int,
-        user_id: Optional[str] = None,
-        target_ids: Optional[List[str]] = None,
-        user: Optional[UserRequest] = None,
-    ) -> StreamResponse[MuteUserResponse]:
-        json = build_body_dict(
-            timeout=timeout, user_id=user_id, target_ids=target_ids, user=user
-        )
-
-        return self.post("/api/v2/moderation/mute", MuteUserResponse, json=json)
-
-    def unmute_user(
-        self,
-        timeout: int,
-        user_id: Optional[str] = None,
-        target_ids: Optional[List[str]] = None,
-        user: Optional[UserRequest] = None,
-    ) -> StreamResponse[UnmuteResponse]:
-        json = build_body_dict(
-            timeout=timeout, user_id=user_id, target_ids=target_ids, user=user
-        )
-
-        return self.post("/api/v2/moderation/unmute", UnmuteResponse, json=json)
 
     def get_og(self, url: str) -> StreamResponse[GetOGResponse]:
         query_params = build_query_param(url=url)
