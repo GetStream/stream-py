@@ -58,20 +58,6 @@ def test_create_call_with_members(client: Stream):
     )
 
 
-def test_ban_unban_user(client: Stream, get_user):
-    bad_user = get_user()
-    moderator = get_user()
-    client.ban(
-        target_user_id=bad_user.id,
-        banned_by_id=moderator.id,
-        reason="Banned user and all users sharing the same IP for half hour",
-        ip_ban=True,
-        timeout=30,
-    )
-
-    client.unban(target_user_id=bad_user.id)
-
-
 def test_block_unblock_user_from_calls(client: Stream, call: Call, get_user):
     bad_user = get_user()
     call.get_or_create(

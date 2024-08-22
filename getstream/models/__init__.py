@@ -737,16 +737,32 @@ class CallSessionResponse(DataClassJsonMixin):
         metadata=dc_config(field_name="participants")
     )
     accepted_by: "Dict[str, datetime]" = dc_field(
-        metadata=dc_config(field_name="accepted_by")
+        metadata=dc_config(
+            field_name="accepted_by",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
     )
+
     missed_by: "Dict[str, datetime]" = dc_field(
-        metadata=dc_config(field_name="missed_by")
+        metadata=dc_config(
+            field_name="ended_at",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
     )
     participants_count_by_role: "Dict[str, int]" = dc_field(
         metadata=dc_config(field_name="participants_count_by_role")
     )
     rejected_by: "Dict[str, datetime]" = dc_field(
-        metadata=dc_config(field_name="rejected_by")
+        metadata=dc_config(
+            field_name="rejected_by",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
     )
     ended_at: Optional[datetime] = dc_field(
         default=None,
