@@ -1,5 +1,5 @@
 import json
-from typing import Optional
+from typing import Dict, List, Optional, Union
 from urllib.parse import quote
 from datetime import datetime
 from datetime import timezone
@@ -46,18 +46,44 @@ def encode_datetime(date: Optional[datetime]) -> Optional[str]:
     return date.isoformat()
 
 
-def datetime_from_unix_ns(ts):
+def datetime_from_unix_ns(
+    ts: Optional[
+        Union[
+            int,
+            float,
+            str,
+            Dict[str, Union[int, float, str]],
+            List[Union[int, float, str]],
+        ]
+    ],
+) -> Optional[Union[datetime, Dict[str, datetime], List[datetime]]]:
     """
-    Converts a unix timestamp to a datetime object
-    :param ts: nanoseconds since epoch
-    :return: datetime object
+    Converts unix timestamp(s) (nanoseconds since epoch) to datetime object(s).
+    Can handle single values, dictionaries, or lists of values.
+
+    Args:
+    ts: Nanoseconds since epoch (int, float, or string representation),
+        or a dictionary/list of such values.
+
+    Returns:
+    Datetime object(s) or None if input is None.
     """
     if ts is None:
         return None
+
+    if isinstance(ts, dict):
+        return {k: datetime_from_unix_ns(v) for k, v in ts.items()}
+
+    if isinstance(ts, list):
+        return [datetime_from_unix_ns(v) for v in ts]
+
     if isinstance(ts, str):
         ts = int(ts)
-    # TODO: perhaps not a bad idea to try and parse the string using isoformat as well
-    return datetime.fromtimestamp(ts / 1e9, tz=UTC)
+
+    if isinstance(ts, (int, float)):
+        return datetime.fromtimestamp(ts / 1e9, tz=timezone.utc)
+
+    raise TypeError(f"Unsupported type for ts: {type(ts)}")
 
 
 def build_query_param(**kwargs):

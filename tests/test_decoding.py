@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import List
+from typing import Dict, List, Optional
 
 from getstream.models import OwnCapability, OwnCapabilityType
 from getstream.utils import (
@@ -84,6 +84,49 @@ def test_future_timestamp():
     timestamp_ns = "4102444800000000000"
     expected_datetime = datetime(2100, 1, 1, 0, 0, tzinfo=timezone.utc)
     assert datetime_from_unix_ns(timestamp_ns) == expected_datetime
+
+
+def test_datetime_from_unix_ns_dict():
+    input_dict = {"user1": "1577836800000000000", "user2": "1577836801000000000"}
+    expected_output = {
+        "user1": datetime(2020, 1, 1, 0, 0, tzinfo=timezone.utc),
+        "user2": datetime(2020, 1, 1, 0, 0, 1, tzinfo=timezone.utc),
+    }
+    assert datetime_from_unix_ns(input_dict) == expected_output
+
+
+def test_datetime_from_unix_ns_mixed_dict():
+    input_dict = {
+        "user1": "1577836800000000000",
+        "user2": None,
+        "user3": 1577836801000000000,
+    }
+    expected_output = {
+        "user1": datetime(2020, 1, 1, 0, 0, tzinfo=timezone.utc),
+        "user2": None,
+        "user3": datetime(2020, 1, 1, 0, 0, 1, tzinfo=timezone.utc),
+    }
+    assert datetime_from_unix_ns(input_dict) == expected_output
+
+
+def test_datetime_from_unix_ns_list():
+    input_list = ["1577836800000000000", "1577836801000000000", "1577836802000000000"]
+    expected_output = [
+        datetime(2020, 1, 1, 0, 0, tzinfo=timezone.utc),
+        datetime(2020, 1, 1, 0, 0, 1, tzinfo=timezone.utc),
+        datetime(2020, 1, 1, 0, 0, 2, tzinfo=timezone.utc),
+    ]
+    assert datetime_from_unix_ns(input_list) == expected_output
+
+
+def test_datetime_from_unix_ns_mixed_list():
+    input_list = ["1577836800000000000", None, 1577836802000000000]
+    expected_output = [
+        datetime(2020, 1, 1, 0, 0, tzinfo=timezone.utc),
+        None,
+        datetime(2020, 1, 1, 0, 0, 2, tzinfo=timezone.utc),
+    ]
+    assert datetime_from_unix_ns(input_list) == expected_output
 
 
 class MockObjectWithToDict:
@@ -175,3 +218,116 @@ def test_encode_own_capability():
     assert build_body_dict(obj=obj) == {
         "obj": {"own_capabilities": ["block-users", "custom-value"]}
     }
+
+
+@dataclass
+class CallSessionResponse(DataClassJsonMixin):
+    id: str
+    missed_by: Dict[str, datetime] = field(
+        metadata=config(
+            encoder=str,
+            decoder=datetime_from_unix_ns,
+        )
+    )
+    accepted_by: Dict[str, datetime] = field(
+        metadata=config(
+            encoder=str,
+            decoder=datetime_from_unix_ns,
+        )
+    )
+    rejected_by: Dict[str, datetime] = field(
+        metadata=config(
+            encoder=str,
+            decoder=datetime_from_unix_ns,
+        )
+    )
+    ended_at: Optional[datetime] = field(
+        default=None,
+        metadata=config(
+            encoder=str,
+            decoder=datetime_from_unix_ns,
+        ),
+    )
+
+
+def test_call_session_response_from_dict():
+    # Test data
+    test_data = {
+        "id": "call123",
+        "missed_by": {"user1": "1577836800000000000", "user2": "1577836801000000000"},
+        "accepted_by": {"user3": "1577836802000000000"},
+        "rejected_by": {"user4": "1577836803000000000"},
+        "ended_at": "1577836804000000000",
+    }
+
+    # Create CallSessionResponse object from dict
+    call_session = CallSessionResponse.from_dict(test_data)
+
+    # Assertions
+    assert call_session.id == "call123"
+
+    # Check missed_by
+    assert isinstance(call_session.missed_by, dict)
+    assert len(call_session.missed_by) == 2
+    assert call_session.missed_by["user1"] == datetime(
+        2020, 1, 1, 0, 0, tzinfo=timezone.utc
+    )
+    assert call_session.missed_by["user2"] == datetime(
+        2020, 1, 1, 0, 0, 1, tzinfo=timezone.utc
+    )
+
+    # Check accepted_by
+    assert isinstance(call_session.accepted_by, dict)
+    assert len(call_session.accepted_by) == 1
+    assert call_session.accepted_by["user3"] == datetime(
+        2020, 1, 1, 0, 0, 2, tzinfo=timezone.utc
+    )
+
+    # Check rejected_by
+    assert isinstance(call_session.rejected_by, dict)
+    assert len(call_session.rejected_by) == 1
+    assert call_session.rejected_by["user4"] == datetime(
+        2020, 1, 1, 0, 0, 3, tzinfo=timezone.utc
+    )
+
+    # Check ended_at
+    assert call_session.ended_at == datetime(2020, 1, 1, 0, 0, 4, tzinfo=timezone.utc)
+
+
+def test_call_session_response_from_dict_with_none():
+    # Test data with some None values
+    test_data = {
+        "id": "call456",
+        "missed_by": {"user1": None, "user2": "1577836801000000000"},
+        "accepted_by": {},
+        "rejected_by": {"user3": "1577836803000000000"},
+        "ended_at": None,
+    }
+
+    # Create CallSessionResponse object from dict
+    call_session = CallSessionResponse.from_dict(test_data)
+
+    # Assertions
+    assert call_session.id == "call456"
+
+    # Check missed_by
+    assert isinstance(call_session.missed_by, dict)
+    assert len(call_session.missed_by) == 2
+    assert call_session.missed_by["user1"] is None
+    assert call_session.missed_by["user2"] == datetime(
+        2020, 1, 1, 0, 0, 1, tzinfo=timezone.utc
+    )
+
+    # Check accepted_by
+    assert isinstance(call_session.accepted_by, dict)
+    assert len(call_session.accepted_by) == 0
+
+    # Check rejected_by
+    assert isinstance(call_session.rejected_by, dict)
+    assert len(call_session.rejected_by) == 1
+    assert call_session.rejected_by["user3"] == datetime(
+        2020, 1, 1, 0, 0, 3, tzinfo=timezone.utc
+    )
+
+    # Check ended_at
+    assert call_session.ended_at is None
