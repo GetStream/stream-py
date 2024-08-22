@@ -1,8 +1,10 @@
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+import json
 from typing import Dict, List, Optional
+import os
 
-from getstream.models import OwnCapability, OwnCapabilityType
+from getstream.models import GetCallResponse, OwnCapability, OwnCapabilityType
 from getstream.utils import (
     datetime_from_unix_ns,
     encode_datetime,
@@ -331,3 +333,17 @@ def test_call_session_response_from_dict_with_none():
 
     # Check ended_at
     assert call_session.ended_at is None
+
+
+def test_get_call_response_from_dict():
+    # Read the fixture file
+    fixtures_dir = os.path.join(os.path.dirname(__file__), "fixtures")
+    with open(os.path.join(fixtures_dir, "get_call_response.json"), "r") as f:
+        call_data = json.load(f)
+        print(call_data)
+
+    call_response = GetCallResponse.from_dict(call_data)
+    missed_by = call_response.call.session.missed_by
+    assert missed_by["789012"] == datetime(
+        2024, 8, 22, 11, 34, 19, 330435, tzinfo=timezone.utc
+    )
