@@ -354,27 +354,14 @@ class VideoRestClient(BaseClient):
             path_params=path_params,
         )
 
-    def start_rtmp_broadcast(
-        self,
-        type: str,
-        id: str,
-        name: str,
-        stream_url: str,
-        quality: Optional[str] = None,
-        stream_key: Optional[str] = None,
-        layout: Optional[LayoutSettingsRequest] = None,
+    def start_rtmp_broadcasts(
+        self, type: str, id: str, broadcasts: List[RTMPBroadcastRequest]
     ) -> StreamResponse[StartRTMPBroadcastsResponse]:
         path_params = {
             "type": type,
             "id": id,
         }
-        json = build_body_dict(
-            name=name,
-            stream_url=stream_url,
-            quality=quality,
-            stream_key=stream_key,
-            layout=layout,
-        )
+        json = build_body_dict(broadcasts=broadcasts)
 
         return self.post(
             "/api/v2/video/call/{type}/{id}/rtmp_broadcasts",

@@ -196,22 +196,11 @@ class Call:
         self._sync_from_response(response.data)
         return response
 
-    def start_rtmp_broadcast(
-        self,
-        name: str,
-        stream_url: str,
-        quality: Optional[str] = None,
-        stream_key: Optional[str] = None,
-        layout: Optional[LayoutSettingsRequest] = None,
+    def start_rtmp_broadcasts(
+        self, broadcasts: List[RTMPBroadcastRequest]
     ) -> StreamResponse[StartRTMPBroadcastsResponse]:
-        response = self.client.start_rtmp_broadcast(
-            type=self.call_type,
-            id=self.id,
-            name=name,
-            stream_url=stream_url,
-            quality=quality,
-            stream_key=stream_key,
-            layout=layout,
+        response = self.client.start_rtmp_broadcasts(
+            type=self.call_type, id=self.id, broadcasts=broadcasts
         )
         self._sync_from_response(response.data)
         return response

@@ -16,6 +16,9 @@ class APIError(DataClassJsonMixin):
     more_info: str = dc_field(metadata=dc_config(field_name="more_info"))
     status_code: int = dc_field(metadata=dc_config(field_name="StatusCode"))
     details: "List[int]" = dc_field(metadata=dc_config(field_name="details"))
+    unrecoverable: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="unrecoverable")
+    )
     exception_fields: "Optional[Dict[str, str]]" = dc_field(
         default=None, metadata=dc_config(field_name="exception_fields")
     )
@@ -970,6 +973,9 @@ class CallResponse(DataClassJsonMixin):
 
 @dataclass
 class CallSessionResponse(DataClassJsonMixin):
+    anonymous_participant_count: int = dc_field(
+        metadata=dc_config(field_name="anonymous_participant_count")
+    )
     id: str = dc_field(metadata=dc_config(field_name="id"))
     participants: "List[CallParticipantResponse]" = dc_field(
         metadata=dc_config(field_name="participants")
@@ -1403,12 +1409,6 @@ class ChannelConfig(DataClassJsonMixin):
     blocklist_behavior: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="blocklist_behavior")
     )
-    partition_size: Optional[int] = dc_field(
-        default=None, metadata=dc_config(field_name="partition_size")
-    )
-    partition_ttl: Optional[int] = dc_field(
-        default=None, metadata=dc_config(field_name="partition_ttl")
-    )
     allowed_flag_reasons: Optional[List[str]] = dc_field(
         default=None, metadata=dc_config(field_name="allowed_flag_reasons")
     )
@@ -1572,7 +1572,7 @@ class ChannelInput(DataClassJsonMixin):
     config_overrides: "Optional[ChannelConfig]" = dc_field(
         default=None, metadata=dc_config(field_name="config_overrides")
     )
-    created_by: "Optional[UserObject]" = dc_field(
+    created_by: "Optional[UserRequest]" = dc_field(
         default=None, metadata=dc_config(field_name="created_by")
     )
     custom: Optional[Dict[str, object]] = dc_field(
@@ -2892,6 +2892,11 @@ class DeleteMessageRequest(DataClassJsonMixin):
 class DeleteMessageResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
     message: "MessageResponse" = dc_field(metadata=dc_config(field_name="message"))
+
+
+@dataclass
+class DeleteModerationTemplateResponse(DataClassJsonMixin):
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
 
 
 @dataclass
@@ -4742,7 +4747,7 @@ class MessageFlagResponse(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         )
     )
-    app_roved_at: Optional[datetime] = dc_field(
+    approved_at: Optional[datetime] = dc_field(
         default=None,
         metadata=dc_config(
             field_name="approved_at",
@@ -6336,6 +6341,38 @@ class QueryChannelsResponse(DataClassJsonMixin):
 
 
 @dataclass
+class QueryFeedModerationTemplate(DataClassJsonMixin):
+    created_at: datetime = dc_field(
+        metadata=dc_config(
+            field_name="created_at",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        )
+    )
+    name: str = dc_field(metadata=dc_config(field_name="name"))
+    updated_at: datetime = dc_field(
+        metadata=dc_config(
+            field_name="updated_at",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        )
+    )
+    config: "Optional[FeedsModerationTemplateConfig]" = dc_field(
+        default=None, metadata=dc_config(field_name="config")
+    )
+
+
+@dataclass
+class QueryFeedModerationTemplatesResponse(DataClassJsonMixin):
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    templates: "List[QueryFeedModerationTemplate]" = dc_field(
+        metadata=dc_config(field_name="templates")
+    )
+
+
+@dataclass
 class QueryMembersRequest(DataClassJsonMixin):
     type: str = dc_field(metadata=dc_config(field_name="type"))
     filter_conditions: Dict[str, object] = dc_field(
@@ -6665,6 +6702,21 @@ class QueueStatsResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
     time_to_action_buckets: "Dict[str, int]" = dc_field(
         metadata=dc_config(field_name="time_to_action_buckets")
+    )
+
+
+@dataclass
+class RTMPBroadcastRequest(DataClassJsonMixin):
+    name: str = dc_field(metadata=dc_config(field_name="name"))
+    stream_url: str = dc_field(metadata=dc_config(field_name="stream_url"))
+    quality: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="quality")
+    )
+    stream_key: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="stream_key")
+    )
+    layout: "Optional[LayoutSettingsRequest]" = dc_field(
+        default=None, metadata=dc_config(field_name="layout")
     )
 
 
@@ -7466,16 +7518,8 @@ class StartHLSBroadcastingResponse(DataClassJsonMixin):
 
 @dataclass
 class StartRTMPBroadcastsRequest(DataClassJsonMixin):
-    name: str = dc_field(metadata=dc_config(field_name="name"))
-    stream_url: str = dc_field(metadata=dc_config(field_name="stream_url"))
-    quality: Optional[str] = dc_field(
-        default=None, metadata=dc_config(field_name="quality")
-    )
-    stream_key: Optional[str] = dc_field(
-        default=None, metadata=dc_config(field_name="stream_key")
-    )
-    layout: "Optional[LayoutSettingsRequest]" = dc_field(
-        default=None, metadata=dc_config(field_name="layout")
+    broadcasts: "List[RTMPBroadcastRequest]" = dc_field(
+        metadata=dc_config(field_name="broadcasts")
     )
 
 
