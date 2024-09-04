@@ -1,8 +1,7 @@
 import time
 import jwt
 from functools import cached_property
-from typing import List
-
+from typing import List, Optional, Dict, Any
 from getstream.chat.client import ChatClient
 from getstream.common.client import CommonClient
 from getstream.models import UserRequest
@@ -80,7 +79,7 @@ class Stream(CommonClient):
     def create_token(
         self,
         user_id: str,
-        expiration: int = None,
+        expiration: Optional[int] = None,
     ):
         """
             Generates a token for a given user, with an optional expiration time.
@@ -111,9 +110,9 @@ class Stream(CommonClient):
     def create_call_token(
         self,
         user_id: str,
-        call_cids: List[str] = None,
-        role: str = None,
-        expiration: int = None,
+        call_cids: Optional[List[str]] = None,
+        role: Optional[str] = None,
+        expiration: Optional[int] = None,
     ):
         return self._create_token(
             user_id=user_id, call_cids=call_cids, role=role, expiration=expiration
@@ -121,15 +120,15 @@ class Stream(CommonClient):
 
     def _create_token(
         self,
-        user_id: str = None,
-        channel_cids: List[str] = None,
-        call_cids: List[str] = None,
-        role: str = None,
+        user_id: Optional[str] = None,
+        channel_cids: Optional[List[str]] = None,
+        call_cids: Optional[List[str]] = None,
+        role: Optional[str] = None,
         expiration=None,
     ):
         now = int(time.time())
 
-        claims = {
+        claims: Dict[str, Any] = {
             "iat": now,
         }
 
