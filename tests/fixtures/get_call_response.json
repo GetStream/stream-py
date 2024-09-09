@@ -141,6 +141,7 @@
             "ended_at": null,
             "participants": [],
             "participants_count_by_role": {},
+            "anonymous_participant_count": 0,
             "rejected_by": {
                 "123456": 1724326459013491368
             },
