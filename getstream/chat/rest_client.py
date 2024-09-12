@@ -295,6 +295,28 @@ class ChatRestClient(BaseClient):
             json=json,
         )
 
+    def update_member_partial(
+        self,
+        user_id: str,
+        type: str,
+        id: str,
+        unset: Optional[List[str]] = None,
+        set: Optional[Dict[str, object]] = None,
+    ) -> StreamResponse[UpdateMemberPartialResponse]:
+        path_params = {
+            "user_id": user_id,
+            "type": type,
+            "id": id,
+        }
+        json = build_body_dict(unset=unset, set=set)
+
+        return self.patch(
+            "/api/v2/chat/channels/{type}/{id}/member/{user_id}",
+            UpdateMemberPartialResponse,
+            path_params=path_params,
+            json=json,
+        )
+
     def send_message(
         self,
         type: str,
@@ -723,7 +745,7 @@ class ChatRestClient(BaseClient):
         )
 
     def query_members(
-        self, payload: Optional[QueryMembersRequest] = None
+        self, payload: Optional[QueryMembersPayload] = None
     ) -> StreamResponse[MembersResponse]:
         query_params = build_query_param(payload=payload)
 
@@ -1049,7 +1071,7 @@ class ChatRestClient(BaseClient):
         )
 
     def query_message_flags(
-        self, payload: Optional[QueryMessageFlagsRequest] = None
+        self, payload: Optional[QueryMessageFlagsPayload] = None
     ) -> StreamResponse[QueryMessageFlagsResponse]:
         query_params = build_query_param(payload=payload)
 
@@ -1333,7 +1355,7 @@ class ChatRestClient(BaseClient):
         )
 
     def query_banned_users(
-        self, payload: Optional[QueryBannedUsersRequest] = None
+        self, payload: Optional[QueryBannedUsersPayload] = None
     ) -> StreamResponse[QueryBannedUsersResponse]:
         query_params = build_query_param(payload=payload)
 
@@ -1344,7 +1366,7 @@ class ChatRestClient(BaseClient):
         )
 
     def search(
-        self, payload: Optional[SearchRequest] = None
+        self, payload: Optional[SearchPayload] = None
     ) -> StreamResponse[SearchResponse]:
         query_params = build_query_param(payload=payload)
 
@@ -1379,13 +1401,11 @@ class ChatRestClient(BaseClient):
     def get_thread(
         self,
         message_id: str,
-        connection_id: Optional[str] = None,
         reply_limit: Optional[int] = None,
         participant_limit: Optional[int] = None,
         member_limit: Optional[int] = None,
     ) -> StreamResponse[GetThreadResponse]:
         query_params = build_query_param(
-            connection_id=connection_id,
             reply_limit=reply_limit,
             participant_limit=participant_limit,
             member_limit=member_limit,
