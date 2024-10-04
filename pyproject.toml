@@ -9,17 +9,29 @@ authors = [
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = ">=3.9,<4.0.0"
+python = ">=3.10,<4.0.0"
 httpx = "^0.27.0"
 pyjwt = "^2.8.0"
 dataclasses-json = "^0.6.0"
 marshmallow = "^3.21.0"
+cffi = "^1.17.1"
+betterproto = "^1.2.5"
+sounddevice = "^0.5.0"
+numpy = "^2.1.1"
+pyaudio = "^0.2.14"
+pydub = "^0.25.1"
+opuslib = "^3.0.1"
+cartesia = "^1.0.13"
+soundfile = "^0.12.1"
+pyogg = {git = "https://github.com/TeamPyOgg/PyOgg.git"}
+torchaudio = "^2.4.1"
 
 [tool.poetry.group.dev.dependencies]
 python-dateutil = "^2.8.2"
 python-dotenv = "^1.0.0"
 pytest = "^7.3.1"
 flake8 = "^6.0.0"
+betterproto = {extras = ["compiler"], version = "^1.2.5"}
 
 [tool.poetry.group.dev-dependencies.dependencies]
 python-dotenv = "^1.0.1"
