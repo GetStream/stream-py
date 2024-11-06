@@ -2,6 +2,12 @@
 
 [![build](https://github.com/GetStream/stream-py/actions/workflows/ci.yml/badge.svg)](https://github.com/GetStream/stream-py/actions) [![PyPI version](https://badge.fury.io/py/getstream.svg)](http://badge.fury.io/py/getstream) ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/getstream.svg)
 
+Check out our:
+
+- ⭐ [Chat API](https://getstream.io/chat/)
+- 📱 [Video API](https://getstream.io/video/)
+- 🔔 [Activity Feeds](https://getstream.io/activity-feeds/)
+
 ## Features
 
 - Video call creation and management
