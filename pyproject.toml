@@ -14,6 +14,7 @@ httpx = "^0.27.0"
 pyjwt = "^2.8.0"
 dataclasses-json = "^0.6.0"
 marshmallow = "^3.21.0"
+click = "^8.1.7"
 
 [tool.poetry.group.dev.dependencies]
 python-dateutil = "^2.8.2"
@@ -21,6 +22,7 @@ python-dotenv = "^1.0.0"
 pytest = "^7.3.1"
 flake8 = "^6.0.0"
 
+pytest-mock = "^3.14.0"
 [tool.poetry.group.dev-dependencies.dependencies]
 python-dotenv = "^1.0.1"
 ruff = "^0.4.1"
@@ -32,3 +34,9 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.ruff.lint]
 ignore = ["F405", "F403"]
+
+[tool.poetry.scripts]
+stream-cli = "getstream.cli:main"
+
+[tool.poetry.plugins."getstream.completion"]
+stream-cli = "getstream.cli.completion:completion"
