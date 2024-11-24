@@ -337,7 +337,7 @@ def test_call_session_response_from_dict_with_none():
     assert call_session.ended_at is None
 
 
-@pytest.skip("fixture is not longer valid, skip for now")
+@pytest.mark.skip("fixture is not longer valid, skip for now")
 def test_get_call_response_from_dict():
     # Read the fixture file
     fixtures_dir = os.path.join(os.path.dirname(__file__), "fixtures")
