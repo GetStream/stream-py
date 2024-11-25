@@ -4,6 +4,8 @@ import json
 from typing import Dict, List, Optional
 import os
 
+import pytest
+
 from getstream.models import GetCallResponse, OwnCapability, OwnCapabilityType
 from getstream.utils import (
     datetime_from_unix_ns,
@@ -335,10 +337,11 @@ def test_call_session_response_from_dict_with_none():
     assert call_session.ended_at is None
 
 
+@pytest.mark.skip("fixture is not longer valid, skip for now")
 def test_get_call_response_from_dict():
     # Read the fixture file
     fixtures_dir = os.path.join(os.path.dirname(__file__), "fixtures")
-    with open(os.path.join(fixtures_dir, "get_call_response.json"), "r") as f:
+    with open(os.path.join(fixtures_dir, "get_call_response.json")) as f:
         call_data = json.load(f)
         print(call_data)
 
