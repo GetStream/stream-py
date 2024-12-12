@@ -739,15 +739,3 @@ class VideoRestClient(BaseClient):
 
     def get_edges(self) -> StreamResponse[GetEdgesResponse]:
         return self.get("/api/v2/video/edges", GetEdgesResponse)
-
-    def query_aggregate_call_stats(
-        self,
-        _from: Optional[str] = None,
-        to: Optional[str] = None,
-        report_types: Optional[List[str]] = None,
-    ) -> StreamResponse[QueryAggregateCallStatsResponse]:
-        json = build_body_dict(_from=_from, to=to, report_types=report_types)
-
-        return self.post(
-            "/api/v2/video/stats", QueryAggregateCallStatsResponse, json=json
-        )

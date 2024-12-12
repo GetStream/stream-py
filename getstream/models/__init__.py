@@ -799,12 +799,6 @@ class BodyguardSeverityRule(DataClassJsonMixin):
 
 
 @dataclass
-class Bound(DataClassJsonMixin):
-    inclusive: bool = dc_field(metadata=dc_config(field_name="inclusive"))
-    value: float = dc_field(metadata=dc_config(field_name="value"))
-
-
-@dataclass
 class BroadcastSettings(DataClassJsonMixin):
     enabled: bool = dc_field(metadata=dc_config(field_name="enabled"))
     hls: "Optional[HLSSettings]" = dc_field(
@@ -836,20 +830,6 @@ class BroadcastSettingsResponse(DataClassJsonMixin):
 
 
 @dataclass
-class CallDurationReport(DataClassJsonMixin):
-    histogram: "List[ReportByHistogramBucket]" = dc_field(
-        metadata=dc_config(field_name="histogram")
-    )
-
-
-@dataclass
-class CallDurationReportResponse(DataClassJsonMixin):
-    daily: "List[DailyAggregateCallDurationReportResponse]" = dc_field(
-        metadata=dc_config(field_name="daily")
-    )
-
-
-@dataclass
 class CallEvent(DataClassJsonMixin):
     description: str = dc_field(metadata=dc_config(field_name="description"))
     end_timestamp: int = dc_field(metadata=dc_config(field_name="end_timestamp"))
@@ -872,20 +852,6 @@ class CallEvent(DataClassJsonMixin):
 @dataclass
 class CallIngressResponse(DataClassJsonMixin):
     rtmp: "RTMPIngress" = dc_field(metadata=dc_config(field_name="rtmp"))
-
-
-@dataclass
-class CallParticipantCountReport(DataClassJsonMixin):
-    histogram: "List[ReportByHistogramBucket]" = dc_field(
-        metadata=dc_config(field_name="histogram")
-    )
-
-
-@dataclass
-class CallParticipantCountReportResponse(DataClassJsonMixin):
-    daily: "List[DailyAggregateCallParticipantCountReportResponse]" = dc_field(
-        metadata=dc_config(field_name="daily")
-    )
 
 
 @dataclass
@@ -1245,9 +1211,6 @@ class CallStatsReportSummaryResponse(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         ),
     )
-    min_user_rating: Optional[int] = dc_field(
-        default=None, metadata=dc_config(field_name="min_user_rating")
-    )
     quality_score: Optional[int] = dc_field(
         default=None, metadata=dc_config(field_name="quality_score")
     )
@@ -1340,18 +1303,6 @@ class CallTypeResponse(DataClassJsonMixin):
     )
     external_storage: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="external_storage")
-    )
-
-
-@dataclass
-class CallsPerDayReport(DataClassJsonMixin):
-    count: int = dc_field(metadata=dc_config(field_name="count"))
-
-
-@dataclass
-class CallsPerDayReportResponse(DataClassJsonMixin):
-    daily: "List[DailyAggregateCallsPerDayReportResponse]" = dc_field(
-        metadata=dc_config(field_name="daily")
     )
 
 
@@ -3095,44 +3046,6 @@ class CustomCheckResponse(DataClassJsonMixin):
 
 
 @dataclass
-class DailyAggregateCallDurationReportResponse(DataClassJsonMixin):
-    date: str = dc_field(metadata=dc_config(field_name="date"))
-    report: "CallDurationReport" = dc_field(metadata=dc_config(field_name="report"))
-
-
-@dataclass
-class DailyAggregateCallParticipantCountReportResponse(DataClassJsonMixin):
-    date: str = dc_field(metadata=dc_config(field_name="date"))
-    report: "CallParticipantCountReport" = dc_field(
-        metadata=dc_config(field_name="report")
-    )
-
-
-@dataclass
-class DailyAggregateCallsPerDayReportResponse(DataClassJsonMixin):
-    date: str = dc_field(metadata=dc_config(field_name="date"))
-    report: "CallsPerDayReport" = dc_field(metadata=dc_config(field_name="report"))
-
-
-@dataclass
-class DailyAggregateQualityScoreReportResponse(DataClassJsonMixin):
-    date: str = dc_field(metadata=dc_config(field_name="date"))
-    report: "QualityScoreReport" = dc_field(metadata=dc_config(field_name="report"))
-
-
-@dataclass
-class DailyAggregateSDKUsageReportResponse(DataClassJsonMixin):
-    date: str = dc_field(metadata=dc_config(field_name="date"))
-    report: "SDKUsageReport" = dc_field(metadata=dc_config(field_name="report"))
-
-
-@dataclass
-class DailyAggregateUserFeedbackReportResponse(DataClassJsonMixin):
-    date: str = dc_field(metadata=dc_config(field_name="date"))
-    report: "UserFeedbackReport" = dc_field(metadata=dc_config(field_name="report"))
-
-
-@dataclass
 class Data(DataClassJsonMixin):
     id: str = dc_field(metadata=dc_config(field_name="id"))
 
@@ -4280,9 +4193,6 @@ class GetCallStatsResponse(DataClassJsonMixin):
         metadata=dc_config(field_name="participant_report")
     )
     sfus: "List[SFULocationResponse]" = dc_field(metadata=dc_config(field_name="sfus"))
-    average_connection_time: Optional[float] = dc_field(
-        default=None, metadata=dc_config(field_name="average_connection_time")
-    )
     aggregated: "Optional[AggregatedStats]" = dc_field(
         default=None, metadata=dc_config(field_name="aggregated")
     )
@@ -6105,22 +6015,6 @@ class MuteUsersResponse(DataClassJsonMixin):
 
 
 @dataclass
-class NetworkMetricsReportResponse(DataClassJsonMixin):
-    average_connection_time: Optional[float] = dc_field(
-        default=None, metadata=dc_config(field_name="average_connection_time")
-    )
-    average_jitter: Optional[float] = dc_field(
-        default=None, metadata=dc_config(field_name="average_jitter")
-    )
-    average_latency: Optional[float] = dc_field(
-        default=None, metadata=dc_config(field_name="average_latency")
-    )
-    average_time_to_reconnect: Optional[float] = dc_field(
-        default=None, metadata=dc_config(field_name="average_time_to_reconnect")
-    )
-
-
-@dataclass
 class NoiseCancellationSettings(DataClassJsonMixin):
     mode: str = dc_field(metadata=dc_config(field_name="mode"))
 
@@ -6422,12 +6316,6 @@ class PendingMessageResponse(DataClassJsonMixin):
     user: "Optional[UserResponse]" = dc_field(
         default=None, metadata=dc_config(field_name="user")
     )
-
-
-@dataclass
-class PerSDKUsageReport(DataClassJsonMixin):
-    total: int = dc_field(metadata=dc_config(field_name="total"))
-    by_version: "Dict[str, int]" = dc_field(metadata=dc_config(field_name="by_version"))
 
 
 @dataclass
@@ -7047,57 +6935,6 @@ class PushProviderResponse(DataClassJsonMixin):
     )
     xiaomi_package_name: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="xiaomi_package_name")
-    )
-
-
-@dataclass
-class QualityScoreReport(DataClassJsonMixin):
-    histogram: "List[ReportByHistogramBucket]" = dc_field(
-        metadata=dc_config(field_name="histogram")
-    )
-
-
-@dataclass
-class QualityScoreReportResponse(DataClassJsonMixin):
-    daily: "List[DailyAggregateQualityScoreReportResponse]" = dc_field(
-        metadata=dc_config(field_name="daily")
-    )
-
-
-@dataclass
-class QueryAggregateCallStatsRequest(DataClassJsonMixin):
-    _from: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="from"))
-    to: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="to"))
-    report_types: Optional[List[str]] = dc_field(
-        default=None, metadata=dc_config(field_name="report_types")
-    )
-
-
-@dataclass
-class QueryAggregateCallStatsResponse(DataClassJsonMixin):
-    duration: str = dc_field(metadata=dc_config(field_name="duration"))
-    call_duration_report: "Optional[CallDurationReportResponse]" = dc_field(
-        default=None, metadata=dc_config(field_name="call_duration_report")
-    )
-    call_participant_count_report: "Optional[CallParticipantCountReportResponse]" = (
-        dc_field(
-            default=None, metadata=dc_config(field_name="call_participant_count_report")
-        )
-    )
-    calls_per_day_report: "Optional[CallsPerDayReportResponse]" = dc_field(
-        default=None, metadata=dc_config(field_name="calls_per_day_report")
-    )
-    network_metrics_report: "Optional[NetworkMetricsReportResponse]" = dc_field(
-        default=None, metadata=dc_config(field_name="network_metrics_report")
-    )
-    quality_score_report: "Optional[QualityScoreReportResponse]" = dc_field(
-        default=None, metadata=dc_config(field_name="quality_score_report")
-    )
-    sdk_usage_report: "Optional[SDKUsageReportResponse]" = dc_field(
-        default=None, metadata=dc_config(field_name="sdk_usage_report")
-    )
-    user_feedback_report: "Optional[UserFeedbackReportResponse]" = dc_field(
-        default=None, metadata=dc_config(field_name="user_feedback_report")
     )
 
 
@@ -8012,20 +7849,6 @@ class RecordSettingsResponse(DataClassJsonMixin):
 
 
 @dataclass
-class ReportByHistogramBucket(DataClassJsonMixin):
-    category: str = dc_field(metadata=dc_config(field_name="category"))
-    count: int = dc_field(metadata=dc_config(field_name="count"))
-    mean: float = dc_field(metadata=dc_config(field_name="mean"))
-    sum: float = dc_field(metadata=dc_config(field_name="sum"))
-    lower_bound: "Optional[Bound]" = dc_field(
-        default=None, metadata=dc_config(field_name="lower_bound")
-    )
-    upper_bound: "Optional[Bound]" = dc_field(
-        default=None, metadata=dc_config(field_name="upper_bound")
-    )
-
-
-@dataclass
 class Response(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
 
@@ -8249,20 +8072,6 @@ class S3Request(DataClassJsonMixin):
     )
     s3_secret: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="s3_secret")
-    )
-
-
-@dataclass
-class SDKUsageReport(DataClassJsonMixin):
-    per_sdk_usage: "Dict[str, Optional[PerSDKUsageReport]]" = dc_field(
-        metadata=dc_config(field_name="per_sdk_usage")
-    )
-
-
-@dataclass
-class SDKUsageReportResponse(DataClassJsonMixin):
-    daily: "List[DailyAggregateSDKUsageReportResponse]" = dc_field(
-        metadata=dc_config(field_name="daily")
     )
 
 
@@ -10389,21 +10198,6 @@ class UserCustomEventRequest(DataClassJsonMixin):
 
 
 @dataclass
-class UserFeedbackReport(DataClassJsonMixin):
-    unreported_count: int = dc_field(metadata=dc_config(field_name="unreported_count"))
-    count_by_rating: "Dict[str, int]" = dc_field(
-        metadata=dc_config(field_name="count_by_rating")
-    )
-
-
-@dataclass
-class UserFeedbackReportResponse(DataClassJsonMixin):
-    daily: "List[DailyAggregateUserFeedbackReportResponse]" = dc_field(
-        metadata=dc_config(field_name="daily")
-    )
-
-
-@dataclass
 class UserInfoResponse(DataClassJsonMixin):
     id: str = dc_field(metadata=dc_config(field_name="id"))
     image: str = dc_field(metadata=dc_config(field_name="image"))
@@ -10629,9 +10423,6 @@ class UserSessionStats(DataClassJsonMixin):
     session_id: str = dc_field(metadata=dc_config(field_name="session_id"))
     total_pixels_in: int = dc_field(metadata=dc_config(field_name="total_pixels_in"))
     total_pixels_out: int = dc_field(metadata=dc_config(field_name="total_pixels_out"))
-    average_connection_time: Optional[float] = dc_field(
-        default=None, metadata=dc_config(field_name="average_connection_time")
-    )
     browser: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="browser")
     )
