@@ -21,6 +21,51 @@ class ChatRestClient(BaseClient):
             token=token,
         )
 
+    def list_block_lists(self) -> StreamResponse[ListBlockListResponse]:
+        return self.get("/api/v2/chat/blocklists", ListBlockListResponse)
+
+    def create_block_list(
+        self, name: str, words: List[str], type: Optional[str] = None
+    ) -> StreamResponse[Response]:
+        json = build_body_dict(name=name, words=words, type=type)
+
+        return self.post("/api/v2/chat/blocklists", Response, json=json)
+
+    def delete_block_list(self, name: str) -> StreamResponse[Response]:
+        path_params = {
+            "name": name,
+        }
+
+        return self.delete(
+            "/api/v2/chat/blocklists/{name}", Response, path_params=path_params
+        )
+
+    def get_block_list(self, name: str) -> StreamResponse[GetBlockListResponse]:
+        path_params = {
+            "name": name,
+        }
+
+        return self.get(
+            "/api/v2/chat/blocklists/{name}",
+            GetBlockListResponse,
+            path_params=path_params,
+        )
+
+    def update_block_list(
+        self, name: str, words: Optional[List[str]] = None
+    ) -> StreamResponse[Response]:
+        path_params = {
+            "name": name,
+        }
+        json = build_body_dict(words=words)
+
+        return self.put(
+            "/api/v2/chat/blocklists/{name}",
+            Response,
+            path_params=path_params,
+            json=json,
+        )
+
     def query_campaigns(
         self,
         limit: Optional[int] = None,
@@ -1602,6 +1647,41 @@ class ChatRestClient(BaseClient):
         return self.post(
             "/api/v2/chat/unread_batch", UnreadCountsBatchResponse, json=json
         )
+
+    def get_blocked_users(
+        self, user_id: Optional[str] = None
+    ) -> StreamResponse[GetBlockedUsersResponse]:
+        query_params = build_query_param(user_id=user_id)
+
+        return self.get(
+            "/api/v2/chat/users/block",
+            GetBlockedUsersResponse,
+            query_params=query_params,
+        )
+
+    def block_users(
+        self,
+        blocked_user_id: str,
+        user_id: Optional[str] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[BlockUsersResponse]:
+        json = build_body_dict(
+            blocked_user_id=blocked_user_id, user_id=user_id, user=user
+        )
+
+        return self.post("/api/v2/chat/users/block", BlockUsersResponse, json=json)
+
+    def unblock_users(
+        self,
+        blocked_user_id: str,
+        user_id: Optional[str] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[UnblockUsersResponse]:
+        json = build_body_dict(
+            blocked_user_id=blocked_user_id, user_id=user_id, user=user
+        )
+
+        return self.post("/api/v2/chat/users/unblock", UnblockUsersResponse, json=json)
 
     def send_user_custom_event(
         self, user_id: str, event: UserCustomEventRequest
