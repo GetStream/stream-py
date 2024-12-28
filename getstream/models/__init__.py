@@ -798,10 +798,10 @@ class BlockedUserEvent(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         )
     )
+    user: "UserResponse" = dc_field(metadata=dc_config(field_name="user"))
     type: str = dc_field(
         default="call.blocked_user", metadata=dc_config(field_name="type")
     )
-    user: "UserResponse" = dc_field(metadata=dc_config(field_name="user"))
     blocked_by_user: "Optional[UserResponse]" = dc_field(
         default=None, metadata=dc_config(field_name="blocked_by_user")
     )
@@ -888,9 +888,9 @@ class CallAcceptedEvent(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         )
     )
-    type: str = dc_field(default="call.accepted", metadata=dc_config(field_name="type"))
     call: "CallResponse" = dc_field(metadata=dc_config(field_name="call"))
     user: "UserResponse" = dc_field(metadata=dc_config(field_name="user"))
+    type: str = dc_field(default="call.accepted", metadata=dc_config(field_name="type"))
 
 
 @dataclass
@@ -975,9 +975,9 @@ class CallCreatedEvent(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         )
     )
-    type: str = dc_field(default="call.created", metadata=dc_config(field_name="type"))
     members: "List[MemberResponse]" = dc_field(metadata=dc_config(field_name="members"))
     call: "CallResponse" = dc_field(metadata=dc_config(field_name="call"))
+    type: str = dc_field(default="call.created", metadata=dc_config(field_name="type"))
 
 
 @dataclass
@@ -991,8 +991,8 @@ class CallDeletedEvent(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         )
     )
-    type: str = dc_field(default="call.deleted", metadata=dc_config(field_name="type"))
     call: "CallResponse" = dc_field(metadata=dc_config(field_name="call"))
+    type: str = dc_field(default="call.deleted", metadata=dc_config(field_name="type"))
 
 
 @dataclass
@@ -1020,8 +1020,8 @@ class CallEndedEvent(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         )
     )
-    type: str = dc_field(default="call.ended", metadata=dc_config(field_name="type"))
     call: "CallResponse" = dc_field(metadata=dc_config(field_name="call"))
+    type: str = dc_field(default="call.ended", metadata=dc_config(field_name="type"))
     user: "Optional[UserResponse]" = dc_field(
         default=None, metadata=dc_config(field_name="user")
     )
@@ -1112,10 +1112,10 @@ class CallLiveStartedEvent(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         )
     )
+    call: "CallResponse" = dc_field(metadata=dc_config(field_name="call"))
     type: str = dc_field(
         default="call.live_started", metadata=dc_config(field_name="type")
     )
-    call: "CallResponse" = dc_field(metadata=dc_config(field_name="call"))
 
 
 @dataclass
@@ -1129,11 +1129,11 @@ class CallMemberAddedEvent(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         )
     )
+    members: "List[MemberResponse]" = dc_field(metadata=dc_config(field_name="members"))
+    call: "CallResponse" = dc_field(metadata=dc_config(field_name="call"))
     type: str = dc_field(
         default="call.member_added", metadata=dc_config(field_name="type")
     )
-    members: "List[MemberResponse]" = dc_field(metadata=dc_config(field_name="members"))
-    call: "CallResponse" = dc_field(metadata=dc_config(field_name="call"))
 
 
 @dataclass
@@ -1147,11 +1147,11 @@ class CallMemberRemovedEvent(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         )
     )
+    members: List[str] = dc_field(metadata=dc_config(field_name="members"))
+    call: "CallResponse" = dc_field(metadata=dc_config(field_name="call"))
     type: str = dc_field(
         default="call.member_removed", metadata=dc_config(field_name="type")
     )
-    members: List[str] = dc_field(metadata=dc_config(field_name="members"))
-    call: "CallResponse" = dc_field(metadata=dc_config(field_name="call"))
 
 
 @dataclass
@@ -1165,11 +1165,11 @@ class CallMemberUpdatedEvent(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         )
     )
+    members: "List[MemberResponse]" = dc_field(metadata=dc_config(field_name="members"))
+    call: "CallResponse" = dc_field(metadata=dc_config(field_name="call"))
     type: str = dc_field(
         default="call.member_updated", metadata=dc_config(field_name="type")
     )
-    members: "List[MemberResponse]" = dc_field(metadata=dc_config(field_name="members"))
-    call: "CallResponse" = dc_field(metadata=dc_config(field_name="call"))
 
 
 @dataclass
@@ -1183,13 +1183,13 @@ class CallMemberUpdatedPermissionEvent(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         )
     )
-    type: str = dc_field(
-        default="call.member_updated_permission", metadata=dc_config(field_name="type")
-    )
     members: "List[MemberResponse]" = dc_field(metadata=dc_config(field_name="members"))
     call: "CallResponse" = dc_field(metadata=dc_config(field_name="call"))
     capabilities_by_role: "Dict[str, List[str]]" = dc_field(
         metadata=dc_config(field_name="capabilities_by_role")
+    )
+    type: str = dc_field(
+        default="call.member_updated_permission", metadata=dc_config(field_name="type")
     )
 
 
@@ -1206,10 +1206,10 @@ class CallMissedEvent(DataClassJsonMixin):
     )
     notify_user: bool = dc_field(metadata=dc_config(field_name="notify_user"))
     session_id: str = dc_field(metadata=dc_config(field_name="session_id"))
-    type: str = dc_field(default="call.missed", metadata=dc_config(field_name="type"))
     members: "List[MemberResponse]" = dc_field(metadata=dc_config(field_name="members"))
     call: "CallResponse" = dc_field(metadata=dc_config(field_name="call"))
     user: "UserResponse" = dc_field(metadata=dc_config(field_name="user"))
+    type: str = dc_field(default="call.missed", metadata=dc_config(field_name="type"))
 
 
 @dataclass
@@ -1224,12 +1224,12 @@ class CallNotificationEvent(DataClassJsonMixin):
         )
     )
     session_id: str = dc_field(metadata=dc_config(field_name="session_id"))
-    type: str = dc_field(
-        default="call.notification", metadata=dc_config(field_name="type")
-    )
     members: "List[MemberResponse]" = dc_field(metadata=dc_config(field_name="members"))
     call: "CallResponse" = dc_field(metadata=dc_config(field_name="call"))
     user: "UserResponse" = dc_field(metadata=dc_config(field_name="user"))
+    type: str = dc_field(
+        default="call.notification", metadata=dc_config(field_name="type")
+    )
 
 
 @dataclass
@@ -1272,10 +1272,10 @@ class CallReactionEvent(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         )
     )
+    reaction: "ReactionResponse" = dc_field(metadata=dc_config(field_name="reaction"))
     type: str = dc_field(
         default="call.reaction_new", metadata=dc_config(field_name="type")
     )
-    reaction: "ReactionResponse" = dc_field(metadata=dc_config(field_name="reaction"))
 
 
 @dataclass
@@ -1327,11 +1327,11 @@ class CallRecordingReadyEvent(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         )
     )
-    type: str = dc_field(
-        default="call.recording_ready", metadata=dc_config(field_name="type")
-    )
     call_recording: "CallRecording" = dc_field(
         metadata=dc_config(field_name="call_recording")
+    )
+    type: str = dc_field(
+        default="call.recording_ready", metadata=dc_config(field_name="type")
     )
 
 
@@ -1378,9 +1378,9 @@ class CallRejectedEvent(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         )
     )
-    type: str = dc_field(default="call.rejected", metadata=dc_config(field_name="type"))
     call: "CallResponse" = dc_field(metadata=dc_config(field_name="call"))
     user: "UserResponse" = dc_field(metadata=dc_config(field_name="user"))
+    type: str = dc_field(default="call.rejected", metadata=dc_config(field_name="type"))
     reason: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="reason")
     )
@@ -1498,11 +1498,11 @@ class CallRingEvent(DataClassJsonMixin):
         )
     )
     session_id: str = dc_field(metadata=dc_config(field_name="session_id"))
-    type: str = dc_field(default="call.ring", metadata=dc_config(field_name="type"))
     video: bool = dc_field(metadata=dc_config(field_name="video"))
     members: "List[MemberResponse]" = dc_field(metadata=dc_config(field_name="members"))
     call: "CallResponse" = dc_field(metadata=dc_config(field_name="call"))
     user: "UserResponse" = dc_field(metadata=dc_config(field_name="user"))
+    type: str = dc_field(default="call.ring", metadata=dc_config(field_name="type"))
 
 
 @dataclass
@@ -1568,10 +1568,10 @@ class CallSessionEndedEvent(DataClassJsonMixin):
         )
     )
     session_id: str = dc_field(metadata=dc_config(field_name="session_id"))
+    call: "CallResponse" = dc_field(metadata=dc_config(field_name="call"))
     type: str = dc_field(
         default="call.session_ended", metadata=dc_config(field_name="type")
     )
-    call: "CallResponse" = dc_field(metadata=dc_config(field_name="call"))
 
 
 @dataclass
@@ -1586,11 +1586,11 @@ class CallSessionParticipantJoinedEvent(DataClassJsonMixin):
         )
     )
     session_id: str = dc_field(metadata=dc_config(field_name="session_id"))
-    type: str = dc_field(
-        default="call.session_participant_joined", metadata=dc_config(field_name="type")
-    )
     participant: "CallParticipantResponse" = dc_field(
         metadata=dc_config(field_name="participant")
+    )
+    type: str = dc_field(
+        default="call.session_participant_joined", metadata=dc_config(field_name="type")
     )
 
 
@@ -1607,11 +1607,11 @@ class CallSessionParticipantLeftEvent(DataClassJsonMixin):
     )
     duration_seconds: int = dc_field(metadata=dc_config(field_name="duration_seconds"))
     session_id: str = dc_field(metadata=dc_config(field_name="session_id"))
-    type: str = dc_field(
-        default="call.session_participant_left", metadata=dc_config(field_name="type")
-    )
     participant: "CallParticipantResponse" = dc_field(
         metadata=dc_config(field_name="participant")
+    )
+    type: str = dc_field(
+        default="call.session_participant_left", metadata=dc_config(field_name="type")
     )
 
 
@@ -1710,10 +1710,10 @@ class CallSessionStartedEvent(DataClassJsonMixin):
         )
     )
     session_id: str = dc_field(metadata=dc_config(field_name="session_id"))
+    call: "CallResponse" = dc_field(metadata=dc_config(field_name="call"))
     type: str = dc_field(
         default="call.session_started", metadata=dc_config(field_name="type")
     )
-    call: "CallResponse" = dc_field(metadata=dc_config(field_name="call"))
 
 
 @dataclass
@@ -1915,11 +1915,11 @@ class CallTranscriptionReadyEvent(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         )
     )
-    type: str = dc_field(
-        default="call.transcription_ready", metadata=dc_config(field_name="type")
-    )
     call_transcription: "CallTranscription" = dc_field(
         metadata=dc_config(field_name="call_transcription")
+    )
+    type: str = dc_field(
+        default="call.transcription_ready", metadata=dc_config(field_name="type")
     )
 
 
@@ -2027,11 +2027,11 @@ class CallUpdatedEvent(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         )
     )
-    type: str = dc_field(default="call.updated", metadata=dc_config(field_name="type"))
     call: "CallResponse" = dc_field(metadata=dc_config(field_name="call"))
     capabilities_by_role: "Dict[str, List[str]]" = dc_field(
         metadata=dc_config(field_name="capabilities_by_role")
     )
+    type: str = dc_field(default="call.updated", metadata=dc_config(field_name="type"))
 
 
 @dataclass
@@ -2046,11 +2046,11 @@ class CallUserMutedEvent(DataClassJsonMixin):
         )
     )
     from_user_id: str = dc_field(metadata=dc_config(field_name="from_user_id"))
-    type: str = dc_field(
-        default="call.user_muted", metadata=dc_config(field_name="type")
-    )
     muted_user_ids: List[str] = dc_field(
         metadata=dc_config(field_name="muted_user_ids")
+    )
+    type: str = dc_field(
+        default="call.user_muted", metadata=dc_config(field_name="type")
     )
 
 
@@ -3466,11 +3466,11 @@ class ClosedCaptionEvent(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         )
     )
-    type: str = dc_field(
-        default="call.closed_caption", metadata=dc_config(field_name="type")
-    )
     closed_caption: "CallClosedCaption" = dc_field(
         metadata=dc_config(field_name="closed_caption")
+    )
+    type: str = dc_field(
+        default="call.closed_caption", metadata=dc_config(field_name="type")
     )
 
 
@@ -3581,6 +3581,7 @@ class ConfigResponse(DataClassJsonMixin):
         )
     )
     key: str = dc_field(metadata=dc_config(field_name="key"))
+    team: str = dc_field(metadata=dc_config(field_name="team"))
     updated_at: datetime = dc_field(
         metadata=dc_config(
             field_name="updated_at",
@@ -4086,9 +4087,9 @@ class CustomVideoEvent(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         )
     )
-    type: str = dc_field(default="custom", metadata=dc_config(field_name="type"))
     custom: Dict[str, object] = dc_field(metadata=dc_config(field_name="custom"))
     user: "UserResponse" = dc_field(metadata=dc_config(field_name="user"))
+    type: str = dc_field(default="custom", metadata=dc_config(field_name="type"))
 
 
 @dataclass
@@ -6787,8 +6788,10 @@ class MessageNewEvent(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         )
     )
-    type: str = dc_field(default="message.new", metadata=dc_config(field_name="type"))
     watcher_count: int = dc_field(metadata=dc_config(field_name="watcher_count"))
+    type: str = dc_field(
+        default="notification.thread_message_new", metadata=dc_config(field_name="type")
+    )
     team: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="team"))
     thread_participants: "Optional[List[User]]" = dc_field(
         default=None, metadata=dc_config(field_name="thread_participants")
@@ -7582,13 +7585,13 @@ class NotificationMarkUnreadEvent(DataClassJsonMixin):
     total_unread_count: int = dc_field(
         metadata=dc_config(field_name="total_unread_count")
     )
-    type: str = dc_field(
-        default="notification.mark_unread", metadata=dc_config(field_name="type")
-    )
     unread_channels: int = dc_field(metadata=dc_config(field_name="unread_channels"))
     unread_count: int = dc_field(metadata=dc_config(field_name="unread_count"))
     unread_messages: int = dc_field(metadata=dc_config(field_name="unread_messages"))
     unread_threads: int = dc_field(metadata=dc_config(field_name="unread_threads"))
+    type: str = dc_field(
+        default="notification.mark_unread", metadata=dc_config(field_name="type")
+    )
     last_read_message_id: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="last_read_message_id")
     )
@@ -7930,11 +7933,11 @@ class PermissionRequestEvent(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         )
     )
+    permissions: List[str] = dc_field(metadata=dc_config(field_name="permissions"))
+    user: "UserResponse" = dc_field(metadata=dc_config(field_name="user"))
     type: str = dc_field(
         default="call.permission_request", metadata=dc_config(field_name="type")
     )
-    permissions: List[str] = dc_field(metadata=dc_config(field_name="permissions"))
-    user: "UserResponse" = dc_field(metadata=dc_config(field_name="user"))
 
 
 @dataclass
@@ -9463,11 +9466,11 @@ class ReactionUpdatedEvent(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         )
     )
+    message: "Message" = dc_field(metadata=dc_config(field_name="message"))
+    reaction: "Reaction" = dc_field(metadata=dc_config(field_name="reaction"))
     type: str = dc_field(
         default="reaction.updated", metadata=dc_config(field_name="type")
     )
-    message: "Message" = dc_field(metadata=dc_config(field_name="message"))
-    reaction: "Reaction" = dc_field(metadata=dc_config(field_name="reaction"))
     team: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="team"))
     user: "Optional[User]" = dc_field(
         default=None, metadata=dc_config(field_name="user")
@@ -10938,10 +10941,10 @@ class UnblockedUserEvent(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         )
     )
+    user: "UserResponse" = dc_field(metadata=dc_config(field_name="user"))
     type: str = dc_field(
         default="call.unblocked_user", metadata=dc_config(field_name="type")
     )
-    user: "UserResponse" = dc_field(metadata=dc_config(field_name="user"))
 
 
 @dataclass
@@ -11816,13 +11819,13 @@ class UpdatedCallPermissionsEvent(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         )
     )
-    type: str = dc_field(
-        default="call.permissions_updated", metadata=dc_config(field_name="type")
-    )
     own_capabilities: "List[OwnCapability]" = dc_field(
         metadata=dc_config(field_name="own_capabilities")
     )
     user: "UserResponse" = dc_field(metadata=dc_config(field_name="user"))
+    type: str = dc_field(
+        default="call.permissions_updated", metadata=dc_config(field_name="type")
+    )
 
 
 @dataclass
@@ -11830,6 +11833,10 @@ class UpsertConfigRequest(DataClassJsonMixin):
     key: str = dc_field(metadata=dc_config(field_name="key"))
     _async: Optional[bool] = dc_field(
         default=None, metadata=dc_config(field_name="async")
+    )
+    team: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="team"))
+    user_id: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="user_id")
     )
     ai_image_config: "Optional[AIImageConfig]" = dc_field(
         default=None, metadata=dc_config(field_name="ai_image_config")
@@ -11864,6 +11871,9 @@ class UpsertConfigRequest(DataClassJsonMixin):
     )
     google_vision_config: "Optional[GoogleVisionConfig]" = dc_field(
         default=None, metadata=dc_config(field_name="google_vision_config")
+    )
+    user: "Optional[UserRequest]" = dc_field(
+        default=None, metadata=dc_config(field_name="user")
     )
     velocity_filter_config: "Optional[VelocityFilterConfig]" = dc_field(
         default=None, metadata=dc_config(field_name="velocity_filter_config")
@@ -12036,8 +12046,8 @@ class UserBannedEvent(DataClassJsonMixin):
         )
     )
     shadow: bool = dc_field(metadata=dc_config(field_name="shadow"))
-    type: str = dc_field(default="user.banned", metadata=dc_config(field_name="type"))
     created_by: "User" = dc_field(metadata=dc_config(field_name="created_by"))
+    type: str = dc_field(default="user.banned", metadata=dc_config(field_name="type"))
     expiration: Optional[datetime] = dc_field(
         default=None,
         metadata=dc_config(
@@ -12090,10 +12100,10 @@ class UserDeactivatedEvent(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         )
     )
+    created_by: "User" = dc_field(metadata=dc_config(field_name="created_by"))
     type: str = dc_field(
         default="user.deactivated", metadata=dc_config(field_name="type")
     )
-    created_by: "User" = dc_field(metadata=dc_config(field_name="created_by"))
     user: "Optional[User]" = dc_field(
         default=None, metadata=dc_config(field_name="user")
     )
@@ -12687,11 +12697,11 @@ class UserUnreadReminderEvent(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         )
     )
-    type: str = dc_field(
-        default="user.unread_message_reminder", metadata=dc_config(field_name="type")
-    )
     channels: "Dict[str, Optional[ChannelMessages]]" = dc_field(
         metadata=dc_config(field_name="channels")
+    )
+    type: str = dc_field(
+        default="user.unread_message_reminder", metadata=dc_config(field_name="type")
     )
     user: "Optional[User]" = dc_field(
         default=None, metadata=dc_config(field_name="user")
@@ -12708,8 +12718,8 @@ class UserUpdatedEvent(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         )
     )
-    type: str = dc_field(default="user.updated", metadata=dc_config(field_name="type"))
     user: "UserEventPayload" = dc_field(metadata=dc_config(field_name="user"))
+    type: str = dc_field(default="user.updated", metadata=dc_config(field_name="type"))
     received_at: Optional[datetime] = dc_field(
         default=None,
         metadata=dc_config(
