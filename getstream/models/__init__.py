@@ -279,7 +279,6 @@ class AppResponseFields(DataClassJsonMixin):
     suspended_explanation: str = dc_field(
         metadata=dc_config(field_name="suspended_explanation")
     )
-    video_provider: str = dc_field(metadata=dc_config(field_name="video_provider"))
     webhook_url: str = dc_field(metadata=dc_config(field_name="webhook_url"))
     user_search_disallowed_roles: List[str] = dc_field(
         metadata=dc_config(field_name="user_search_disallowed_roles")
@@ -327,14 +326,8 @@ class AppResponseFields(DataClassJsonMixin):
     image_moderation_labels: Optional[List[str]] = dc_field(
         default=None, metadata=dc_config(field_name="image_moderation_labels")
     )
-    agora_options: "Optional[Config]" = dc_field(
-        default=None, metadata=dc_config(field_name="agora_options")
-    )
     datadog_info: "Optional[DataDogInfo]" = dc_field(
         default=None, metadata=dc_config(field_name="datadog_info")
-    )
-    hms_options: "Optional[Config]" = dc_field(
-        default=None, metadata=dc_config(field_name="hms_options")
     )
 
 
@@ -2891,13 +2884,11 @@ class ChannelOwnCapability:
     CAST_POLL_VOTE: Final[ChannelOwnCapabilityType] = "cast-poll-vote"
     CONNECT_EVENTS: Final[ChannelOwnCapabilityType] = "connect-events"
     CREATE_ATTACHMENT: Final[ChannelOwnCapabilityType] = "create-attachment"
-    CREATE_CALL: Final[ChannelOwnCapabilityType] = "create-call"
     DELETE_ANY_MESSAGE: Final[ChannelOwnCapabilityType] = "delete-any-message"
     DELETE_CHANNEL: Final[ChannelOwnCapabilityType] = "delete-channel"
     DELETE_OWN_MESSAGE: Final[ChannelOwnCapabilityType] = "delete-own-message"
     FLAG_MESSAGE: Final[ChannelOwnCapabilityType] = "flag-message"
     FREEZE_CHANNEL: Final[ChannelOwnCapabilityType] = "freeze-channel"
-    JOIN_CALL: Final[ChannelOwnCapabilityType] = "join-call"
     JOIN_CHANNEL: Final[ChannelOwnCapabilityType] = "join-channel"
     LEAVE_CHANNEL: Final[ChannelOwnCapabilityType] = "leave-channel"
     MUTE_CHANNEL: Final[ChannelOwnCapabilityType] = "mute-channel"
@@ -3522,18 +3513,6 @@ class Command(DataClassJsonMixin):
 @dataclass
 class CommitMessageRequest(DataClassJsonMixin):
     pass
-
-
-@dataclass
-class Config(DataClassJsonMixin):
-    app_certificate: str = dc_field(metadata=dc_config(field_name="app_certificate"))
-    app_id: str = dc_field(metadata=dc_config(field_name="app_id"))
-    default_role: Optional[str] = dc_field(
-        default=None, metadata=dc_config(field_name="default_role")
-    )
-    role_map: "Optional[Dict[str, str]]" = dc_field(
-        default=None, metadata=dc_config(field_name="role_map")
-    )
 
 
 @dataclass
@@ -6789,7 +6768,9 @@ class MessageNewEvent(DataClassJsonMixin):
         )
     )
     watcher_count: int = dc_field(metadata=dc_config(field_name="watcher_count"))
-    type: str = dc_field(default="message.new", metadata=dc_config(field_name="type"))
+    type: str = dc_field(
+        default="notification.thread_message_new", metadata=dc_config(field_name="type")
+    )
     team: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="team"))
     thread_participants: "Optional[List[User]]" = dc_field(
         default=None, metadata=dc_config(field_name="thread_participants")
@@ -11149,9 +11130,6 @@ class UpdateAppRequest(DataClassJsonMixin):
     sqs_url: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="sqs_url")
     )
-    video_provider: Optional[str] = dc_field(
-        default=None, metadata=dc_config(field_name="video_provider")
-    )
     webhook_url: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="webhook_url")
     )
@@ -11170,9 +11148,6 @@ class UpdateAppRequest(DataClassJsonMixin):
     webhook_events: Optional[List[str]] = dc_field(
         default=None, metadata=dc_config(field_name="webhook_events")
     )
-    agora_options: "Optional[Config]" = dc_field(
-        default=None, metadata=dc_config(field_name="agora_options")
-    )
     apn_config: "Optional[APNConfig]" = dc_field(
         default=None, metadata=dc_config(field_name="apn_config")
     )
@@ -11190,9 +11165,6 @@ class UpdateAppRequest(DataClassJsonMixin):
     )
     grants: "Optional[Dict[str, List[str]]]" = dc_field(
         default=None, metadata=dc_config(field_name="grants")
-    )
-    hms_options: "Optional[Config]" = dc_field(
-        default=None, metadata=dc_config(field_name="hms_options")
     )
     huawei_config: "Optional[HuaweiConfig]" = dc_field(
         default=None, metadata=dc_config(field_name="huawei_config")
