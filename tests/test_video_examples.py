@@ -1,3 +1,4 @@
+import json
 import uuid
 
 from getstream import Stream
@@ -273,8 +274,22 @@ def test_create_call_with_backstage_and_join_ahead_set(client: Stream, call: Cal
     assert response.data.call.join_ahead_time_seconds == 0
 
 
+def test_create_call_with_default_session_inactivity_timeout(call: Call):
+    user_id = str(uuid.uuid4())
+
+    # create a call and expect the default session inactivity timeout to be 30 seconds
+    response = call.get_or_create(
+        data=CallRequest(
+            created_by_id=user_id,
+        )
+    )
+
+    assert response.data.call.settings.session.inactivity_timeout_seconds == 30
+
+
 def test_create_call_with_custom_session_inactivity_timeout(call: Call):
     user_id = str(uuid.uuid4())
+
     # create a call and set its session inactivity timeout to 5 seconds
     response = call.get_or_create(
         data=CallRequest(
@@ -290,3 +305,16 @@ def test_create_call_with_custom_session_inactivity_timeout(call: Call):
     assert response.data.call.settings.session.inactivity_timeout_seconds == 5
 
 
+def test_create_call_type_with_custom_session_inactivity_timeout(client: Stream):
+
+    # create a call type with a session inactivity timeout of 5 minutes
+    response = client.video.create_call_type(
+        name="long_inactivity_timeout_" + str(uuid.uuid4()),
+        settings=CallSettingsRequest(
+            session=SessionSettingsRequest(
+                inactivity_timeout_seconds=300,
+            ),
+        ),
+    )
+
+    assert response.data.settings.session.inactivity_timeout_seconds == 300
