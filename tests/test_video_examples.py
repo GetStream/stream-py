@@ -7,7 +7,7 @@ from getstream.models import (
     ScreensharingSettingsRequest,
     OwnCapability,
     LimitsSettingsRequest,
-    BackstageSettingsRequest,
+    BackstageSettingsRequest, SessionSettingsRequest,
 )
 from getstream.video.call import Call
 from datetime import datetime, timezone, timedelta
@@ -271,3 +271,22 @@ def test_create_call_with_backstage_and_join_ahead_set(client: Stream, call: Cal
         )
     )
     assert response.data.call.join_ahead_time_seconds == 0
+
+
+def test_create_call_with_custom_session_inactivity_timeout(call: Call):
+    user_id = str(uuid.uuid4())
+    # create a call and set its session inactivity timeout to 5 seconds
+    response = call.get_or_create(
+        data=CallRequest(
+            created_by_id=user_id,
+            settings_override=CallSettingsRequest(
+                session=SessionSettingsRequest(
+                    inactivity_timeout_seconds=5,
+                ),
+            ),
+        )
+    )
+
+    assert response.data.call.settings.session.inactivity_timeout_seconds == 5
+
+

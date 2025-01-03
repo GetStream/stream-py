@@ -1735,6 +1735,9 @@ class CallSettings(DataClassJsonMixin):
     screensharing: "Optional[ScreensharingSettings]" = dc_field(
         default=None, metadata=dc_config(field_name="screensharing")
     )
+    session: "Optional[SessionSettings]" = dc_field(
+        default=None, metadata=dc_config(field_name="session")
+    )
     thumbnails: "Optional[ThumbnailsSettings]" = dc_field(
         default=None, metadata=dc_config(field_name="thumbnails")
     )
@@ -1772,6 +1775,9 @@ class CallSettingsRequest(DataClassJsonMixin):
     screensharing: "Optional[ScreensharingSettingsRequest]" = dc_field(
         default=None, metadata=dc_config(field_name="screensharing")
     )
+    session: "Optional[SessionSettingsRequest]" = dc_field(
+        default=None, metadata=dc_config(field_name="session")
+    )
     thumbnails: "Optional[ThumbnailsSettingsRequest]" = dc_field(
         default=None, metadata=dc_config(field_name="thumbnails")
     )
@@ -1802,6 +1808,9 @@ class CallSettingsResponse(DataClassJsonMixin):
     ring: "RingSettingsResponse" = dc_field(metadata=dc_config(field_name="ring"))
     screensharing: "ScreensharingSettingsResponse" = dc_field(
         metadata=dc_config(field_name="screensharing")
+    )
+    session: "SessionSettingsResponse" = dc_field(
+        metadata=dc_config(field_name="session")
     )
     thumbnails: "ThumbnailsSettingsResponse" = dc_field(
         metadata=dc_config(field_name="thumbnails")
@@ -10218,6 +10227,27 @@ class SendReactionResponse(DataClassJsonMixin):
 @dataclass
 class SendUserCustomEventRequest(DataClassJsonMixin):
     event: "UserCustomEventRequest" = dc_field(metadata=dc_config(field_name="event"))
+
+
+@dataclass
+class SessionSettings(DataClassJsonMixin):
+    inactivity_timeout_seconds: int = dc_field(
+        metadata=dc_config(field_name="inactivity_timeout_seconds")
+    )
+
+
+@dataclass
+class SessionSettingsRequest(DataClassJsonMixin):
+    inactivity_timeout_seconds: int = dc_field(
+        metadata=dc_config(field_name="inactivity_timeout_seconds")
+    )
+
+
+@dataclass
+class SessionSettingsResponse(DataClassJsonMixin):
+    inactivity_timeout_seconds: int = dc_field(
+        metadata=dc_config(field_name="inactivity_timeout_seconds")
+    )
 
 
 @dataclass
