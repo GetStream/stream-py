@@ -355,6 +355,16 @@ class TestCall(VideoTestClass):
         with pytest.raises(StreamAPIException):
             self.call.delete_transcription("random_session", "random_filename")
 
+    def test_get_call_report_for_latest_session(self):
+        with pytest.raises(StreamAPIException):
+            self.client.video.get_call_report(self.call.call_type, self.call.id)
+
+    def test_get_call_report_for_specified_session(self):
+        with pytest.raises(StreamAPIException):
+            self.client.video.get_call_report(
+                self.call.call_type, self.call.id, session_id="non_existent"
+            )
+
 
 class TestDeleteCall:
     def test_soft_delete(self, call: Call):
