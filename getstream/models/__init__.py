@@ -1380,6 +1380,29 @@ class CallRejectedEvent(DataClassJsonMixin):
 
 
 @dataclass
+class CallReportResponse(DataClassJsonMixin):
+    score: float = dc_field(metadata=dc_config(field_name="score"))
+    ended_at: Optional[datetime] = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="ended_at",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+    )
+    started_at: Optional[datetime] = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="started_at",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+    )
+
+
+@dataclass
 class CallRequest(DataClassJsonMixin):
     created_by_id: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="created_by_id")
@@ -5343,6 +5366,13 @@ class GetCallResponse(DataClassJsonMixin):
 
 
 @dataclass
+class GetCallReportResponse(DataClassJsonMixin):
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    session_id: str = dc_field(metadata=dc_config(field_name="session_id"))
+    report: "ReportResponse" = dc_field(metadata=dc_config(field_name="report"))
+
+
+@dataclass
 class GetCallStatsResponse(DataClassJsonMixin):
     call_duration_seconds: int = dc_field(
         metadata=dc_config(field_name="call_duration_seconds")
@@ -7873,6 +7903,12 @@ class PaginationParams(DataClassJsonMixin):
 
 
 @dataclass
+class ParticipantReportResponse(DataClassJsonMixin):
+    sum: int = dc_field(metadata=dc_config(field_name="sum"))
+    unique: int = dc_field(metadata=dc_config(field_name="unique"))
+
+
+@dataclass
 class PendingMessageResponse(DataClassJsonMixin):
     channel: "Optional[ChannelResponse]" = dc_field(
         default=None, metadata=dc_config(field_name="channel")
@@ -9580,6 +9616,17 @@ class ReportByHistogramBucket(DataClassJsonMixin):
     )
     upper_bound: "Optional[Bound]" = dc_field(
         default=None, metadata=dc_config(field_name="upper_bound")
+    )
+
+
+@dataclass
+class ReportResponse(DataClassJsonMixin):
+    call: "CallReportResponse" = dc_field(metadata=dc_config(field_name="call"))
+    participants: "ParticipantReportResponse" = dc_field(
+        metadata=dc_config(field_name="participants")
+    )
+    user_ratings: "UserRatingReportResponse" = dc_field(
+        metadata=dc_config(field_name="user_ratings")
     )
 
 
@@ -12362,6 +12409,12 @@ class UserReactivatedEvent(DataClassJsonMixin):
     user: "Optional[User]" = dc_field(
         default=None, metadata=dc_config(field_name="user")
     )
+
+
+@dataclass
+class UserRatingReportResponse(DataClassJsonMixin):
+    average: float = dc_field(metadata=dc_config(field_name="average"))
+    count: int = dc_field(metadata=dc_config(field_name="count"))
 
 
 @dataclass

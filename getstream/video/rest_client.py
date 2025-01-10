@@ -792,3 +792,19 @@ class VideoRestClient(BaseClient):
         return self.post(
             "/api/v2/video/stats", QueryAggregateCallStatsResponse, json=json
         )
+
+    def get_call_report(
+        self, type: str, id: str, session_id: Optional[str] = None
+    ) -> StreamResponse[GetCallReportResponse]:
+        query_params = build_query_param(session_id=session_id)
+        path_params = {
+            "type": type,
+            "id": id,
+        }
+
+        return self.get(
+            "/api/v2/video/call/{type}/{id}/report",
+            GetCallReportResponse,
+            query_params=query_params,
+            path_params=path_params,
+        )
