@@ -121,6 +121,7 @@ class Call:
     def go_live(
         self,
         recording_storage_name: Optional[str] = None,
+        start_closed_caption: Optional[bool] = None,
         start_hls: Optional[bool] = None,
         start_recording: Optional[bool] = None,
         start_rtmp_broadcasts: Optional[bool] = None,
@@ -131,6 +132,7 @@ class Call:
             type=self.call_type,
             id=self.id,
             recording_storage_name=recording_storage_name,
+            start_closed_caption=start_closed_caption,
             start_hls=start_hls,
             start_recording=start_recording,
             start_rtmp_broadcasts=start_rtmp_broadcasts,
@@ -228,8 +230,19 @@ class Call:
         self._sync_from_response(response.data)
         return response
 
-    def start_closed_captions(self) -> StreamResponse[StartClosedCaptionsResponse]:
-        response = self.client.start_closed_captions(type=self.call_type, id=self.id)
+    def start_closed_captions(
+        self,
+        enable_transcription: Optional[bool] = None,
+        external_storage: Optional[str] = None,
+        language: Optional[str] = None,
+    ) -> StreamResponse[StartClosedCaptionsResponse]:
+        response = self.client.start_closed_captions(
+            type=self.call_type,
+            id=self.id,
+            enable_transcription=enable_transcription,
+            external_storage=external_storage,
+            language=language,
+        )
         self._sync_from_response(response.data)
         return response
 
@@ -245,11 +258,16 @@ class Call:
         return response
 
     def start_transcription(
-        self, transcription_external_storage: Optional[str] = None
+        self,
+        enable_closed_captions: Optional[bool] = None,
+        language: Optional[str] = None,
+        transcription_external_storage: Optional[str] = None,
     ) -> StreamResponse[StartTranscriptionResponse]:
         response = self.client.start_transcription(
             type=self.call_type,
             id=self.id,
+            enable_closed_captions=enable_closed_captions,
+            language=language,
             transcription_external_storage=transcription_external_storage,
         )
         self._sync_from_response(response.data)
@@ -267,13 +285,32 @@ class Call:
         self._sync_from_response(response.data)
         return response
 
-    def stop_closed_captions(self) -> StreamResponse[StopClosedCaptionsResponse]:
-        response = self.client.stop_closed_captions(type=self.call_type, id=self.id)
+    def stop_closed_captions(
+        self, stop_transcription: Optional[bool] = None
+    ) -> StreamResponse[StopClosedCaptionsResponse]:
+        response = self.client.stop_closed_captions(
+            type=self.call_type, id=self.id, stop_transcription=stop_transcription
+        )
         self._sync_from_response(response.data)
         return response
 
-    def stop_live(self) -> StreamResponse[StopLiveResponse]:
-        response = self.client.stop_live(type=self.call_type, id=self.id)
+    def stop_live(
+        self,
+        continue_closed_caption: Optional[bool] = None,
+        continue_hls: Optional[bool] = None,
+        continue_recording: Optional[bool] = None,
+        continue_rtmp_broadcasts: Optional[bool] = None,
+        continue_transcription: Optional[bool] = None,
+    ) -> StreamResponse[StopLiveResponse]:
+        response = self.client.stop_live(
+            type=self.call_type,
+            id=self.id,
+            continue_closed_caption=continue_closed_caption,
+            continue_hls=continue_hls,
+            continue_recording=continue_recording,
+            continue_rtmp_broadcasts=continue_rtmp_broadcasts,
+            continue_transcription=continue_transcription,
+        )
         self._sync_from_response(response.data)
         return response
 
@@ -282,8 +319,12 @@ class Call:
         self._sync_from_response(response.data)
         return response
 
-    def stop_transcription(self) -> StreamResponse[StopTranscriptionResponse]:
-        response = self.client.stop_transcription(type=self.call_type, id=self.id)
+    def stop_transcription(
+        self, stop_closed_captions: Optional[bool] = None
+    ) -> StreamResponse[StopTranscriptionResponse]:
+        response = self.client.stop_transcription(
+            type=self.call_type, id=self.id, stop_closed_captions=stop_closed_captions
+        )
         self._sync_from_response(response.data)
         return response
 

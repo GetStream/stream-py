@@ -26,7 +26,7 @@ class ChatRestClient(BaseClient):
         limit: Optional[int] = None,
         next: Optional[str] = None,
         prev: Optional[str] = None,
-        sort: Optional[List[Optional[SortParamRequest]]] = None,
+        sort: Optional[List[SortParamRequest]] = None,
         filter: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[QueryCampaignsResponse]:
         json = build_body_dict(
@@ -88,7 +88,7 @@ class ChatRestClient(BaseClient):
         offset: Optional[int] = None,
         state: Optional[bool] = None,
         user_id: Optional[str] = None,
-        sort: Optional[List[Optional[SortParamRequest]]] = None,
+        sort: Optional[List[SortParamRequest]] = None,
         filter_conditions: Optional[Dict[str, object]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[QueryChannelsResponse]:
@@ -206,11 +206,11 @@ class ChatRestClient(BaseClient):
         reject_invite: Optional[bool] = None,
         skip_push: Optional[bool] = None,
         user_id: Optional[str] = None,
-        add_members: Optional[List[Optional[ChannelMember]]] = None,
+        add_members: Optional[List[ChannelMember]] = None,
         add_moderators: Optional[List[str]] = None,
-        assign_roles: Optional[List[Optional[ChannelMember]]] = None,
+        assign_roles: Optional[List[ChannelMember]] = None,
         demote_moderators: Optional[List[str]] = None,
-        invites: Optional[List[Optional[ChannelMember]]] = None,
+        invites: Optional[List[ChannelMember]] = None,
         remove_members: Optional[List[str]] = None,
         data: Optional[ChannelInput] = None,
         message: Optional[MessageRequest] = None,
@@ -823,7 +823,7 @@ class ChatRestClient(BaseClient):
         limit: Optional[int] = None,
         next: Optional[str] = None,
         prev: Optional[str] = None,
-        sort: Optional[List[Optional[SortParamRequest]]] = None,
+        sort: Optional[List[SortParamRequest]] = None,
     ) -> StreamResponse[QueryMessageHistoryResponse]:
         json = build_body_dict(
             filter=filter, limit=limit, next=next, prev=prev, sort=sort
@@ -999,7 +999,7 @@ class ChatRestClient(BaseClient):
         next: Optional[str] = None,
         prev: Optional[str] = None,
         user_id: Optional[str] = None,
-        sort: Optional[List[Optional[SortParamRequest]]] = None,
+        sort: Optional[List[SortParamRequest]] = None,
         filter: Optional[Dict[str, object]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[QueryReactionsResponse]:
@@ -1106,7 +1106,7 @@ class ChatRestClient(BaseClient):
         created_at_before: Optional[datetime] = None,
         id_around: Optional[str] = None,
         created_at_around: Optional[datetime] = None,
-        sort: Optional[List[Optional[SortParamRequest]]] = None,
+        sort: Optional[List[SortParamRequest]] = None,
     ) -> StreamResponse[GetRepliesResponse]:
         query_params = build_query_param(
             limit=limit,
@@ -1187,7 +1187,7 @@ class ChatRestClient(BaseClient):
         max_votes_allowed: Optional[int] = None,
         user_id: Optional[str] = None,
         voting_visibility: Optional[str] = None,
-        options: Optional[List[Optional[PollOptionInput]]] = None,
+        options: Optional[List[PollOptionInput]] = None,
         custom: Optional[Dict[str, object]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[PollResponse]:
@@ -1221,7 +1221,7 @@ class ChatRestClient(BaseClient):
         max_votes_allowed: Optional[int] = None,
         user_id: Optional[str] = None,
         voting_visibility: Optional[str] = None,
-        options: Optional[List[Optional[PollOptionRequest]]] = None,
+        options: Optional[List[PollOptionRequest]] = None,
         custom: Optional[Dict[str, object]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[PollResponse]:
@@ -1249,7 +1249,7 @@ class ChatRestClient(BaseClient):
         limit: Optional[int] = None,
         next: Optional[str] = None,
         prev: Optional[str] = None,
-        sort: Optional[List[Optional[SortParamRequest]]] = None,
+        sort: Optional[List[SortParamRequest]] = None,
         filter: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[QueryPollsResponse]:
         query_params = build_query_param(user_id=user_id)
@@ -1399,7 +1399,7 @@ class ChatRestClient(BaseClient):
         limit: Optional[int] = None,
         next: Optional[str] = None,
         prev: Optional[str] = None,
-        sort: Optional[List[Optional[SortParamRequest]]] = None,
+        sort: Optional[List[SortParamRequest]] = None,
         filter: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[PollVotesResponse]:
         query_params = build_query_param(user_id=user_id)
@@ -1444,7 +1444,7 @@ class ChatRestClient(BaseClient):
         limit: Optional[int] = None,
         next: Optional[str] = None,
         prev: Optional[str] = None,
-        sort: Optional[List[Optional[SortParamRequest]]] = None,
+        sort: Optional[List[SortParamRequest]] = None,
     ) -> StreamResponse[QuerySegmentsResponse]:
         json = build_body_dict(
             filter=filter, limit=limit, next=next, prev=prev, sort=sort
@@ -1507,7 +1507,7 @@ class ChatRestClient(BaseClient):
         limit: Optional[int] = None,
         next: Optional[str] = None,
         prev: Optional[str] = None,
-        sort: Optional[List[Optional[SortParamRequest]]] = None,
+        sort: Optional[List[SortParamRequest]] = None,
         filter: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[QuerySegmentTargetsResponse]:
         path_params = {

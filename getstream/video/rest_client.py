@@ -28,7 +28,7 @@ class VideoRestClient(BaseClient):
         limit: Optional[int] = None,
         next: Optional[str] = None,
         prev: Optional[str] = None,
-        sort: Optional[List[Optional[SortParamRequest]]] = None,
+        sort: Optional[List[SortParamRequest]] = None,
         filter_conditions: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[QueryCallMembersResponse]:
         json = build_body_dict(
@@ -50,7 +50,7 @@ class VideoRestClient(BaseClient):
         limit: Optional[int] = None,
         next: Optional[str] = None,
         prev: Optional[str] = None,
-        sort: Optional[List[Optional[SortParamRequest]]] = None,
+        sort: Optional[List[SortParamRequest]] = None,
         filter_conditions: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[QueryCallStatsResponse]:
         json = build_body_dict(
@@ -230,6 +230,7 @@ class VideoRestClient(BaseClient):
         type: str,
         id: str,
         recording_storage_name: Optional[str] = None,
+        start_closed_caption: Optional[bool] = None,
         start_hls: Optional[bool] = None,
         start_recording: Optional[bool] = None,
         start_rtmp_broadcasts: Optional[bool] = None,
@@ -242,6 +243,7 @@ class VideoRestClient(BaseClient):
         }
         json = build_body_dict(
             recording_storage_name=recording_storage_name,
+            start_closed_caption=start_closed_caption,
             start_hls=start_hls,
             start_recording=start_recording,
             start_rtmp_broadcasts=start_rtmp_broadcasts,
@@ -420,17 +422,28 @@ class VideoRestClient(BaseClient):
         )
 
     def start_closed_captions(
-        self, type: str, id: str
+        self,
+        type: str,
+        id: str,
+        enable_transcription: Optional[bool] = None,
+        external_storage: Optional[str] = None,
+        language: Optional[str] = None,
     ) -> StreamResponse[StartClosedCaptionsResponse]:
         path_params = {
             "type": type,
             "id": id,
         }
+        json = build_body_dict(
+            enable_transcription=enable_transcription,
+            external_storage=external_storage,
+            language=language,
+        )
 
         return self.post(
             "/api/v2/video/call/{type}/{id}/start_closed_captions",
             StartClosedCaptionsResponse,
             path_params=path_params,
+            json=json,
         )
 
     def start_recording(
@@ -450,14 +463,21 @@ class VideoRestClient(BaseClient):
         )
 
     def start_transcription(
-        self, type: str, id: str, transcription_external_storage: Optional[str] = None
+        self,
+        type: str,
+        id: str,
+        enable_closed_captions: Optional[bool] = None,
+        language: Optional[str] = None,
+        transcription_external_storage: Optional[str] = None,
     ) -> StreamResponse[StartTranscriptionResponse]:
         path_params = {
             "type": type,
             "id": id,
         }
         json = build_body_dict(
-            transcription_external_storage=transcription_external_storage
+            enable_closed_captions=enable_closed_captions,
+            language=language,
+            transcription_external_storage=transcription_external_storage,
         )
 
         return self.post(
@@ -497,29 +517,48 @@ class VideoRestClient(BaseClient):
         )
 
     def stop_closed_captions(
-        self, type: str, id: str
+        self, type: str, id: str, stop_transcription: Optional[bool] = None
     ) -> StreamResponse[StopClosedCaptionsResponse]:
         path_params = {
             "type": type,
             "id": id,
         }
+        json = build_body_dict(stop_transcription=stop_transcription)
 
         return self.post(
             "/api/v2/video/call/{type}/{id}/stop_closed_captions",
             StopClosedCaptionsResponse,
             path_params=path_params,
+            json=json,
         )
 
-    def stop_live(self, type: str, id: str) -> StreamResponse[StopLiveResponse]:
+    def stop_live(
+        self,
+        type: str,
+        id: str,
+        continue_closed_caption: Optional[bool] = None,
+        continue_hls: Optional[bool] = None,
+        continue_recording: Optional[bool] = None,
+        continue_rtmp_broadcasts: Optional[bool] = None,
+        continue_transcription: Optional[bool] = None,
+    ) -> StreamResponse[StopLiveResponse]:
         path_params = {
             "type": type,
             "id": id,
         }
+        json = build_body_dict(
+            continue_closed_caption=continue_closed_caption,
+            continue_hls=continue_hls,
+            continue_recording=continue_recording,
+            continue_rtmp_broadcasts=continue_rtmp_broadcasts,
+            continue_transcription=continue_transcription,
+        )
 
         return self.post(
             "/api/v2/video/call/{type}/{id}/stop_live",
             StopLiveResponse,
             path_params=path_params,
+            json=json,
         )
 
     def stop_recording(
@@ -537,17 +576,19 @@ class VideoRestClient(BaseClient):
         )
 
     def stop_transcription(
-        self, type: str, id: str
+        self, type: str, id: str, stop_closed_captions: Optional[bool] = None
     ) -> StreamResponse[StopTranscriptionResponse]:
         path_params = {
             "type": type,
             "id": id,
         }
+        json = build_body_dict(stop_closed_captions=stop_closed_captions)
 
         return self.post(
             "/api/v2/video/call/{type}/{id}/stop_transcription",
             StopTranscriptionResponse,
             path_params=path_params,
+            json=json,
         )
 
     def list_transcriptions(
@@ -658,7 +699,7 @@ class VideoRestClient(BaseClient):
         limit: Optional[int] = None,
         next: Optional[str] = None,
         prev: Optional[str] = None,
-        sort: Optional[List[Optional[SortParamRequest]]] = None,
+        sort: Optional[List[SortParamRequest]] = None,
         filter_conditions: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[QueryCallsResponse]:
         json = build_body_dict(
