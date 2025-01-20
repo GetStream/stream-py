@@ -7,7 +7,8 @@ from getstream.models import (
     ScreensharingSettingsRequest,
     OwnCapability,
     LimitsSettingsRequest,
-    BackstageSettingsRequest, SessionSettingsRequest,
+    BackstageSettingsRequest,
+    SessionSettingsRequest,
 )
 from getstream.video.call import Call
 from datetime import datetime, timezone, timedelta
@@ -305,7 +306,6 @@ def test_create_call_with_custom_session_inactivity_timeout(call: Call):
 
 
 def test_create_call_type_with_custom_session_inactivity_timeout(client: Stream):
-
     # create a call type with a session inactivity timeout of 5 minutes
     response = client.video.create_call_type(
         name="long_inactivity_timeout_" + str(uuid.uuid4()),

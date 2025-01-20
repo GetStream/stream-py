@@ -871,6 +871,14 @@ class BroadcastSettingsResponse(DataClassJsonMixin):
 
 
 @dataclass
+class BrowserDataResponse(DataClassJsonMixin):
+    name: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="name"))
+    version: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="version")
+    )
+
+
+@dataclass
 class CallAcceptedEvent(DataClassJsonMixin):
     call_cid: str = dc_field(metadata=dc_config(field_name="call_cid"))
     created_at: datetime = dc_field(
@@ -3479,6 +3487,17 @@ class CheckSQSResponse(DataClassJsonMixin):
 
 
 @dataclass
+class ClientOSDataResponse(DataClassJsonMixin):
+    architecture: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="architecture")
+    )
+    name: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="name"))
+    version: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="version")
+    )
+
+
+@dataclass
 class ClosedCaptionEvent(DataClassJsonMixin):
     call_cid: str = dc_field(metadata=dc_config(field_name="call_cid"))
     created_at: datetime = dc_field(
@@ -4373,6 +4392,14 @@ class Device(DataClassJsonMixin):
         default=None, metadata=dc_config(field_name="push_provider_name")
     )
     voip: Optional[bool] = dc_field(default=None, metadata=dc_config(field_name="voip"))
+
+
+@dataclass
+class DeviceDataResponse(DataClassJsonMixin):
+    name: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="name"))
+    version: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="version")
+    )
 
 
 @dataclass
@@ -5356,6 +5383,13 @@ class GetBlockedUsersResponse(DataClassJsonMixin):
 
 
 @dataclass
+class GetCallReportResponse(DataClassJsonMixin):
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    session_id: str = dc_field(metadata=dc_config(field_name="session_id"))
+    report: "ReportResponse" = dc_field(metadata=dc_config(field_name="report"))
+
+
+@dataclass
 class GetCallResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
     members: "List[MemberResponse]" = dc_field(metadata=dc_config(field_name="members"))
@@ -5363,13 +5397,6 @@ class GetCallResponse(DataClassJsonMixin):
         metadata=dc_config(field_name="own_capabilities")
     )
     call: "CallResponse" = dc_field(metadata=dc_config(field_name="call"))
-
-
-@dataclass
-class GetCallReportResponse(DataClassJsonMixin):
-    duration: str = dc_field(metadata=dc_config(field_name="duration"))
-    session_id: str = dc_field(metadata=dc_config(field_name="session_id"))
-    report: "ReportResponse" = dc_field(metadata=dc_config(field_name="report"))
 
 
 @dataclass
@@ -7976,6 +8003,13 @@ class PinResponse(DataClassJsonMixin):
 
 
 @dataclass
+class PlatformDataResponse(DataClassJsonMixin):
+    browser: "BrowserDataResponse" = dc_field(metadata=dc_config(field_name="browser"))
+    device: "DeviceDataResponse" = dc_field(metadata=dc_config(field_name="device"))
+    os: "ClientOSDataResponse" = dc_field(metadata=dc_config(field_name="os"))
+
+
+@dataclass
 class Policy(DataClassJsonMixin):
     action: int = dc_field(metadata=dc_config(field_name="action"))
     created_at: datetime = dc_field(
@@ -9182,6 +9216,31 @@ class QueryUsageStatsResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
     items: "List[ModerationUsageStats]" = dc_field(
         metadata=dc_config(field_name="items")
+    )
+    next: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="next"))
+    prev: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="prev"))
+
+
+@dataclass
+class QueryUserFeedbackRequest(DataClassJsonMixin):
+    limit: Optional[int] = dc_field(
+        default=None, metadata=dc_config(field_name="limit")
+    )
+    next: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="next"))
+    prev: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="prev"))
+    sort: "Optional[List[SortParamRequest]]" = dc_field(
+        default=None, metadata=dc_config(field_name="sort")
+    )
+    filter_conditions: Optional[Dict[str, object]] = dc_field(
+        default=None, metadata=dc_config(field_name="filter_conditions")
+    )
+
+
+@dataclass
+class QueryUserFeedbackResponse(DataClassJsonMixin):
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    user_feedback: "List[UserFeedbackResponse]" = dc_field(
+        metadata=dc_config(field_name="user_feedback")
     )
     next: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="next"))
     prev: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="prev"))
@@ -12271,6 +12330,23 @@ class UserFeedbackReportResponse(DataClassJsonMixin):
 
 
 @dataclass
+class UserFeedbackResponse(DataClassJsonMixin):
+    cid: str = dc_field(metadata=dc_config(field_name="cid"))
+    rating: int = dc_field(metadata=dc_config(field_name="rating"))
+    reason: str = dc_field(metadata=dc_config(field_name="reason"))
+    sdk: str = dc_field(metadata=dc_config(field_name="sdk"))
+    sdk_version: str = dc_field(metadata=dc_config(field_name="sdk_version"))
+    session_id: str = dc_field(metadata=dc_config(field_name="session_id"))
+    user_id: str = dc_field(metadata=dc_config(field_name="user_id"))
+    platform: "PlatformDataResponse" = dc_field(
+        metadata=dc_config(field_name="platform")
+    )
+    custom: Optional[Dict[str, object]] = dc_field(
+        default=None, metadata=dc_config(field_name="custom")
+    )
+
+
+@dataclass
 class UserFlaggedEvent(DataClassJsonMixin):
     created_at: datetime = dc_field(
         metadata=dc_config(
@@ -12394,6 +12470,12 @@ class UserMutedEvent(DataClassJsonMixin):
 
 
 @dataclass
+class UserRatingReportResponse(DataClassJsonMixin):
+    average: float = dc_field(metadata=dc_config(field_name="average"))
+    count: int = dc_field(metadata=dc_config(field_name="count"))
+
+
+@dataclass
 class UserReactivatedEvent(DataClassJsonMixin):
     created_at: datetime = dc_field(
         metadata=dc_config(
@@ -12409,12 +12491,6 @@ class UserReactivatedEvent(DataClassJsonMixin):
     user: "Optional[User]" = dc_field(
         default=None, metadata=dc_config(field_name="user")
     )
-
-
-@dataclass
-class UserRatingReportResponse(DataClassJsonMixin):
-    average: float = dc_field(metadata=dc_config(field_name="average"))
-    count: int = dc_field(metadata=dc_config(field_name="count"))
 
 
 @dataclass

@@ -199,6 +199,15 @@ class Call:
         self._sync_from_response(response.data)
         return response
 
+    def get_call_report(
+        self, session_id: Optional[str] = None
+    ) -> StreamResponse[GetCallReportResponse]:
+        response = self.client.get_call_report(
+            type=self.call_type, id=self.id, session_id=session_id
+        )
+        self._sync_from_response(response.data)
+        return response
+
     def start_rtmp_broadcasts(
         self, broadcasts: List[RTMPBroadcastRequest]
     ) -> StreamResponse[StartRTMPBroadcastsResponse]:

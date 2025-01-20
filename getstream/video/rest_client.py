@@ -21,6 +21,31 @@ class VideoRestClient(BaseClient):
             token=token,
         )
 
+    def query_user_feedback(
+        self,
+        full: Optional[bool] = None,
+        limit: Optional[int] = None,
+        next: Optional[str] = None,
+        prev: Optional[str] = None,
+        sort: Optional[List[SortParamRequest]] = None,
+        filter_conditions: Optional[Dict[str, object]] = None,
+    ) -> StreamResponse[QueryUserFeedbackResponse]:
+        query_params = build_query_param(full=full)
+        json = build_body_dict(
+            limit=limit,
+            next=next,
+            prev=prev,
+            sort=sort,
+            filter_conditions=filter_conditions,
+        )
+
+        return self.post(
+            "/api/v2/video/call/feedback",
+            QueryUserFeedbackResponse,
+            query_params=query_params,
+            json=json,
+        )
+
     def query_call_members(
         self,
         id: str,
