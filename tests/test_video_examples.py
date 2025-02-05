@@ -322,7 +322,8 @@ def test_create_call_type_with_custom_session_inactivity_timeout(client: Stream)
 def test_create_call_with_custom_frame_recording_settings(client: Stream):
     user_id = str(uuid.uuid4())
 
-    # create a call and set its session inactivity timeout to 5 seconds
+    # create a call and set its frame recording settings
+    call = client.video.call("default", uuid.uuid4())
     response = call.get_or_create(
         data=CallRequest(
             created_by_id=user_id,
