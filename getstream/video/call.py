@@ -116,30 +116,6 @@ class Call:
         self._sync_from_response(response.data)
         return response
 
-    def collect_user_feedback(
-        self,
-        session: str,
-        rating: int,
-        sdk: str,
-        sdk_version: str,
-        reason: Optional[str] = None,
-        user_session_id: Optional[str] = None,
-        custom: Optional[Dict[str, object]] = None,
-    ) -> StreamResponse[CollectUserFeedbackResponse]:
-        response = self.client.collect_user_feedback(
-            type=self.call_type,
-            id=self.id,
-            session=session,
-            rating=rating,
-            sdk=sdk,
-            sdk_version=sdk_version,
-            reason=reason,
-            user_session_id=user_session_id,
-            custom=custom,
-        )
-        self._sync_from_response(response.data)
-        return response
-
     def go_live(
         self,
         recording_storage_name: Optional[str] = None,

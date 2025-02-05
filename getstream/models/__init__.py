@@ -7007,9 +7007,7 @@ class MessageNewEvent(DataClassJsonMixin):
         )
     )
     watcher_count: int = dc_field(metadata=dc_config(field_name="watcher_count"))
-    type: str = dc_field(
-        default="notification.thread_message_new", metadata=dc_config(field_name="type")
-    )
+    type: str = dc_field(default="message.new", metadata=dc_config(field_name="type"))
     team: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="team"))
     thread_participants: "Optional[List[User]]" = dc_field(
         default=None, metadata=dc_config(field_name="thread_participants")

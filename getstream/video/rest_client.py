@@ -248,39 +248,6 @@ class VideoRestClient(BaseClient):
             json=json,
         )
 
-    def collect_user_feedback(
-        self,
-        type: str,
-        id: str,
-        session: str,
-        rating: int,
-        sdk: str,
-        sdk_version: str,
-        reason: Optional[str] = None,
-        user_session_id: Optional[str] = None,
-        custom: Optional[Dict[str, object]] = None,
-    ) -> StreamResponse[CollectUserFeedbackResponse]:
-        path_params = {
-            "type": type,
-            "id": id,
-            "session": session,
-        }
-        json = build_body_dict(
-            rating=rating,
-            sdk=sdk,
-            sdk_version=sdk_version,
-            reason=reason,
-            user_session_id=user_session_id,
-            custom=custom,
-        )
-
-        return self.post(
-            "/api/v2/video/call/{type}/{id}/feedback/{session}",
-            CollectUserFeedbackResponse,
-            path_params=path_params,
-            json=json,
-        )
-
     def go_live(
         self,
         type: str,

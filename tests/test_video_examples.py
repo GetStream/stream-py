@@ -8,7 +8,8 @@ from getstream.models import (
     OwnCapability,
     LimitsSettingsRequest,
     BackstageSettingsRequest,
-    SessionSettingsRequest, FrameRecordingSettingsRequest,
+    SessionSettingsRequest,
+    FrameRecordingSettingsRequest,
 )
 from getstream.video.call import Call
 from datetime import datetime, timezone, timedelta
@@ -329,9 +330,7 @@ def test_create_call_with_custom_frame_recording_settings(client: Stream):
             created_by_id=user_id,
             settings_override=CallSettingsRequest(
                 frame_recording=FrameRecordingSettingsRequest(
-                    capture_interval_in_seconds=3,
-                    mode="auto-on",
-                    quality="1080p"
+                    capture_interval_in_seconds=3, mode="auto-on", quality="1080p"
                 ),
             ),
         )
@@ -348,9 +347,7 @@ def test_create_call_type_with_custom_frame_recording_settings(client: Stream):
         name="frame_recording_" + str(uuid.uuid4()),
         settings=CallSettingsRequest(
             frame_recording=FrameRecordingSettingsRequest(
-                capture_interval_in_seconds=5,
-                mode="auto-on",
-                quality="720p"
+                capture_interval_in_seconds=5, mode="auto-on", quality="720p"
             ),
         ),
     )
@@ -358,4 +355,3 @@ def test_create_call_type_with_custom_frame_recording_settings(client: Stream):
     assert response.data.settings.frame_recording.capture_interval_in_seconds == 5
     assert response.data.settings.frame_recording.mode == "auto-on"
     assert response.data.settings.frame_recording.quality == "720p"
-
