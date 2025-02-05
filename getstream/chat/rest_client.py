@@ -963,7 +963,7 @@ class ChatRestClient(BaseClient):
 
     def delete_reaction(
         self, id: str, type: str, user_id: Optional[str] = None
-    ) -> StreamResponse[ReactionRemovalResponse]:
+    ) -> StreamResponse[DeleteReactionResponse]:
         query_params = build_query_param(user_id=user_id)
         path_params = {
             "id": id,
@@ -972,7 +972,7 @@ class ChatRestClient(BaseClient):
 
         return self.delete(
             "/api/v2/chat/messages/{id}/reaction/{type}",
-            ReactionRemovalResponse,
+            DeleteReactionResponse,
             query_params=query_params,
             path_params=path_params,
         )
@@ -1416,6 +1416,15 @@ class ChatRestClient(BaseClient):
             query_params=query_params,
             path_params=path_params,
             json=json,
+        )
+
+    def update_push_notification_preferences(
+        self, preferences: List[PushPreferenceInput]
+    ) -> StreamResponse[UpsertPushPreferencesResponse]:
+        json = build_body_dict(preferences=preferences)
+
+        return self.post(
+            "/api/v2/chat/push_preferences", UpsertPushPreferencesResponse, json=json
         )
 
     def query_banned_users(

@@ -116,44 +116,69 @@ class CommonRestClient(BaseClient):
 
         return self.patch("/api/v2/app", Response, json=json)
 
-    def list_block_lists(self) -> StreamResponse[ListBlockListResponse]:
-        return self.get("/api/v2/blocklists", ListBlockListResponse)
+    def list_block_lists(
+        self, team: Optional[str] = None
+    ) -> StreamResponse[ListBlockListResponse]:
+        query_params = build_query_param(team=team)
+
+        return self.get(
+            "/api/v2/blocklists", ListBlockListResponse, query_params=query_params
+        )
 
     def create_block_list(
-        self, name: str, words: List[str], type: Optional[str] = None
+        self,
+        name: str,
+        words: List[str],
+        team: Optional[str] = None,
+        type: Optional[str] = None,
+    ) -> StreamResponse[CreateBlockListResponse]:
+        json = build_body_dict(name=name, words=words, team=team, type=type)
+
+        return self.post("/api/v2/blocklists", CreateBlockListResponse, json=json)
+
+    def delete_block_list(
+        self, name: str, team: Optional[str] = None
     ) -> StreamResponse[Response]:
-        json = build_body_dict(name=name, words=words, type=type)
-
-        return self.post("/api/v2/blocklists", Response, json=json)
-
-    def delete_block_list(self, name: str) -> StreamResponse[Response]:
+        query_params = build_query_param(team=team)
         path_params = {
             "name": name,
         }
 
         return self.delete(
-            "/api/v2/blocklists/{name}", Response, path_params=path_params
+            "/api/v2/blocklists/{name}",
+            Response,
+            query_params=query_params,
+            path_params=path_params,
         )
 
-    def get_block_list(self, name: str) -> StreamResponse[GetBlockListResponse]:
+    def get_block_list(
+        self, name: str, team: Optional[str] = None
+    ) -> StreamResponse[GetBlockListResponse]:
+        query_params = build_query_param(team=team)
         path_params = {
             "name": name,
         }
 
         return self.get(
-            "/api/v2/blocklists/{name}", GetBlockListResponse, path_params=path_params
+            "/api/v2/blocklists/{name}",
+            GetBlockListResponse,
+            query_params=query_params,
+            path_params=path_params,
         )
 
     def update_block_list(
-        self, name: str, words: Optional[List[str]] = None
-    ) -> StreamResponse[Response]:
+        self, name: str, team: Optional[str] = None, words: Optional[List[str]] = None
+    ) -> StreamResponse[UpdateBlockListResponse]:
         path_params = {
             "name": name,
         }
-        json = build_body_dict(words=words)
+        json = build_body_dict(team=team, words=words)
 
         return self.put(
-            "/api/v2/blocklists/{name}", Response, path_params=path_params, json=json
+            "/api/v2/blocklists/{name}",
+            UpdateBlockListResponse,
+            path_params=path_params,
+            json=json,
         )
 
     def check_push(

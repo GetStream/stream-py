@@ -221,12 +221,43 @@ class VideoRestClient(BaseClient):
         self,
         type: str,
         id: str,
+        rating: int,
+        sdk: str,
+        sdk_version: str,
+        reason: Optional[str] = None,
+        user_session_id: Optional[str] = None,
+        custom: Optional[Dict[str, object]] = None,
+    ) -> StreamResponse[CollectUserFeedbackResponse]:
+        path_params = {
+            "type": type,
+            "id": id,
+        }
+        json = build_body_dict(
+            rating=rating,
+            sdk=sdk,
+            sdk_version=sdk_version,
+            reason=reason,
+            user_session_id=user_session_id,
+            custom=custom,
+        )
+
+        return self.post(
+            "/api/v2/video/call/{type}/{id}/feedback",
+            CollectUserFeedbackResponse,
+            path_params=path_params,
+            json=json,
+        )
+
+    def collect_user_feedback(
+        self,
+        type: str,
+        id: str,
         session: str,
         rating: int,
         sdk: str,
         sdk_version: str,
-        user_session_id: str,
         reason: Optional[str] = None,
+        user_session_id: Optional[str] = None,
         custom: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[CollectUserFeedbackResponse]:
         path_params = {
@@ -238,8 +269,8 @@ class VideoRestClient(BaseClient):
             rating=rating,
             sdk=sdk,
             sdk_version=sdk_version,
-            user_session_id=user_session_id,
             reason=reason,
+            user_session_id=user_session_id,
             custom=custom,
         )
 
@@ -382,6 +413,22 @@ class VideoRestClient(BaseClient):
             path_params=path_params,
         )
 
+    def get_call_report(
+        self, type: str, id: str, session_id: Optional[str] = None
+    ) -> StreamResponse[GetCallReportResponse]:
+        query_params = build_query_param(session_id=session_id)
+        path_params = {
+            "type": type,
+            "id": id,
+        }
+
+        return self.get(
+            "/api/v2/video/call/{type}/{id}/report",
+            GetCallReportResponse,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
     def start_rtmp_broadcasts(
         self, type: str, id: str, broadcasts: List[RTMPBroadcastRequest]
     ) -> StreamResponse[StartRTMPBroadcastsResponse]:
@@ -471,6 +518,22 @@ class VideoRestClient(BaseClient):
             json=json,
         )
 
+    def start_frame_recording(
+        self, type: str, id: str, recording_external_storage: Optional[str] = None
+    ) -> StreamResponse[StartFrameRecordingResponse]:
+        path_params = {
+            "type": type,
+            "id": id,
+        }
+        json = build_body_dict(recording_external_storage=recording_external_storage)
+
+        return self.post(
+            "/api/v2/video/call/{type}/{id}/start_frame_recording",
+            StartFrameRecordingResponse,
+            path_params=path_params,
+            json=json,
+        )
+
     def start_recording(
         self, type: str, id: str, recording_external_storage: Optional[str] = None
     ) -> StreamResponse[StartRecordingResponse]:
@@ -555,6 +618,20 @@ class VideoRestClient(BaseClient):
             StopClosedCaptionsResponse,
             path_params=path_params,
             json=json,
+        )
+
+    def stop_frame_recording(
+        self, type: str, id: str
+    ) -> StreamResponse[StopFrameRecordingResponse]:
+        path_params = {
+            "type": type,
+            "id": id,
+        }
+
+        return self.post(
+            "/api/v2/video/call/{type}/{id}/stop_frame_recording",
+            StopFrameRecordingResponse,
+            path_params=path_params,
         )
 
     def stop_live(
@@ -816,20 +893,4 @@ class VideoRestClient(BaseClient):
 
         return self.post(
             "/api/v2/video/stats", QueryAggregateCallStatsResponse, json=json
-        )
-
-    def get_call_report(
-        self, type: str, id: str, session_id: Optional[str] = None
-    ) -> StreamResponse[GetCallReportResponse]:
-        query_params = build_query_param(session_id=session_id)
-        path_params = {
-            "type": type,
-            "id": id,
-        }
-
-        return self.get(
-            "/api/v2/video/call/{type}/{id}/report",
-            GetCallReportResponse,
-            query_params=query_params,
-            path_params=path_params,
         )
