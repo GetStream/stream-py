@@ -341,3 +341,21 @@ def test_create_call_with_custom_frame_recording_settings(client: Stream):
     assert response.data.call.settings.frame_recording.mode == "auto-on"
     assert response.data.call.settings.frame_recording.quality == "1080p"
 
+
+def test_create_call_type_with_custom_frame_recording_settings(client: Stream):
+    # create a call type with frame recording settings
+    response = client.video.create_call_type(
+        name="frame_recording_" + str(uuid.uuid4()),
+        settings=CallSettingsRequest(
+            frame_recording=FrameRecordingSettingsRequest(
+                capture_interval_in_seconds=5,
+                mode="auto-on",
+                quality="720p"
+            ),
+        ),
+    )
+
+    assert response.data.settings.frame_recording.capture_interval_in_seconds == 5
+    assert response.data.settings.frame_recording.mode == "auto-on"
+    assert response.data.settings.frame_recording.quality == "720p"
+
