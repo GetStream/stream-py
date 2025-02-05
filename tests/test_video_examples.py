@@ -8,7 +8,7 @@ from getstream.models import (
     OwnCapability,
     LimitsSettingsRequest,
     BackstageSettingsRequest,
-    SessionSettingsRequest,
+    SessionSettingsRequest, FrameRecordingSettingsRequest,
 )
 from getstream.video.call import Call
 from datetime import datetime, timezone, timedelta
@@ -317,3 +317,26 @@ def test_create_call_type_with_custom_session_inactivity_timeout(client: Stream)
     )
 
     assert response.data.settings.session.inactivity_timeout_seconds == 300
+
+
+def test_create_call_with_custom_frame_recording_settings(client: Stream):
+    user_id = str(uuid.uuid4())
+
+    # create a call and set its session inactivity timeout to 5 seconds
+    response = call.get_or_create(
+        data=CallRequest(
+            created_by_id=user_id,
+            settings_override=CallSettingsRequest(
+                frame_recording=FrameRecordingSettingsRequest(
+                    capture_interval_in_seconds=3,
+                    mode="auto-on",
+                    quality="1080p"
+                ),
+            ),
+        )
+    )
+
+    assert response.data.call.settings.frame_recording.capture_interval_in_seconds == 3
+    assert response.data.call.settings.frame_recording.mode == "auto-on"
+    assert response.data.call.settings.frame_recording.quality == "1080p"
+

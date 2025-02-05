@@ -1878,6 +1878,9 @@ class CallSettingsRequest(DataClassJsonMixin):
     broadcasting: "Optional[BroadcastSettingsRequest]" = dc_field(
         default=None, metadata=dc_config(field_name="broadcasting")
     )
+    frame_recording: "Optional[FrameRecordingSettingsRequest]" = dc_field(
+        default=None, metadata=dc_config(field_name="frame_recording")
+    )
     geofencing: "Optional[GeofenceSettingsRequest]" = dc_field(
         default=None, metadata=dc_config(field_name="geofencing")
     )
@@ -1915,6 +1918,9 @@ class CallSettingsResponse(DataClassJsonMixin):
     )
     broadcasting: "BroadcastSettingsResponse" = dc_field(
         metadata=dc_config(field_name="broadcasting")
+    )
+    frame_recording: "FrameRecordingSettingsResponse" = dc_field(
+        metadata=dc_config(field_name="frame_recording")
     )
     geofencing: "GeofenceSettingsResponse" = dc_field(
         metadata=dc_config(field_name="geofencing")
@@ -5354,6 +5360,28 @@ class FrameRecordSettings(DataClassJsonMixin):
 
 
 @dataclass
+class FrameRecordingSettingsRequest(DataClassJsonMixin):
+    capture_interval_in_seconds: int = dc_field(
+        metadata=dc_config(field_name="capture_interval_in_seconds")
+    )
+    mode: str = dc_field(metadata=dc_config(field_name="mode"))
+    quality: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="quality")
+    )
+
+
+@dataclass
+class FrameRecordingSettingsResponse(DataClassJsonMixin):
+    capture_interval_in_seconds: int = dc_field(
+        metadata=dc_config(field_name="capture_interval_in_seconds")
+    )
+    mode: str = dc_field(metadata=dc_config(field_name="mode"))
+    quality: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="quality")
+    )
+
+
+@dataclass
 class FullUserResponse(DataClassJsonMixin):
     banned: bool = dc_field(metadata=dc_config(field_name="banned"))
     created_at: datetime = dc_field(
@@ -6979,7 +7007,9 @@ class MessageNewEvent(DataClassJsonMixin):
         )
     )
     watcher_count: int = dc_field(metadata=dc_config(field_name="watcher_count"))
-    type: str = dc_field(default="message.new", metadata=dc_config(field_name="type"))
+    type: str = dc_field(
+        default="notification.thread_message_new", metadata=dc_config(field_name="type")
+    )
     team: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="team"))
     thread_participants: "Optional[List[User]]" = dc_field(
         default=None, metadata=dc_config(field_name="thread_participants")
