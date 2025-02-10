@@ -1,6 +1,8 @@
+import pytest
 import uuid
 
 from getstream import Stream
+from getstream.base import StreamAPIException
 from getstream.models import (
     CallRequest,
     CallSettingsRequest,
@@ -318,6 +320,32 @@ def test_create_call_type_with_custom_session_inactivity_timeout(client: Stream)
     )
 
     assert response.data.settings.session.inactivity_timeout_seconds == 300
+
+
+def test_start_stop_frame_recording(client: Stream):
+    user_id = str(uuid.uuid4())
+
+    # create a call and set its frame recording settings
+    call = client.video.call("default", uuid.uuid4())
+    call.get_or_create(data=CallRequest(created_by_id=user_id))
+
+    with pytest.raises(StreamAPIException) as e_info:
+        call.start_recording()
+
+    assert e_info.value.status_code == 400
+    assert (
+        e_info.value.api_error.message
+        == 'StartRecording failed with error: "there is no active session"'
+    )
+
+    with pytest.raises(StreamAPIException) as e_info:
+        call.stop_recording()
+
+    assert e_info.value.status_code == 400
+    assert (
+        e_info.value.api_error.message
+        == 'StopRecording failed with error: "call egress is not running"'
+    )
 
 
 def test_create_call_with_custom_frame_recording_settings(client: Stream):
