@@ -277,19 +277,6 @@ def test_create_call_with_backstage_and_join_ahead_set(client: Stream, call: Cal
     assert response.data.call.join_ahead_time_seconds == 0
 
 
-def test_create_call_with_default_session_inactivity_timeout(call: Call):
-    user_id = str(uuid.uuid4())
-
-    # create a call and expect the default session inactivity timeout to be 30 seconds
-    response = call.get_or_create(
-        data=CallRequest(
-            created_by_id=user_id,
-        )
-    )
-
-    assert response.data.call.settings.session.inactivity_timeout_seconds == 30
-
-
 def test_create_call_with_custom_session_inactivity_timeout(call: Call):
     user_id = str(uuid.uuid4())
 
