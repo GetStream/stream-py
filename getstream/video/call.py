@@ -96,23 +96,21 @@ class Call:
 
     def collect_user_feedback(
         self,
-        session: str,
         rating: int,
         sdk: str,
         sdk_version: str,
-        user_session_id: str,
         reason: Optional[str] = None,
+        user_session_id: Optional[str] = None,
         custom: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[CollectUserFeedbackResponse]:
         response = self.client.collect_user_feedback(
             type=self.call_type,
             id=self.id,
-            session=session,
             rating=rating,
             sdk=sdk,
             sdk_version=sdk_version,
-            user_session_id=user_session_id,
             reason=reason,
+            user_session_id=user_session_id,
             custom=custom,
         )
         self._sync_from_response(response.data)
@@ -255,6 +253,17 @@ class Call:
         self._sync_from_response(response.data)
         return response
 
+    def start_frame_recording(
+        self, recording_external_storage: Optional[str] = None
+    ) -> StreamResponse[StartFrameRecordingResponse]:
+        response = self.client.start_frame_recording(
+            type=self.call_type,
+            id=self.id,
+            recording_external_storage=recording_external_storage,
+        )
+        self._sync_from_response(response.data)
+        return response
+
     def start_recording(
         self, recording_external_storage: Optional[str] = None
     ) -> StreamResponse[StartRecordingResponse]:
@@ -300,6 +309,11 @@ class Call:
         response = self.client.stop_closed_captions(
             type=self.call_type, id=self.id, stop_transcription=stop_transcription
         )
+        self._sync_from_response(response.data)
+        return response
+
+    def stop_frame_recording(self) -> StreamResponse[StopFrameRecordingResponse]:
+        response = self.client.stop_frame_recording(type=self.call_type, id=self.id)
         self._sync_from_response(response.data)
         return response
 

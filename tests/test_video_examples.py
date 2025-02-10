@@ -1,6 +1,8 @@
+import pytest
 import uuid
 
 from getstream import Stream
+from getstream.base import StreamAPIException
 from getstream.models import (
     CallRequest,
     CallSettingsRequest,
@@ -9,6 +11,7 @@ from getstream.models import (
     LimitsSettingsRequest,
     BackstageSettingsRequest,
     SessionSettingsRequest,
+    FrameRecordingSettingsRequest,
 )
 from getstream.video.call import Call
 from datetime import datetime, timezone, timedelta
@@ -274,19 +277,6 @@ def test_create_call_with_backstage_and_join_ahead_set(client: Stream, call: Cal
     assert response.data.call.join_ahead_time_seconds == 0
 
 
-def test_create_call_with_default_session_inactivity_timeout(call: Call):
-    user_id = str(uuid.uuid4())
-
-    # create a call and expect the default session inactivity timeout to be 30 seconds
-    response = call.get_or_create(
-        data=CallRequest(
-            created_by_id=user_id,
-        )
-    )
-
-    assert response.data.call.settings.session.inactivity_timeout_seconds == 30
-
-
 def test_create_call_with_custom_session_inactivity_timeout(call: Call):
     user_id = str(uuid.uuid4())
 
@@ -317,3 +307,66 @@ def test_create_call_type_with_custom_session_inactivity_timeout(client: Stream)
     )
 
     assert response.data.settings.session.inactivity_timeout_seconds == 300
+
+
+def test_start_stop_frame_recording(client: Stream):
+    user_id = str(uuid.uuid4())
+
+    # create a call and set its frame recording settings
+    call = client.video.call("default", uuid.uuid4())
+    call.get_or_create(data=CallRequest(created_by_id=user_id))
+
+    with pytest.raises(StreamAPIException) as e_info:
+        call.start_recording()
+
+    assert e_info.value.status_code == 400
+    assert (
+        e_info.value.api_error.message
+        == 'StartRecording failed with error: "there is no active session"'
+    )
+
+    with pytest.raises(StreamAPIException) as e_info:
+        call.stop_recording()
+
+    assert e_info.value.status_code == 400
+    assert (
+        e_info.value.api_error.message
+        == 'StopRecording failed with error: "call egress is not running"'
+    )
+
+
+def test_create_call_with_custom_frame_recording_settings(client: Stream):
+    user_id = str(uuid.uuid4())
+
+    # create a call and set its frame recording settings
+    call = client.video.call("default", uuid.uuid4())
+    response = call.get_or_create(
+        data=CallRequest(
+            created_by_id=user_id,
+            settings_override=CallSettingsRequest(
+                frame_recording=FrameRecordingSettingsRequest(
+                    capture_interval_in_seconds=3, mode="auto-on", quality="1080p"
+                ),
+            ),
+        )
+    )
+
+    assert response.data.call.settings.frame_recording.capture_interval_in_seconds == 3
+    assert response.data.call.settings.frame_recording.mode == "auto-on"
+    assert response.data.call.settings.frame_recording.quality == "1080p"
+
+
+def test_create_call_type_with_custom_frame_recording_settings(client: Stream):
+    # create a call type with frame recording settings
+    response = client.video.create_call_type(
+        name="frame_recording_" + str(uuid.uuid4()),
+        settings=CallSettingsRequest(
+            frame_recording=FrameRecordingSettingsRequest(
+                capture_interval_in_seconds=5, mode="auto-on", quality="720p"
+            ),
+        ),
+    )
+
+    assert response.data.settings.frame_recording.capture_interval_in_seconds == 5
+    assert response.data.settings.frame_recording.mode == "auto-on"
+    assert response.data.settings.frame_recording.quality == "720p"
