@@ -1062,6 +1062,8 @@ class CallFrameRecordingFailedEvent(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         )
     )
+    egress_id: str = dc_field(metadata=dc_config(field_name="egress_id"))
+    call: "CallResponse" = dc_field(metadata=dc_config(field_name="call"))
     type: str = dc_field(
         default="call.frame_recording_failed", metadata=dc_config(field_name="type")
     )
@@ -1086,6 +1088,7 @@ class CallFrameRecordingFrameReadyEvent(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         )
     )
+    egress_id: str = dc_field(metadata=dc_config(field_name="egress_id"))
     session_id: str = dc_field(metadata=dc_config(field_name="session_id"))
     track_type: str = dc_field(metadata=dc_config(field_name="track_type"))
     url: str = dc_field(metadata=dc_config(field_name="url"))
@@ -1106,6 +1109,8 @@ class CallFrameRecordingStartedEvent(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         )
     )
+    egress_id: str = dc_field(metadata=dc_config(field_name="egress_id"))
+    call: "CallResponse" = dc_field(metadata=dc_config(field_name="call"))
     type: str = dc_field(
         default="call.frame_recording_started", metadata=dc_config(field_name="type")
     )
@@ -1122,6 +1127,8 @@ class CallFrameRecordingStoppedEvent(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         )
     )
+    egress_id: str = dc_field(metadata=dc_config(field_name="egress_id"))
+    call: "CallResponse" = dc_field(metadata=dc_config(field_name="call"))
     type: str = dc_field(
         default="call.frame_recording_stopped", metadata=dc_config(field_name="type")
     )
@@ -4603,6 +4610,9 @@ class EgressRTMPResponse(DataClassJsonMixin):
 class EgressResponse(DataClassJsonMixin):
     broadcasting: bool = dc_field(metadata=dc_config(field_name="broadcasting"))
     rtmps: "List[EgressRTMPResponse]" = dc_field(metadata=dc_config(field_name="rtmps"))
+    frame_recording: "Optional[FrameRecordingResponse]" = dc_field(
+        default=None, metadata=dc_config(field_name="frame_recording")
+    )
     hls: "Optional[EgressHLSResponse]" = dc_field(
         default=None, metadata=dc_config(field_name="hls")
     )
@@ -5357,6 +5367,11 @@ class FrameRecordSettings(DataClassJsonMixin):
     quality: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="quality")
     )
+
+
+@dataclass
+class FrameRecordingResponse(DataClassJsonMixin):
+    status: str = dc_field(metadata=dc_config(field_name="status"))
 
 
 @dataclass
@@ -7007,7 +7022,9 @@ class MessageNewEvent(DataClassJsonMixin):
         )
     )
     watcher_count: int = dc_field(metadata=dc_config(field_name="watcher_count"))
-    type: str = dc_field(default="message.new", metadata=dc_config(field_name="type"))
+    type: str = dc_field(
+        default="notification.thread_message_new", metadata=dc_config(field_name="type")
+    )
     team: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="team"))
     thread_participants: "Optional[List[User]]" = dc_field(
         default=None, metadata=dc_config(field_name="thread_participants")
