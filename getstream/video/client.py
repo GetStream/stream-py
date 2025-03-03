@@ -1,5 +1,6 @@
 from getstream.video.rest_client import VideoRestClient
 from getstream.video.call import Call
+from getstream.video.rtc import rtc
 
 
 class VideoClient(VideoRestClient):
@@ -20,3 +21,6 @@ class VideoClient(VideoRestClient):
 
     def call(self, call_type: str, id: str) -> Call:
         return Call(self, call_type, id)
+
+    def rtc_call(self, call_type: str, id: str) -> rtc.RTCCall:
+        return rtc.RTCCall(self, call_type, id)
