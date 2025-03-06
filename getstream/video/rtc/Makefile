@@ -32,7 +32,7 @@ build_go: check_tools
 generate_python: check_tools
 	@echo "Generating Python code from $(PROTO_FILE)..."
 	@mkdir -p ./pb
-	@poetry run protoc -I. -I$(PROTO_PATH) --python_betterproto_out=./pb/ $(PROTO_FILE)
+	@uv run protoc -I. -I$(PROTO_PATH) --python_betterproto_out=./pb/ $(PROTO_FILE)
 	@if [ $$? -eq 0 ]; then \
 		echo "Python code generated successfully."; \
 	else \

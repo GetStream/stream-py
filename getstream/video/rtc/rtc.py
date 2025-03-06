@@ -169,7 +169,7 @@ class RTCCall(Call):
                 # this is needed to keep the callback on the main thread and to ensure that put_nowait will wake up
                 # the event loop where call.join was executed
                 self.ev_loop.call_soon_threadsafe(
-                    self.audio_queue.put_nowait, rtc_packet.audio.payload
+                    self.audio_queue.put_nowait, rtc_packet.audio.pcm.payload
                 )
             case _:
                 print(f"got an event {event}!")
