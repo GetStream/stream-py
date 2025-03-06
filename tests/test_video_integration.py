@@ -332,6 +332,7 @@ class TestCall(VideoTestClass):
             settings_override=CallSettingsRequest(
                 recording=RecordSettingsRequest(
                     mode="available",
+                    audio_only=True,
                 )
             ),
         )
