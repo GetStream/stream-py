@@ -31,7 +31,7 @@ If you want to use the openai realtime integration, you need to install the pack
 pip install getstream[openai-realtime]
 
 # or using uv
-uv add getstream[openai-realtime]
+uv add 'getstream[openai-realtime]'
 ```
 
 ## Usage
