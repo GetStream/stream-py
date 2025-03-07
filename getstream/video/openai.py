@@ -87,11 +87,11 @@ def get_openai_realtime_client(openai_api_key: str, base_url: str):
 
     if base_url.startswith("http://"):
         client.websocket_base_url = (
-            f"{base_url.replace("http://", "ws://")}/video/connect_agent"
+            f"{base_url.replace('http://', 'ws://')}/video/connect_agent"
         )
     if base_url.startswith("https://"):
         client.websocket_base_url = (
-            f"{base_url.replace("https://", "wss://")}/video/connect_agent"
+            f"{base_url.replace('https://', 'wss://')}/video/connect_agent"
         )
 
     # patch client.beta.realtime.connect
