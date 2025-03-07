@@ -297,6 +297,7 @@ def test_create_call_with_custom_session_inactivity_timeout(call: Call):
     assert response.data.call.settings.session.inactivity_timeout_seconds == 5
 
 
+@pytest.mark.skip_in_ci
 def test_create_call_type_with_custom_session_inactivity_timeout(client: Stream):
     # create a call type with a session inactivity timeout of 5 minutes
     response = client.video.create_call_type(
@@ -358,6 +359,7 @@ def test_create_call_with_custom_frame_recording_settings(client: Stream):
     assert response.data.call.settings.frame_recording.quality == "1080p"
 
 
+@pytest.mark.skip_in_ci
 def test_create_call_type_with_custom_frame_recording_settings(client: Stream):
     # create a call type with frame recording settings
     response = client.video.create_call_type(

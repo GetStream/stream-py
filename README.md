@@ -121,6 +121,21 @@ uv run ruff format getstream/ tests/
 
 pytest is used to run tests and to inject fixtures, simple tests can be written as simple python functions making assert calls. Make sure to have a look at the available test fixtures under `tests/fixtures.py`
 
+#### Skipping Tests in CI
+
+Some tests may not be suitable for running in a CI environment (GitHub Actions). To skip a test in CI, use the `@pytest.mark.skip_in_ci` decorator:
+
+```python
+import pytest
+
+@pytest.mark.skip_in_ci
+def test_something():
+    # This test will be skipped when running in GitHub Actions
+    ...
+```
+
+The test will run normally in local development environments but will be automatically skipped when running in GitHub Actions.
+
 ### Generate code from spec
 
 To regenerate the Python source from OpenAPI, just run the `./generate.sh` script from this repo.

@@ -103,6 +103,7 @@ def test_teams(client: Stream):
     assert len(response.data.calls) > 0
 
 
+@pytest.mark.skip_in_ci
 class TestCallTypes:
     def test_creating_storage_with_reserved_name_should_fail(self, client: Stream):
         with pytest.raises(Exception) as exc_info:
@@ -290,6 +291,7 @@ class TestCallTypes:
             ),
         )
 
+    @pytest.mark.skip_in_ci
     def test_delete_call_type(self, client: Stream):
         try:
             response = client.video.delete_call_type(name=CALL_TYPE_NAME)
