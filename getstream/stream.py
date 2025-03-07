@@ -67,6 +67,7 @@ class Stream(CommonClient):
             base_url=self.base_url,
             token=self.token,
             timeout=self.timeout,
+            stream=self,
         )
 
     def upsert_users(self, *users: UserRequest):
