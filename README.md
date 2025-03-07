@@ -20,6 +20,18 @@ To install the Stream Client Library, run the following command:
 
 ```sh
 pip install getstream
+
+# or if like us, you fell in love with uv
+uv add getstream
+```
+
+If you want to use the openai realtime integration, you need to install the package with the additional dependencies:
+
+```sh
+pip install getstream[openai-realtime]
+
+# or using uv
+uv add getstream[openai-realtime]
 ```
 
 ## Usage
