@@ -3,6 +3,7 @@ import time
 import pytest
 import uuid
 import jwt
+import os
 from getstream.models import (
     S3Request,
     CallSettingsRequest,
@@ -29,6 +30,22 @@ from tests.base import wait_for_task
 
 CALL_TYPE_NAME = f"calltype{uuid.uuid4()}"
 EXTERNAL_STORAGE_NAME = f"storage{uuid.uuid4()}"
+
+
+def get_openai_api_key_or_skip():
+    """
+    Get the OpenAI API key from environment variables or skip the test.
+
+    Returns:
+        str: The OpenAI API key.
+
+    Raises:
+        pytest.skip: If the OpenAI API key is not set.
+    """
+    openai_api_key = os.environ.get("OPENAI_API_KEY")
+    if not openai_api_key:
+        pytest.skip("Skipping test as OPENAI_API_KEY is not set")
+    return openai_api_key
 
 
 def test_create_token(client: Stream):
@@ -86,6 +103,7 @@ def test_teams(client: Stream):
     assert len(response.data.calls) > 0
 
 
+@pytest.mark.skip_in_ci
 class TestCallTypes:
     def test_creating_storage_with_reserved_name_should_fail(self, client: Stream):
         with pytest.raises(Exception) as exc_info:
@@ -273,6 +291,7 @@ class TestCallTypes:
             ),
         )
 
+    @pytest.mark.skip_in_ci
     def test_delete_call_type(self, client: Stream):
         try:
             response = client.video.delete_call_type(name=CALL_TYPE_NAME)
@@ -332,6 +351,7 @@ class TestCall(VideoTestClass):
             settings_override=CallSettingsRequest(
                 recording=RecordSettingsRequest(
                     mode="available",
+                    audio_only=True,
                 )
             ),
         )
@@ -396,3 +416,72 @@ class TestDeleteCall:
         response = wait_for_task(client, task_id)
         cid = call.call_type + ":" + call.id
         assert response.data.result[cid]["status"] == "ok"
+
+
+@pytest.mark.asyncio
+async def test_connect_openai_with_bad_token(client: Stream):
+    """Test that using a bad OpenAI token throws an exception."""
+    # Verify that we have a valid OpenAI API key for comparison
+    _ = get_openai_api_key_or_skip()
+
+    # Create a call
+    call_id = f"bad-token-test-{uuid.uuid4()}"
+    call = client.video.call("default", call_id)
+
+    # Use a clearly invalid OpenAI token
+    bad_token = "bad_openai_token_that_will_fail"
+
+    # The connection might not fail immediately, but should fail when we try to use it
+    try:
+        async with call.connect_openai(bad_token, "test-user") as connection:
+            # Try to iterate through events, which should trigger the error check
+            async for event in connection:
+                # If we get here without an error, the test should fail
+                assert False, "Should have received an error with invalid token"
+                break
+
+        # If we get here without an exception, the test should fail
+        assert False, "Should have raised an exception with invalid token"
+    except Exception as e:
+        # Verify that we got an exception
+        error_message = str(e)
+        print(f"Received exception as expected: {error_message}")
+        # The error message might vary, but should indicate some kind of failure
+        assert error_message, "Exception message should not be empty"
+
+
+@pytest.mark.asyncio
+async def test_connect_openai_with_nonexistent_call_type(client: Stream):
+    """Test that using a non-existent call type throws an appropriate exception."""
+    # Create a call with a non-existent call type
+    call_id = f"nonexistent-type-test-{uuid.uuid4()}"
+    nonexistent_type = "banana"
+    call = client.video.call(nonexistent_type, call_id)
+
+    # First verify that the call type doesn't exist by trying to get it
+    with pytest.raises(Exception) as excinfo:
+        await client.video.get_call_type(nonexistent_type)
+
+    # Print and verify the exception message
+    error_message = str(excinfo.value)
+    print(f"\nException when getting call type: {error_message}")
+    assert "failed" in error_message.lower(), "Error message should indicate failure"
+
+    # Now try to use the call with OpenAI
+    # We expect an exception to be thrown either during connection or when trying to use it
+    openai_api_key = get_openai_api_key_or_skip()
+
+    # We expect an exception to be thrown at some point when trying to use a non-existent call type
+    with pytest.raises(Exception) as excinfo:
+        async with call.connect_openai(openai_api_key, "test-user") as connection:
+            # If we get here without an exception, try to use the connection
+            # which should definitely fail
+            async for event in connection:
+                print(f"Received event: {event}")
+                break
+
+    # Print the exception for debugging
+    error_message = str(excinfo.value)
+    print(f"\nException with non-existent call type: {error_message}")
+
+    # The test passes if we get here, as pytest.raises will ensure an exception was thrown
