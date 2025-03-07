@@ -53,6 +53,7 @@ class Stream(CommonClient):
             base_url=self.base_url,
             token=self.token,
             timeout=self.timeout,
+            stream=self,
         )
 
     @cached_property

@@ -1,5 +1,6 @@
 import pytest
 import uuid
+import asyncio
 
 from getstream import Stream
 from getstream.base import StreamAPIException
@@ -15,6 +16,7 @@ from getstream.models import (
 )
 from getstream.video.call import Call
 from datetime import datetime, timezone, timedelta
+from tests.test_video_integration import get_openai_api_key_or_skip
 
 
 def test_setup_client():
@@ -370,3 +372,85 @@ def test_create_call_type_with_custom_frame_recording_settings(client: Stream):
     assert response.data.settings.frame_recording.capture_interval_in_seconds == 5
     assert response.data.settings.frame_recording.mode == "auto-on"
     assert response.data.settings.frame_recording.quality == "720p"
+
+
+@pytest.mark.asyncio
+async def test_connect_openai(client: Stream, capsys):
+    # Get the OpenAI API key or skip the test
+    openai_api_key = get_openai_api_key_or_skip()
+
+    call = client.video.call("default", "example-ai-recorder")
+
+    # Just test that we can get the client without errors
+    from getstream.video.openai import get_openai_realtime_client
+
+    openai_client = get_openai_realtime_client(openai_api_key, client.base_url)
+
+    # Verify that the client has been patched
+    assert hasattr(openai_client, "beta")
+    assert hasattr(openai_client.beta, "realtime")
+
+    # Skip the actual connection part which requires a real server, we leave this here just for manual testing
+    with capsys.disabled():
+        try:
+            async with (
+                asyncio.timeout(5),
+                call.connect_openai(openai_api_key, "lucy") as connection,
+            ):
+                await connection.session.update(
+                    session={"instructions": "help the user with history questions"}
+                )
+                await connection.session.update(session={"voice": "ballad"})
+                async for event in connection:
+                    print(f"received event: {event}")
+                    if event.type == "call.session_participant_left":
+                        print("other user left, leaving the call now")
+                        return
+                    if event.type == "call.session_participant_joined":
+                        await connection.conversation.item.create(
+                            item={
+                                "type": "message",
+                                "role": "user",
+                                "content": [
+                                    {
+                                        "type": "input_text",
+                                        "text": "Say hello to Kazuki in Japanese",
+                                    }
+                                ],
+                            }
+                        )
+                        await connection.response.create()
+        except asyncio.TimeoutError:
+            print("Test timed out after 5 seconds")
+
+
+@pytest.mark.asyncio
+async def test_event_representation():
+    """Test that events have a nice string representation."""
+    from getstream.video.openai import dict_to_class
+
+    # Create a sample event dictionary
+    event_dict = {
+        "type": "response.audio_transcript.delta",
+        "event_id": "event_B8X1q0WppJQ8J6PN7a555",
+        "response_id": "resp_B8X1q71qHQbQlGd8eZ5RZ",
+        "item_id": "item_B8X1qkjSfB5sn8lnhgJ5d",
+        "content_index": 0,
+        "output_index": 0,
+        "delta": "。",
+    }
+
+    # Convert to a StreamEvent
+    event = dict_to_class(event_dict)
+
+    # Get the string representation
+    event_str = str(event)
+    print(f"\nEvent representation: {event_str}")
+
+    # Verify that the representation includes the type in camel case
+    assert "ResponseAudioTranscriptDeltaEvent" in event_str
+
+    # Verify that the representation includes all the attributes
+    for key, value in event_dict.items():
+        assert f"{key}=" in event_str
+        assert str(repr(value)) in event_str

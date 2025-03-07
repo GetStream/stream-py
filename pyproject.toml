@@ -26,6 +26,7 @@ dev-dependencies = [
     "python-dotenv>=1.0.1,<2",
     "ruff>=0.4.1,<0.5",
     "pre-commit>=3.7.0,<4",
+    "pytest-asyncio>=0.23.8"
 ]
 
 [tool.uv]
@@ -43,5 +44,6 @@ ignore = ["F405", "F403"]
 
 [project.optional-dependencies]
 openai-realtime = [
-  "openai>=1.65.4"
+  "openai[realtime]==1.65.4",
+  "trio >=0.22.2",
 ]
