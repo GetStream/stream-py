@@ -16,7 +16,9 @@ class Call:
         if hasattr(data, "call") and isinstance(data.call, CallResponse):
             self.custom_data = data.call.custom
 
-    def connect_openai(self, openai_api_key, agent_user_id):
+    def connect_openai(
+        self, openai_api_key, agent_user_id, model="gpt-4o-realtime-preview"
+    ):
         from .openai import get_openai_realtime_client, ConnectionManagerWrapper
 
         client = get_openai_realtime_client(openai_api_key, self.client.base_url)
@@ -27,7 +29,7 @@ class Call:
                 "call_id": self.id,
                 "api_key": self.client.api_key,
             },
-            model="gpt-4o-realtime-preview",
+            model=model,
             extra_headers={
                 "Authorization": f"Bearer {openai_api_key}",
                 "OpenAI-Beta": "realtime=v1",

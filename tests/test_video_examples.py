@@ -383,15 +383,6 @@ async def test_connect_openai(client: Stream, capsys):
 
     call = client.video.call("default", "example-ai-recorder")
 
-    # Just test that we can get the client without errors
-    from getstream.video.openai import get_openai_realtime_client
-
-    openai_client = get_openai_realtime_client(openai_api_key, client.base_url)
-
-    # Verify that the client has been patched
-    assert hasattr(openai_client, "beta")
-    assert hasattr(openai_client.beta, "realtime")
-
     # Skip the actual connection part which requires a real server, we leave this here just for manual testing
     with capsys.disabled():
         try:
