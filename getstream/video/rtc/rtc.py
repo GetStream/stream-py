@@ -1,18 +1,13 @@
-import io
+import os
 
-import numpy as np
-
-import inspect
 
 import asyncio
-import torch
-import torchaudio
 from typing import Dict, Union, AsyncGenerator
 
 import cffi
 
 from getstream.video.call import Call
-from pb import events
+from getstream.video.rtc.pb import events
 from enum import Enum
 
 
@@ -24,7 +19,9 @@ ffi.cdef("""
     void free(void *ptr);
 """)
 
-lib = ffi.dlopen("./libstreamvideo.so")
+# Use absolute path to the shared library
+lib_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "libstreamvideo.so")
+lib = ffi.dlopen(lib_path)
 
 
 class AudioFormat(Enum):
@@ -36,72 +33,6 @@ class AudioFormat(Enum):
 class AudioChannels(Enum):
     Mono = 1
     Stereo = 2
-
-
-def create_ogg_from_pcm(pcm, sample_rate=48000):
-    # Calculate number of samples per 20ms chunk
-    chunk_size = int(sample_rate * 20 / 1000)  # 20ms chunk at given sample rate
-
-    # Convert PCM bytes to numpy array and then to a PyTorch tensor
-    pcm_array = np.frombuffer(pcm, dtype=np.float32)
-    pcm_array = np.expand_dims(pcm_array, axis=0)  # Ensure it's 2D [channels, samples]
-    pcm_tensor = torch.from_numpy(pcm_array)
-
-    # Create in-memory bytes buffer for the Ogg file
-    ogg_bytes = io.BytesIO()
-
-    # Create a list to hold all the chunks
-    chunks = []
-
-    # Process each 20ms chunk and add it to the list
-    for i in range(0, pcm_tensor.shape[1], chunk_size):
-        chunk = pcm_tensor[:, i : i + chunk_size]  # Get the 20ms chunk
-        if chunk.shape[1] < chunk_size:
-            chunk = torch.nn.functional.pad(
-                chunk, (0, chunk_size - chunk.shape[1])
-            )  # Pad the last chunk with zeros
-        chunks.append(chunk)
-
-    # Concatenate all the chunks into a single tensor
-    final_tensor = torch.cat(chunks, dim=1)  # Concatenate along the time axis
-
-    # Save the entire tensor as a single Ogg Opus file
-    torchaudio.save(ogg_bytes, final_tensor, sample_rate, format="ogg", encoding="opus")
-
-    return ogg_bytes.getvalue()
-
-
-def create_ogg_from_pcm(pcm, sample_rate=48000):
-    # Calculate number of samples per 20ms chunk
-    chunk_size = int(sample_rate * 20 / 1000)  # 20ms chunk at given sample rate
-
-    # Convert PCM bytes to numpy array and then to a PyTorch tensor
-    pcm_array = np.frombuffer(pcm, dtype=np.float32)
-    pcm_array = np.expand_dims(pcm_array, axis=0)  # Ensure it's 2D [channels, samples]
-    pcm_tensor = torch.from_numpy(pcm_array)
-
-    # Create in-memory bytes buffer for the Ogg file
-    ogg_bytes = io.BytesIO()
-
-    # Create a list to hold all the chunks
-    chunks = []
-
-    # Process each 20ms chunk and add it to the list
-    for i in range(0, pcm_tensor.shape[1], chunk_size):
-        chunk = pcm_tensor[:, i : i + chunk_size]  # Get the 20ms chunk
-        if chunk.shape[1] < chunk_size:
-            chunk = torch.nn.functional.pad(
-                chunk, (0, chunk_size - chunk.shape[1])
-            )  # Pad the last chunk with zeros
-        chunks.append(chunk)
-
-    # Concatenate all the chunks into a single tensor
-    final_tensor = torch.cat(chunks, dim=1)  # Concatenate along the time axis
-
-    # Save the entire tensor as a single Ogg Opus file
-    torchaudio.save(ogg_bytes, final_tensor, sample_rate, format="ogg", encoding="opus")
-
-    return ogg_bytes.getvalue()
 
 
 class RTCCall(Call):
@@ -133,31 +64,7 @@ class RTCCall(Call):
         format: AudioFormat = AudioFormat.Float32,
         rate: int = 48_000,
     ):
-        # just send the stream to Go SDK since we got bytes
-        if not inspect.isasyncgen(stream):
-            print("got bytes, send them to Go SDK")
-            ogg_bytes = create_ogg_from_pcm(stream)
-
-            with open("/Users/tommaso/Downloads/ogg_bytes.ogg", "wb") as f:
-                f.write(ogg_bytes)
-
-            data = events.AudioPayload(
-                ogg=events.OggOpusPayload(payload=ogg_bytes),
-            ).__bytes__()
-            c_data = ffi.new("char[]", data)
-            lib.SendAudio(c_data, len(data))
-            return
-
-        print("got an async generator of bytes!")
-        # if the stream is an async generator, we will send the audio when we have at least 20ms of audio accumulated
-        flush_size = 0.05 * rate
-        accumulated_bytes = []
-        async for value in stream:
-            accumulated_bytes += value
-            if len(accumulated_bytes) >= flush_size:
-                print(f"for {len(accumulated_bytes)} bytes, flush them now :)")
-                # TODO: send to Go SDK now that we have enough data and reset the array of accumulated bytes
-                accumulated_bytes = []
+        pass
 
     def leave(self):
         # TODO: tell go RTC layer that we want to disconnect from this call
