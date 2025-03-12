@@ -2,22 +2,11 @@ import asyncio
 import pytest
 import uuid
 
-from getstream import Stream
-
 
 @pytest.fixture
-def rtc_client():
-    """Create a Stream client with specific credentials for RTC testing."""
-    return Stream(
-        api_key="hd8szvscpxvd",
-        api_secret="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiYWktcmVjb3JkZXIifQ.Ic1dVrjX_gbfb4IdO9lhvZteQi8Ki_w0AlCXUvwot8k",
-    )
-
-
-@pytest.fixture
-def rtc_call(rtc_client):
+def rtc_call(client):
     """Create an RTC call object."""
-    return rtc_client.video.rtc_call("default", str(uuid.uuid4()))
+    return client.video.rtc_call("default", str(uuid.uuid4()))
 
 
 @pytest.mark.asyncio

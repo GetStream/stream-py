@@ -6,7 +6,7 @@ The test should do this work like this:
 
 1. initialize the video SDK
 2. initialize a call object using the client.rtc_call method
-3. Use these credentials to initialize the SDK key "hd8szvscpxvd" and secret "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiYWktcmVjb3JkZXIifQ.Ic1dVrjX_gbfb4IdO9lhvZteQi8Ki_w0AlCXUvwot8k"
+3. Use these credentials to initialize the SDK key "hd8szvscpxvd" and secret "4dv9yu4hqy7xvqk35vpbnqrafg2b43rzu8u4wt93mgrc3cd2ufb5bndb73g58emq"
 
 There is not much to test in this case so just run the test with a few seconds timeout
 

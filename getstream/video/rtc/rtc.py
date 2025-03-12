@@ -14,7 +14,7 @@ from enum import Enum
 ffi = cffi.FFI()
 ffi.cdef("""
     typedef void (*CallbackFunc)(const char*, size_t);
-    void Join(CallbackFunc callback);
+    void Join(const char* apiKey, const char* apiSecret, CallbackFunc callback);
     void SendAudio(char* cData, size_t data);
     void free(void *ptr);
 """)
@@ -52,7 +52,21 @@ class RTCCall(Call):
         # TODO: we should keep a reference to the go rtc call object here
         cb = make_rtc_event_callback(self)
         self._cb = cb  # maybe not needed, just here to be safe (GC)
-        lib.Join(cb)
+
+        # Get API key and secret from the client
+        api_key = self.client.stream.api_key
+        api_secret = self.client.stream.api_secret
+
+        # Convert to C strings
+        c_api_key = ffi.new("char[]", api_key.encode("utf-8"))
+        c_api_secret = ffi.new("char[]", api_secret.encode("utf-8"))
+
+        # Call the Go function with API credentials
+        lib.Join(c_api_key, c_api_secret, cb)
+
+        # Mark as joined
+        self._joined = True
+
         # this call.join method should run on the event loop where all processing is done
         self.ev_loop = asyncio.get_event_loop()
         await asyncio.sleep(60)  # this needs to be removed eventually

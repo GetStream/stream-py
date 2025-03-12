@@ -15,7 +15,13 @@ from getstream.models import (
     MemberRequest,
 )
 
+# initialize the sdk using api key and secret
+client = Stream(api_key="your_api_key", api_secret="your_api_secret")
+
+# use client.video for video endpoints and .call to create a resource object for a specific call
 call = client.video.call("default", uuid.uuid4())
+
+# performs a get_or_create API call
 call.get_or_create(
     data=CallRequest(
         created_by_id="tommaso-id",
@@ -27,6 +33,7 @@ call.get_or_create(
 )
 ```
 
+When using the client code, make sure to look at the function signatures and the types definition.
 
 # Projet setup
 
