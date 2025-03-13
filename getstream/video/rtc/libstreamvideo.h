@@ -22,11 +22,17 @@ typedef struct { const char *p; ptrdiff_t n; } _GoString_;
 #line 3 "main.go"
 
 #include <stdlib.h>
+#include <string.h>
 typedef void (*CallbackFunc)(const char*, size_t);
 
 // Helper function to call the callback, this is here to avoid crazy unsafe casting in go to call a ptr to a c func
 static void invokeCallback(CallbackFunc callback, const char* message, size_t length) {
 	callback(message, length);
+}
+
+// Helper function to convert C string to Go string
+static char* getCString(const char* str) {
+    return (char*)str;
 }
 
 #line 1 "cgo-generated-wrapper"
@@ -87,7 +93,7 @@ extern "C" {
 
 extern void InterruptAudio();
 extern void SendAudio(char* cData, size_t data);
-extern void Join(CallbackFunc callback, char* apiKey, char* apiSecret);
+extern void Join(char* apiKey, char* apiSecret, CallbackFunc callback);
 
 #ifdef __cplusplus
 }

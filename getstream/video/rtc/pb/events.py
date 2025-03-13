@@ -12,6 +12,16 @@ class AudioFormat(betterproto.Enum):
     Int16 = 2
 
 
+class ErrorCode(betterproto.Enum):
+    """Error message for handling error events"""
+
+    UNKNOWN_ERROR = 0
+    CALL_JOIN_ERROR = 1
+    AUTHENTICATION_ERROR = 2
+    NETWORK_ERROR = 3
+    SERVER_ERROR = 4
+
+
 @dataclass
 class RTCPacket(betterproto.Message):
     video: "VideoPayload" = betterproto.message_field(1, group="payload")
@@ -59,9 +69,24 @@ class ParticipantLeft(betterproto.Message):
 
 
 @dataclass
+class Error(betterproto.Message):
+    code: "ErrorCode" = betterproto.enum_field(1)
+    message: str = betterproto.string_field(2)
+
+
+@dataclass
+class CallJoinResponse(betterproto.Message):
+    """Response message for successful call join"""
+
+    pass
+
+
+@dataclass
 class Event(betterproto.Message):
     rtc_packet: "RTCPacket" = betterproto.message_field(1, group="event")
     participant_joined: "ParticipantJoined" = betterproto.message_field(
         2, group="event"
     )
     participant_left: "ParticipantLeft" = betterproto.message_field(3, group="event")
+    error: "Error" = betterproto.message_field(4, group="event")
+    call_join_response: "CallJoinResponse" = betterproto.message_field(5, group="event")

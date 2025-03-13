@@ -12,7 +12,6 @@ Here's an example:
 import uuid
 from getstream.models import (
     CallRequest,
-    MemberRequest,
 )
 
 # initialize the sdk using api key and secret
@@ -25,15 +24,13 @@ call = client.video.call("default", uuid.uuid4())
 call.get_or_create(
     data=CallRequest(
         created_by_id="tommaso-id",
-        members=[
-            MemberRequest(user_id="thierry-id"),
-            MemberRequest(user_id="tommaso-id"),
-        ],
     ),
 )
 ```
 
-When using the client code, make sure to look at the function signatures and the types definition.
+When using the client code, make sure to look at the function signatures and the types definition for the python code. When calling methods such as get_or_create sometimes you need to pass request objects. All request objects are inside the getstream.models module.
+
+All methods using the API like get_or_create return a response type like GetOrCreateResponse, these types also live inside the getstream.models module.
 
 # Projet setup
 
@@ -47,12 +44,7 @@ All lib code lives inside the getstream path of the stream-py repository and tes
 
 The go project contains our video SFU as well as a video SDK that we use internally and that we are going to use here in this project.
 
-# Running python tests
-
-It is important to always write and run test for all new code and changes, tests should use existing conftest fixtures when possible and in general you should not create too much repeated code in tests. When applicable it is best to create fixtures or test helpers and re-use them (see conftest.py file for that).
-
-
-# RTC client
+# Python RTC client
 
 The Python client can be used to connect to webRTC calls. To do that we are not going to use a Python webrtc library. Instead, we are going to use our Golang videosdk and use cffi + protobuf to join/leave calls and to communicate data between the two codebases.
 
@@ -63,7 +55,7 @@ videosdk/bindings/events.proto this file contains the model definition used by G
 
 On the python side:
 
-getstream/video/rtc/rtc.py is the file where we have the cffi definitions and the top level functions.
+getstream/video/rtc/rtc.py is the file where we have the cffi definitions and the top level functions as well as the top-level python code to join calls
 getstream/video/rtc/pb is where we store the protobuf generated code, this code is code generated (see section on how to get this code regenerated)
 
 ## Memory management
@@ -77,6 +69,8 @@ The current approach is for Go to pass pointers to bytes to Python and mark that
 Every change on the Go or Python side that changes C-exported functions or the protobuf events require generating a new .so file and pb files for both go and python. There is a code generation target in getstream/video/rtc/Makefile called all. make all will do all the regeneration and will also copy the new files in place. Make sure to run `make all` every time a change requires new generated code.
 
 The python library relies on the libstreamvideo.so shared object to be present, this file needs to be generated each time the go code that is C exported changes. The make all target does this and takes care of copying the files as well.
+
+DO NOT RUN protoc DIRECTLY OR CHANGE GENEATED CODE! ALWAYS RUN `make all`!!!
 
 ## Python Protobuf
 
