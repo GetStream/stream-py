@@ -2,7 +2,7 @@ import os
 
 
 import asyncio
-from typing import Dict, Union, AsyncGenerator
+from typing import Dict, Union, AsyncGenerator, AsyncIterator
 import logging
 
 import cffi
@@ -15,7 +15,7 @@ from enum import Enum
 ffi = cffi.FFI()
 ffi.cdef("""
     typedef void (*CallbackFunc)(const char*, size_t);
-    void Join(const char* apiKey, const char* apiSecret, CallbackFunc callback);
+    void Join(const char* apiKey, const char* token, const char* callType, const char* callId, CallbackFunc callback);
     void SendAudio(char* cData, size_t data);
     void free(void *ptr);
 """)
@@ -45,6 +45,89 @@ class JoinError(Exception):
         super().__init__(f"Call join failed: {message} (code: {code})")
 
 
+class ConnectionManager:
+    """
+    Manages the connection to a call. Serves as both an async context manager and
+    an async iterator over events received from the call.
+    """
+
+    def __init__(self, call: "RTCCall", user_id: str, timeout: float = 30.0):
+        """
+        Initialize a connection manager for a call.
+
+        Args:
+            call: The RTCCall instance to manage
+            user_id: ID of the user joining the call
+            timeout: Maximum time to wait for join to complete
+        """
+        self.call = call
+        self.user_id = user_id
+        self.timeout = timeout
+        self.joined = False
+
+    async def __aenter__(self) -> "ConnectionManager":
+        """Enter the async context manager, joining the call."""
+        # Create a future to track join status
+        self.call._join_future = asyncio.Future()
+
+        # Get API key and secret from the client
+        api_key = self.call.client.stream.api_key
+
+        # Create the callback
+        cb = make_rtc_event_callback(self.call)
+        self.call._cb = cb  # Keep a reference to prevent garbage collection
+
+        token = self.call.client.stream.create_token(self.user_id)
+
+        # Convert to C strings
+        c_api_key = ffi.new("char[]", api_key.encode("utf-8"))
+        c_token = ffi.new("char[]", token.encode("utf-8"))
+        c_call_type = ffi.new("char[]", self.call.call_type.encode("utf-8"))
+        c_call_id = ffi.new("char[]", self.call.id.encode("utf-8"))
+
+        # Mark that we're using the current event loop
+        self.call.ev_loop = asyncio.get_event_loop()
+
+        # Call the Go function with API credentials and call info (non-blocking)
+        lib.Join(c_api_key, c_token, c_call_type, c_call_id, cb)
+
+        try:
+            # Wait for join response or error with timeout
+            await asyncio.wait_for(self.call._join_future, timeout=self.timeout)
+            self.call._joined = True
+            self.joined = True
+        except asyncio.TimeoutError:
+            # Timed out waiting for join response
+            raise asyncio.TimeoutError(
+                f"Timed out waiting to join call after {self.timeout} seconds"
+            )
+
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Exit the async context manager, leaving the call."""
+        if self.joined:
+            await self.call.leave()
+            self.call._joined = False
+            self.joined = False
+
+    def __aiter__(self) -> AsyncIterator[events.Event]:
+        """Return the async iterator over events."""
+        return self
+
+    async def __anext__(self) -> events.Event:
+        """Get the next event from the event queue."""
+        if not self.joined:
+            raise StopAsyncIteration
+
+        try:
+            event = await self.call._event_queue.get()
+            self.call._event_queue.task_done()
+            return event
+        except asyncio.CancelledError:
+            raise StopAsyncIteration
+
+
 class RTCCall(Call):
     def __init__(
         self, client, call_type: str, call_id: str = None, custom_data: Dict = None
@@ -58,51 +141,38 @@ class RTCCall(Call):
         self._join_future = None  # Future to track join status
         self._event_queue = asyncio.Queue()  # Queue to track events
 
-    async def join(self, user_id: str, timeout: float = 30.0) -> None:
+    def join(self, user_id: str, timeout: float = 30.0) -> ConnectionManager:
         """
-        Join a call asynchronously.
+        Join a call and return a connection manager that can be used as an async context manager.
+
+        Usage:
+            async with call.join("user-id") as connection:
+                async for event in connection:
+                    # Process event
 
         Args:
             user_id: The ID of the user joining the call
             timeout: Maximum time to wait for the join operation to complete, in seconds
 
+        Returns:
+            A ConnectionManager instance that serves as both an async context manager and iterator
+
         Raises:
-            JoinError: If joining the call fails
-            asyncio.TimeoutError: If the join operation times out
+            RuntimeError: If the call is already joined
         """
         if self._joined:
             raise RuntimeError("Already joined")
 
-        # Create a future to track join status
-        self._join_future = asyncio.Future()
+        return ConnectionManager(self, user_id, timeout)
 
-        # Get API key and secret from the client
-        api_key = self.client.stream.api_key
-        api_secret = self.client.stream.api_secret
+    async def leave(self):
+        """Leave the call."""
+        if not self._joined:
+            return
 
-        # Create the callback
-        cb = make_rtc_event_callback(self)
-        self._cb = cb  # Keep a reference to prevent garbage collection
-
-        # Convert to C strings
-        c_api_key = ffi.new("char[]", api_key.encode("utf-8"))
-        c_api_secret = ffi.new("char[]", api_secret.encode("utf-8"))
-
-        # Mark that we're using the current event loop
-        self.ev_loop = asyncio.get_event_loop()
-
-        # Call the Go function with API credentials (non-blocking)
-        lib.Join(c_api_key, c_api_secret, cb)
-
-        try:
-            # Wait for join response or error with timeout
-            await asyncio.wait_for(self._join_future, timeout=timeout)
-            self._joined = True
-        except asyncio.TimeoutError:
-            # Timed out waiting for join response
-            raise asyncio.TimeoutError(
-                f"Timed out waiting to join call after {timeout} seconds"
-            )
+        # TODO: implement leave functionality by telling Go to disconnect
+        self._joined = False
+        logging.debug("Left call")
 
     async def send_audio(
         self,
@@ -113,10 +183,6 @@ class RTCCall(Call):
     ):
         pass
 
-    def leave(self):
-        # TODO: tell go RTC layer that we want to disconnect from this call
-        pass
-
     def on_rtc_event_payload(self, event: events.Event):
         # Process the event on the event loop to ensure thread safety
         if self.ev_loop:
@@ -125,22 +191,28 @@ class RTCCall(Call):
     def _process_event(self, event: events.Event):
         # If we have a pending join operation
         if self._join_future and not self._join_future.done():
-            # Check if this is a join response or error
-            if event.error:
-                self._join_future.set_exception(
-                    JoinError(event.error.code, event.error.message)
-                )
-                return
-            elif event.call_join_response:
-                self._join_future.set_result(None)  # Successful join
-                return
+            match event:
+                case events.Event(error=value):
+                    self._join_future.set_exception(
+                        JoinError(value.code, value.message)
+                    )
+                case events.Event(call_join_response=value):
+                    self._join_future.set_result(value)
+                case _:
+                    self._join_future.set_exception(
+                        TypeError(f"unexpected event {event}")
+                    )
+            return
 
         # Handle other event types
         match event:
             case events.Event(rtc_packet=rtc_packet):
-                # this is needed to keep the callback on the main thread and to ensure that put_nowait will wake up
-                # the event loop where call.join was executed
-                self.audio_queue.put_nowait(rtc_packet.audio.pcm.payload)
+                # Handle audio data
+                if hasattr(rtc_packet.audio, "pcm") and rtc_packet.audio.pcm:
+                    self.audio_queue.put_nowait(rtc_packet.audio.pcm.payload)
+
+                # Also put the RTC packet event in the general event queue
+                self._event_queue.put_nowait(event)
             case _:
                 logging.debug(f"Got event: {event}")
                 self._event_queue.put_nowait(event)

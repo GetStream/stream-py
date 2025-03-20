@@ -44,8 +44,16 @@ Make sure to create two tests:
 One test should connects to the call using the client for fixtures, because the code is blocking you need to add a timeout.
 The other test, should initialize another client with invalid credentials, join a call and be expected to throw an exception
 
-## Step 4 - Change call.join to be an something that can be used like this:
 
+## Step 4 - pass call type and call id from the RTC call object to Go
+
+Atm Go has call type and id hard coded in call, err := sdk.JoinCall(context.Background(), "default", "example-ai-recorder", models.JoinCallRequest{})
+
+Instead, we should have these parameters to be passed down from python to go via cffi
+
+## Step 5 - Change call.join to be an something that can be used like this:
+
+Make sure to follow instructions in @ai-basic and @ai-testing.
 
 ```python
 call = client.video.rtc_call("default", "example-ai-recorder")
@@ -56,7 +64,9 @@ async with call.join("ai-recorder") as connection:
         pass
 ```
 
-so call.join should become an async function that returns a connection manager, the connection can be iterated and it will yield events coming from Go via the callback function that Python sends to Go via cffi
+so call.join should become an async function that returns a connection manager, the connection can be iterated and it will yield events coming from Go via the callback function that Python sends to Go via cffi.
+
+Make sure to run all tests in test_rtc and adjust them if necessary, also make sure to have a test (not necessarily a new one) that loops for events over the connection and prints the first one.
 
 ## Step 4 - Change call.join to be an something that can be used like this:
 

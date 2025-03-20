@@ -93,7 +93,7 @@ extern "C" {
 
 extern void InterruptAudio();
 extern void SendAudio(char* cData, size_t data);
-extern void Join(char* apiKey, char* apiSecret, CallbackFunc callback);
+extern void Join(char* apiKey, char* token, char* callType, char* callId, CallbackFunc callback);
 
 #ifdef __cplusplus
 }
