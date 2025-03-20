@@ -106,18 +106,30 @@ rtc_call = client.video.rtc_call("default", uuid.uuid4())
 # Set up mock audio configuration with a WAV file
 mock_audio = MockAudioConfig(
     audio_file_path="/path/to/audio.wav",
-    realtime_clock=True  # Send events at realistic 20ms intervals
+    realtime_clock=True,  # Send events at realistic 20ms intervals
 )
 
-# Create a mock participant
-mock_participant = MockParticipant(
+# Set up mock audio configuration with an MP3 file
+mp3_mock_audio = MockAudioConfig(
+    audio_file_path="/path/to/audio.mp3",
+    realtime_clock=True,
+)
+
+# Create mock participants
+mock_participant1 = MockParticipant(
     user_id="mock-user-1",
-    name="Mock User",
+    name="Mock User 1",
     audio=mock_audio
 )
 
+mock_participant2 = MockParticipant(
+    user_id="mock-user-2",
+    name="Mock User 2",
+    audio=mp3_mock_audio
+)
+
 # Create the mock configuration with participants
-mock_config = MockConfig(participants=[mock_participant])
+mock_config = MockConfig(participants=[mock_participant1, mock_participant2])
 
 # Set the mock configuration on the call object
 rtc_call.set_mock(mock_config)
@@ -132,7 +144,7 @@ async with rtc_call.join("test-user") as connection:
 
 The mock supports the following features:
 - Adding mock participants with custom user IDs and names
-- Playing audio from WAV files
+- Playing audio from WAV and MP3 files (detected by file extension)
 - Controlling whether audio events are sent at realistic timing intervals (20ms) or as fast as possible
 
 ## Memory management

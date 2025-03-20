@@ -54,9 +54,10 @@ class MockAudioConfig:
         Initialize audio configuration for a mocked participant.
 
         Args:
-            audio_file_path: Path to the WAV file to use for audio.
+            audio_file_path: Path to the audio file to use for audio.
+                            The file type is determined from the file extension.
             realtime_clock: If True, send audio events at realistic 20ms intervals.
-                              If False, send events as fast as possible.
+                           If False, send events as fast as possible.
         """
         self.audio_file_path = audio_file_path
         self.realtime_clock = realtime_clock
