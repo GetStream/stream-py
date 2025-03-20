@@ -73,7 +73,6 @@ Make sure to run all tests in test_rtc and adjust them if necessary, also make s
 
 ```python
 call = client.video.rtc_call("default", "example-ai-recorder")
-call.get_or_create(data=CallRequest(created_by_id="ai-recorder"))
 
 async with call.join("ai-recorder") as connection:
     async for event in connection:
