@@ -2,6 +2,7 @@
 # sources: events.proto
 # plugin: python-betterproto
 from dataclasses import dataclass
+from typing import List
 
 import betterproto
 
@@ -20,6 +21,26 @@ class ErrorCode(betterproto.Enum):
     AUTHENTICATION_ERROR = 2
     NETWORK_ERROR = 3
     SERVER_ERROR = 4
+
+
+@dataclass
+class MockAudioConfig(betterproto.Message):
+    """Mock configuration for testing"""
+
+    audio_file_path: str = betterproto.string_field(1)
+    realistic_timing: bool = betterproto.bool_field(2)
+
+
+@dataclass
+class MockParticipant(betterproto.Message):
+    user_id: str = betterproto.string_field(1)
+    name: str = betterproto.string_field(2)
+    audio: "MockAudioConfig" = betterproto.message_field(3)
+
+
+@dataclass
+class MockConfig(betterproto.Message):
+    participants: List["MockParticipant"] = betterproto.message_field(1)
 
 
 @dataclass

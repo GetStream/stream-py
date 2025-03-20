@@ -58,6 +58,83 @@ On the python side:
 getstream/video/rtc/rtc.py is the file where we have the cffi definitions and the top level functions as well as the top-level python code to join calls
 getstream/video/rtc/pb is where we store the protobuf generated code, this code is code generated (see section on how to get this code regenerated)
 
+## Iterating over call events
+
+To receive events from a call, you can use the async context manager pattern with the `join` method. This provides a connection object that acts as an async iterator, yielding events as they're received:
+
+```python
+# Create a call object
+rtc_call = client.video.rtc_call("default", uuid.uuid4())
+
+# Join the call as an async context manager
+async with rtc_call.join("user-id", timeout=10.0) as connection:
+    # Once we're here, the join was successful
+
+    # Iterate over events from the call
+    async for event in connection:
+        # Process different event types
+        if hasattr(event, "rtc_packet") and event.rtc_packet:
+            # Handle RTC packet events (audio, video, data)
+            if hasattr(event.rtc_packet, "audio") and event.rtc_packet.audio:
+                # Process audio packet
+                pass
+            elif hasattr(event.rtc_packet, "video") and event.rtc_packet.video:
+                # Process video packet
+                pass
+        elif hasattr(event, "participant_joined") and event.participant_joined:
+            # Handle participant joined event
+            user_id = event.participant_joined.user_id
+            print(f"Participant joined: {user_id}")
+        elif hasattr(event, "participant_left") and event.participant_left:
+            # Handle participant left event
+            user_id = event.participant_left.user_id
+            print(f"Participant left: {user_id}")
+```
+
+## Mock testing with RTCCalls
+
+For testing purposes, the SDK provides a mocking mechanism that simulates a real call without connecting to the actual API or WebRTC infrastructure. This is useful for unit testing or integration testing without external dependencies.
+
+Here's how to use the mock functionality:
+
+```python
+from getstream.video.rtc.rtc import MockConfig, MockParticipant, MockAudioConfig
+
+# Create a call object
+rtc_call = client.video.rtc_call("default", uuid.uuid4())
+
+# Set up mock audio configuration with a WAV file
+mock_audio = MockAudioConfig(
+    audio_file_path="/path/to/audio.wav",
+    realistic_timing=True  # Send events at realistic 20ms intervals
+)
+
+# Create a mock participant
+mock_participant = MockParticipant(
+    user_id="mock-user-1",
+    name="Mock User",
+    audio=mock_audio
+)
+
+# Create the mock configuration with participants
+mock_config = MockConfig(participants=[mock_participant])
+
+# Set the mock configuration on the call object
+rtc_call.set_mock(mock_config)
+
+# Now when you join the call, it will use the mock implementation
+async with rtc_call.join("test-user") as connection:
+    # Process events from mock participants
+    async for event in connection:
+        # Handle events as if they were from a real call
+        pass
+```
+
+The mock supports the following features:
+- Adding mock participants with custom user IDs and names
+- Playing audio from WAV files
+- Controlling whether audio events are sent at realistic timing intervals (20ms) or as fast as possible
+
 ## Memory management
 
 Because both Python and Go have their own garbage collection, we need to make sure that memory allocated by Go and passed to Python does not get collected by Go's garbage collector (segfaults) and that Python garbage collector will eventually collect the objects (memory leaks).

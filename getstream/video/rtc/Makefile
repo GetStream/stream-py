@@ -19,6 +19,7 @@ check_tools:
 build_go: check_tools
 	@echo "Navigating to target directory: $(TARGET_DIR)"
 	@cd $(TARGET_DIR) && \
+	bash -c "cd $(BUILD_PATH)/pb && bash generate.sh" && \
 	echo "Building Go shared object and header file..." && \
 	go build -o $(OUTPUT_SO) -buildmode=c-shared $(BUILD_PATH) && \
 	cp $(OUTPUT_SO) $(OUTPUT_H) $(CURRENT_DIR)

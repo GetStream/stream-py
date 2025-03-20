@@ -93,7 +93,8 @@ extern "C" {
 
 extern void InterruptAudio();
 extern void SendAudio(char* cData, size_t data);
-extern void Join(char* apiKey, char* token, char* callType, char* callId, CallbackFunc callback);
+extern void Join(char* apiKey, char* token, char* callType, char* callId, char* mockConfigData, size_t mockConfigLen, CallbackFunc callback);
+extern void StopMock(char* callType, char* callId);
 
 #ifdef __cplusplus
 }

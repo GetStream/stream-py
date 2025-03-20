@@ -81,6 +81,32 @@ async with call.join("ai-recorder") as connection:
 
 so call.join should become an async function that returns a connection manager, the connection can be iterated and it will yield events coming from Go via the callback function that Python sends to Go via cffi
 
+## Step 6 - Mock audio events
+
+In this step, we are going to create a mock for a real call. The mock should live in Go so that we test the entire flow with protobuf events but we skip the entire API / webRTC layer.
+
+The result should be something that allows python to inject the desired behavior to the Go mock. To make things easier, create a mock configuration  type in protobuf so that python and go can have a nice structured type to define what the mock should do.
+
+For now I want to support this:
+
+- Which participants (id, name) should be in the call
+- The audio files to read and pass as audio events (by participant)
+
+It should be possible to tell go to send audio events at a realistic pace (eg. 20ms audio pcm every 20ms) or to send audio events as fast as they are read from files.
+
+On the python side, activating the mock should be something that you can do at the RTCCall object level before joining the call.
+On the Go side, when python wants a mocked call, we will receive a mockedConfig argument and use a mock instead of the regular flow as we do now.
+
+Audio events should contain real audio pcm data coming from different file formats. Depending on the file format, Go should ensure to load the file, convert it to a stream of PCM data and send 1 event with 20ms of audio data. If requested, each track should emit 20ms audio every 20ms.
+
+You can use ffmpeg with pipes to convert file from their original format (eg. mp3) to PCM.
+
+For now, only support the .wav format, we will add support for other formats later. Make sure to write a python test that loads the file from /Users/tommaso/src/data-samples/audio/king_story_1.wav. The test should that ensures the right amount of events are received. The new test should live in the existing test_rtc file.
+
+Change the Join c-function to include the mock config parameter, when provided the mock flow should be used instead of the real join call flow.
+
+After changing the main.go file, you will need to regenerate the go code to run the test, that's done by following the instructions about code generation.
+
 ## Step 5 - API to receive audio packets
 
 Continuing on step 3, let's create a function to receive audio events from a connection

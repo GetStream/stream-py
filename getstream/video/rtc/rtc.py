@@ -2,7 +2,7 @@ import os
 
 
 import asyncio
-from typing import Dict, Union, AsyncGenerator, AsyncIterator
+from typing import Dict, Union, AsyncGenerator, AsyncIterator, List, Optional
 import logging
 
 import cffi
@@ -15,7 +15,8 @@ from enum import Enum
 ffi = cffi.FFI()
 ffi.cdef("""
     typedef void (*CallbackFunc)(const char*, size_t);
-    void Join(const char* apiKey, const char* token, const char* callType, const char* callId, CallbackFunc callback);
+    void Join(const char* apiKey, const char* token, const char* callType, const char* callId, const char* mockConfig, size_t mockConfigLen, CallbackFunc callback);
+    void StopMock(const char* callType, const char* callId);
     void SendAudio(char* cData, size_t data);
     void free(void *ptr);
 """)
@@ -43,6 +44,76 @@ class JoinError(Exception):
         self.code = code
         self.message = message
         super().__init__(f"Call join failed: {message} (code: {code})")
+
+
+class MockAudioConfig:
+    """Configuration for mocked audio in a call."""
+
+    def __init__(self, audio_file_path: str, realistic_timing: bool = True):
+        """
+        Initialize audio configuration for a mocked participant.
+
+        Args:
+            audio_file_path: Path to the WAV file to use for audio.
+            realistic_timing: If True, send audio events at realistic 20ms intervals.
+                              If False, send events as fast as possible.
+        """
+        self.audio_file_path = audio_file_path
+        self.realistic_timing = realistic_timing
+
+    def to_proto(self) -> events.MockAudioConfig:
+        """Convert to protobuf message."""
+        return events.MockAudioConfig(
+            audio_file_path=self.audio_file_path, realistic_timing=self.realistic_timing
+        )
+
+
+class MockParticipant:
+    """Configuration for a mocked participant in a call."""
+
+    def __init__(
+        self, user_id: str, name: str = "", audio: Optional[MockAudioConfig] = None
+    ):
+        """
+        Initialize a mocked participant configuration.
+
+        Args:
+            user_id: User ID of the mocked participant.
+            name: Name of the mocked participant.
+            audio: Audio configuration for this participant.
+        """
+        self.user_id = user_id
+        self.name = name
+        self.audio = audio
+
+    def to_proto(self) -> events.MockParticipant:
+        """Convert to protobuf message."""
+        return events.MockParticipant(
+            user_id=self.user_id,
+            name=self.name,
+            audio=self.audio.to_proto() if self.audio else None,
+        )
+
+
+class MockConfig:
+    """Configuration for a mocked call."""
+
+    def __init__(self, participants: List[MockParticipant] = None):
+        """
+        Initialize a mock configuration.
+
+        Args:
+            participants: List of mocked participants.
+        """
+        self.participants = participants or []
+
+    def to_proto(self) -> events.MockConfig:
+        """Convert to protobuf message."""
+        return events.MockConfig(participants=[p.to_proto() for p in self.participants])
+
+    def add_participant(self, participant: MockParticipant):
+        """Add a participant to the mock configuration."""
+        self.participants.append(participant)
 
 
 class ConnectionManager:
@@ -85,11 +156,29 @@ class ConnectionManager:
         c_call_type = ffi.new("char[]", self.call.call_type.encode("utf-8"))
         c_call_id = ffi.new("char[]", self.call.id.encode("utf-8"))
 
+        # Prepare mock config if available
+        c_mock_config = ffi.NULL
+        mock_config_len = 0
+        mock_bytes = None
+        if self.call._mock_config:
+            proto_mock = self.call._mock_config.to_proto()
+            mock_bytes = proto_mock.SerializeToString()
+            c_mock_config = ffi.new("char[]", mock_bytes)
+            mock_config_len = len(mock_bytes)
+
         # Mark that we're using the current event loop
         self.call.ev_loop = asyncio.get_event_loop()
 
         # Call the Go function with API credentials and call info (non-blocking)
-        lib.Join(c_api_key, c_token, c_call_type, c_call_id, cb)
+        lib.Join(
+            c_api_key,
+            c_token,
+            c_call_type,
+            c_call_id,
+            c_mock_config,
+            mock_config_len,
+            cb,
+        )
 
         try:
             # Wait for join response or error with timeout
@@ -140,6 +229,20 @@ class RTCCall(Call):
         self.ev_loop = None  # not super sure
         self._join_future = None  # Future to track join status
         self._event_queue = asyncio.Queue()  # Queue to track events
+        self._mock_config = None  # Mock configuration for testing
+
+    def set_mock(self, mock_config: MockConfig):
+        """
+        Set mock configuration for testing.
+
+        Args:
+            mock_config: The mock configuration to use.
+
+        Returns:
+            Self for method chaining.
+        """
+        self._mock_config = mock_config
+        return self
 
     def join(self, user_id: str, timeout: float = 30.0) -> ConnectionManager:
         """
@@ -170,7 +273,18 @@ class RTCCall(Call):
         if not self._joined:
             return
 
-        # TODO: implement leave functionality by telling Go to disconnect
+        # Stop any mock if we were using one
+        if self._mock_config:
+            # Convert to C strings
+            c_call_type = ffi.new("char[]", self.call_type.encode("utf-8"))
+            c_call_id = ffi.new("char[]", self.id.encode("utf-8"))
+
+            # Tell Go to stop the mock
+            lib.StopMock(c_call_type, c_call_id)
+
+            logging.debug("Stopped mock")
+
+        # TODO: implement leave functionality for real calls by telling Go to disconnect
         self._joined = False
         logging.debug("Left call")
 
@@ -245,17 +359,20 @@ def make_rtc_event_callback(call: RTCCall):
     def event_callback(payload: bytes, length: int):
         if payload == ffi.NULL:
             return
-        serialized_data = ffi.buffer(payload, length)[:]
-        logging.debug(f"Raw event data from Go: {serialized_data.hex()}")
-        # make sure that we free the payload and re-raise if necessary (otherwise we could silently leak)
         try:
+            serialized_data = ffi.buffer(payload, length)[:]
+            logging.debug(f"Raw event data from Go: {serialized_data.hex()}")
+
+            # Create the event object from the serialized data
             event = events.Event().parse(serialized_data)
-            logging.debug(f"Parsed event from Go: {event}")
+
+            # Forward the event to the RTCCall
             call.on_rtc_event_payload(event)
+
         except Exception as e:
-            logging.error(f"Error processing event: {e}")
-            raise
+            logging.error(f"Error processing event from Go: {e}")
         finally:
+            # Always free the payload memory to avoid leaks
             lib.free(payload)
 
     return event_callback
