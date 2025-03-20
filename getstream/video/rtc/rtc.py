@@ -191,17 +191,23 @@ class RTCCall(Call):
     def _process_event(self, event: events.Event):
         # If we have a pending join operation
         if self._join_future and not self._join_future.done():
-            match event:
-                case events.Event(error=value):
-                    self._join_future.set_exception(
-                        JoinError(value.code, value.message)
-                    )
-                case events.Event(call_join_response=value):
-                    self._join_future.set_result(value)
-                case _:
-                    self._join_future.set_exception(
-                        TypeError(f"unexpected event {event}")
-                    )
+            logging.debug(f"Processing join event: {event}")
+            logging.debug(f"Event type: {type(event)}")
+            logging.debug(f"Event fields: {event.to_dict()}")
+
+            # Check if this is a join response event
+            if event.call_join_response is not None:
+                logging.debug("Matched join response event")
+                self._join_future.set_result(event.call_join_response)
+            # Check if this is an error event
+            elif event.error is not None and event.error != events.Error():
+                logging.debug("Matched error event")
+                self._join_future.set_exception(
+                    JoinError(event.error.code, event.error.message)
+                )
+            else:
+                logging.debug("No match found for event")
+                self._join_future.set_exception(TypeError(f"unexpected event {event}"))
             return
 
         # Handle other event types
@@ -210,12 +216,15 @@ class RTCCall(Call):
                 # Handle audio data
                 if hasattr(rtc_packet.audio, "pcm") and rtc_packet.audio.pcm:
                     self.audio_queue.put_nowait(rtc_packet.audio.pcm.payload)
+                    logging.debug("Queued audio data")
 
-                # Also put the RTC packet event in the general event queue
+                # Put the RTC packet event in the general event queue
                 self._event_queue.put_nowait(event)
+                logging.debug(f"Queued RTC packet event: {event}")
             case _:
-                logging.debug(f"Got event: {event}")
+                # Put any other event in the general event queue
                 self._event_queue.put_nowait(event)
+                logging.debug(f"Queued other event: {event}")
 
     def __del__(self):
         # TODO: tell go RTC layer that we can garbage collect this call
@@ -237,12 +246,16 @@ def make_rtc_event_callback(call: RTCCall):
         if payload == ffi.NULL:
             return
         serialized_data = ffi.buffer(payload, length)[:]
+        logging.debug(f"Raw event data from Go: {serialized_data.hex()}")
         # make sure that we free the payload and re-raise if necessary (otherwise we could silently leak)
         try:
-            event = events.Event()
-            event.parse(serialized_data)
+            event = events.Event().parse(serialized_data)
+            logging.debug(f"Parsed event from Go: {event}")
+            call.on_rtc_event_payload(event)
+        except Exception as e:
+            logging.error(f"Error processing event: {e}")
+            raise
         finally:
             lib.free(payload)
-        call.on_rtc_event_payload(event)
 
     return event_callback
