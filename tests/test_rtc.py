@@ -119,7 +119,7 @@ async def test_rtc_call_mock_with_wav_file(client):
     # Create a participant with audio configuration
     mock_audio = MockAudioConfig(
         audio_file_path=audio_file,
-        realistic_timing=False,  # Send audio events as fast as possible for testing
+        realtime_clock=False,  # Send audio events as fast as possible for testing
     )
 
     mock_participant = MockParticipant(

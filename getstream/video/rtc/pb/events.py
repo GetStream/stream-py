@@ -28,7 +28,7 @@ class MockAudioConfig(betterproto.Message):
     """Mock configuration for testing"""
 
     audio_file_path: str = betterproto.string_field(1)
-    realistic_timing: bool = betterproto.bool_field(2)
+    realtime_clock: bool = betterproto.bool_field(2)
 
 
 @dataclass

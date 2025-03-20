@@ -106,7 +106,7 @@ rtc_call = client.video.rtc_call("default", uuid.uuid4())
 # Set up mock audio configuration with a WAV file
 mock_audio = MockAudioConfig(
     audio_file_path="/path/to/audio.wav",
-    realistic_timing=True  # Send events at realistic 20ms intervals
+    realtime_clock=True  # Send events at realistic 20ms intervals
 )
 
 # Create a mock participant

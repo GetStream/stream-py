@@ -49,22 +49,22 @@ class JoinError(Exception):
 class MockAudioConfig:
     """Configuration for mocked audio in a call."""
 
-    def __init__(self, audio_file_path: str, realistic_timing: bool = True):
+    def __init__(self, audio_file_path: str, realtime_clock: bool = True):
         """
         Initialize audio configuration for a mocked participant.
 
         Args:
             audio_file_path: Path to the WAV file to use for audio.
-            realistic_timing: If True, send audio events at realistic 20ms intervals.
+            realtime_clock: If True, send audio events at realistic 20ms intervals.
                               If False, send events as fast as possible.
         """
         self.audio_file_path = audio_file_path
-        self.realistic_timing = realistic_timing
+        self.realtime_clock = realtime_clock
 
     def to_proto(self) -> events.MockAudioConfig:
         """Convert to protobuf message."""
         return events.MockAudioConfig(
-            audio_file_path=self.audio_file_path, realistic_timing=self.realistic_timing
+            audio_file_path=self.audio_file_path, realtime_clock=self.realtime_clock
         )
 
 
