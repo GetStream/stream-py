@@ -1,4 +1,4 @@
-Python tests:
+## Python tests:
 
 When writing a python test, follow these rules:
 
@@ -23,3 +23,71 @@ async def test_rtc_call_initialization(client):
     # this is supposed to resolve and not throw
     await call.join()
 ```
+
+uv is used to manage the python project and pytest for tests, make sure to use these two
+
+## Mock testing with RTCCalls
+
+For testing purposes, the SDK provides a mocking mechanism that simulates a real call without connecting to the actual API or WebRTC infrastructure. This is useful for unit testing or integration testing without external dependencies.
+
+Here's how to use the mock functionality:
+
+```python
+from getstream.video.rtc.rtc import MockConfig, MockParticipant, MockAudioConfig
+
+# Create a call object
+rtc_call = client.video.rtc_call("default", uuid.uuid4())
+
+# Set up mock audio configuration with a WAV file
+mock_audio = MockAudioConfig(
+    audio_file_path="/path/to/audio.wav",
+    realtime_clock=True,  # Send events at realistic 20ms intervals
+)
+
+# Set up mock audio configuration with an MP3 file
+mp3_mock_audio = MockAudioConfig(
+    audio_file_path="/path/to/audio.mp3",
+    realtime_clock=True,
+)
+
+# Create mock participants
+mock_participant1 = MockParticipant(
+    user_id="mock-user-1",
+    name="Mock User 1",
+    audio=mock_audio
+)
+
+mock_participant2 = MockParticipant(
+    user_id="mock-user-2",
+    name="Mock User 2",
+    audio=mp3_mock_audio
+)
+
+# Create the mock configuration with participants
+mock_config = MockConfig(participants=[mock_participant1, mock_participant2])
+
+# Set the mock configuration on the call object
+rtc_call.set_mock(mock_config)
+
+# Now when you join the call, it will use the mock implementation
+async with rtc_call.join("test-user") as connection:
+    # Process events from mock participants
+    async for event in connection:
+        # Handle events as if they were from a real call
+        pass
+```
+
+The mock supports the following features:
+- Adding mock participants with custom user IDs and names
+- Playing audio from WAV and MP3 files (detected by file extension)
+- Controlling whether audio events are sent at realistic timing intervals (20ms) or as fast as possible
+
+Mock joining is supported by Go inside the binding/main.go when passing mock configs, Go will fake a real call and send audio events for participant based on the configuration provided.
+
+Audio data is converted from the file to PCM 48000hz and included in events.
+
+## Go tests
+
+- Write compact idiomatic tests in Golang
+- Use testify libs for assertions
+- Structure tests in test suites (testify lib) so tests are better organized and can reuse setup/teardown steps
