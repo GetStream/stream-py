@@ -107,25 +107,26 @@ Change the Join c-function to include the mock config parameter, when provided t
 
 After changing the main.go file, you will need to regenerate the go code to run the test, that's done by following the instructions about code generation.
 
-## Step 5 - API to receive audio packets
+## Step 7 - API to receive audio packets
 
-Continuing on step 3, let's create a function to receive audio events from a connection
+@ai-basic.md @ai-codegen.md @ai-testing.md extend the connection manager so that one can interate over incoming audio events only
 
-```python
-call = client.video.rtc_call("default", "example-ai-recorder")
-call.get_or_create(data=CallRequest(created_by_id="ai-recorder"))
+something like this
 
+```
 async with call.join("ai-recorder") as connection:
     async for participant, audio in connection.incoming_audio:
         pass
 
 ```
 
-Where the yielded values are:
+At the moment we have a utility function in @test_rtc.py called has_audio_support that would be replaced by the new .incoming_audio API
+
+The yielded values are:
 
 participant: the id of the user sending the audio
 audio: tuple[int, np.ndarray] a tuple containing sample rate and pcm samples as np.int16
 
 On the Go side, we need to ensure that incoming audio RTP packets are sent and converted from opus to int16 pcm samples with 48000 rate. This then needs to be sent as a RTCPacket.AudioPayload.PCMAudioPayload proto message
 
-When this is done, create a simple test that connects to the call and prints each time an audio event is received
+Adjust test all existing tests dealing with audio events.

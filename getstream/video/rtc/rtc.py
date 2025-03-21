@@ -2,8 +2,9 @@ import os
 
 
 import asyncio
-from typing import Dict, Union, AsyncGenerator, AsyncIterator, List, Optional
+from typing import Dict, Union, AsyncGenerator, AsyncIterator, List, Optional, Tuple
 import logging
+import numpy as np
 
 import cffi
 
@@ -117,6 +118,108 @@ class MockConfig:
         self.participants.append(participant)
 
 
+class IncomingAudioIterator:
+    """
+    Async iterator that filters the connection events to yield only audio events.
+    For each audio event, it yields a tuple of (participant_id, (sample_rate, pcm_data)).
+    """
+
+    def __init__(self, connection: "ConnectionManager"):
+        """
+        Initialize the audio iterator.
+
+        Args:
+            connection: The ConnectionManager to filter events from
+        """
+        self.connection = connection
+        # Map of participant_id -> user_id to track which participant sent audio
+        self.participant_map = {}
+
+    def __aiter__(self) -> AsyncIterator[Tuple[str, Tuple[int, np.ndarray]]]:
+        """Return self as an async iterator."""
+        return self
+
+    async def __anext__(self) -> Tuple[str, Tuple[int, np.ndarray]]:
+        """
+        Get the next audio event.
+
+        Returns:
+            A tuple containing:
+                - participant_id: The ID of the participant who sent the audio
+                - A tuple containing:
+                    - sample_rate: The audio sample rate (usually 48000)
+                    - pcm_data: The PCM audio data as a numpy int16 array
+
+        Raises:
+            StopAsyncIteration: If the connection is closed or iterator is exhausted
+        """
+        if not self.connection.joined:
+            raise StopAsyncIteration
+
+        while True:
+            # Get the next event from the connection
+            event = await self.connection.__anext__()
+
+            # Track participant join events to map IDs
+            if hasattr(event, "participant_joined") and event.participant_joined:
+                self.participant_map[event.participant_joined.user_id] = (
+                    event.participant_joined.user_id
+                )
+                continue
+
+            # Track participant leave events
+            if hasattr(event, "participant_left") and event.participant_left:
+                if event.participant_left.user_id in self.participant_map:
+                    del self.participant_map[event.participant_left.user_id]
+                continue
+
+            # Check if this is an audio event
+            if (
+                hasattr(event, "rtc_packet")
+                and event.rtc_packet
+                and hasattr(event.rtc_packet, "audio")
+                and event.rtc_packet.audio
+                and hasattr(event.rtc_packet.audio, "pcm")
+                and event.rtc_packet.audio.pcm
+            ):
+                pcm_payload = event.rtc_packet.audio.pcm
+
+                # Skip if there's no actual audio data
+                if not pcm_payload.payload or len(pcm_payload.payload) == 0:
+                    continue
+
+                # Skip if sample rate is not set
+                if pcm_payload.sample_rate == 0:
+                    continue
+
+                # Convert bytes to numpy array based on format
+                if pcm_payload.format == AudioFormat.Float32.value:
+                    # Convert float32 to int16
+                    np_array = np.frombuffer(pcm_payload.payload, dtype=np.float32)
+                    # Scale and convert to int16
+                    np_array = (np_array * 32767).astype(np.int16)
+                elif pcm_payload.format == AudioFormat.Int32.value:
+                    # Convert int32 to int16
+                    np_array = np.frombuffer(pcm_payload.payload, dtype=np.int32)
+                    # Scale down to int16
+                    np_array = (np_array >> 16).astype(np.int16)
+                elif pcm_payload.format == AudioFormat.Int16.value:
+                    # Already int16, just convert to numpy array
+                    np_array = np.frombuffer(pcm_payload.payload, dtype=np.int16)
+                else:
+                    # Unknown format, skip
+                    continue
+
+                # TODO: Extract the participant ID from the event
+                # For now, use a placeholder if we can't determine the sender
+                participant_id = "unknown"
+                if hasattr(event, "user_id") and event.user_id:
+                    participant_id = event.user_id
+
+                # Return the audio data
+                return participant_id, (pcm_payload.sample_rate, np_array)
+
+
 class ConnectionManager:
     """
     Manages the connection to a call. Serves as both an async context manager and
@@ -136,6 +239,19 @@ class ConnectionManager:
         self.user_id = user_id
         self.timeout = timeout
         self.joined = False
+        self._incoming_audio_iterator = None
+
+    @property
+    def incoming_audio(self) -> IncomingAudioIterator:
+        """
+        Get an async iterator that yields only audio events.
+
+        Returns:
+            An IncomingAudioIterator instance that yields tuples of (participant_id, (sample_rate, pcm_data))
+        """
+        if not self._incoming_audio_iterator:
+            self._incoming_audio_iterator = IncomingAudioIterator(self)
+        return self._incoming_audio_iterator
 
     async def __aenter__(self) -> "ConnectionManager":
         """Enter the async context manager, joining the call."""
@@ -253,6 +369,12 @@ class RTCCall(Call):
             async with call.join("user-id") as connection:
                 async for event in connection:
                     # Process event
+
+            # Or to iterate only over audio events:
+            async with call.join("user-id") as connection:
+                async for participant, audio in connection.incoming_audio:
+                    sample_rate, pcm_data = audio
+                    # Process audio data
 
         Args:
             user_id: The ID of the user joining the call

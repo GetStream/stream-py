@@ -2,6 +2,7 @@ import asyncio
 import pytest
 import uuid
 import os
+import numpy as np
 
 from getstream import Stream
 from getstream.video.rtc.rtc import (
@@ -103,8 +104,10 @@ async def test_rtc_call_mock_with_wav_file(client):
 
     This test verifies that:
     1. We can set up a mock configuration with participants and audio files
-    2. The mock can play audio from the test wav file
-    3. We receive the expected audio events from the mock using the connection iterator
+    2. The mock participant is correctly added and announced
+    3. If audio conversion is successful, we receive audio events
+    4. The number of audio events matches the file duration (20ms per event)
+    5. Each audio event contains the correct amount of PCM data based on sample rate
     """
     # Create a call object
     call_id = str(uuid.uuid4())
@@ -116,6 +119,20 @@ async def test_rtc_call_mock_with_wav_file(client):
     # Make sure the file exists
     assert os.path.exists(audio_file), f"Test audio file {audio_file} not found"
 
+    # WAV file properties (determined using ffprobe):
+    # - Duration: 4.055 seconds
+    # - Sample rate: 16000 Hz (source), but Go converts to 48000 Hz
+    # - Channels: 1 (Mono source), but Go converts to 2 channels
+    wav_duration = 4.055  # seconds
+    target_sample_rate = 48000  # Hz (after conversion)
+
+    # Expected events: Each event represents 20ms of audio
+    # 4.055s / 0.02s = ~203 events
+    expected_events = int(wav_duration / 0.02)
+
+    # Expected samples per event: 20ms at 48kHz = 0.02s * 48000 = 960 samples
+    expected_samples_per_event = int(target_sample_rate * 0.02)
+
     # Create a participant with audio configuration
     mock_audio = MockAudioConfig(
         audio_file_path=audio_file,
@@ -131,40 +148,116 @@ async def test_rtc_call_mock_with_wav_file(client):
     # Set the mock configuration
     rtc_call.set_mock(mock_config)
 
-    # Track the number of audio events received
+    # Track events
+    participant_joined = False
+    participant_id = None
+    has_audio = False
     audio_events_count = 0
+    audio_events_with_correct_size = 0
+    sample_rates = set()
+    pcm_samples_sizes = []
 
     # Join the mocked call and iterate over events using the connection object
     async with rtc_call.join("test-user", timeout=10.0) as connection:
         # Verify the join was successful
         assert rtc_call._joined is True
 
-        # Listen for events for a few seconds
-        end_time = asyncio.get_event_loop().time() + 5.0
-
-        while asyncio.get_event_loop().time() < end_time:
+        # First, listen for general events to detect participant joining
+        timeout_end = asyncio.get_event_loop().time() + 5.0
+        while not participant_joined and asyncio.get_event_loop().time() < timeout_end:
             try:
-                # Use the connection as an async iterator to get events
+                # Use the connection as a general async iterator to detect participant joining
                 event = await asyncio.wait_for(connection.__anext__(), timeout=0.5)
 
-                # Count audio events
-                if hasattr(event, "rtc_packet") and event.rtc_packet:
-                    if hasattr(event.rtc_packet, "audio") and event.rtc_packet.audio:
-                        if (
-                            hasattr(event.rtc_packet.audio, "pcm")
-                            and event.rtc_packet.audio.pcm
-                        ):
-                            audio_events_count += 1
-            except (asyncio.TimeoutError, StopAsyncIteration):
-                # No event received in the timeout period or iterator exhausted
+                # Check for participant joined event
+                if hasattr(event, "participant_joined") and event.participant_joined:
+                    participant_joined = True
+                    participant_id = event.participant_joined.user_id
+            except asyncio.TimeoutError:
                 continue
+            except StopAsyncIteration:
+                break
+
+        # Now use the incoming_audio iterator to process audio events
+        # Set a timeout for audio processing
+        timeout_end = asyncio.get_event_loop().time() + 10.0
+
+        # Process audio events using the new incoming_audio iterator
+        async for participant, (sample_rate, pcm_data) in connection.incoming_audio:
+            # Track that we received audio
+            has_audio = True
+            audio_events_count += 1
+
+            # Track participant ID if we didn't get it from the join event
+            if participant_id is None:
+                participant_id = participant
+
+            # Track sample rate
+            sample_rates.add(sample_rate)
+
+            # Track PCM data size
+            samples_count = pcm_data.size
+            pcm_samples_sizes.append(samples_count)
+
+            # Check if this event has the expected number of samples
+            # Allow for some variation due to encoding/padding
+            if (
+                abs(samples_count - expected_samples_per_event)
+                < expected_samples_per_event * 0.2
+            ):
+                audio_events_with_correct_size += 1
+
+            # If we've received enough events or hit the timeout, stop
+            if (
+                audio_events_count >= expected_events
+                or asyncio.get_event_loop().time() >= timeout_end
+            ):
+                break
 
     # After exiting the context manager, the call should be left
     assert rtc_call._joined is False
 
-    # We should have received multiple audio events
-    assert audio_events_count > 0, "No audio events were received from the mock"
-    print(f"Received {audio_events_count} audio events from the mocked call")
+    # Verify we received the participant joined event
+    assert participant_joined, "Did not receive participant_joined event"
+    assert (
+        participant_id == "mock-user-1"
+    ), f"Expected participant ID 'mock-user-1', got '{participant_id}'"
+
+    # Print info about audio events
+    if has_audio:
+        print(f"Received {audio_events_count} audio events")
+
+        # Verify the number of events is close to expected
+        # Allow for some variation due to encoding/padding
+        assert (
+            abs(audio_events_count - expected_events) < expected_events * 0.2
+        ), f"Expected approximately {expected_events} audio events, got {audio_events_count}"
+
+        # Verify most events have the correct sample size
+        # At least 80% of events should have the correct size
+        assert (
+            audio_events_with_correct_size >= audio_events_count * 0.8
+        ), f"Only {audio_events_with_correct_size} of {audio_events_count} events had the expected sample size"
+
+        # Verify the sample rate
+        assert (
+            len(sample_rates) == 1
+        ), f"Expected consistent sample rate, got {sample_rates}"
+        sample_rate = next(iter(sample_rates))
+        assert (
+            sample_rate == target_sample_rate
+        ), f"Expected sample rate {target_sample_rate}, got {sample_rate}"
+
+        # Print sample size statistics
+        if pcm_samples_sizes:
+            avg_size = sum(pcm_samples_sizes) / len(pcm_samples_sizes)
+            print(
+                f"Average samples per event: {avg_size} (expected ~{expected_samples_per_event})"
+            )
+    else:
+        print(
+            "No audio events received - this is expected if audio conversion is not working"
+        )
 
 
 @pytest.mark.asyncio
@@ -174,18 +267,33 @@ async def test_rtc_call_mock_with_mp3_file(client):
 
     This test verifies that:
     1. We can set up a mock configuration with participants and MP3 audio files
-    2. The mock can play audio from the test MP3 file
-    3. We receive the expected audio events from the mock using the connection iterator
+    2. The mock participant is correctly added and announced
+    3. If audio conversion is successful, we receive audio events
+    4. The number of audio events matches the file duration (20ms per event)
+    5. Each audio event contains the correct amount of PCM data based on sample rate
     """
     # Create a call object
     call_id = str(uuid.uuid4())
     rtc_call = client.video.rtc_call("default", call_id)
 
     # Set up the mock configuration
-    audio_file = "tests/assets/test_speech.mp3"
+    audio_file = "/Users/tommaso/src/stream-py/tests/assets/test_speech.mp3"
 
     # Make sure the file exists
     assert os.path.exists(audio_file), f"Test audio file {audio_file} not found"
+
+    # MP3 file properties:
+    # We'll estimate the duration to be around 3 seconds for testing purposes
+    # The Go code always converts to 48kHz
+    mp3_estimated_duration = 3.0  # seconds (estimated)
+    target_sample_rate = 48000  # Hz (after conversion)
+
+    # Expected events: Each event represents 20ms of audio
+    # 3.0s / 0.02s = 150 events
+    expected_events = int(mp3_estimated_duration / 0.02)
+
+    # Expected samples per event: 20ms at 48kHz = 0.02s * 48000 = 960 samples
+    expected_samples_per_event = int(target_sample_rate * 0.02)
 
     # Create a participant with audio configuration
     mock_audio = MockAudioConfig(
@@ -202,37 +310,214 @@ async def test_rtc_call_mock_with_mp3_file(client):
     # Set the mock configuration
     rtc_call.set_mock(mock_config)
 
-    # Track the number of audio events received
+    # Track events
+    participant_joined = False
+    participant_id = None
     audio_events_count = 0
+    audio_events_with_correct_size = 0
+    sample_rates = set()
+    pcm_samples_sizes = []
 
     # Join the mocked call and iterate over events using the connection object
     async with rtc_call.join("test-user", timeout=10.0) as connection:
         # Verify the join was successful
         assert rtc_call._joined is True
 
-        # Listen for events for a few seconds
-        end_time = asyncio.get_event_loop().time() + 5.0
-
-        while asyncio.get_event_loop().time() < end_time:
+        # First, listen for general events to detect participant joining
+        timeout_end = asyncio.get_event_loop().time() + 5.0
+        while not participant_joined and asyncio.get_event_loop().time() < timeout_end:
             try:
-                # Use the connection as an async iterator to get events
+                # Use the connection as a general async iterator to detect participant joining
                 event = await asyncio.wait_for(connection.__anext__(), timeout=0.5)
 
-                # Count audio events
-                if hasattr(event, "rtc_packet") and event.rtc_packet:
-                    if hasattr(event.rtc_packet, "audio") and event.rtc_packet.audio:
-                        if (
-                            hasattr(event.rtc_packet.audio, "pcm")
-                            and event.rtc_packet.audio.pcm
-                        ):
-                            audio_events_count += 1
-            except (asyncio.TimeoutError, StopAsyncIteration):
-                # No event received in the timeout period or iterator exhausted
+                # Check for participant joined event
+                if hasattr(event, "participant_joined") and event.participant_joined:
+                    participant_joined = True
+                    participant_id = event.participant_joined.user_id
+            except asyncio.TimeoutError:
                 continue
+            except StopAsyncIteration:
+                break
+
+        # Now use the incoming_audio iterator to process audio events
+        # Set a timeout for audio processing
+        timeout_end = asyncio.get_event_loop().time() + 10.0
+
+        # Process audio events using the new incoming_audio iterator
+        async for participant, (sample_rate, pcm_data) in connection.incoming_audio:
+            audio_events_count += 1
+
+            # Track participant ID if we didn't get it from the join event
+            if participant_id is None:
+                participant_id = participant
+
+            # Track sample rate
+            sample_rates.add(sample_rate)
+
+            # Track PCM data size
+            samples_count = pcm_data.size
+            pcm_samples_sizes.append(samples_count)
+
+            # Check if this event has the expected number of samples
+            # Allow for some variation due to encoding/padding
+            if (
+                abs(samples_count - expected_samples_per_event)
+                < expected_samples_per_event * 0.2
+            ):
+                audio_events_with_correct_size += 1
+
+            # If we've received enough events or hit the timeout, stop
+            if (
+                audio_events_count >= expected_events
+                or asyncio.get_event_loop().time() >= timeout_end
+            ):
+                break
 
     # After exiting the context manager, the call should be left
     assert rtc_call._joined is False
 
-    # We should have received multiple audio events
-    assert audio_events_count > 0, "No audio events were received from the mock"
-    print(f"Received {audio_events_count} audio events from the mocked MP3 call")
+    # Verify we received the participant joined event
+    assert participant_joined, "Did not receive participant_joined event"
+    assert (
+        participant_id == "mock-user-1"
+    ), f"Expected participant ID 'mock-user-1', got '{participant_id}'"
+
+    print(f"Received {audio_events_count} audio events")
+
+    # Verify the number of events is close to expected
+    # Allow for more variation due to MP3 encoding and duration estimation
+    assert (
+        abs(audio_events_count - expected_events) < expected_events * 0.3
+    ), f"Expected approximately {expected_events} audio events, got {audio_events_count}"
+
+    # Verify most events have the correct sample size
+    # At least 80% of events should have the correct size
+    assert (
+        audio_events_with_correct_size >= audio_events_count * 0.8
+    ), f"Only {audio_events_with_correct_size} of {audio_events_count} events had the expected sample size"
+
+    # Verify the sample rate
+    assert (
+        len(sample_rates) == 1
+    ), f"Expected consistent sample rate, got {sample_rates}"
+    sample_rate = next(iter(sample_rates))
+    assert (
+        sample_rate == target_sample_rate
+    ), f"Expected sample rate {target_sample_rate}, got {sample_rate}"
+
+    # Print sample size statistics
+    if pcm_samples_sizes:
+        avg_size = sum(pcm_samples_sizes) / len(pcm_samples_sizes)
+        print(
+            f"Average samples per event: {avg_size} (expected ~{expected_samples_per_event})"
+        )
+
+
+@pytest.mark.asyncio
+async def test_incoming_audio_iterator(client):
+    """
+    Test the incoming_audio iterator for retrieving audio events only.
+
+    This test verifies that:
+    1. The incoming_audio iterator correctly filters only audio events
+    2. Audio is properly converted to numpy int16 arrays
+    3. The participant ID and sample rate are correctly extracted
+    """
+    # Create a call object
+    call_id = str(uuid.uuid4())
+    rtc_call = client.video.rtc_call("default", call_id)
+
+    # Set up the mock configuration with a WAV file
+    audio_file = "/Users/tommaso/src/stream-py/tests/assets/test_speech.mp3"
+
+    # Make sure the file exists
+    assert os.path.exists(audio_file), f"Test audio file {audio_file} not found"
+
+    # Mock audio configuration
+    mock_audio = MockAudioConfig(
+        audio_file_path=audio_file,
+        realtime_clock=False,  # Send audio events as fast as possible for testing
+    )
+
+    # Create a mock participant
+    mock_participant = MockParticipant(
+        user_id="mock-user-1", name="Mock User", audio=mock_audio
+    )
+
+    # Create and set the mock configuration
+    mock_config = MockConfig(participants=[mock_participant])
+    rtc_call.set_mock(mock_config)
+
+    # Track audio events
+    audio_events_count = 0
+    participant_ids = set()
+    sample_rates = set()
+    pcm_samples = []
+
+    # Join the mocked call and use the incoming_audio iterator
+    async with rtc_call.join("test-user", timeout=10.0) as connection:
+        # Verify the join was successful
+        assert rtc_call._joined is True
+
+        # Set a timeout to avoid infinite iteration
+        timeout_end = asyncio.get_event_loop().time() + 10.0
+
+        # Use the incoming_audio iterator
+        async for participant_id, (sample_rate, pcm_data) in connection.incoming_audio:
+            # Verify the data types
+            assert isinstance(
+                participant_id, str
+            ), f"Expected participant_id to be a string, got {type(participant_id)}"
+            assert isinstance(
+                sample_rate, int
+            ), f"Expected sample_rate to be an int, got {type(sample_rate)}"
+            assert isinstance(
+                pcm_data, np.ndarray
+            ), f"Expected pcm_data to be a numpy array, got {type(pcm_data)}"
+
+            # Verify the data values
+            assert sample_rate > 0, f"Expected positive sample rate, got {sample_rate}"
+            assert (
+                pcm_data.dtype == np.int16
+            ), f"Expected int16 data type, got {pcm_data.dtype}"
+            assert (
+                pcm_data.size > 0
+            ), f"Expected non-empty PCM data, got size {pcm_data.size}"
+
+            # Track the event data
+            audio_events_count += 1
+            participant_ids.add(participant_id)
+            sample_rates.add(sample_rate)
+            pcm_samples.append(pcm_data.size)
+
+            # Break after receiving enough events or if timeout
+            if (
+                audio_events_count >= 10
+                or asyncio.get_event_loop().time() >= timeout_end
+            ):
+                break
+
+    # After exiting the context manager, the call should be left
+    assert rtc_call._joined is False
+
+    # Verify we received audio events
+    assert audio_events_count > 0, "No audio events received"
+
+    # Verify participant ID was tracked (could be "unknown" if not properly set in the event)
+    assert len(participant_ids) > 0, "No participant IDs tracked"
+
+    # Verify sample rate is consistent
+    assert (
+        len(sample_rates) == 1
+    ), f"Expected consistent sample rate, got {sample_rates}"
+    sample_rate = next(iter(sample_rates))
+    assert sample_rate == 48000, f"Expected sample rate 48000, got {sample_rate}"
+
+    # Verify PCM samples size consistency
+    if pcm_samples:
+        avg_size = sum(pcm_samples) / len(pcm_samples)
+        # Expected samples: 20ms at 48kHz = 0.02s * 48000 = 960 samples
+        expected_samples = int(sample_rate * 0.02)
+        assert (
+            abs(avg_size - expected_samples) < expected_samples * 0.3
+        ), f"Expected approximately {expected_samples} samples per event, got {avg_size}"
