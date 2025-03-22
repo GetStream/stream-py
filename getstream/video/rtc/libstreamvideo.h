@@ -93,8 +93,11 @@ extern "C" {
 
 extern void InterruptAudio();
 extern void SendAudio(char* cData, size_t data);
+
+// Use activeHandlers instead of mockHandlers in the Join function
+//
 extern void Join(char* apiKey, char* token, char* callType, char* callId, char* mockConfigData, size_t mockConfigLen, CallbackFunc callback);
-extern void StopMock(char* callType, char* callId);
+extern void StopCall(char* callType, char* callId);
 
 #ifdef __cplusplus
 }
