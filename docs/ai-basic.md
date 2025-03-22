@@ -108,3 +108,49 @@ DO NOT RUN protoc DIRECTLY OR CHANGE GENEATED CODE! ALWAYS RUN `make all`!!!
 ## Python Protobuf
 
 The protobuf generated code uses betterproto and not the official protobuf compiler. When writing python code that uses one the protobuf types, make sure to consider that the generated code uses betterproto.
+
+### One-of Support
+
+Protobuf supports grouping fields in a oneof clause. Only one of the fields in the group may be set at a given time. For example, given the proto:
+
+syntax = "proto3";
+
+message Test {
+  oneof foo {
+    bool on = 1;
+    int32 count = 2;
+    string name = 3;
+  }
+}
+
+On Python 3.10 and later, you can use a match statement to access the provided one-of field, which supports type-checking:
+
+test = Test()
+match test:
+    case Test(on=value):
+        print(value)  # value: bool
+    case Test(count=value):
+        print(value)  # value: int
+    case Test(name=value):
+        print(value)  # value: str
+    case _:
+        print("No value provided")
+You can also use betterproto.which_one_of(message, group_name) to determine which of the fields was set. It returns a tuple of the field name and value, or a blank string and None if unset.
+
+>>> test = Test()
+>>> betterproto.which_one_of(test, "foo")
+["", None]
+
+>>> test.on = True
+>>> betterproto.which_one_of(test, "foo")
+["on", True]
+
+# Setting one member of the group resets the others.
+>>> test.count = 57
+>>> betterproto.which_one_of(test, "foo")
+["count", 57]
+
+# Default (zero) values also work.
+>>> test.name = ""
+>>> betterproto.which_one_of(test, "foo")
+["name", ""]

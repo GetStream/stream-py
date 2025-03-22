@@ -2,7 +2,16 @@ import os
 
 
 import asyncio
-from typing import Dict, Union, AsyncGenerator, AsyncIterator, List, Optional
+from typing import (
+    Dict,
+    Union,
+    AsyncGenerator,
+    AsyncIterator,
+    List,
+    Optional,
+    Callable,
+    Awaitable,
+)
 import logging
 
 import cffi
@@ -137,6 +146,7 @@ class ConnectionManager:
         self.timeout = timeout
         self.joined = False
         self._incoming_audio_iterator = None
+        self._event_handlers = {}  # Dictionary to store event handlers
 
     async def __aenter__(self) -> "ConnectionManager":
         """Enter the async context manager, joining the call."""
@@ -214,9 +224,72 @@ class ConnectionManager:
         try:
             event = await self.call._event_queue.get()
             self.call._event_queue.task_done()
+
+            # Process event through registered handlers
+            await self._dispatch_event(event)
+
             return event
         except asyncio.CancelledError:
             raise StopAsyncIteration
+
+    async def _dispatch_event(self, event: events.Event) -> None:
+        """
+        Dispatch event to registered handlers based on event type.
+
+        Args:
+            event: The event to dispatch to handlers
+        """
+        # Process the event through the appropriate handlers
+        for event_type, handlers in self._event_handlers.items():
+            matched = False
+
+            # Check if this event matches the registered event type
+            match event_type:
+                case "rtc_packet":
+                    matched = event.rtc_packet is not None
+                case "audio_packet":
+                    matched = (
+                        event.rtc_packet is not None
+                        and event.rtc_packet.audio is not None
+                    )
+                case "participant_joined":
+                    matched = event.participant_joined is not None
+                case "participant_left":
+                    matched = event.participant_left is not None
+                case "error":
+                    matched = event.error is not None
+                case _:
+                    matched = False
+
+            # Call all handlers registered for this event type
+            if matched:
+                for handler in handlers:
+                    await handler(event)
+
+    def add_event_handler(self, event_type: str, handler: callable) -> None:
+        """
+        Register an event handler for a specific event type.
+
+        Args:
+            event_type: Type of event to handle
+            handler: Async callback function that will be called with the event
+        """
+        if event_type not in self._event_handlers:
+            self._event_handlers[event_type] = []
+
+        self._event_handlers[event_type].append(handler)
+
+    def remove_event_handler(self, event_type: str, handler: callable) -> None:
+        """
+        Remove a registered event handler.
+
+        Args:
+            event_type: Type of event the handler was registered for
+            handler: The handler function to remove
+        """
+        if event_type in self._event_handlers:
+            if handler in self._event_handlers[event_type]:
+                self._event_handlers[event_type].remove(handler)
 
 
 class RTCCall(Call):
@@ -386,16 +459,32 @@ def make_rtc_event_callback(call: RTCCall):
     return event_callback
 
 
-async def on_event(connection: ConnectionManager, event_type, handler):
+async def on_event(
+    connection: ConnectionManager,
+    event_type: str,
+    handler: Callable[[events.Event], Awaitable[None]],
+) -> None:
     """
-    on_event binds an event handler to the connection based on event_type
-    event_type matches the type of the events from events.Event such as
-    - rtc_packet -> any rtc packet
-    - audio_packet -> an audio packet (RTCPacket.AudioPayload)
-    - participant_joined
-    - participant_left
-    - error
+    Binds an event handler to the connection based on event_type.
 
+    The handler will be called whenever an event of the specified type is received.
+
+    Args:
+        connection: The ConnectionManager to register the handler with
+        event_type: Type of event to handle, one of:
+                   - "rtc_packet": any RTC packet
+                   - "audio_packet": an audio packet (RTCPacket.AudioPayload)
+                   - "participant_joined": when a participant joins the call
+                   - "participant_left": when a participant leaves the call
+                   - "error": error events
+        handler: Async callback function that will be called with the event
+                The handler signature should be: async def handler(event: events.Event)
+
+    Example:
+        async def on_participant_joined(event):
+            participant = event.participant_joined
+            print(f"Participant joined: {participant.user_id}")
+
+        await on_event(connection, "participant_joined", on_participant_joined)
     """
-    # TODO: implement this according to docs
-    pass
+    connection.add_event_handler(event_type, handler)
