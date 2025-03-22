@@ -222,3 +222,71 @@ async def test_audio_event_handler(client):
 
         # Verify that we received at least one audio packet
         assert audio_packets_received > 0, "Did not receive any audio packets"
+
+
+@pytest.mark.asyncio
+async def test_auto_exit_when_all_participants_leave(client):
+    """
+    Test that the call automatically exits when all mock participants leave.
+    This simulates participants leaving when their audio files are consumed.
+    """
+    # Create a call object
+    call_id = str(uuid.uuid4())
+    rtc_call = client.video.rtc_call("default", call_id)
+
+    # Find an audio file for testing
+    audio_file = os.path.join(os.path.dirname(__file__), "assets/test_audio.wav")
+    if not os.path.exists(audio_file):
+        # Use the audio file path from the first test if our test file doesn't exist
+        audio_file = "/Users/tommaso/src/data-samples/audio/king_story_1.wav"
+
+    # Make sure the file exists
+    assert os.path.exists(audio_file), f"Test audio file {audio_file} not found"
+
+    # Create a participant with audio configuration (use very short realtime clock for faster test)
+    mock_audio = MockAudioConfig(
+        audio_file_path=audio_file,
+        realtime_clock=False,  # Send audio events as fast as possible for testing
+    )
+
+    mock_participant = MockParticipant(
+        user_id="mock-user-1", name="Mock User 1", audio=mock_audio
+    )
+
+    # Set up the mock configuration with the audio-enabled participant
+    mock_config = MockConfig(participants=[mock_participant])
+    rtc_call.set_mock(mock_config)
+
+    # Track received participant_left events
+    participant_left_events = []
+
+    # Define event handlers
+    async def on_participant_joined(event):
+        assert event.participant_joined.user_id == "mock-user-1"
+        print(f"Participant joined: {event.participant_joined.user_id}")
+
+    async def on_participant_left(event):
+        participant_left_events.append(event.participant_left.user_id)
+        print(f"Participant left: {event.participant_left.user_id}")
+
+    # Join the call and register handlers
+    async with rtc_call.join("test-user", timeout=10.0) as connection:
+        # Register the event handlers
+        await on_event(connection, "participant_joined", on_participant_joined)
+        await on_event(connection, "participant_left", on_participant_left)
+
+        # This will exit automatically when all participants leave
+        # Count events while we're in the connection
+        event_count = 0
+        async for event in connection:
+            event_count += 1
+
+    # When we reach here, the connection should have auto-exited
+
+    # Verify we received a participant left event
+    assert (
+        "mock-user-1" in participant_left_events
+    ), "Did not receive participant left event"
+
+    # Verify that the call was properly ended
+    assert rtc_call._joined is False, "Call was not properly ended"

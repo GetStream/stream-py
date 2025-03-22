@@ -1,4 +1,4 @@
-SFU_DIR := ../../../../video-sfu
+SFU_DIR := ../../../video-sfu
 TARGET_DIR := $(SFU_DIR)
 OUTPUT_SO := libstreamvideo.so
 OUTPUT_H := libstreamvideo.h

@@ -78,6 +78,17 @@ class MockAudioConfig:
         )
 
 
+# NOTE FOR GO IMPLEMENTATION:
+# The Go mock implementation needs to be updated to:
+# 1. Detect when an audio file has been completely consumed
+# 2. Send a participant_left event when this happens
+# 3. Update the mock implementation to keep track of active participants
+# 4. When all participants have left, stop sending events
+#
+# This change should be made in videosdk/bindings/main.go where the
+# mock system is implemented.
+
+
 class MockParticipant:
     """Configuration for a mocked participant in a call."""
 
@@ -147,6 +158,9 @@ class ConnectionManager:
         self.joined = False
         self._incoming_audio_iterator = None
         self._event_handlers = {}  # Dictionary to store event handlers
+        self._active_participants = set()  # Track active participants
+        self._exit_event = asyncio.Event()  # Event to signal when to exit
+        self._iteration_task = None  # Task for background event processing
 
     async def __aenter__(self) -> "ConnectionManager":
         """Enter the async context manager, joining the call."""
@@ -197,6 +211,9 @@ class ConnectionManager:
             await asyncio.wait_for(self.call._join_future, timeout=self.timeout)
             self.call._joined = True
             self.joined = True
+
+            # Start background task for event processing
+            self._iteration_task = asyncio.create_task(self._process_events_task())
         except asyncio.TimeoutError:
             # Timed out waiting for join response
             raise asyncio.TimeoutError(
@@ -207,6 +224,15 @@ class ConnectionManager:
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Exit the async context manager, leaving the call."""
+        if self._iteration_task:
+            self._exit_event.set()
+            try:
+                await asyncio.wait_for(self._iteration_task, timeout=5.0)
+            except asyncio.TimeoutError:
+                self._iteration_task.cancel()
+            finally:
+                self._iteration_task = None
+
         if self.joined:
             await self.call.leave()
             self.call._joined = False
@@ -222,15 +248,97 @@ class ConnectionManager:
             raise StopAsyncIteration
 
         try:
-            event = await self.call._event_queue.get()
-            self.call._event_queue.task_done()
+            # Wait for an event or exit signal
+            done, pending = await asyncio.wait(
+                [
+                    asyncio.create_task(self.call._event_queue.get()),
+                    asyncio.create_task(self._exit_event.wait()),
+                ],
+                return_when=asyncio.FIRST_COMPLETED,
+            )
 
-            # Process event through registered handlers
-            await self._dispatch_event(event)
+            # Cancel pending tasks
+            for task in pending:
+                task.cancel()
 
-            return event
+            # If exit event is set or no more participants, stop iteration
+            if self._exit_event.is_set() or (
+                not self._active_participants and self.call._mock_config
+            ):
+                raise StopAsyncIteration
+
+            # Get the completed task result
+            for task in done:
+                result = task.result()
+                if isinstance(result, events.Event):
+                    event = result
+                    self.call._event_queue.task_done()
+
+                    # Process event through registered handlers
+                    await self._dispatch_event(event)
+
+                    return event
+                else:
+                    # Exit event was set
+                    raise StopAsyncIteration
         except asyncio.CancelledError:
             raise StopAsyncIteration
+
+    async def _process_events_task(self):
+        """
+        Background task that processes events and monitors participant status.
+        Automatically exits the call when all participants have left.
+        """
+        try:
+            while not self._exit_event.is_set() and self.joined:
+                try:
+                    # Wait for an event with a timeout to periodically check conditions
+                    event = await asyncio.wait_for(
+                        self.call._event_queue.get(), timeout=1.0
+                    )
+
+                    # Process participants joined/left events
+                    if event.participant_joined is not None:
+                        user_id = event.participant_joined.user_id
+                        self._active_participants.add(user_id)
+                        logging.debug(
+                            f"Participant joined: {user_id}, active participants: {self._active_participants}"
+                        )
+
+                    elif event.participant_left is not None:
+                        user_id = event.participant_left.user_id
+                        if user_id in self._active_participants:
+                            self._active_participants.remove(user_id)
+                        logging.debug(
+                            f"Participant left: {user_id}, active participants: {self._active_participants}"
+                        )
+
+                        # If no more participants in a mock call, signal to exit
+                        if (
+                            not self._active_participants
+                            and self.call._mock_config
+                            and user_id != self.user_id
+                        ):
+                            logging.debug("No more active participants, signaling exit")
+                            self._exit_event.set()
+                            break
+
+                    # Process the event through registered handlers
+                    await self._dispatch_event(event)
+
+                    # Put the event back in the queue for the iterator
+                    self.call._event_queue.put_nowait(event)
+                    self.call._event_queue.task_done()
+
+                except asyncio.TimeoutError:
+                    # Regular timeout, just continue
+                    continue
+
+                except Exception as e:
+                    logging.error(f"Error in event processing task: {e}")
+        except asyncio.CancelledError:
+            logging.debug("Event processing task cancelled")
+            pass
 
     async def _dispatch_event(self, event: events.Event) -> None:
         """
@@ -416,6 +524,14 @@ class RTCCall(Call):
                 # Put the RTC packet event in the general event queue
                 self._event_queue.put_nowait(event)
                 logging.debug(f"Queued RTC packet event: {event}")
+            case events.Event(participant_joined=participant_joined):
+                # Handle participant joined event
+                logging.debug(f"Participant joined: {participant_joined.user_id}")
+                self._event_queue.put_nowait(event)
+            case events.Event(participant_left=participant_left):
+                # Handle participant left event
+                logging.debug(f"Participant left: {participant_left.user_id}")
+                self._event_queue.put_nowait(event)
             case _:
                 # Put any other event in the general event queue
                 self._event_queue.put_nowait(event)

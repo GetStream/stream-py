@@ -1,0 +1,4 @@
+[submodule "video-sfu"]
+	path = video-sfu
+	url = git@github.com:GetStream/video-sfu.git
+	branch = python-sdk

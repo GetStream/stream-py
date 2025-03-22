@@ -34,7 +34,7 @@ All methods using the API like get_or_create return a response type like GetOrCr
 
 # Projet setup
 
-This project relies on 2 codebases: the Python SDK and the video-sfu code base:
+This project relies on 2 codebases: the Python SDK and the Golang video-sfu code base.
 
 ## Python project setup
 
@@ -42,7 +42,7 @@ All lib code lives inside the getstream path of the stream-py repository and tes
 
 ## Go project
 
-The go project contains our video SFU as well as a video SDK that we use internally and that we are going to use here in this project.
+The go project contains our video SFU as well as a video SDK that we use internally and that we are going to use here in this project. This code lives under the video-sfu path
 
 # Python RTC client
 
