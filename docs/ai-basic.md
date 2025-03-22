@@ -63,32 +63,71 @@ getstream/video/rtc/pb is where we store the protobuf generated code, this code 
 To receive events from a call, you can use the async context manager pattern with the `join` method. This provides a connection object that acts as an async iterator, yielding events as they're received:
 
 ```python
+import uuid
+from getstream.models import (
+    CallRequest,
+)
+
+# initialize the sdk using api key and secret
+client = Stream(api_key="your_api_key", api_secret="your_api_secret")
+
+# use client.video for video endpoints and .call to create a resource object for a specific call
+call = client.video.call("default", uuid.uuid4())
+
+# performs a get_or_create API call
+call.get_or_create(
+    data=CallRequest(
+        created_by_id="tommaso-id",
+    ),
+)
+
 # Create a call object
 rtc_call = client.video.rtc_call("default", uuid.uuid4())
 
-# Join the call as an async context manager
+# Method 1: Using event handlers (recommended for most use cases)
 async with rtc_call.join("user-id", timeout=10.0) as connection:
-    # Once we're here, the join was successful
+    # Register event handlers
+    async def handle_audio_packet(event):
+        audio = event.rtc_packet.audio
+        # Process audio packet
+        print(f"Received audio packet: {len(audio.pcm.payload)} bytes")
 
-    # Iterate over events from the call
+    async def handle_participant_joined(event):
+        participant = event.participant_joined
+        print(f"Participant joined: {participant.user_id}")
+
+    async def handle_participant_left(event):
+        participant = event.participant_left
+        print(f"Participant left: {participant.user_id}")
+
+    # Register the handlers
+    await on_event(connection, "audio_packet", handle_audio_packet)
+    await on_event(connection, "participant_joined", handle_participant_joined)
+    await on_event(connection, "participant_left", handle_participant_left)
+
+    # Process events (handlers will be called automatically)
     async for event in connection:
-        # Process different event types
-        if hasattr(event, "rtc_packet") and event.rtc_packet:
-            # Handle RTC packet events (audio, video, data)
-            if hasattr(event.rtc_packet, "audio") and event.rtc_packet.audio:
+        # Any additional processing can be done here
+        pass
+
+# Method 2: Using match pattern with one-of fields (Python 3.10+)
+async with rtc_call.join("user-id", timeout=10.0) as connection:
+    async for event in connection:
+        match event:
+            case events.Event(rtc_packet=rtc_packet) if rtc_packet.audio:
                 # Process audio packet
-                pass
-            elif hasattr(event.rtc_packet, "video") and event.rtc_packet.video:
+                print(f"Received audio packet: {len(rtc_packet.audio.pcm.payload)} bytes")
+            case events.Event(rtc_packet=rtc_packet) if rtc_packet.video:
                 # Process video packet
-                pass
-        elif hasattr(event, "participant_joined") and event.participant_joined:
-            # Handle participant joined event
-            user_id = event.participant_joined.user_id
-            print(f"Participant joined: {user_id}")
-        elif hasattr(event, "participant_left") and event.participant_left:
-            # Handle participant left event
-            user_id = event.participant_left.user_id
-            print(f"Participant left: {user_id}")
+                print(f"Received video packet")
+            case events.Event(participant_joined=participant):
+                print(f"Participant joined: {participant.user_id}")
+            case events.Event(participant_left=participant):
+                print(f"Participant left: {participant.user_id}")
+            case events.Event(error=error):
+                print(f"Error received: {error.code} - {error.message}")
+            case _:
+                print(f"Unhandled event type: {event}")
 ```
 
 ## Memory management

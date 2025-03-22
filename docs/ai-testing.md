@@ -30,6 +30,8 @@ uv is used to manage the python project and pytest for tests, make sure to use t
 
 For testing purposes, the SDK provides a mocking mechanism that simulates a real call without connecting to the actual API or WebRTC infrastructure. This is useful for unit testing or integration testing without external dependencies.
 
+### Basic Mock Setup
+
 Here's how to use the mock functionality:
 
 ```python
@@ -68,23 +70,81 @@ mock_config = MockConfig(participants=[mock_participant1, mock_participant2])
 
 # Set the mock configuration on the call object
 rtc_call.set_mock(mock_config)
+```
 
-# Now when you join the call, it will use the mock implementation
+### Participant Lifecycle
+
+Mock participants have the following lifecycle:
+1. When you join a call, all configured participants automatically join
+2. If a participant has audio configured, audio events start streaming from their file
+3. When a participant's audio file is fully consumed, a `participant_left` event is automatically sent
+4. When all mock participants have left, the connection will automatically exit
+
+This automatic lifecycle makes testing audio processing straightforward - the test will naturally complete when all audio sources are exhausted.
+
+### Handling Events
+
+There are two recommended ways to handle events from a mocked call:
+
+#### Method 1: Using Event Handlers (recommended for most cases)
+
+```python
+# Register specialized event handlers
 async with rtc_call.join("test-user") as connection:
-    # Process events from mock participants
+    # Define event handlers
+    async def handle_audio_packet(event):
+        audio = event.rtc_packet.audio
+        print(f"Received audio packet: {len(audio.pcm.payload)} bytes")
+
+    async def handle_participant_joined(event):
+        participant = event.participant_joined
+        print(f"Participant joined: {participant.user_id}")
+
+    async def handle_participant_left(event):
+        participant = event.participant_left
+        print(f"Participant left: {participant.user_id}")
+
+    # Register the handlers
+    await on_event(connection, "audio_packet", handle_audio_packet)
+    await on_event(connection, "participant_joined", handle_participant_joined)
+    await on_event(connection, "participant_left", handle_participant_left)
+
+    # Process events (handlers will be called automatically)
     async for event in connection:
-        # Handle events as if they were from a real call
+        # Iteration will exit when all participants have left
         pass
 ```
+
+#### Method 2: Using Python 3.10+ Match Pattern (for more granular control)
+
+```python
+# Use pattern matching to handle different event types
+async with rtc_call.join("test-user") as connection:
+    async for event in connection:
+        match event:
+            case events.Event(rtc_packet=rtc_packet) if rtc_packet.audio:
+                # Process audio packet
+                print(f"Received audio packet: {len(rtc_packet.audio.pcm.payload)} bytes")
+            case events.Event(participant_joined=participant):
+                print(f"Participant joined: {participant.user_id}")
+            case events.Event(participant_left=participant):
+                print(f"Participant left: {participant.user_id}")
+            case events.Event(error=error):
+                print(f"Error received: {error.code} - {error.message}")
+            case _:
+                print(f"Unhandled event type: {event}")
+```
+
+### Supported Features
 
 The mock supports the following features:
 - Adding mock participants with custom user IDs and names
 - Playing audio from WAV and MP3 files (detected by file extension)
 - Controlling whether audio events are sent at realistic timing intervals (20ms) or as fast as possible
+- Automatic participant lifecycle management based on audio file consumption
+- Both WAV and MP3 files are automatically converted to PCM 48000hz and included in events
 
-Mock joining is supported by Go inside the binding/main.go when passing mock configs, Go will fake a real call and send audio events for participant based on the configuration provided.
-
-Audio data is converted from the file to PCM 48000hz and included in events.
+Mock joining is implemented in Go inside the binding/main.go. The Go code creates a simulated call environment that sends audio events for participants based on the configuration provided. Audio is streamed from the configured files and converted to the appropriate format for WebRTC.
 
 ## Go tests
 
