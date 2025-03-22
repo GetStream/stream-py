@@ -130,3 +130,17 @@ audio: tuple[int, np.ndarray] a tuple containing sample rate and pcm samples as 
 On the Go side, we need to ensure that incoming audio RTP packets are sent and converted from opus to int16 pcm samples with 48000 rate. This then needs to be sent as a RTCPacket.AudioPayload.PCMAudioPayload proto message
 
 Adjust test all existing tests dealing with audio events.
+
+## Step 7 - exit call
+
+@ai-codegen.md @ai-testing.md @ai-basic.md I want to be sure that the connection manager ends when the call is finished. This should be the logic
+
+- on the go side @main.go when using a mock the call will end when all participant audio is sent
+- @main.go should send a "call ended" event to python when the call is finished (in case of a mock, that happens when all audio is sent)
+- on the python side, the connection manager should exit when the call ended event is received
+
+write a simple new test to ensure that on a mocked call, python will receive such event and that the connection manager will exit
+
+## Step 8 - leaving call from python
+
+Add a .leave method to the connection manager that will signal Go to exit the call. Study the main.go file to see how the Join works

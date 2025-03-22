@@ -78,17 +78,6 @@ class MockAudioConfig:
         )
 
 
-# NOTE FOR GO IMPLEMENTATION:
-# The Go mock implementation needs to be updated to:
-# 1. Detect when an audio file has been completely consumed
-# 2. Send a participant_left event when this happens
-# 3. Update the mock implementation to keep track of active participants
-# 4. When all participants have left, stop sending events
-#
-# This change should be made in videosdk/bindings/main.go where the
-# mock system is implemented.
-
-
 class MockParticipant:
     """Configuration for a mocked participant in a call."""
 
@@ -158,7 +147,6 @@ class ConnectionManager:
         self.joined = False
         self._incoming_audio_iterator = None
         self._event_handlers = {}  # Dictionary to store event handlers
-        self._active_participants = set()  # Track active participants
         self._exit_event = asyncio.Event()  # Event to signal when to exit
         self._iteration_task = None  # Task for background event processing
 
@@ -261,10 +249,8 @@ class ConnectionManager:
             for task in pending:
                 task.cancel()
 
-            # If exit event is set or no more participants, stop iteration
-            if self._exit_event.is_set() or (
-                not self._active_participants and self.call._mock_config
-            ):
+            # If exit event is set, stop iteration
+            if self._exit_event.is_set():
                 raise StopAsyncIteration
 
             # Get the completed task result
@@ -287,7 +273,7 @@ class ConnectionManager:
     async def _process_events_task(self):
         """
         Background task that processes events and monitors participant status.
-        Automatically exits the call when all participants have left.
+        Automatically exits the call when a call_ended event is received from Go.
         """
         try:
             while not self._exit_event.is_set() and self.joined:
@@ -297,38 +283,18 @@ class ConnectionManager:
                         self.call._event_queue.get(), timeout=1.0
                     )
 
-                    # Process participants joined/left events
-                    if event.participant_joined is not None:
-                        user_id = event.participant_joined.user_id
-                        self._active_participants.add(user_id)
-                        logging.debug(
-                            f"Participant joined: {user_id}, active participants: {self._active_participants}"
-                        )
-
-                    elif event.participant_left is not None:
-                        user_id = event.participant_left.user_id
-                        if user_id in self._active_participants:
-                            self._active_participants.remove(user_id)
-                        logging.debug(
-                            f"Participant left: {user_id}, active participants: {self._active_participants}"
-                        )
-
-                        # If no more participants in a mock call, signal to exit
-                        if (
-                            not self._active_participants
-                            and self.call._mock_config
-                            and user_id != self.user_id
-                        ):
-                            logging.debug("No more active participants, signaling exit")
-                            self._exit_event.set()
-                            break
-
                     # Process the event through registered handlers
                     await self._dispatch_event(event)
 
                     # Put the event back in the queue for the iterator
                     self.call._event_queue.put_nowait(event)
                     self.call._event_queue.task_done()
+
+                    if event.call_ended is not None:
+                        # Call ended event received, signal to exit
+                        logging.debug("Call ended event received, signaling exit")
+                        self._exit_event.set()
+                        break
 
                 except asyncio.TimeoutError:
                     # Regular timeout, just continue
@@ -364,6 +330,8 @@ class ConnectionManager:
                     matched = event.participant_joined is not None
                 case "participant_left":
                     matched = event.participant_left is not None
+                case "call_ended":
+                    matched = event.call_ended is not None
                 case "error":
                     matched = event.error is not None
                 case _:

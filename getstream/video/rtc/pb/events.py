@@ -90,6 +90,13 @@ class ParticipantLeft(betterproto.Message):
 
 
 @dataclass
+class CallEnded(betterproto.Message):
+    """Message sent when a call has ended"""
+
+    pass
+
+
+@dataclass
 class Error(betterproto.Message):
     code: "ErrorCode" = betterproto.enum_field(1)
     message: str = betterproto.string_field(2)
@@ -111,3 +118,4 @@ class Event(betterproto.Message):
     participant_left: "ParticipantLeft" = betterproto.message_field(3, group="event")
     error: "Error" = betterproto.message_field(4, group="event")
     call_join_response: "CallJoinResponse" = betterproto.message_field(5, group="event")
+    call_ended: "CallEnded" = betterproto.message_field(6, group="event")

@@ -24,7 +24,7 @@ async def test_rtc_call_initialization(client):
     await call.join()
 ```
 
-uv is used to manage the python project and pytest for tests, make sure to use these two
+uv is used to manage the python project and pytest for tests, make sure to use these two and to run test using `uv run pytest` otherwise the pytest.ini will not be respected
 
 ## Mock testing with RTCCalls
 
