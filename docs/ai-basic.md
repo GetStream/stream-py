@@ -40,6 +40,8 @@ This project relies on 2 codebases: the Python SDK and the Golang video-sfu code
 
 All lib code lives inside the getstream path of the stream-py repository and tests are under `tests/` The project uses uv to manage dependeincies and pytest for tests
 
+The python project uses uv, venv and pyproject.toml to manage packages. You should never use pip.
+
 ## Go project
 
 The go project contains our video SFU as well as a video SDK that we use internally and that we are going to use here in this project. This code lives under the video-sfu path
