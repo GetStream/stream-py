@@ -25,7 +25,7 @@ ffi = cffi.FFI()
 ffi.cdef("""
     typedef void (*CallbackFunc)(const char*, size_t);
     void Join(const char* apiKey, const char* token, const char* callType, const char* callId, const char* mockConfig, size_t mockConfigLen, CallbackFunc callback);
-    void StopCall(const char* callType, const char* callId);
+    void Leave(const char* callType, const char* callId);
     void SendAudio(char* cData, size_t data);
     void free(void *ptr);
 """)
@@ -437,7 +437,7 @@ class RTCCall(Call):
             c_call_id = ffi.new("char[]", self.id.encode("utf-8"))
 
             # Tell Go to stop the call (works for both mock and real calls)
-            lib.StopCall(c_call_type, c_call_id)
+            lib.Leave(c_call_type, c_call_id)
 
             logging.debug("Stopped call")
 
