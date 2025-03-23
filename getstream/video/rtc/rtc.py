@@ -15,6 +15,7 @@ from typing import (
 import logging
 
 import cffi
+import betterproto
 
 from getstream.video.call import Call
 from getstream.video.rtc.pb import events
@@ -233,75 +234,95 @@ class ConnectionManager:
     async def __anext__(self) -> events.Event:
         """Get the next event from the event queue."""
         if not self.joined:
+            logging.debug("Not joined, stopping iteration")
             raise StopAsyncIteration
 
         try:
-            # Wait for an event or exit signal
-            done, pending = await asyncio.wait(
-                [
-                    asyncio.create_task(self.call._event_queue.get()),
-                    asyncio.create_task(self._exit_event.wait()),
-                ],
-                return_when=asyncio.FIRST_COMPLETED,
-            )
+            # Wait for an event with timeout, or check if we need to exit
+            while True:
+                # Check if we should exit
+                if self._exit_event.is_set():
+                    logging.debug("Exit event set, stopping iteration")
+                    raise StopAsyncIteration
 
-            # Cancel pending tasks
-            for task in pending:
-                task.cancel()
-
-            # If exit event is set, stop iteration
-            if self._exit_event.is_set():
-                raise StopAsyncIteration
-
-            # Get the completed task result
-            for task in done:
-                result = task.result()
-                if isinstance(result, events.Event):
-                    event = result
+                # Get an event from the queue with a timeout
+                try:
+                    event = await asyncio.wait_for(
+                        self.call._event_queue.get(), timeout=0.1
+                    )
                     self.call._event_queue.task_done()
 
                     # Process event through registered handlers
                     await self._dispatch_event(event)
 
+                    # Check if this is a call_ended event, which should stop iteration
+                    event_type, _ = betterproto.which_one_of(event, "event")
+                    if event_type == "call_ended":
+                        logging.debug("Call ended event received, stopping iteration")
+                        self._exit_event.set()
+                        # Still return this event before stopping
+
                     return event
-                else:
-                    # Exit event was set
-                    raise StopAsyncIteration
+                except asyncio.TimeoutError:
+                    # No event available, just check exit condition again
+                    continue
+
         except asyncio.CancelledError:
+            logging.debug("__anext__ cancelled")
             raise StopAsyncIteration
 
     async def _process_events_task(self):
         """
         Background task that processes events and monitors participant status.
-        Automatically exits the call when a call_ended event is received from Go.
+        Ensures events are handled and put in the queue for the iterator.
         """
         try:
             while not self._exit_event.is_set() and self.joined:
                 try:
-                    # Wait for an event with a timeout to periodically check conditions
-                    event = await asyncio.wait_for(
-                        self.call._event_queue.get(), timeout=1.0
-                    )
+                    # Sleep to avoid CPU spinning
+                    await asyncio.sleep(0.1)
 
-                    # Process the event through registered handlers
-                    await self._dispatch_event(event)
+                    # Check if there are events in the queue
+                    try:
+                        # Safely check if the queue is empty
+                        if self.call._event_queue.empty():
+                            continue
 
-                    # Put the event back in the queue for the iterator
-                    self.call._event_queue.put_nowait(event)
-                    self.call._event_queue.task_done()
+                        # Peek at the first event without removing it
+                        # Get a copy to avoid modifying the queue
+                        event_copy = None
+                        try:
+                            # Try to get an event but don't wait
+                            event_copy = asyncio.create_task(
+                                asyncio.wait_for(self.call._event_queue.get(), 0.01)
+                            )
+                            event = await event_copy
 
-                    if event.call_ended is not None:
-                        # Call ended event received, signal to exit
-                        logging.debug("Call ended event received, signaling exit")
-                        self._exit_event.set()
-                        break
+                            # Check for call_ended event
+                            event_type, _ = betterproto.which_one_of(event, "event")
+                            if event_type == "call_ended":
+                                # Signal to exit
+                                logging.debug(
+                                    "Call ended event detected in background task"
+                                )
+                                self._exit_event.set()
 
-                except asyncio.TimeoutError:
-                    # Regular timeout, just continue
-                    continue
+                            # Put the event back in the queue since we're just peeking
+                            self.call._event_queue.put_nowait(event)
+                            self.call._event_queue.task_done()
+                        except asyncio.TimeoutError:
+                            # Timeout is fine, just continue
+                            pass
+                        except Exception as e:
+                            logging.error(f"Error processing event peek: {e}")
+                    except Exception as e:
+                        logging.error(f"Error checking queue: {e}")
+                        await asyncio.sleep(0.1)
 
                 except Exception as e:
                     logging.error(f"Error in event processing task: {e}")
+                    await asyncio.sleep(0.1)
+
         except asyncio.CancelledError:
             logging.debug("Event processing task cancelled")
             pass
@@ -317,23 +338,28 @@ class ConnectionManager:
         for event_type, handlers in self._event_handlers.items():
             matched = False
 
+            # Get the actual event type from the oneof field
+            actual_event_type, _ = betterproto.which_one_of(event, "event")
+
             # Check if this event matches the registered event type
             match event_type:
                 case "rtc_packet":
-                    matched = event.rtc_packet is not None
+                    matched = actual_event_type == "rtc_packet"
                 case "audio_packet":
                     matched = (
-                        event.rtc_packet is not None
-                        and event.rtc_packet.audio is not None
+                        actual_event_type == "rtc_packet"
+                        and event.rtc_packet.audio
+                        and betterproto.which_one_of(event.rtc_packet, "payload")[0]
+                        == "audio"
                     )
                 case "participant_joined":
-                    matched = event.participant_joined is not None
+                    matched = actual_event_type == "participant_joined"
                 case "participant_left":
-                    matched = event.participant_left is not None
+                    matched = actual_event_type == "participant_left"
                 case "call_ended":
-                    matched = event.call_ended is not None
+                    matched = actual_event_type == "call_ended"
                 case "error":
-                    matched = event.error is not None
+                    matched = actual_event_type == "error"
                 case _:
                     matched = False
 
@@ -381,6 +407,7 @@ class RTCCall(Call):
         self._join_future = None  # Future to track join status
         self._event_queue = asyncio.Queue()  # Queue to track events
         self._mock_config = None  # Mock configuration for testing
+        logging.basicConfig(level=logging.DEBUG)
 
     def set_mock(self, mock_config: MockConfig):
         """
@@ -403,12 +430,9 @@ class RTCCall(Call):
             async with call.join("user-id") as connection:
                 async for event in connection:
                     # Process event
+                    # This iteration will stop when a call_ended event is received
 
-            # Or to iterate only over audio events:
-            async with call.join("user-id") as connection:
-                async for participant, audio in connection.incoming_audio:
-                    sample_rate, pcm_data = audio
-                    # Process audio data
+            # The context manager will automatically leave the call when exited
 
         Args:
             user_id: The ID of the user joining the call
@@ -458,52 +482,69 @@ class RTCCall(Call):
         # Process the event on the event loop to ensure thread safety
         if self.ev_loop:
             self.ev_loop.call_soon_threadsafe(self._process_event, event)
+        else:
+            logging.error("No event loop available to process event")
 
     def _process_event(self, event: events.Event):
         # If we have a pending join operation
         if self._join_future and not self._join_future.done():
             logging.debug(f"Processing join event: {event}")
             logging.debug(f"Event type: {type(event)}")
-            logging.debug(f"Event fields: {event.to_dict()}")
 
             # Check if this is a join response event
-            if event.call_join_response is not None:
+            event_type, _ = betterproto.which_one_of(event, "event")
+            if event_type == "call_join_response":
                 logging.debug("Matched join response event")
                 self._join_future.set_result(event.call_join_response)
             # Check if this is an error event
-            elif event.error is not None and event.error != events.Error():
+            elif event_type == "error" and event.error != events.Error():
                 logging.debug("Matched error event")
                 self._join_future.set_exception(
                     JoinError(event.error.code, event.error.message)
                 )
             else:
-                logging.debug("No match found for event")
+                logging.debug(f"No match found for event: {event_type}")
                 self._join_future.set_exception(TypeError(f"unexpected event {event}"))
             return
 
-        # Handle other event types
-        match event:
-            case events.Event(rtc_packet=rtc_packet):
-                # Handle audio data
-                if hasattr(rtc_packet.audio, "pcm") and rtc_packet.audio.pcm:
-                    self.audio_queue.put_nowait(rtc_packet.audio.pcm.payload)
+        # Debug logs to track events
+        event_type, _ = betterproto.which_one_of(event, "event")
+        logging.debug(f"Processing event type: {event_type}")
+
+        # Handle different event types based on the oneof field
+        if event_type == "rtc_packet":
+            # Check if this is an audio packet
+            payload_type, _ = betterproto.which_one_of(event.rtc_packet, "payload")
+            if payload_type == "audio":
+                # Check if this is a PCM audio packet
+                audio_type, _ = betterproto.which_one_of(
+                    event.rtc_packet.audio, "payload"
+                )
+                if audio_type == "pcm":
+                    self.audio_queue.put_nowait(event.rtc_packet.audio.pcm.payload)
                     logging.debug("Queued audio data")
 
-                # Put the RTC packet event in the general event queue
-                self._event_queue.put_nowait(event)
-                logging.debug(f"Queued RTC packet event: {event}")
-            case events.Event(participant_joined=participant_joined):
-                # Handle participant joined event
-                logging.debug(f"Participant joined: {participant_joined.user_id}")
-                self._event_queue.put_nowait(event)
-            case events.Event(participant_left=participant_left):
-                # Handle participant left event
-                logging.debug(f"Participant left: {participant_left.user_id}")
-                self._event_queue.put_nowait(event)
-            case _:
-                # Put any other event in the general event queue
-                self._event_queue.put_nowait(event)
-                logging.debug(f"Queued other event: {event}")
+            # Put the RTC packet event in the general event queue
+            self._event_queue.put_nowait(event)
+            logging.debug("Queued RTC packet event")
+        elif event_type == "participant_joined":
+            # Handle participant joined event
+            logging.debug(f"Participant joined: {event.participant_joined.user_id}")
+            self._event_queue.put_nowait(event)
+        elif event_type == "participant_left":
+            # Handle participant left event
+            logging.debug(f"Participant left: {event.participant_left.user_id}")
+            self._event_queue.put_nowait(event)
+        elif event_type == "call_ended":
+            # Handle call ended event
+            logging.debug("Call ended event received")
+            self._event_queue.put_nowait(event)
+        else:
+            # Put any other event in the general event queue
+            self._event_queue.put_nowait(event)
+            logging.debug(f"Queued other event type: {event_type}")
+
+        logging.debug(f"Current event queue size: {self._event_queue.qsize()}")
 
     def __del__(self):
         # TODO: tell go RTC layer that we can garbage collect this call
@@ -526,10 +567,11 @@ def make_rtc_event_callback(call: RTCCall):
             return
         try:
             serialized_data = ffi.buffer(payload, length)[:]
-            logging.debug(f"Raw event data from Go: {serialized_data.hex()}")
+            logging.debug(f"Raw event data from Go: {serialized_data.hex()[:20]}...")
 
             # Create the event object from the serialized data
             event = events.Event().parse(serialized_data)
+            logging.debug(f"Event from Go: {type(event).__name__}")
 
             # Forward the event to the RTCCall
             call.on_rtc_event_payload(event)

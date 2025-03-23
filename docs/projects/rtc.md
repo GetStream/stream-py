@@ -154,3 +154,19 @@ The main.go should only act as the entry point and delegate to handler all the a
 Make sure to not change the external C API surface, this change should require no modification on the Python side because it is only a refactoring.
 
 make sure to run the python test_call_ended_event_sent_from_go test before starting the work and after the changes. This way you can see that things work before the refactoring and afterwards.
+
+
+## Step 10 - Use ffmpeg to send audio
+
+Adjust the mock handler in Go so that the conversion from mp3 and wav to PCM follows this rules:
+
+- it resamples audio to 48000 hz
+- it sends 2 channels
+- it encodes data using int16
+- use ffmpeg to covert the audio file to the target format, use pipes
+- each audio event should have up to 20ms of audio
+- if the mock is instructed to receive audio in realtime, emit audio events every 20ms (ticker)
+- for both mp3 and wav, make sure to create go unit tests to ensure we convert from file to audio events correctly (eg. how many events, how many samples in total)
+- audio events should populate the AudioPayload payload correctly (PCMAudioPayload, format, sample rate, ...)
+
+These changes should not change anything on the C API
