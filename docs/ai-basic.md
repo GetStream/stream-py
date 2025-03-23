@@ -44,14 +44,15 @@ The python project uses uv, venv and pyproject.toml to manage packages. You shou
 
 ## Go project
 
-The go project contains our video SFU as well as a video SDK that we use internally and that we are going to use here in this project. This code lives under the video-sfu path
+The go project contains our video SFU as well as a video SDK that we use internally and that we are going to use here in this project. This code lives under the video-sfu path at the same level as the getstream/ python library.
 
 # Python RTC client
 
 The Python client can be used to connect to webRTC calls. To do that we are not going to use a Python webrtc library. Instead, we are going to use our Golang videosdk and use cffi + protobuf to join/leave calls and to communicate data between the two codebases.
 
-The golang sdk code lives in the videosdk/ path of the video-sfu repository. This is how the code is organized:
+The golang sdk code lives in the videosdk/. This is how the code is organized:
 
+videosdk/bindings/ all code related to cgo lives here
 videosdk/bindings/main.go this contains the cgo definitions as well as the exported functions to C
 videosdk/bindings/events.proto this file contains the model definition used by Go to send data to Python, the mechanism is simple: Python hooks up a callback function and Go uses that callback to forward data
 

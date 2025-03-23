@@ -144,3 +144,13 @@ write a simple new test to ensure that on a mocked call, python will receive suc
 ## Step 8 - leaving call from python
 
 Add a .leave method to the connection manager that will signal Go to exit the call. Study the main.go file to see how the Join works
+
+## Step 9 - refactor code
+
+@main.go  @ai-basic.md @ai-codegen.md @ai-testing.md   create a new package called handler under bindings, organize the two handlers code in this package using two different files. Make sure that the header definition is organized correctly without duplicating code.
+
+The main.go should only act as the entry point and delegate to handler all the actual implementation. Because some types are defined with C, you will need to extract them in a header file and import that one in the relevant files.
+
+Make sure to not change the external C API surface, this change should require no modification on the Python side because it is only a refactoring.
+
+make sure to run the python test_call_ended_event_sent_from_go test before starting the work and after the changes. This way you can see that things work before the refactoring and afterwards.

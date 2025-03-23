@@ -549,7 +549,14 @@ async def test_call_ended_event_sent_from_go(client):
     rtc_call = client.video.rtc_call("default", call_id)
 
     # Set up a basic mock with no audio (to avoid real media processing)
-    mock_participant = MockParticipant(user_id="mock-user-1", name="Mock User 1")
+    mock_participant = MockParticipant(
+        user_id="mock-user-1",
+        name="Mock User 1",
+        audio=MockAudioConfig(
+            audio_file_path="/Users/tommaso/src/data-samples/audio/king_story_1.wav",
+        ),
+    )
+
     mock_config = MockConfig(participants=[mock_participant])
     rtc_call.set_mock(mock_config)
 
@@ -567,11 +574,11 @@ async def test_call_ended_event_sent_from_go(client):
         # Register just the call_ended handler
         await on_event(connection, "call_ended", on_call_ended)
 
+        # Wait briefly so audio streaming starts but is not over yet
+        await asyncio.sleep(0.5)
+
         # Manually trigger a leave to make Go send the call_ended event
         await rtc_call.leave()
-
-        # Wait briefly for events to be processed
-        await asyncio.sleep(0.5)
 
     # Verify the call is no longer joined
     assert not rtc_call._joined, "Call was not properly ended"
