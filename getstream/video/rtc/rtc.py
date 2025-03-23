@@ -213,6 +213,27 @@ class ConnectionManager:
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Exit the async context manager, leaving the call."""
+        if self.joined:
+            # First, ensure we leave the call
+            await self.call.leave()
+
+            # Give some time for the call_ended event to be received and processed
+            try:
+                # Wait a bit for any pending events to be processed
+                await asyncio.sleep(0.5)
+
+                # Process any remaining events in the queue
+                while not self.call._event_queue.empty():
+                    event = await self.call._event_queue.get()
+                    await self._dispatch_event(event)
+                    self.call._event_queue.task_done()
+            except Exception as e:
+                logging.error(f"Error processing remaining events: {e}")
+
+            self.call._joined = False
+            self.joined = False
+
+        # Cancel the background processing task
         if self._iteration_task:
             self._exit_event.set()
             try:
@@ -221,11 +242,6 @@ class ConnectionManager:
                 self._iteration_task.cancel()
             finally:
                 self._iteration_task = None
-
-        if self.joined:
-            await self.call.leave()
-            self.call._joined = False
-            self.joined = False
 
     def __aiter__(self) -> AsyncIterator[events.Event]:
         """Return the async iterator over events."""
@@ -258,9 +274,12 @@ class ConnectionManager:
                     # Check if this is a call_ended event, which should stop iteration
                     event_type, _ = betterproto.which_one_of(event, "event")
                     if event_type == "call_ended":
-                        logging.debug("Call ended event received, stopping iteration")
+                        logging.debug(
+                            "Call ended event received in __anext__, stopping iteration"
+                        )
                         self._exit_event.set()
-                        # Still return this event before stopping
+                        # Return this event before stopping
+                        return event
 
                     return event
                 except asyncio.TimeoutError:
@@ -298,12 +317,16 @@ class ConnectionManager:
                             )
                             event = await event_copy
 
-                            # Check for call_ended event
+                            # Check for call_ended event with proper protobuf handling
                             event_type, _ = betterproto.which_one_of(event, "event")
+                            logging.debug(
+                                f"Background task peeked at event: {event_type}"
+                            )
+
                             if event_type == "call_ended":
                                 # Signal to exit
                                 logging.debug(
-                                    "Call ended event detected in background task"
+                                    "Call ended event detected in background task, setting exit_event"
                                 )
                                 self._exit_event.set()
 
@@ -334,12 +357,16 @@ class ConnectionManager:
         Args:
             event: The event to dispatch to handlers
         """
+        # Get the actual event type from the oneof field
+        actual_event_type, _ = betterproto.which_one_of(event, "event")
+        logging.debug(f"Dispatching event: {actual_event_type}")
+
+        if actual_event_type == "call_ended":
+            logging.info(f"CALL_ENDED EVENT RECEIVED: {event}")
+
         # Process the event through the appropriate handlers
         for event_type, handlers in self._event_handlers.items():
             matched = False
-
-            # Get the actual event type from the oneof field
-            actual_event_type, _ = betterproto.which_one_of(event, "event")
 
             # Check if this event matches the registered event type
             match event_type:
@@ -358,6 +385,10 @@ class ConnectionManager:
                     matched = actual_event_type == "participant_left"
                 case "call_ended":
                     matched = actual_event_type == "call_ended"
+                    if matched:
+                        logging.info(
+                            f"MATCHED call_ended event with {len(handlers)} handlers"
+                        )
                 case "error":
                     matched = actual_event_type == "error"
                 case _:
@@ -365,6 +396,9 @@ class ConnectionManager:
 
             # Call all handlers registered for this event type
             if matched:
+                logging.debug(
+                    f"Event {actual_event_type} matched {event_type} with {len(handlers)} handlers"
+                )
                 for handler in handlers:
                     await handler(event)
 
@@ -602,6 +636,7 @@ async def on_event(
                    - "audio_packet": an audio packet (RTCPacket.AudioPayload)
                    - "participant_joined": when a participant joins the call
                    - "participant_left": when a participant leaves the call
+                   - "call_ended": when the call ends
                    - "error": error events
         handler: Async callback function that will be called with the event
                 The handler signature should be: async def handler(event: events.Event)
@@ -612,5 +647,18 @@ async def on_event(
             print(f"Participant joined: {participant.user_id}")
 
         await on_event(connection, "participant_joined", on_participant_joined)
+
+    Note:
+        When checking for specific event types in your handlers, use betterproto.which_one_of()
+        instead of directly checking if a field is None. For example:
+
+        # Correct way to check event type
+        event_type, _ = betterproto.which_one_of(event, "event")
+        if event_type == "call_ended":
+            # Handle call ended event
+
+        # Not recommended (may not work correctly with protobuf)
+        if event.call_ended is not None:
+            # This won't reliably detect the event type
     """
     connection.add_event_handler(event_type, handler)
