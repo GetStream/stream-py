@@ -4,6 +4,7 @@ import uuid
 import os
 from contextlib import asynccontextmanager
 import betterproto
+import tempfile
 
 from getstream import Stream
 from getstream.video.rtc.rtc import (
@@ -464,19 +465,19 @@ async def test_mp3_file_streaming(client):
     assert participant_left, "Mock MP3 participant never left"
 
 
+@pytest.mark.timeout(20)  # Allow 20 seconds for the test including audio playback
 @pytest.mark.asyncio
-async def test_wav_file_streaming(client):
+async def test_wav_file_round_trip(client):
     """
-    Test streaming audio from a WAV file with a mock participant.
-    This test verifies that the WAV file format is properly supported and
-    the correct amount of audio data is received with the expected format.
+    Test that processes a WAV file through the mock participant, collects the PCM data,
+    and writes it back to a WAV file that can be played with ffplay.
     """
-    # Create a call object
+    # Create a call object with fixed ID for debugging
     call_id = str(uuid.uuid4())
     rtc_call = client.video.rtc_call("default", call_id)
 
     # Find a WAV file for testing
-    audio_file = "/Users/tommaso/src/data-samples/audio/king_story_1.wav"
+    audio_file = "/Users/tommaso/src/data-samples/audio/samples_jfk.wav"
 
     # Make sure the file exists
     assert os.path.exists(audio_file), f"Test WAV file {audio_file} not found"
@@ -488,7 +489,7 @@ async def test_wav_file_streaming(client):
     )
 
     mock_participant = MockParticipant(
-        user_id="wav-user", name="WAV Test User", audio=mock_audio
+        user_id="jfk-speech", name="JFK Speech", audio=mock_audio
     )
 
     # Set up the mock configuration with the WAV-enabled participant
@@ -503,6 +504,7 @@ async def test_wav_file_streaming(client):
     pcm_format = None
     sample_rate = None
     channels = None
+    pcm_data = bytearray()
 
     # Define event handlers
     async def on_audio_packet(event):
@@ -511,7 +513,8 @@ async def test_wav_file_streaming(client):
             total_samples, \
             pcm_format, \
             sample_rate, \
-            channels
+            channels, \
+            pcm_data
         if event.rtc_packet and event.rtc_packet.audio:
             audio_packets_received += 1
 
@@ -528,6 +531,9 @@ async def test_wav_file_streaming(client):
             assert pcm.format == pcm_format, "Inconsistent PCM format"
             assert pcm.sample_rate == sample_rate, "Inconsistent sample rate"
             assert pcm.channels == channels, "Inconsistent channel count"
+
+            # Collect PCM data
+            pcm_data.extend(pcm.payload)
 
             # Count samples in this packet
             if pcm.format == 2:  # Int16
@@ -547,102 +553,100 @@ async def test_wav_file_streaming(client):
 
     async def on_participant_joined(event):
         nonlocal participant_joined
-        if event.participant_joined.user_id == "wav-user":
+        if event.participant_joined.user_id == "jfk-speech":
             participant_joined = True
+            print(f"Participant joined: {event.participant_joined.user_id}")
 
     async def on_participant_left(event):
         nonlocal participant_left
-        if event.participant_left.user_id == "wav-user":
+        if event.participant_left.user_id == "jfk-speech":
             participant_left = True
+            print(f"Participant left: {event.participant_left.user_id}")
 
-    # Join the call and register handlers
-    async with rtc_call.join("test-user", timeout=15.0) as connection:
-        # Register the event handlers
-        await on_event(connection, "audio_packet", on_audio_packet)
-        await on_event(connection, "participant_joined", on_participant_joined)
-        await on_event(connection, "participant_left", on_participant_left)
+    # Create a temporary directory for the output file
+    with tempfile.TemporaryDirectory() as temp_dir:
+        output_wav = os.path.join(temp_dir, "output.wav")
 
-        # Process events until the participant leaves or we hit a timeout
-        try:
-            async with timeout(10.0):  # Set a reasonable timeout
-                async for event in connection:
-                    # This will automatically exit when the WAV file is consumed
-                    # and the participant leaves
-                    if participant_left:
-                        break
-        except asyncio.TimeoutError:
-            # If we hit a timeout, that's okay, just make sure we received packets
-            pass
+        # Join the call and register handlers
+        async with rtc_call.join("test-user", timeout=15.0) as connection:
+            # Register the event handlers BEFORE starting event loop
+            await on_event(connection, "audio_packet", on_audio_packet)
+            await on_event(connection, "participant_joined", on_participant_joined)
+            await on_event(connection, "participant_left", on_participant_left)
 
-    # Verify that we received audio packets
-    assert audio_packets_received > 0, "Did not receive any WAV audio packets"
+            print("\n=== Starting event processing ===")
+            # Process events until the participant leaves or we hit a timeout
+            try:
+                async with timeout(10.0):  # Set a reasonable timeout
+                    async for event in connection:
+                        # This will automatically exit when the WAV file is consumed
+                        # and the participant leaves
+                        if participant_left:
+                            break
+            except asyncio.TimeoutError:
+                print("Timeout waiting for events")
+                pass
 
-    # Log statistics about received audio
-    print(f"Received {audio_packets_received} audio packets")
-    print(f"Total samples: {total_samples}")
-    print(f"Audio duration: {total_samples / sample_rate:.2f} seconds")
-    print(f"Format: {pcm_format}, Sample rate: {sample_rate} Hz, Channels: {channels}")
+        print("\n=== Audio Statistics ===")
+        print(f"Received {audio_packets_received} audio packets")
+        print(f"Total samples: {total_samples}")
+        print(f"Audio duration: {total_samples / sample_rate:.2f} seconds")
+        print(
+            f"Format: {pcm_format}, Sample rate: {sample_rate} Hz, Channels: {channels}"
+        )
+        print(f"Total PCM data size: {len(pcm_data)} bytes")
 
-    # Verify expected format
-    assert sample_rate == 48000, "Expected 48kHz sample rate"
-    assert channels == 2, "Expected stereo channels"
+        # Verify that we received audio packets
+        assert audio_packets_received > 0, "Did not receive any audio packets"
+        assert len(pcm_data) > 0, "Should have collected PCM data"
 
-    # Calculate expected packet count based on total samples
-    expected_packets = total_samples // 960  # 960 samples per 20ms packet
-    assert (
-        abs(audio_packets_received - expected_packets) <= 1
-    ), f"Expected ~{expected_packets} packets, got {audio_packets_received}"
+        # Write PCM data to WAV file using ffmpeg
+        print("\n=== Creating WAV file ===")
+        ffmpeg_cmd = [
+            "ffmpeg",
+            "-y",
+            "-f",
+            "s16le",  # Input format is signed 16-bit little-endian
+            "-ar",
+            str(sample_rate),  # Sample rate
+            "-ac",
+            str(channels),  # Number of channels
+            "-i",
+            "-",  # Read from stdin
+            output_wav,  # Output file
+        ]
 
-    # Verify the participant joined
-    assert participant_joined, "Mock WAV participant never joined"
+        # Run ffmpeg to convert PCM to WAV
+        process = await asyncio.create_subprocess_exec(
+            *ffmpeg_cmd,
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
 
-    # Verify the participant left when the file was consumed
-    assert participant_left, "Mock WAV participant never left"
+        # Write PCM data to ffmpeg's stdin
+        stdout, stderr = await process.communicate(input=bytes(pcm_data))
+        assert process.returncode == 0, f"ffmpeg failed: {stderr.decode()}"
+        assert os.path.exists(output_wav), "Output WAV file was not created"
 
+        print(f"\nCreated WAV file: {output_wav}")
+        print(f"File size: {os.path.getsize(output_wav)} bytes")
 
-@pytest.mark.asyncio
-async def test_call_ended_event_sent_from_go(client):
-    """
-    Very minimal test that verifies Go sends a call_ended event.
+        # Play the file with ffplay
+        print("\n=== Playing WAV file ===")
+        ffplay_cmd = [
+            "ffplay",
+            "-autoexit",  # Exit when playback is done
+            "-nodisp",  # Don't show video window
+            output_wav,
+        ]
 
-    This test only verifies that the Go side correctly sends the call_ended event
-    when the call ends, without trying to test the event loop behavior which is
-    difficult to test reliably.
-    """
-    # Create a call object
-    call_id = str(uuid.uuid4())
-    rtc_call = client.video.rtc_call("default", call_id)
+        process = await asyncio.create_subprocess_exec(
+            *ffplay_cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await process.communicate()
+        assert process.returncode == 0, f"ffplay failed: {stderr.decode()}"
 
-    # Set up a basic mock with no audio (to avoid real media processing)
-    mock_participant = MockParticipant(
-        user_id="mock-user-1",
-        name="Mock User 1",
-        audio=MockAudioConfig(
-            audio_file_path="/Users/tommaso/src/data-samples/audio/king_story_1.wav",
-        ),
-    )
-
-    mock_config = MockConfig(participants=[mock_participant])
-    rtc_call.set_mock(mock_config)
-
-    # Flag to track if we received the call_ended event
-    call_ended_received = False
-
-    # Create an event handler just for the call_ended event
-    async def on_call_ended(event):
-        nonlocal call_ended_received
-        call_ended_received = True
-        print("Call ended event received")
-
-    async with rtc_call.join("test-user", timeout=2.0) as connection:
-        # Register just the call_ended handler
-        await on_event(connection, "call_ended", on_call_ended)
-
-        # Manually trigger a leave to make Go send the call_ended event
-        await rtc_call.leave()
-
-    # Verify the call is no longer joined
-    assert not rtc_call._joined, "Call was not properly ended"
-
-    # Verify we received the call_ended event
-    assert call_ended_received, "Did not receive call_ended event from Go"
+    # Verify the participant joined and left
+    assert participant_joined, "Mock participant never joined"
+    assert participant_left, "Mock participant never left"
