@@ -170,3 +170,25 @@ Adjust the mock handler in Go so that the conversion from mp3 and wav to PCM fol
 - audio events should populate the AudioPayload payload correctly (PCMAudioPayload, format, sample rate, ...)
 
 These changes should not change anything on the C API
+
+## Step 11 - Realtime transcriptions
+
+create an example application under examples/video and create one initial example app in python that does the following:
+
+1. it launches an aynsc main function
+2. the async main function creates a mock call and uses the jfk audio example as used in @test_rtc.py
+3. it uses OpenAI Realtime API to perform transcriptions of the incoming audio events
+4. it gets the OpenAI credentials from the .env file at the root of the project
+5. it prints all events coming from OpenAI
+
+as a reference, here some relevant examples from their docs:
+
+@https://platform.openai.com/docs/guides/realtime?use-case=transcription&connection-example=python#connect-with-websockets
+
+as well as
+
+@https://platform.openai.com/docs/guides/realtime-transcription#handling-transcriptions
+
+the example should use noise cancelation and the semantic_vad VAD
+
+@https://platform.openai.com/docs/guides/realtime-vad

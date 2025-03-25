@@ -601,11 +601,11 @@ def make_rtc_event_callback(call: RTCCall):
             return
         try:
             serialized_data = ffi.buffer(payload, length)[:]
-            logging.debug(f"Raw event data from Go: {serialized_data.hex()[:20]}...")
+            # logging.debug(f"Raw event data from Go: {serialized_data.hex()[:20]}...")
 
             # Create the event object from the serialized data
             event = events.Event().parse(serialized_data)
-            logging.debug(f"Event from Go: {type(event).__name__}")
+            # logging.debug(f"Event from Go: {type(event).__name__}")
 
             # Forward the event to the RTCCall
             call.on_rtc_event_payload(event)
