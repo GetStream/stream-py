@@ -47,3 +47,6 @@ openai-realtime = [
   "openai[realtime]==1.65.4",
   "trio >=0.22.2",
 ]
+webrtc = [
+    "aiortc==1.10.1"
+]
