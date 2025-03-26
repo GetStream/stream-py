@@ -4,6 +4,15 @@ from urllib.parse import quote
 from datetime import datetime
 from datetime import timezone
 from urllib.parse import urlparse, urlunparse
+import logging
+import sys
+
+from getstream.utils.retry import (
+    Retry,
+    RetryExhausted,
+    default_backoff,
+    default_can_retry,
+)
 
 UTC = timezone.utc
 
@@ -157,8 +166,6 @@ def configure_logging(level=None, handler=None, format=None):
         handler: A custom handler to use (default: StreamHandler)
         format: A custom format string (default: '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     """
-    import logging
-
     # Get the root logger for the library
     logger = logging.getLogger("getstream")
 
@@ -168,8 +175,6 @@ def configure_logging(level=None, handler=None, format=None):
 
     # Create a handler if not provided
     if handler is None:
-        import sys
-
         handler = logging.StreamHandler(sys.stdout)
 
         # Set the format if provided
@@ -181,3 +186,20 @@ def configure_logging(level=None, handler=None, format=None):
     logger.addHandler(handler)
 
     return logger
+
+
+__all__ = [
+    # Retry functions
+    "Retry",
+    "RetryExhausted",
+    "default_backoff",
+    "default_can_retry",
+    # Utils functions
+    "encode_datetime",
+    "datetime_from_unix_ns",
+    "build_query_param",
+    "build_body_dict",
+    "validate_and_clean_url",
+    "configure_logging",
+    "UTC",
+]

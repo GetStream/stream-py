@@ -14,6 +14,7 @@
 6. .env is used to load credentials, the client fixture will load credentials from there
 7. keep tests well organized and use test classes for similar tests
 8. tests that rely on file assets should always rely on files inside the `tests/assets/` folder, new files should be added there and existing ones used if possible. Do not use files larger than 256 kilobytes.
+9- do not use mocks or mock things in general unless you are asked to do that directly
 
 ## Project layout
 
