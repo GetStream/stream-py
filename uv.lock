@@ -421,8 +421,10 @@ dependencies = [
     { name = "marshmallow" },
     { name = "protobuf" },
     { name = "pyjwt" },
+    { name = "pytest-timeout" },
     { name = "python-dateutil" },
     { name = "twirp" },
+    { name = "websocket-client" },
 ]
 
 [package.optional-dependencies]
@@ -458,9 +460,11 @@ requires-dist = [
     { name = "openai", extras = ["realtime"], marker = "extra == 'openai-realtime'", specifier = "==1.65.4" },
     { name = "protobuf", extras = ["webrtc"], specifier = ">=4.25.1" },
     { name = "pyjwt", specifier = ">=2.8.0,<3" },
+    { name = "pytest-timeout", specifier = ">=2.3.1" },
     { name = "python-dateutil", extras = ["webrtc"], specifier = ">=2.8.2" },
     { name = "trio", marker = "extra == 'openai-realtime'", specifier = ">=0.22.2" },
     { name = "twirp", extras = ["all", "webrtc"], specifier = ">=0.0.7" },
+    { name = "websocket-client", specifier = ">=1.8.0" },
 ]
 provides-extras = ["openai-realtime", "webrtc"]
 
@@ -1018,6 +1022,18 @@ wheels = [
 ]
 
 [[package]]
+name = "pytest-timeout"
+version = "2.3.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pytest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/93/0d/04719abc7a4bdb3a7a1f968f24b0f5253d698c9cc94975330e9d3145befb/pytest-timeout-2.3.1.tar.gz", hash = "sha256:12397729125c6ecbdaca01035b9e5239d4db97352320af155b3f5de1ba5165d9", size = 17697 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/03/27/14af9ef8321f5edc7527e47def2a21d8118c6f329a9342cc61387a0c0599/pytest_timeout-2.3.1-py3-none-any.whl", hash = "sha256:68188cb703edfc6a18fad98dc25a3c61e9f24d644b0b70f33af545219fc7813e", size = 14148 },
+]
+
+[[package]]
 name = "python-dateutil"
 version = "2.9.0.post0"
 source = { registry = "https://pypi.org/simple" }
@@ -1295,6 +1311,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/50/39/689abee4adc85aad2af8174bb195a819d0be064bf55fcc73b49d2b28ae77/virtualenv-20.28.1.tar.gz", hash = "sha256:5d34ab240fdb5d21549b76f9e8ff3af28252f5499fb6d6f031adac4e5a8c5329", size = 7650532 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/51/8f/dfb257ca6b4e27cb990f1631142361e4712badab8e3ca8dc134d96111515/virtualenv-20.28.1-py3-none-any.whl", hash = "sha256:412773c85d4dab0409b83ec36f7a6499e72eaf08c80e81e9576bca61831c71cb", size = 4276719 },
+]
+
+[[package]]
+name = "websocket-client"
+version = "1.8.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/e6/30/fba0d96b4b5fbf5948ed3f4681f7da2f9f64512e1d303f94b4cc174c24a5/websocket_client-1.8.0.tar.gz", hash = "sha256:3239df9f44da632f96012472805d40a23281a991027ce11d2f45a6f24ac4c3da", size = 54648 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5a/84/44687a29792a70e111c5c477230a72c4b957d88d16141199bf9acb7537a3/websocket_client-1.8.0-py3-none-any.whl", hash = "sha256:17b44cc997f5c498e809b22cdf2d9c7a9e71c02c8cc2b6c56e7c2d1239bfa526", size = 58826 },
 ]
 
 [[package]]

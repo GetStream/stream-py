@@ -1,16 +1,12 @@
 import logging
+from dataclasses_json import config as dc_config, DataClassJsonMixin
+from dataclasses import field as dc_field, dataclass
+from typing import List, Optional, Dict, Any
 
-from getstream import Stream
+from getstream.base import StreamResponse
 from getstream.models import CallRequest, CallResponse, MemberResponse
-from getstream.stream_response import StreamResponse
-from getstream.utils import build_body_dict, retry
-from getstream.video.rtc.connection_manager import ConnectionManager
 from getstream.video.call import Call
-from dataclasses import dataclass
-from dataclasses import field as dc_field
-from dataclasses_json import DataClassJsonMixin
-from dataclasses_json import config as dc_config
-from typing import Optional, List
+from getstream.utils import build_body_dict
 from getstream.video.rtc.location_discovery import (
     HTTPHintLocationDiscovery,
     HEADER_CLOUDFRONT_POP,
@@ -18,7 +14,6 @@ from getstream.video.rtc.location_discovery import (
     STREAM_PROD_URL,
 )
 
-# Create a logger for the rtc module
 logger = logging.getLogger("getstream.video.rtc")
 
 try:
@@ -63,7 +58,9 @@ class ServerCredentials(DataClassJsonMixin):
 class Credentials(DataClassJsonMixin):
     server: ServerCredentials = dc_field(metadata=dc_config(field_name="server"))
     token: str = dc_field(metadata=dc_config(field_name="token"))
-    ice_servers: dict = dc_field(metadata=dc_config(field_name="ice_servers"))
+    ice_servers: List[Dict[str, Any]] = dc_field(
+        metadata=dc_config(field_name="ice_servers")
+    )
 
 
 @dataclass
@@ -82,28 +79,47 @@ async def join_call_coordinator_request(
     ring: Optional[bool] = None,
     notify: Optional[bool] = None,
     video: Optional[bool] = None,
+    location: Optional[str] = None,
 ) -> StreamResponse[JoinCallResponse]:
-    # here we need to do a few things: create a token and then create a new client with it
+    """Make a request to join a call via the coordinator.
+
+    Args:
+        call: The call to join
+        user_id: The user ID to join the call with
+        create: Whether to create the call if it doesn't exist
+        data: Additional call data if creating
+        ring: Whether to ring other users
+        notify: Whether to notify other users
+        video: Whether to enable video
+        location: The preferred location
+
+    Returns:
+        A response containing the call information and credentials
+    """
+    # Create a token for this user
     token = call.client.stream.create_token(user_id=user_id)
 
-    client = Stream(
+    # Create a new client with this token
+    client = call.client.stream.__class__(
         api_key=call.client.stream.api_key,
         api_secret=call.client.stream.api_secret,
         base_url=call.client.stream.base_url,
     )
 
-    # TODO: have a cleaner way to do this
+    # Set up authentication
     client.token = token
     client.headers["Authorization"] = token
     client.client.headers["Authorization"] = token
 
+    # Prepare path parameters for the request
     path_params = {
         "type": call.call_type,
         "id": call.id,
     }
 
-    json = build_body_dict(
-        location="FRA",
+    # Build the request body
+    json_body = build_body_dict(
+        location=location or "FRA",  # Default to Frankfurt if not specified
         create=create,
         notify=notify,
         ring=ring,
@@ -111,11 +127,12 @@ async def join_call_coordinator_request(
         data=data,
     )
 
+    # Make the POST request to join the call
     return client.post(
         "/api/v2/video/call/{type}/{id}/join",
         JoinCallResponse,
         path_params=path_params,
-        json=json,
+        json=json_body,
     )
 
 
@@ -126,31 +143,56 @@ async def discover_location():
     Returns:
         str: The 3-character location code (e.g. "IAD")
     """
+    logger.info("Discovering location")
     discovery = HTTPHintLocationDiscovery(logger=logger)
     # Even though discover is synchronous, we keep this function async for future compatibility
     return discovery.discover()
+
+
+class ConnectionManager:
+    def __init__(self, call: Call):
+        self.call = call
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        pass
 
 
 async def join(
     call: Call, user_id: str = None, create=True, **kwargs
 ) -> ConnectionManager:
     """
-    Connects to a call with webRTC, this method returns a connection manager object which can be used to send and receive events
+    Join a call. This method will:
+    - discover the best location
+    - join the call (or create it if needed)
+    - setup the peer connection
+    - connect to the SFU
+
+    Args:
+        call: The call to join
+        user_id: The user id to join with
+        create: Whether to create the call if it doesn't exist
+        **kwargs: Additional arguments to pass to the join call request
+
+    Returns:
+        A ConnectionManager object that can be used as a context manager
     """
-
-    # TODO: when we have the full flow and a good idea about all moving parts, we should extract a call manager class
-    # that handles automatic re-connection based on retries and ws events
-
     logger.info("discovering location")
-    with retry.Retry(max_retries=5, backoff_strategy=lambda _: 0.1):
+    try:
         location = await discover_location()
-    logger.info(f"discovered location: {location}")
+        logger.info(f"discovered location: {location}")
+    except Exception as e:
+        logger.error(f"Failed to discover location: {e}")
+        # Default to a reasonable location if discovery fails
+        location = "FRA"
+        logger.info(f"using default location: {location}")
 
-    logger.info("join call - coordinator request")
-    with retry.Retry(max_retries=5):
-        join_call_response = await join_call_coordinator_request(
-            call, user_id, create=create, **kwargs
-        )
+    logger.info("performing join call request on coordinator API")
+    join_call_response = await join_call_coordinator_request(
+        call, user_id, create=create, location=location, **kwargs
+    )
     logger.info(
         f"received credentials to connect to sfu {join_call_response.data.credentials.server.url}"
     )

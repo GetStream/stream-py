@@ -7,13 +7,6 @@ from urllib.parse import urlparse, urlunparse
 import logging
 import sys
 
-from getstream.utils.retry import (
-    Retry,
-    RetryExhausted,
-    default_backoff,
-    default_can_retry,
-)
-
 UTC = timezone.utc
 
 
@@ -189,11 +182,6 @@ def configure_logging(level=None, handler=None, format=None):
 
 
 __all__ = [
-    # Retry functions
-    "Retry",
-    "RetryExhausted",
-    "default_backoff",
-    "default_can_retry",
     # Utils functions
     "encode_datetime",
     "datetime_from_unix_ns",

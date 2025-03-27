@@ -17,6 +17,8 @@ dependencies = [
     "protobuf[webrtc]>=4.25.1",
     "python-dateutil[webrtc]>=2.8.2",
     "aiortc[webrtc]>=1.10.1",
+    "websocket-client>=1.8.0",
+    "pytest-timeout>=2.3.1",
 ]
 
 [dependency-groups]
