@@ -3,6 +3,7 @@ import concurrent.futures
 import threading
 import websocket
 import logging
+import time
 from typing import Any, Callable, Dict, Awaitable, List
 
 from .pb.stream.video.sfu.event import events_pb2
@@ -34,12 +35,17 @@ class WebSocketClient:
         self.join_request = join_request
         self.ws = None
         self.event_handlers: Dict[str, List[Callable[[Any], Awaitable[None]]]] = {}
-        self.first_message_event = asyncio.Event()
+        self.first_message_event = threading.Event()
         self.first_message = None
         self.thread = None
         self.event_loop = asyncio.new_event_loop()
         self.running = False
         self.closed = False
+
+        # For ping/health check mechanism
+        self.ping_thread = None
+        self.last_health_check_time = 0
+        self.ping_interval = 10  # seconds
 
         # Thread pool for executing callbacks
         self.executor = concurrent.futures.ThreadPoolExecutor(
@@ -76,7 +82,9 @@ class WebSocketClient:
         self.thread.start()
 
         # Wait for first message
-        await self.first_message_event.wait()
+        await asyncio.get_event_loop().run_in_executor(
+            None, self.first_message_event.wait
+        )
 
         # Check if the first message is an error
         if self.first_message and self.first_message.HasField("error"):
@@ -85,6 +93,8 @@ class WebSocketClient:
 
         # Check if we got join_response
         if self.first_message and self.first_message.HasField("join_response"):
+            # Start the ping mechanism after successful connection
+            self._start_ping_handler()
             return self.first_message
 
         raise SignalingError("Unexpected first message type")
@@ -104,21 +114,22 @@ class WebSocketClient:
 
     def _on_message(self, ws, message):
         """Handle incoming WebSocket messages."""
-        try:
-            # Deserialize the message
-            event = events_pb2.SfuEvent()
-            event.ParseFromString(message)
 
-            # If this is the first message, set it and trigger the event
-            if not self.first_message_event.is_set():
-                self.first_message = event
-                self.event_loop.call_soon_threadsafe(self.first_message_event.set)
+        event = events_pb2.SfuEvent()
+        event.ParseFromString(message)
+        logger.debug(f"WebSocket message received {event.WhichOneof("event_payload")}")
 
-            # Dispatch to event handlers
-            self._dispatch_event(event)
+        if event.HasField("health_check_response"):
+            logger.debug("received health check response")
+            self.last_health_check_time = time.time()
 
-        except Exception as e:
-            logger.error(f"Error handling message: {str(e)}")
+        # If this is the first message, set it and trigger the event
+        if not self.first_message_event.is_set():
+            self.first_message = event
+            self.first_message_event.set()
+
+        # Dispatch to event handlers
+        self._dispatch_event(event)
 
     def _on_error(self, ws, error):
         """Handle WebSocket error."""
@@ -128,12 +139,57 @@ class WebSocketClient:
             error_event = events_pb2.SfuEvent()
             error_event.error.error.description = str(error)
             self.first_message = error_event
-            self.event_loop.call_soon_threadsafe(self.first_message_event.set)
+            self.first_message_event.set()
 
     def _on_close(self, ws, close_status_code, close_msg):
         """Handle WebSocket close event."""
         logger.debug(f"WebSocket connection closed: {close_status_code} {close_msg}")
         self.running = False
+
+    def _start_ping_handler(self):
+        """Start the ping mechanism in a background thread."""
+        if self.ping_thread is not None:
+            return  # Already started
+
+        # Set initial health check time
+        self.last_health_check_time = time.time()
+
+        # Start thread for sending pings
+        self.ping_thread = threading.Thread(target=self._ping_loop, daemon=True)
+        self.ping_thread.start()
+        logger.debug("Started ping handler")
+
+    def _ping_loop(self):
+        """Run periodic health checks to keep the connection alive."""
+        logger.debug("Ping loop started")
+
+        while self.running and not self.closed:
+            # Check if we haven't received a health check response in more than twice the ping interval
+            current_time = time.time()
+            if current_time - self.last_health_check_time > self.ping_interval * 2:
+                logger.warning("Health check failed, closing connection")
+                self.close()
+                return
+
+            # Skip if the connection is closed
+            if not self.running or self.closed or self.ws is None:
+                return
+
+            try:
+                # Create and send health check request
+                health_check_req = events_pb2.HealthCheckRequest()
+                sfu_request = events_pb2.SfuRequest(
+                    health_check_request=health_check_req
+                )
+
+                # Send the serialized request
+                self.ws.send(sfu_request.SerializeToString())
+                logger.debug("Sent health check request")
+            except Exception as e:
+                logger.error(f"Failed to send health check request: {e}")
+
+            # Sleep for ping interval
+            time.sleep(self.ping_interval)
 
     def _dispatch_event(self, event):
         """
@@ -208,9 +264,12 @@ class WebSocketClient:
         if self.ws:
             self.ws.close()
 
-        # Wait for the thread to finish
+        # Wait for the threads to finish
         if self.thread and self.thread.is_alive():
             self.thread.join(timeout=1.0)
+
+        if self.ping_thread and self.ping_thread.is_alive():
+            self.ping_thread.join(timeout=1.0)
 
         # Shutdown the executor
         self.executor.shutdown(wait=False)

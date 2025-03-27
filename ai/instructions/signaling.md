@@ -122,6 +122,25 @@ Make sure to decorate Discover with a cache decorator so we only make the HTTP c
 
 Step 2 - Implement websocket signaling
 
+Create a websocket client using the websocket-client python library. inside @signaling.py
+
+the websocket should be a class and accept an instance of JoinRequest in its constructor (see below):
+
+it should expose an async .connect method, the .connect event needs to do this:
+
+- estabilish the ws connection
+- send an authentication payload using the JoinRequest type from @events_pb2.py you can look at @events_pb2.pyi to better understand its fields
+- the connect method should "resolve" after the ws client receives its first message and either raise an exception or return the message. see the on_message part of this class
+-
+
+The ws class should decode incoming messages using protobuf, messages are SfuEvent messages. See @events_pb2.py and @events_pb2.pyi to undertsand this better.
+
+SfuEvent encapsulate different type of events using the oneof type. If the first message is JoinResponse then the connection is resolved. If the first event is an error (Error) then the connect should throw and use the content of the event as the message of the exception.
+
+The websocket class should have an `on_event(type: str, callback)` that allows you to subscribe to events by their name. The event callbacks must be async functions and the websocket class should use a separate thread to execute these callbacks. If you pass "*" the handler will receive any event (type SfuEvent). If you give it participant_joined it will get ParticipantJoined. This mapping should be done dynamically, this way if a new oneof is added the code will not need to be updated.
+
+The websocket should have a close() method that will cleanup all resources
+
 Step 3 - Websocket event handling
 
 Step 4 - Websocket automatic reconnection

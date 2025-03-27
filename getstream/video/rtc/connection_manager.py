@@ -1,9 +1,13 @@
+import uuid
+
 import asyncio
 import logging
 from typing import AsyncIterator
 
 from getstream.video.call import Call
 from getstream.video.rtc.location_discovery import HTTPHintLocationDiscovery
+from getstream.video.rtc.signaling import WebSocketClient, SignalingError
+from getstream.video.rtc.pb.stream.video.sfu.event import events_pb2
 
 # Import join_call_coordinator_request from coordinator module instead of __init__
 from getstream.video.rtc.coordinator import join_call_coordinator_request
@@ -28,9 +32,21 @@ class ConnectionManager:
         self.connection_task = None
         # Add a stop event to signal when to stop iteration
         self._stop_event = asyncio.Event()
+        # WebSocket client for SFU communication
+        self.ws_client = None
+        self.session_id = str(uuid.uuid4())
 
-    async def __aenter__(self):
-        """Async context manager entry that performs location discovery and joins call."""
+    async def _full_connect(self):
+        """Perform location discovery and join call via coordinator.
+
+        This method handles the full connection process:
+        1. Discovering the optimal location
+        2. Joining the call via the coordinator API
+        3. Establishing WebSocket connection to the SFU
+
+        Raises:
+            ConnectionError: If there's an issue joining the call or connecting to the SFU
+        """
         # Discover location
         logger.info("Discovering location")
         try:
@@ -60,9 +76,62 @@ class ConnectionManager:
             logger.error(f"Failed to join call: {e}")
             raise ConnectionError(f"Failed to join call: {e}")
 
+        # Connect to SFU via WebSocket
+        logger.info("Connecting to SFU via WebSocket")
+        try:
+            # Create JoinRequest for WebSocket connection
+            join_request = self._create_join_request()
+
+            # Get WebSocket URL from the coordinator response
+            ws_url = self.join_response.data.credentials.server.ws_endpoint
+
+            # Create WebSocket client
+            self.ws_client = WebSocketClient(ws_url, join_request)
+
+            # Connect to the WebSocket server and wait for the first message
+            logger.info(f"Establishing WebSocket connection to {ws_url}")
+            sfu_event = await self.ws_client.connect()
+
+            logger.info("WebSocket connection established successfully")
+            logger.debug(f"Received join response: {sfu_event.join_response}")
+
+        except SignalingError as e:
+            logger.error(f"Failed to connect to SFU: {e}")
+            # Close the WebSocket if it was created
+            if self.ws_client:
+                self.ws_client.close()
+                self.ws_client = None
+            raise ConnectionError(f"Failed to connect to SFU: {e}")
+        except Exception as e:
+            logger.error(f"Unexpected error connecting to SFU: {e}")
+            # Close the WebSocket if it was created
+            if self.ws_client:
+                self.ws_client.close()
+                self.ws_client = None
+            raise ConnectionError(f"Unexpected error connecting to SFU: {e}")
+
         # Mark as running and clear stop event
         self.running = True
         self._stop_event.clear()
+
+    def _create_join_request(self) -> events_pb2.JoinRequest:
+        """Create a JoinRequest protobuf message for the WebSocket connection.
+
+        Returns:
+            A JoinRequest protobuf message configured with data from the coordinator response
+        """
+        # Get credentials from the coordinator response
+        credentials = self.join_response.data.credentials
+
+        # Create a JoinRequest
+        join_request = events_pb2.JoinRequest()
+        join_request.token = credentials.token
+        join_request.session_id = self.session_id
+        return join_request
+
+    async def __aenter__(self):
+        """Async context manager entry that performs location discovery and joins call."""
+        await self._full_connect()
 
         # Return self to be used as an async iterator
         return self
@@ -82,7 +151,6 @@ class ConnectionManager:
             raise StopAsyncIteration
 
         # Use wait_for with a short timeout to frequently check self.running
-        # eventually this will send real events, for now this is just here as placeholder
         try:
             # Wait for 100ms, but allow interruption via the stop event
             await asyncio.wait_for(self._stop_event.wait(), 0.1)
@@ -108,10 +176,10 @@ class ConnectionManager:
         # Signal the __anext__ method to stop
         self._stop_event.set()
 
-        # Add actual disconnection logic here in the future
-        # This would include:
-        # 1. Closing WebSocket connections
-        # 2. Cleaning up peer connections
-        # 3. Potentially sending a leave message to the SFU
+        # Close the WebSocket connection if it exists
+        if self.ws_client:
+            logger.info("Closing WebSocket connection")
+            self.ws_client.close()
+            self.ws_client = None
 
         logger.info("Successfully left call")
