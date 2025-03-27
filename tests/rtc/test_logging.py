@@ -29,19 +29,21 @@ def test_logging_configuration():
 
 @pytest.mark.asyncio
 async def test_join_logging():
-    """Test that join logs messages using the configured logger."""
+    """Test that ConnectionManager logs messages using the configured logger."""
     # Create a mock logger
     mock_logger = MagicMock()
 
-    # Replace the rtc logger with our mock
-    with patch("getstream.video.rtc.logger", mock_logger):
+    # Patch the ConnectionManager to use our mock logger
+    with patch("getstream.video.rtc.connection_manager.logger", mock_logger):
         # Create mock call
         mock_call = MagicMock()
 
-        # Call join
-        with patch("getstream.video.rtc.discover_location", return_value="IAD"):
-            await join(mock_call)
+        # Call join, which creates and returns a ConnectionManager
+        cm = await join(mock_call)
+        # Enter the ConnectionManager context
+        async with cm:
+            pass  # We only care about the logging during __aenter__
 
     # Verify that logger.info was called with the expected messages
-    mock_logger.info.assert_any_call("discovering location")
-    mock_logger.info.assert_any_call("discovered location: IAD")
+    mock_logger.info.assert_any_call("Discovering location")
+    mock_logger.info.assert_any_call("Performing join call request on coordinator API")
