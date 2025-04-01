@@ -19,7 +19,7 @@ async def test_join_and_leave(client: Stream):
 
 @pytest.mark.asyncio
 async def test_join(client: Stream):
-    call = client.video.call("default", "test-join")
+    call = client.video.call("default", "mQbx3HG7wtTj")
 
     received_event = None
     # Test the join method as a context manager

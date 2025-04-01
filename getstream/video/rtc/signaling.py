@@ -231,7 +231,7 @@ class WebSocketClient:
             try:
                 handler_loop.run_until_complete(handler(payload))
             except Exception as e:
-                logger.error(f"Error in event handler: {str(e)}")
+                logger.error(f"Error in event handler: {handler} {str(e)}")
             finally:
                 handler_loop.close()
 
