@@ -15,9 +15,7 @@ from getstream.video.call import Call
 from getstream.video.rtc.location_discovery import HTTPHintLocationDiscovery
 from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
 from getstream.video.rtc.pb.stream.video.sfu.signal_rpc import signal_pb2
-from getstream.video.rtc.pb.stream.video.sfu.signal_rpc.signal_twirp import (
-    SignalServerClient,
-)
+from getstream.video.rtc.twirp_client_wrapper import SignalClient, SfuRpcError
 from getstream.video.rtc.signaling import WebSocketClient, SignalingError
 from getstream.video.rtc.pb.stream.video.sfu.event import events_pb2
 
@@ -25,6 +23,9 @@ from twirp import context
 
 # Import join_call_coordinator_request from coordinator module instead of __init__
 from getstream.video.rtc.coordinator import join_call_coordinator_request
+
+# Import MediaPlayer
+from aiortc.contrib.media import MediaPlayer
 
 logger = logging.getLogger("getstream.video.rtc.connection_manager")
 
@@ -45,7 +46,7 @@ def add_ice_candidates_to_sdp(sdp: str, candidates: List[str]) -> str:
 
     candidate_lines = [f"a=candidate:{c}" for c in candidates]
     candidate_lines.append("a=end-of-candidates")
-    candidate_section = "\n".join(candidate_lines) + "\n" # Ensure trailing newline
+    candidate_section = "\n".join(candidate_lines) + "\n"  # Ensure trailing newline
 
     # Split SDP into session part and media parts, keeping the delimiter
     parts = re.split("(\nm=)", sdp)
@@ -58,10 +59,15 @@ def add_ice_candidates_to_sdp(sdp: str, candidates: List[str]) -> str:
     # Iterate through the pairs of (delimiter, media_section)
     for i in range(1, len(parts), 2):
         if i + 1 < len(parts):
-            newline_and_m_separator = parts[i] # This is '\nm='
-            media_section_content = parts[i+1]
+            newline_and_m_separator = parts[i]  # This is '\nm='
+            media_section_content = parts[i + 1]
             # Append the separator, the original media content (stripped), and the candidate section
-            modified_sdp_parts.append(newline_and_m_separator + media_section_content.rstrip() + '\n' + candidate_section)
+            modified_sdp_parts.append(
+                newline_and_m_separator
+                + media_section_content.rstrip()
+                + "\n"
+                + candidate_section
+            )
         # Handle potential trailing delimiter if split results in odd number of parts (shouldn't happen)
         # else:
         #    modified_sdp_parts.append(parts[i])
@@ -76,7 +82,37 @@ class ConnectionError(Exception):
 
 
 class PublisherPeerConnection(aiortc.RTCPeerConnection):
-    pass
+    def __init__(
+        self,
+        manager: "ConnectionManager",
+        configuration: Optional[aiortc.RTCConfiguration] = None,
+    ) -> None:
+        if configuration is None:
+            configuration = aiortc.RTCConfiguration(
+                iceServers=[aiortc.RTCIceServer(urls="stun:stun.l.google.com:19302")]
+            )
+        logger.info(
+            f"Creating publisher peer connection with configuration: {configuration}"
+        )
+        super().__init__(configuration)
+        self.manager = manager
+        self._received_ice_event = asyncio.Event()
+        self._ice_candidates = []
+
+        @self.on("icegatheringstatechange")
+        def on_icegatheringstatechange():
+            logger.info(
+                f"Publisher ICE gathering state changed to {self.iceGatheringState}"
+            )
+            if self.iceGatheringState == "complete":
+                logger.info("Publisher: All ICE candidates have been gathered.")
+                # Optionally send a final ICE candidate message or null candidate if required by SFU
+
+    async def handle_remote_ice_candidate(self, candidate_sdp: str) -> None:
+        # Note: Publisher typically doesn't receive ICE candidates *from* the SFU
+        logger.info(
+            f"Publisher received remote ICE candidate (unexpected?): {candidate_sdp}"
+        )
 
 
 def parse_track_id(id: str) -> tuple[str, str]:
@@ -89,14 +125,15 @@ def parse_track_id(id: str) -> tuple[str, str]:
 
 
 class SubscriberPeerConnection(aiortc.RTCPeerConnection):
-
     def __init__(
         self,
         manager: "ConnectionManager",
         configuration: Optional[aiortc.RTCConfiguration] = None,
     ) -> None:
         if configuration is None:
-            configuration = aiortc.RTCConfiguration(iceServers=[aiortc.RTCIceServer(urls="stun:stun.l.google.com:19302")])
+            configuration = aiortc.RTCConfiguration(
+                iceServers=[aiortc.RTCIceServer(urls="stun:stun.l.google.com:19302")]
+            )
         logger.info(
             f"creating subscriber peer connection with configuration: {configuration}"
         )
@@ -127,9 +164,7 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection):
             if self.iceGatheringState == "complete":
                 logger.info("All ICE candidates have been gathered.")
 
-    async def handle_remote_ice_candidate(
-        self, candidate: str
-    ) -> None:
+    async def handle_remote_ice_candidate(self, candidate: str) -> None:
         self._ice_candidates.append(candidate)
         self._received_ice_event.set()
 
@@ -138,7 +173,6 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection):
 
 
 class ConnectionManager:
-
     def __init__(self, call: Call, user_id: str = None, create: bool = True, **kwargs):
         self.call = call
         self.user_id = user_id
@@ -155,14 +189,17 @@ class ConnectionManager:
         self.ws_client = None
         self.session_id = str(uuid.uuid4())
         self.subscriber_pc: SubscriberPeerConnection
-        self.twirp_signaling_client: SignalServerClient
+        self.twirp_signaling_client: SignalClient
         self.twirp_context: context.Context
+
+        # Add publisher peer connection attribute
+        self.publisher_pc: Optional[PublisherPeerConnection] = None
 
         # this is used to associate participants to the track prefix that is used on webrtc track SSRCs
         self._track_user_prefixes = {}
 
         # set to true if you want to connect to a local SFU
-        self.local_sfu = False
+        self.local_sfu = True
 
     async def _full_connect(self):
         """Perform location discovery and join call via coordinator.
@@ -226,14 +263,16 @@ class ConnectionManager:
                 logger.info(f"adjusted sfu ws url to {ws_url}")
 
             # Create WebSocket client
-            self.ws_client = WebSocketClient(ws_url, join_request, asyncio.get_running_loop())
+            self.ws_client = WebSocketClient(
+                ws_url, join_request, asyncio.get_running_loop()
+            )
 
             # Connect to the WebSocket server and wait for the first message
             logger.info(f"Establishing WebSocket connection to {ws_url}")
             sfu_event = await self.ws_client.connect()
 
             self.subscriber_pc = SubscriberPeerConnection(manager=self)
-            self.twirp_signaling_client = SignalServerClient(
+            self.twirp_signaling_client = SignalClient(
                 address=self.join_response.data.credentials.server.url
             )
             self.twirp_context = context.Context(
@@ -258,6 +297,8 @@ class ConnectionManager:
 
         self.ws_client.on_event("ice_trickle", self._on_ice_trickle)
         self.ws_client.on_event("subscriber_offer", self._on_subscriber_offer)
+        # Add handler for publisher answer
+        self.ws_client.on_event("publisher_answer", self._on_publisher_answer)
         # Mark as running and clear stop event
         self.running = True
         self._stop_event.clear()
@@ -276,7 +317,9 @@ class ConnectionManager:
         await self.subscriber_pc._received_ice_event.wait()
 
         # Use the new robust function to add candidates
-        patched_sdp = add_ice_candidates_to_sdp(event.sdp, self.subscriber_pc._ice_candidates)
+        patched_sdp = add_ice_candidates_to_sdp(
+            event.sdp, self.subscriber_pc._ice_candidates
+        )
 
         # The SDP offer from the SFU might already contain candidates (trickled)
         # or have a different structure. We set it as the remote description.
@@ -295,16 +338,24 @@ class ConnectionManager:
             f"""Sending answer with local description:
 {self.subscriber_pc.localDescription.sdp}"""
         )
-
-        self.twirp_signaling_client.SendAnswer(
-            ctx=self.twirp_context,
-            request=signal_pb2.SendAnswerRequest(
-                peer_type=models_pb2.PEER_TYPE_SUBSCRIBER,
-                sdp=self.subscriber_pc.localDescription.sdp,
-                session_id=self.session_id,
-            ),
-            server_path_prefix="",
-        )
+        # Use the wrapped client; errors will raise SfuRpcError
+        try:
+            await self.twirp_signaling_client.SendAnswer(
+                ctx=self.twirp_context,
+                request=signal_pb2.SendAnswerRequest(
+                    peer_type=models_pb2.PEER_TYPE_SUBSCRIBER,
+                    sdp=self.subscriber_pc.localDescription.sdp,
+                    session_id=self.session_id,
+                ),
+                server_path_prefix="",  # Note: Our wrapper doesn't need this, underlying client handles prefix
+            )
+            logger.info("Subscriber answer sent successfully.")
+        except SfuRpcError as e:
+            logger.error(f"Failed to send subscriber answer: {e}")
+            # Decide how to handle: maybe close connection, notify user, etc.
+            # For now, just log the error.
+        except Exception as e:
+            logger.error(f"Unexpected error sending subscriber answer: {e}")
 
     async def _on_ice_trickle(self, event: events_pb2.ICETrickle):
         logger.info(
@@ -315,7 +366,14 @@ class ConnectionManager:
         if event.peer_type == models_pb2.PEER_TYPE_SUBSCRIBER:
             await self.subscriber_pc.handle_remote_ice_candidate(candidate_sdp)
         else:
-            pass
+            # if we receive this and publisher_pc is not set, something is very wrong and we should crash
+            # Check if publisher_pc exists before accessing it
+            if self.publisher_pc:
+                await self.publisher_pc.handle_remote_ice_candidate(candidate_sdp)
+            else:
+                logger.warning(
+                    "Received ICE trickle for publisher, but publisher_pc is not initialized."
+                )
 
     def _create_join_request(self) -> events_pb2.JoinRequest:
         """Create a JoinRequest protobuf message for the WebSocket connection.
@@ -344,45 +402,168 @@ class ConnectionManager:
         await self.leave()
 
     async def __anext__(self):
-        """Async iterator implementation to yield events."""
-        if not self.running:
+        """Async iterator method to yield events from the WebSocket connection."""
+        if not self.running or self._stop_event.is_set():
             raise StopAsyncIteration
 
-        # Check if stop was requested before waiting
-        if self._stop_event.is_set():
-            self.running = False
-            raise StopAsyncIteration
-
-        # Use wait_for with a short timeout to frequently check self.running
         try:
-            # Wait for 100ms, but allow interruption via the stop event
-            await asyncio.wait_for(self._stop_event.wait(), 0.1)
-            # If we reach here, the event was set
-            self.running = False
-            raise StopAsyncIteration
+            # Wait for the next event from the WebSocket client
+            # Add a timeout to prevent indefinite blocking if stop_event is set
+            event = await asyncio.wait_for(
+                self.ws_client.event_queue.get(), timeout=0.1
+            )
+            self.ws_client.event_queue.task_done()
+            return event
         except asyncio.TimeoutError:
-            # Timeout means the event wasn't set, so we continue
-            return "helloworld"
+            # If timeout occurs, check stop_event again and continue or raise StopAsyncIteration
+            if not self.running or self._stop_event.is_set():
+                raise StopAsyncIteration
+            # If not stopping, continue waiting for the next event
+            return await self.__anext__()  # Recursive call, ensure base case works
+        except asyncio.CancelledError:
+            logger.info("Async iterator cancelled.")
+            raise StopAsyncIteration
 
     def __aiter__(self) -> AsyncIterator:
-        """Return self as an async iterator."""
+        """Return self as the async iterator."""
         return self
 
     async def leave(self):
-        """Leave the call and stop yielding events."""
-        if not self.running:
+        """Gracefully leave the call and close connections."""
+        logger.info("Leaving the call")
+        self.running = False
+        self._stop_event.set()  # Signal the iterator to stop
+
+        if self.ws_client:
+            await self.ws_client.close()
+            self.ws_client = None
+        if self.subscriber_pc:
+            await self.subscriber_pc.close()
+            self.subscriber_pc = None
+        if self.publisher_pc:
+            await self.publisher_pc.close()
+            self.publisher_pc = None
+
+        # Add any other cleanup needed
+        logger.info("Call left and connections closed")
+
+    async def _on_publisher_answer(self, event: events_pb2.PublisherAnswer):
+        """Handles the SDP answer received from the SFU for the publisher connection."""
+        if not self.publisher_pc:
+            logger.error(
+                "Received publisher answer but publisher PC is not initialized."
+            )
             return
 
-        logger.info("Leaving call")
-        self.running = False
+        logger.info("Publisher answer received from SFU.")
+        answer_sdp = event.sdp
+        # Publisher might receive ICE candidates bundled in the answer SDP.
+        # aiortc's setRemoteDescription should handle this.
 
-        # Signal the __anext__ method to stop
-        self._stop_event.set()
+        # If the SFU requires candidates to be added *before* setting remote description,
+        # you might need logic similar to the subscriber offer handling here.
+        # For simplicity, we assume aiortc handles bundled candidates.
 
-        # Close the WebSocket connection if it exists
-        if self.ws_client:
-            logger.info("Closing WebSocket connection")
-            self.ws_client.close()
-            self.ws_client = None
+        remote_description = aiortc.RTCSessionDescription(type="answer", sdp=answer_sdp)
+        logger.debug(f"""Setting remote description for publisher:
+{remote_description.sdp}""")
+        try:
+            await self.publisher_pc.setRemoteDescription(remote_description)
+            logger.info("Publisher remote description set successfully.")
+        except Exception as e:
+            logger.error(f"Failed to set publisher remote description: {e}")
 
-        logger.info("Successfully left call")
+    async def playFile(self, file_path: str):
+        """Connects as a publisher and plays audio/video from a file."""
+        if not self.running:
+            logger.error("Connection manager not running. Call join() first.")
+            # Consider connecting automatically if not running, or raise error
+            await self._full_connect()  # Attempt to connect if not already
+            if not self.running:
+                raise ConnectionError(
+                    "Failed to establish connection before playing file."
+                )
+
+        logger.info(f"Starting to play file: {file_path}")
+        self.publisher_pc = PublisherPeerConnection(manager=self)
+
+        player = MediaPlayer(file_path)
+
+        # Add tracks to the publisher connection
+        if player.audio:
+            logger.info("Adding audio track from file")
+            self.publisher_pc.addTrack(player.audio)
+        if player.video:
+            logger.info("Adding video track from file")
+            self.publisher_pc.addTrack(player.video)
+
+        # Create offer
+        logger.info("Creating publisher offer")
+        offer = await self.publisher_pc.createOffer()
+        await self.publisher_pc.setLocalDescription(offer)
+
+        logger.info("Sending publisher offer to SFU")
+        try:
+            # Use the wrapped client; errors will raise SfuRpcError
+            await self.twirp_signaling_client.SetPublisher(
+                ctx=self.twirp_context,
+                request=signal_pb2.SetPublisherRequest(
+                    session_id=self.session_id,
+                    sdp=self.publisher_pc.localDescription.sdp,
+                    # Potentially add track info if needed by SFU
+                    # tracks=[...]
+                ),
+                server_path_prefix="",  # Note: Our wrapper doesn't need this, underlying client handles prefix
+            )
+            logger.info("Publisher offer sent successfully.")
+            # Now we need to wait for the PublisherAnswer event via WebSocket
+            # The _on_publisher_answer handler will process it.
+
+            # Wait for the connection to establish and media playing to finish
+            # This is a simplified wait; real-world might need more robust handling
+            # of player state or connection state changes.
+            await asyncio.sleep(1)  # Initial wait for answer/ICE
+            while self.publisher_pc and self.publisher_pc.connectionState != "failed":
+                # Keep running while player is active or connection is ok
+                # MediaPlayer doesn't have an explicit 'done' event we can easily await
+                # We rely on the tracks ending or connection failing
+                await asyncio.sleep(1)
+                # Add checks here if player has specific state to monitor
+                if (
+                    player.audio
+                    and player.audio.readyState == "ended"
+                    and (not player.video or player.video.readyState == "ended")
+                ):
+                    logger.info("Media player tracks have ended.")
+                    break
+
+        except SfuRpcError as e:
+            logger.error(f"Failed to set publisher: {e}")
+            # Decide how to handle: maybe close connection, notify user, etc.
+            # Raising ConnectionError might be appropriate here
+            if self.publisher_pc:
+                await self.publisher_pc.close()
+                self.publisher_pc = None
+            raise ConnectionError(f"Failed to set publisher: {e}") from e
+        except Exception as e:
+            logger.error(f"Failed during publisher setup or file playback: {e}")
+            # Ensure cleanup
+            if self.publisher_pc:
+                await self.publisher_pc.close()
+                self.publisher_pc = None
+            # Re-raise as ConnectionError or a more specific error if appropriate
+            raise ConnectionError(
+                f"Unexpected error during publisher setup/playback: {e}"
+            ) from e
+        finally:
+            logger.info("Finished playing file.")
+            # Explicitly close the publisher connection if it hasn't been closed by error handling
+            if self.publisher_pc:
+                await self.publisher_pc.close()
+                self.publisher_pc = None
+            # Close the MediaPlayer resources
+            if player:
+                if player.audio:
+                    player.audio.stop()
+                if player.video:
+                    player.video.stop()

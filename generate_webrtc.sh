@@ -59,7 +59,7 @@ fi
 echo "Installing Python dependencies..."
 uv pip install \
     "protobuf[webrtc]>=4.25.1" \
-    "twirp[all,webrtc]>=0.0.7" \
+    "twirp[all]>=0.0.7" \
     mypy-protobuf==3.5.0
 
 # Get the path to protoc

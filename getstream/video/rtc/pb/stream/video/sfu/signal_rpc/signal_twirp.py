@@ -8,12 +8,11 @@ from twirp.base import Endpoint
 from twirp.server import TwirpServer
 from twirp.client import TwirpClient
 
-try:
-    from twirp.async_client import AsyncTwirpClient
+# Import the embedded AsyncTwirpClient using an absolute path
+from getstream.video.rtc.twirp_async_client_embed import AsyncTwirpClient
 
-    _async_available = True
-except ModuleNotFoundError:
-    _async_available = False
+# We no longer need the try/except block, assume async is available via the embed
+_async_available = True
 
 _sym_db = _symbol_database.Default()
 
@@ -214,131 +213,130 @@ class SignalServerClient(TwirpClient):
         )
 
 
-if _async_available:
+# Use the embedded AsyncTwirpClient as the base class
+class AsyncSignalServerClient(AsyncTwirpClient):
+    async def SetPublisher(
+        self, *, ctx, request, server_path_prefix="/twirp", session=None, **kwargs
+    ):
+        return await self._make_request(
+            url=f"{server_path_prefix}/stream.video.sfu.signal.SignalServer/SetPublisher",
+            ctx=ctx,
+            request=request,
+            response_obj=_sym_db.GetSymbol(
+                "stream.video.sfu.signal.SetPublisherResponse"
+            ),
+            session=session,
+            **kwargs,
+        )
 
-    class AsyncSignalServerClient(AsyncTwirpClient):
-        async def SetPublisher(
-            self, *, ctx, request, server_path_prefix="/twirp", session=None, **kwargs
-        ):
-            return await self._make_request(
-                url=f"{server_path_prefix}/stream.video.sfu.signal.SignalServer/SetPublisher",
-                ctx=ctx,
-                request=request,
-                response_obj=_sym_db.GetSymbol(
-                    "stream.video.sfu.signal.SetPublisherResponse"
-                ),
-                session=session,
-                **kwargs,
-            )
+    async def SendAnswer(
+        self, *, ctx, request, server_path_prefix="/twirp", session=None, **kwargs
+    ):
+        return await self._make_request(
+            url=f"{server_path_prefix}/stream.video.sfu.signal.SignalServer/SendAnswer",
+            ctx=ctx,
+            request=request,
+            response_obj=_sym_db.GetSymbol(
+                "stream.video.sfu.signal.SendAnswerResponse"
+            ),
+            session=session,
+            **kwargs,
+        )
 
-        async def SendAnswer(
-            self, *, ctx, request, server_path_prefix="/twirp", session=None, **kwargs
-        ):
-            return await self._make_request(
-                url=f"{server_path_prefix}/stream.video.sfu.signal.SignalServer/SendAnswer",
-                ctx=ctx,
-                request=request,
-                response_obj=_sym_db.GetSymbol(
-                    "stream.video.sfu.signal.SendAnswerResponse"
-                ),
-                session=session,
-                **kwargs,
-            )
+    async def IceTrickle(
+        self, *, ctx, request, server_path_prefix="/twirp", session=None, **kwargs
+    ):
+        return await self._make_request(
+            url=f"{server_path_prefix}/stream.video.sfu.signal.SignalServer/IceTrickle",
+            ctx=ctx,
+            request=request,
+            response_obj=_sym_db.GetSymbol(
+                "stream.video.sfu.signal.ICETrickleResponse"
+            ),
+            session=session,
+            **kwargs,
+        )
 
-        async def IceTrickle(
-            self, *, ctx, request, server_path_prefix="/twirp", session=None, **kwargs
-        ):
-            return await self._make_request(
-                url=f"{server_path_prefix}/stream.video.sfu.signal.SignalServer/IceTrickle",
-                ctx=ctx,
-                request=request,
-                response_obj=_sym_db.GetSymbol(
-                    "stream.video.sfu.signal.ICETrickleResponse"
-                ),
-                session=session,
-                **kwargs,
-            )
+    async def UpdateSubscriptions(
+        self, *, ctx, request, server_path_prefix="/twirp", session=None, **kwargs
+    ):
+        return await self._make_request(
+            url=f"{server_path_prefix}/stream.video.sfu.signal.SignalServer/UpdateSubscriptions",
+            ctx=ctx,
+            request=request,
+            response_obj=_sym_db.GetSymbol(
+                "stream.video.sfu.signal.UpdateSubscriptionsResponse"
+            ),
+            session=session,
+            **kwargs,
+        )
 
-        async def UpdateSubscriptions(
-            self, *, ctx, request, server_path_prefix="/twirp", session=None, **kwargs
-        ):
-            return await self._make_request(
-                url=f"{server_path_prefix}/stream.video.sfu.signal.SignalServer/UpdateSubscriptions",
-                ctx=ctx,
-                request=request,
-                response_obj=_sym_db.GetSymbol(
-                    "stream.video.sfu.signal.UpdateSubscriptionsResponse"
-                ),
-                session=session,
-                **kwargs,
-            )
+    async def UpdateMuteStates(
+        self, *, ctx, request, server_path_prefix="/twirp", session=None, **kwargs
+    ):
+        return await self._make_request(
+            url=f"{server_path_prefix}/stream.video.sfu.signal.SignalServer/UpdateMuteStates",
+            ctx=ctx,
+            request=request,
+            response_obj=_sym_db.GetSymbol(
+                "stream.video.sfu.signal.UpdateMuteStatesResponse"
+            ),
+            session=session,
+            **kwargs,
+        )
 
-        async def UpdateMuteStates(
-            self, *, ctx, request, server_path_prefix="/twirp", session=None, **kwargs
-        ):
-            return await self._make_request(
-                url=f"{server_path_prefix}/stream.video.sfu.signal.SignalServer/UpdateMuteStates",
-                ctx=ctx,
-                request=request,
-                response_obj=_sym_db.GetSymbol(
-                    "stream.video.sfu.signal.UpdateMuteStatesResponse"
-                ),
-                session=session,
-                **kwargs,
-            )
+    async def IceRestart(
+        self, *, ctx, request, server_path_prefix="/twirp", session=None, **kwargs
+    ):
+        return await self._make_request(
+            url=f"{server_path_prefix}/stream.video.sfu.signal.SignalServer/IceRestart",
+            ctx=ctx,
+            request=request,
+            response_obj=_sym_db.GetSymbol(
+                "stream.video.sfu.signal.ICERestartResponse"
+            ),
+            session=session,
+            **kwargs,
+        )
 
-        async def IceRestart(
-            self, *, ctx, request, server_path_prefix="/twirp", session=None, **kwargs
-        ):
-            return await self._make_request(
-                url=f"{server_path_prefix}/stream.video.sfu.signal.SignalServer/IceRestart",
-                ctx=ctx,
-                request=request,
-                response_obj=_sym_db.GetSymbol(
-                    "stream.video.sfu.signal.ICERestartResponse"
-                ),
-                session=session,
-                **kwargs,
-            )
+    async def SendStats(
+        self, *, ctx, request, server_path_prefix="/twirp", session=None, **kwargs
+    ):
+        return await self._make_request(
+            url=f"{server_path_prefix}/stream.video.sfu.signal.SignalServer/SendStats",
+            ctx=ctx,
+            request=request,
+            response_obj=_sym_db.GetSymbol(
+                "stream.video.sfu.signal.SendStatsResponse"
+            ),
+            session=session,
+            **kwargs,
+        )
 
-        async def SendStats(
-            self, *, ctx, request, server_path_prefix="/twirp", session=None, **kwargs
-        ):
-            return await self._make_request(
-                url=f"{server_path_prefix}/stream.video.sfu.signal.SignalServer/SendStats",
-                ctx=ctx,
-                request=request,
-                response_obj=_sym_db.GetSymbol(
-                    "stream.video.sfu.signal.SendStatsResponse"
-                ),
-                session=session,
-                **kwargs,
-            )
+    async def StartNoiseCancellation(
+        self, *, ctx, request, server_path_prefix="/twirp", session=None, **kwargs
+    ):
+        return await self._make_request(
+            url=f"{server_path_prefix}/stream.video.sfu.signal.SignalServer/StartNoiseCancellation",
+            ctx=ctx,
+            request=request,
+            response_obj=_sym_db.GetSymbol(
+                "stream.video.sfu.signal.StartNoiseCancellationResponse"
+            ),
+            session=session,
+            **kwargs,
+        )
 
-        async def StartNoiseCancellation(
-            self, *, ctx, request, server_path_prefix="/twirp", session=None, **kwargs
-        ):
-            return await self._make_request(
-                url=f"{server_path_prefix}/stream.video.sfu.signal.SignalServer/StartNoiseCancellation",
-                ctx=ctx,
-                request=request,
-                response_obj=_sym_db.GetSymbol(
-                    "stream.video.sfu.signal.StartNoiseCancellationResponse"
-                ),
-                session=session,
-                **kwargs,
-            )
-
-        async def StopNoiseCancellation(
-            self, *, ctx, request, server_path_prefix="/twirp", session=None, **kwargs
-        ):
-            return await self._make_request(
-                url=f"{server_path_prefix}/stream.video.sfu.signal.SignalServer/StopNoiseCancellation",
-                ctx=ctx,
-                request=request,
-                response_obj=_sym_db.GetSymbol(
-                    "stream.video.sfu.signal.StopNoiseCancellationResponse"
-                ),
-                session=session,
-                **kwargs,
-            )
+    async def StopNoiseCancellation(
+        self, *, ctx, request, server_path_prefix="/twirp", session=None, **kwargs
+    ):
+        return await self._make_request(
+            url=f"{server_path_prefix}/stream.video.sfu.signal.SignalServer/StopNoiseCancellation",
+            ctx=ctx,
+            request=request,
+            response_obj=_sym_db.GetSymbol(
+                "stream.video.sfu.signal.StopNoiseCancellationResponse"
+            ),
+            session=session,
+            **kwargs,
+        )

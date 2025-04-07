@@ -16,30 +16,6 @@ class Call:
         if hasattr(data, "call") and isinstance(data.call, CallResponse):
             self.custom_data = data.call.custom
 
-    def connect_openai(
-        self, openai_api_key, agent_user_id, model="gpt-4o-realtime-preview"
-    ):
-        from .openai import get_openai_realtime_client, ConnectionManagerWrapper
-
-        client = get_openai_realtime_client(openai_api_key, self.client.base_url)
-        token = self.client.stream.create_token(agent_user_id)
-        connection_manager = client.beta.realtime.connect(
-            extra_query={
-                "call_type": self.call_type,
-                "call_id": self.id,
-                "api_key": self.client.api_key,
-            },
-            model=model,
-            extra_headers={
-                "Authorization": f"Bearer {openai_api_key}",
-                "OpenAI-Beta": "realtime=v1",
-                "Stream-Authorization": token,
-            },
-        )
-
-        # Wrap the connection manager to check for errors in the first message
-        return ConnectionManagerWrapper(connection_manager, self.call_type, self.id)
-
     def get(
         self,
         members_limit: Optional[int] = None,
@@ -146,7 +122,6 @@ class Call:
         start_closed_caption: Optional[bool] = None,
         start_hls: Optional[bool] = None,
         start_recording: Optional[bool] = None,
-        start_rtmp_broadcasts: Optional[bool] = None,
         start_transcription: Optional[bool] = None,
         transcription_storage_name: Optional[str] = None,
     ) -> StreamResponse[GoLiveResponse]:
@@ -157,7 +132,6 @@ class Call:
             start_closed_caption=start_closed_caption,
             start_hls=start_hls,
             start_recording=start_recording,
-            start_rtmp_broadcasts=start_rtmp_broadcasts,
             start_transcription=start_transcription,
             transcription_storage_name=transcription_storage_name,
         )
