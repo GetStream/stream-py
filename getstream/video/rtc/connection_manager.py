@@ -435,7 +435,7 @@ class ConnectionManager:
         self._stop_event.set()  # Signal the iterator to stop
 
         if self.ws_client:
-            await self.ws_client.close()
+            self.ws_client.close()
             self.ws_client = None
         if self.subscriber_pc:
             await self.subscriber_pc.close()

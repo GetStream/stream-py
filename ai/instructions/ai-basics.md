@@ -74,3 +74,8 @@ IMPORTANT: when writing code that works with client methods, make sure to look a
 ### API exceptions
 
 When calling a client method that does an API call, an exception will be thrown if the response has a 4xx or 5xx status code. The `getstream.base.StreamAPIException` exception is thrown and it contains the response object under the `response` field.
+
+
+### Linting
+
+Make sure to run the linter after you made changes and to fix issues that ruff cannot fix automatically using `uv run ruff format getstream/ tests/`
