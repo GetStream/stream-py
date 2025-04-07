@@ -1,4 +1,8 @@
+import functools
+from collections import defaultdict
+
 import json
+import re  # Add import for regex
 
 import aiortc
 import uuid
@@ -21,9 +25,48 @@ from twirp import context
 
 # Import join_call_coordinator_request from coordinator module instead of __init__
 from getstream.video.rtc.coordinator import join_call_coordinator_request
-from aiortc.contrib.media import MediaRecorder
 
 logger = logging.getLogger("getstream.video.rtc.connection_manager")
+
+
+def add_ice_candidates_to_sdp(sdp: str, candidates: List[str]) -> str:
+    """
+    Adds ICE candidates to each media section (m=) in an SDP offer.
+
+    Args:
+        sdp: The original SDP string.
+        candidates: A list of ICE candidate strings (without the "a=candidate:" prefix).
+
+    Returns:
+        The modified SDP string with candidates added.
+    """
+    if not candidates:
+        return sdp
+
+    candidate_lines = [f"a=candidate:{c}" for c in candidates]
+    candidate_lines.append("a=end-of-candidates")
+    candidate_section = "\n".join(candidate_lines) + "\n" # Ensure trailing newline
+
+    # Split SDP into session part and media parts, keeping the delimiter
+    parts = re.split("(\nm=)", sdp)
+    if not parts or len(parts) <= 1:
+        return sdp
+
+    # The first part is always the session description
+    modified_sdp_parts = [parts[0]]
+
+    # Iterate through the pairs of (delimiter, media_section)
+    for i in range(1, len(parts), 2):
+        if i + 1 < len(parts):
+            newline_and_m_separator = parts[i] # This is '\nm='
+            media_section_content = parts[i+1]
+            # Append the separator, the original media content (stripped), and the candidate section
+            modified_sdp_parts.append(newline_and_m_separator + media_section_content.rstrip() + '\n' + candidate_section)
+        # Handle potential trailing delimiter if split results in odd number of parts (shouldn't happen)
+        # else:
+        #    modified_sdp_parts.append(parts[i])
+
+    return "".join(modified_sdp_parts)
 
 
 class ConnectionError(Exception):
@@ -32,43 +75,70 @@ class ConnectionError(Exception):
     pass
 
 
+class PublisherPeerConnection(aiortc.RTCPeerConnection):
+    pass
+
+
+def parse_track_id(id: str) -> tuple[str, str]:
+    """
+    Parse the webRTC media track and returns a tuple including: the id of the participant, the type of track
+
+    """
+    participant_id, track_type, _ = id.split(":")
+    return participant_id, track_type
+
+
 class SubscriberPeerConnection(aiortc.RTCPeerConnection):
+
     def __init__(
         self,
         manager: "ConnectionManager",
         configuration: Optional[aiortc.RTCConfiguration] = None,
     ) -> None:
+        if configuration is None:
+            configuration = aiortc.RTCConfiguration(iceServers=[aiortc.RTCIceServer(urls="stun:stun.l.google.com:19302")])
         logger.info(
             f"creating subscriber peer connection with configuration: {configuration}"
         )
         super().__init__(configuration)
         self.manager = manager
-        self.pending_ice_candidates: List[aiortc.RTCIceCandidate] = []
+
+        # this event is set when the first ice event is received from the SFU
+        # we need this setup because aiortc does not support ice trickling
+        # our SFU atm assumes that clients support ice trickling and does not include candidates
+        self._received_ice_event = asyncio.Event()
+
+        # the list of ice candidates received via signaling
+        self._ice_candidates = []
+
+        # the list of tracks
+        self.tracks = defaultdict(lambda: defaultdict(list))
 
         @self.on("track")
-        def on_track(track: aiortc.mediastreams.MediaStreamTrack):
-            logger.info("Track received: %s", track)
-            self.manager.recorder.addTrack(track)
-            self.manager.recorder.start()
+        async def on_track(track: aiortc.mediastreams.MediaStreamTrack):
+            logger.info(f"Track received: f{track.id}")
+            participant_id, track_type = parse_track_id(track.id)
+            self.tracks[participant_id][track_type].append(track)
+            track.on("ended", functools.partial(self.handle_track_ended, track))
 
         @self.on("icegatheringstatechange")
         def on_icegatheringstatechange():
             logger.info(f"ICE gathering state changed to {self.iceGatheringState}")
             if self.iceGatheringState == "complete":
-                print("All ICE candidates have been gathered.")
+                logger.info("All ICE candidates have been gathered.")
 
     async def handle_remote_ice_candidate(
-        self, candidate: aiortc.RTCIceCandidate
+        self, candidate: str
     ) -> None:
-        await self.addIceCandidate(candidate)
-        # we cannot do this because aiortc does not support ice trickle
-        # if self.remoteDescription is None:
-        #     self.pending_ice_candidates.append(candidate)
-        # else:
-        #     self.addIceCandidate(candidate)
+        self._ice_candidates.append(candidate)
+        self._received_ice_event.set()
+
+    def handle_track_ended(self, track: aiortc.mediastreams.MediaStreamTrack) -> None:
+        logger.info(f"track ended: f{track.id}")
 
 
 class ConnectionManager:
+
     def __init__(self, call: Call, user_id: str = None, create: bool = True, **kwargs):
         self.call = call
         self.user_id = user_id
@@ -77,16 +147,22 @@ class ConnectionManager:
         self.running = False
         self.join_response = None
         self.connection_task = None
+
         # Add a stop event to signal when to stop iteration
         self._stop_event = asyncio.Event()
+
         # WebSocket client for SFU communication
         self.ws_client = None
         self.session_id = str(uuid.uuid4())
         self.subscriber_pc: SubscriberPeerConnection
         self.twirp_signaling_client: SignalServerClient
         self.twirp_context: context.Context
-        self.recorder = MediaRecorder("/Users/tommaso/Desktop/test.mp3")
-        self.local_sfu = True
+
+        # this is used to associate participants to the track prefix that is used on webrtc track SSRCs
+        self._track_user_prefixes = {}
+
+        # set to true if you want to connect to a local SFU
+        self.local_sfu = False
 
     async def _full_connect(self):
         """Perform location discovery and join call via coordinator.
@@ -150,37 +226,13 @@ class ConnectionManager:
                 logger.info(f"adjusted sfu ws url to {ws_url}")
 
             # Create WebSocket client
-            self.ws_client = WebSocketClient(ws_url, join_request)
+            self.ws_client = WebSocketClient(ws_url, join_request, asyncio.get_running_loop())
 
             # Connect to the WebSocket server and wait for the first message
             logger.info(f"Establishing WebSocket connection to {ws_url}")
             sfu_event = await self.ws_client.connect()
 
-            pc_configuration = aiortc.RTCConfiguration(
-                iceServers=[
-                    aiortc.RTCIceServer(
-                        urls=ice["urls"],
-                        username=ice["username"],
-                        credential=ice["password"],
-                    )
-                    for ice in self.join_response.data.credentials.ice_servers
-                ]
-            )
-
-            if self.local_sfu:
-                for i, ice in enumerate(pc_configuration.iceServers):
-                    patched_urls = []
-                    for url in ice.urls:
-                        parts = url.split(":")
-                        patched_urls.append(
-                            f"{parts[0]}:192.168.64.1:{':'.join(parts[2:])}"
-                        )
-                    pc_configuration.iceServers[i].urls = patched_urls
-
-            self.subscriber_pc = SubscriberPeerConnection(
-                manager=self, configuration=pc_configuration
-            )
-
+            self.subscriber_pc = SubscriberPeerConnection(manager=self)
             self.twirp_signaling_client = SignalServerClient(
                 address=self.join_response.data.credentials.server.url
             )
@@ -204,7 +256,7 @@ class ConnectionManager:
                 self.ws_client = None
             raise ConnectionError(f"Unexpected error connecting to SFU: {e}")
 
-        # self.ws_client.on_event("ice_trickle", self._on_ice_trickle)
+        self.ws_client.on_event("ice_trickle", self._on_ice_trickle)
         self.ws_client.on_event("subscriber_offer", self._on_subscriber_offer)
         # Mark as running and clear stop event
         self.running = True
@@ -216,29 +268,42 @@ class ConnectionManager:
             "Subscriber offer received, waiting for ICE gathering to be complete"
         )
 
-        await self.subscriber_pc.setRemoteDescription(
-            aiortc.RTCSessionDescription(type="offer", sdp=event.sdp)
-        )
-        for candidate in self.subscriber_pc.pending_ice_candidates:
-            await self.subscriber_pc.addIceCandidate(candidate)
-        self.subscriber_pc.pending_ice_candidates.clear()
-        await self.subscriber_pc.setLocalDescription(
-            await self.subscriber_pc.createAnswer()
-        )
-        await asyncio.get_event_loop().run_in_executor(
-            None,
-            lambda: self.twirp_signaling_client.SendAnswer(
-                ctx=self.twirp_context,
-                request=signal_pb2.SendAnswerRequest(
-                    peer_type=models_pb2.PEER_TYPE_SUBSCRIBER,
-                    sdp=self.subscriber_pc.localDescription.sdp,
-                    session_id=self.session_id,
-                ),
-                server_path_prefix="",
-            ),
-        )
+        # Wait for at least one ICE candidate to be received/gathered locally
+        # This avoids sending an answer before we have any candidates to include.
+        # Note: In a production scenario, you might want a more sophisticated
+        # mechanism to ensure *all* relevant candidates are gathered, possibly
+        # involving the 'icegatheringstatechange' event being 'complete'.
+        await self.subscriber_pc._received_ice_event.wait()
+
+        # Use the new robust function to add candidates
+        patched_sdp = add_ice_candidates_to_sdp(event.sdp, self.subscriber_pc._ice_candidates)
+
+        # The SDP offer from the SFU might already contain candidates (trickled)
+        # or have a different structure. We set it as the remote description.
+        # The aiortc library handles merging and interpretation.
+        remote_description = aiortc.RTCSessionDescription(type="offer", sdp=patched_sdp)
+        logger.debug(f"""Setting remote description with patched SDP:
+{remote_description.sdp}""")
+        await self.subscriber_pc.setRemoteDescription(remote_description)
+
+        # Create the answer based on the remote offer (which includes our candidates)
+        answer = await self.subscriber_pc.createAnswer()
+        # Set the local description. aiortc will manage the SDP content.
+        await self.subscriber_pc.setLocalDescription(answer)
+
         logger.info(
-            f"subscriber pc local description is {self.subscriber_pc.localDescription.sdp}"
+            f"""Sending answer with local description:
+{self.subscriber_pc.localDescription.sdp}"""
+        )
+
+        self.twirp_signaling_client.SendAnswer(
+            ctx=self.twirp_context,
+            request=signal_pb2.SendAnswerRequest(
+                peer_type=models_pb2.PEER_TYPE_SUBSCRIBER,
+                sdp=self.subscriber_pc.localDescription.sdp,
+                session_id=self.session_id,
+            ),
+            server_path_prefix="",
         )
 
     async def _on_ice_trickle(self, event: events_pb2.ICETrickle):
@@ -246,16 +311,9 @@ class ConnectionManager:
             f"received ICE trickle for peer type {models_pb2.PEER_TYPE_SUBSCRIBER}"
         )
         candidate_sdp = json.loads(event.ice_candidate)["candidate"]
-        candidate = aiortc.sdp.candidate_from_sdp(candidate_sdp)
-
-        if candidate.sdpMid is None:
-            candidate.sdpMid = ""
-
-        if candidate.sdpMLineIndex is None:
-            candidate.sdpMLineIndex = ""
 
         if event.peer_type == models_pb2.PEER_TYPE_SUBSCRIBER:
-            await self.subscriber_pc.handle_remote_ice_candidate(candidate)
+            await self.subscriber_pc.handle_remote_ice_candidate(candidate_sdp)
         else:
             pass
 

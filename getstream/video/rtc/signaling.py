@@ -4,7 +4,7 @@ import threading
 import websocket
 import logging
 import time
-from typing import Any, Callable, Dict, Awaitable, List
+from typing import Any, Callable, Dict, Awaitable, List, Optional
 
 from .pb.stream.video.sfu.event import events_pb2
 
@@ -23,22 +23,28 @@ class WebSocketClient:
     Handles WebSocket connection, message serialization/deserialization, and event handling.
     """
 
-    def __init__(self, url: str, join_request: events_pb2.JoinRequest):
+    def __init__(
+        self,
+        url: str,
+        join_request: events_pb2.JoinRequest,
+        main_loop: asyncio.AbstractEventLoop,
+    ):
         """
         Initialize a new WebSocket client.
 
         Args:
             url: The WebSocket server URL
             join_request: The JoinRequest protobuf message to send for authentication
+            main_loop: The main asyncio event loop to run callbacks on
         """
         self.url = url
         self.join_request = join_request
+        self.main_loop = main_loop
         self.ws = None
         self.event_handlers: Dict[str, List[Callable[[Any], Awaitable[None]]]] = {}
         self.first_message_event = threading.Event()
         self.first_message = None
         self.thread = None
-        self.event_loop = asyncio.new_event_loop()
         self.running = False
         self.closed = False
 
@@ -46,11 +52,6 @@ class WebSocketClient:
         self.ping_thread = None
         self.last_health_check_time = 0
         self.ping_interval = 10  # seconds
-
-        # Thread pool for executing callbacks
-        self.executor = concurrent.futures.ThreadPoolExecutor(
-            max_workers=4, thread_name_prefix="ws-callback-"
-        )
 
     async def connect(self):
         """
@@ -101,7 +102,6 @@ class WebSocketClient:
 
     def _run_websocket(self):
         """Run the WebSocket connection in the background."""
-        asyncio.set_event_loop(self.event_loop)
         self.ws.run_forever()
 
     def _on_open(self, ws):
@@ -215,29 +215,24 @@ class WebSocketClient:
 
     def _run_handler_async(self, handler, payload):
         """
-        Run an event handler asynchronously in a separate thread.
+        Run an event handler asynchronously on the main event loop.
 
         Args:
             handler: The async handler function
             payload: The event payload to pass to the handler
         """
+        if not self.closed and self.main_loop:
+            # Schedule the coroutine on the main loop from this thread
+            future = asyncio.run_coroutine_threadsafe(handler(payload), self.main_loop)
 
-        def run_in_thread():
-            # Create a new event loop for this thread
-            handler_loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(handler_loop)
+            # Optional: Add a callback to log exceptions from the handler future
+            def log_exception(f):
+                try:
+                    f.result()  # Raise exception if any occurred
+                except Exception as e:
+                    logger.error(f"Error in event handler {handler}: {e}", exc_info=True)
 
-            # Run the handler in this thread's event loop
-            try:
-                handler_loop.run_until_complete(handler(payload))
-            except Exception as e:
-                logger.error(f"Error in event handler: {handler} {str(e)}")
-            finally:
-                handler_loop.close()
-
-        # Submit the handler to the thread pool
-        if not self.closed:
-            self.executor.submit(run_in_thread)
+            future.add_done_callback(log_exception)
 
     def on_event(self, event_type: str, callback: Callable[[Any], Awaitable[None]]):
         """
@@ -257,38 +252,37 @@ class WebSocketClient:
         if self.closed:
             return
 
+        logger.debug("Attempting to close WebSocketClient")
         self.closed = True
         self.running = False
 
         # Close the WebSocket connection
         if self.ws:
-            self.ws.close()
+            logger.debug("Closing WebSocket connection")
+            try:
+                self.ws.close()
+                logger.debug("WebSocket close() called")
+            except Exception as e:
+                logger.error(f"Error closing WebSocket: {e}", exc_info=True)
+            self.ws = None
 
         # Wait for the threads to finish
         if self.thread and self.thread.is_alive():
-            self.thread.join(timeout=1.0)
+            logger.debug("Joining WebSocket thread")
+            self.thread.join(timeout=2.0)
+            if self.thread.is_alive():
+                logger.warning("WebSocket thread did not exit cleanly")
+            self.thread = None
 
         if self.ping_thread and self.ping_thread.is_alive():
-            self.ping_thread.join(timeout=1.0)
-
-        # Shutdown the executor
-        self.executor.shutdown(wait=False)
+            logger.debug("Joining ping thread")
+            self.ping_thread.join(timeout=2.0)
+            if self.ping_thread.is_alive():
+                logger.warning("Ping thread did not exit cleanly")
+            self.ping_thread = None
 
         # Clear handlers
+        logger.debug("Clearing event handlers")
         self.event_handlers.clear()
 
-        # Close the event loop
-        try:
-            # Cancel all running tasks
-            for task in asyncio.all_tasks(self.event_loop):
-                task.cancel()
-
-            # Run the event loop once to process the cancellations
-            self.event_loop.call_soon_threadsafe(self.event_loop.stop)
-
-            # Close the event loop
-            if not self.event_loop.is_closed():
-                self.event_loop.close()
-        except BaseException:
-            # Ignore errors during shutdown
-            pass
+        logger.debug("WebSocketClient close finished")
