@@ -1,10 +1,9 @@
 import asyncio
-import concurrent.futures
 import threading
 import websocket
 import logging
 import time
-from typing import Any, Callable, Dict, Awaitable, List, Optional
+from typing import Any, Callable, Dict, Awaitable, List
 
 from .pb.stream.video.sfu.event import events_pb2
 
@@ -230,7 +229,9 @@ class WebSocketClient:
                 try:
                     f.result()  # Raise exception if any occurred
                 except Exception as e:
-                    logger.error(f"Error in event handler {handler}: {e}", exc_info=True)
+                    logger.error(
+                        f"Error in event handler {handler}: {e}", exc_info=True
+                    )
 
             future.add_done_callback(log_exception)
 
