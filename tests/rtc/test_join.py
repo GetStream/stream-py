@@ -104,4 +104,4 @@ async def test_play_file(client: Stream):
             audio=player.audio,
         )
 
-        await asyncio.sleep(15)
+        await connection.wait()

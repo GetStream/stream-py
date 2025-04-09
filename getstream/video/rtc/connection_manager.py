@@ -178,6 +178,37 @@ class ConnectionManager:
         self.running = True
         self._stop_event.clear()
 
+    async def wait(self):
+        """
+        Wait until the connection is over.
+
+        This is useful for tests and examples where you want to wait for the
+        connection to end rather than just sleeping for a fixed time.
+
+        Returns when the connection is over (either naturally ended or
+        explicitly stopped with leave()).
+        """
+        await self._stop_event.wait()
+
+    async def leave(self):
+        """Gracefully leave the call and close connections."""
+        logger.info("Leaving the call")
+        self.running = False
+        self._stop_event.set()  # Signal the iterator to stop
+
+        if self.ws_client:
+            self.ws_client.close()
+            self.ws_client = None
+        if self.subscriber_pc:
+            await self.subscriber_pc.close()
+            self.subscriber_pc = None
+        if self.publisher_pc:
+            await self.publisher_pc.close()
+            self.publisher_pc = None
+
+        # Add any other cleanup needed
+        logger.info("Call left and connections closed")
+
     # TODO: synchronize access to this method
     async def _on_subscriber_offer(self, event: events_pb2.SubscriberOffer):
         logger.info(
@@ -302,25 +333,6 @@ class ConnectionManager:
     def __aiter__(self) -> AsyncIterator:
         """Return self as the async iterator."""
         return self
-
-    async def leave(self):
-        """Gracefully leave the call and close connections."""
-        logger.info("Leaving the call")
-        self.running = False
-        self._stop_event.set()  # Signal the iterator to stop
-
-        if self.ws_client:
-            self.ws_client.close()
-            self.ws_client = None
-        if self.subscriber_pc:
-            await self.subscriber_pc.close()
-            self.subscriber_pc = None
-        if self.publisher_pc:
-            await self.publisher_pc.close()
-            self.publisher_pc = None
-
-        # Add any other cleanup needed
-        logger.info("Call left and connections closed")
 
     async def prepare_video_track_info(
         self, video: aiortc.mediastreams.MediaStreamTrack
