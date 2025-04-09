@@ -26,24 +26,40 @@ class ChatRestClient(BaseClient):
         limit: Optional[int] = None,
         next: Optional[str] = None,
         prev: Optional[str] = None,
+        user_limit: Optional[int] = None,
         sort: Optional[List[SortParamRequest]] = None,
         filter: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[QueryCampaignsResponse]:
         json = build_body_dict(
-            limit=limit, next=next, prev=prev, sort=sort, filter=filter
+            limit=limit,
+            next=next,
+            prev=prev,
+            user_limit=user_limit,
+            sort=sort,
+            filter=filter,
         )
 
         return self.post(
             "/api/v2/chat/campaigns/query", QueryCampaignsResponse, json=json
         )
 
-    def get_campaign(self, id: str) -> StreamResponse[GetCampaignResponse]:
+    def get_campaign(
+        self,
+        id: str,
+        prev: Optional[str] = None,
+        next: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> StreamResponse[GetCampaignResponse]:
+        query_params = build_query_param(prev=prev, next=next, limit=limit)
         path_params = {
             "id": id,
         }
 
         return self.get(
-            "/api/v2/chat/campaigns/{id}", GetCampaignResponse, path_params=path_params
+            "/api/v2/chat/campaigns/{id}",
+            GetCampaignResponse,
+            query_params=query_params,
+            path_params=path_params,
         )
 
     def start_campaign(
@@ -243,6 +259,46 @@ class ChatRestClient(BaseClient):
             UpdateChannelResponse,
             path_params=path_params,
             json=json,
+        )
+
+    def delete_draft(
+        self,
+        type: str,
+        id: str,
+        parent_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+    ) -> StreamResponse[Response]:
+        query_params = build_query_param(parent_id=parent_id, user_id=user_id)
+        path_params = {
+            "type": type,
+            "id": id,
+        }
+
+        return self.delete(
+            "/api/v2/chat/channels/{type}/{id}/draft",
+            Response,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
+    def get_draft(
+        self,
+        type: str,
+        id: str,
+        parent_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+    ) -> StreamResponse[GetDraftResponse]:
+        query_params = build_query_param(parent_id=parent_id, user_id=user_id)
+        path_params = {
+            "type": type,
+            "id": id,
+        }
+
+        return self.get(
+            "/api/v2/chat/channels/{type}/{id}/draft",
+            GetDraftResponse,
+            query_params=query_params,
+            path_params=path_params,
         )
 
     def send_event(
@@ -773,6 +829,28 @@ class ChatRestClient(BaseClient):
             json=json,
         )
 
+    def query_drafts(
+        self,
+        limit: Optional[int] = None,
+        next: Optional[str] = None,
+        prev: Optional[str] = None,
+        user_id: Optional[str] = None,
+        sort: Optional[List[SortParamRequest]] = None,
+        filter: Optional[Dict[str, object]] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[QueryDraftsResponse]:
+        json = build_body_dict(
+            limit=limit,
+            next=next,
+            prev=prev,
+            user_id=user_id,
+            sort=sort,
+            filter=filter,
+            user=user,
+        )
+
+        return self.post("/api/v2/chat/drafts/query", QueryDraftsResponse, json=json)
+
     def export_channels(
         self,
         channels: List[ChannelExport],
@@ -793,19 +871,6 @@ class ChatRestClient(BaseClient):
 
         return self.post(
             "/api/v2/chat/export_channels", ExportChannelsResponse, json=json
-        )
-
-    def get_export_channels_status(
-        self, id: str
-    ) -> StreamResponse[GetExportChannelsStatusResponse]:
-        path_params = {
-            "id": id,
-        }
-
-        return self.get(
-            "/api/v2/chat/export_channels/{id}",
-            GetExportChannelsStatusResponse,
-            path_params=path_params,
         )
 
     def query_members(
