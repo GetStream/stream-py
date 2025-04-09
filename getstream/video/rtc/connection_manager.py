@@ -1,15 +1,11 @@
-import functools
-from collections import defaultdict
-
 import json
-import re  # Add import for regex
-
-import aiortc
 import uuid
 
 import asyncio
 import logging
-from typing import AsyncIterator, Optional, List
+from typing import AsyncIterator, Optional
+
+import aiortc
 
 from getstream.video.call import Call
 from getstream.video.rtc.location_discovery import HTTPHintLocationDiscovery
@@ -22,9 +18,6 @@ from getstream.video.rtc.pb.stream.video.sfu.models.models_pb2 import (
     VideoDimension,
 )
 from getstream.video.rtc.pb.stream.video.sfu.signal_rpc import signal_pb2
-from getstream.video.rtc.pb.stream.video.sfu.signal_rpc.signal_pb2 import (
-    SetPublisherResponse,
-)
 from getstream.video.rtc.twirp_client_wrapper import SignalClient, SfuRpcError
 from getstream.video.rtc.signaling import WebSocketClient, SignalingError
 from getstream.video.rtc.pb.stream.video.sfu.event import events_pb2
@@ -34,223 +27,25 @@ from twirp import context
 # Import join_call_coordinator_request from coordinator module instead of __init__
 from getstream.video.rtc.coordinator import join_call_coordinator_request
 
+# Import from the new modules
+from getstream.video.rtc.track_util import (
+    BufferedMediaTrack,
+    detect_video_properties,
+    patch_sdp_offer,
+    add_ice_candidates_to_sdp,
+)
+from getstream.video.rtc.pc import (
+    PublisherPeerConnection,
+    SubscriberPeerConnection,
+)
+
 logger = logging.getLogger("getstream.video.rtc.connection_manager")
-
-
-def add_ice_candidates_to_sdp(sdp: str, candidates: List[str]) -> str:
-    """
-    Adds ICE candidates to each media section (m=) in an SDP offer.
-
-    Args:
-        sdp: The original SDP string.
-        candidates: A list of ICE candidate strings (without the "a=candidate:" prefix).
-
-    Returns:
-        The modified SDP string with candidates added.
-    """
-    if not candidates:
-        return sdp
-
-    candidate_lines = [f"a=candidate:{c}" for c in candidates]
-    candidate_lines.append("a=end-of-candidates")
-    candidate_section = "\n".join(candidate_lines) + "\n"  # Ensure trailing newline
-
-    # Split SDP into session part and media parts, keeping the delimiter
-    parts = re.split("(\nm=)", sdp)
-    if not parts or len(parts) <= 1:
-        return sdp
-
-    # The first part is always the session description
-    modified_sdp_parts = [parts[0]]
-
-    # Iterate through the pairs of (delimiter, media_section)
-    for i in range(1, len(parts), 2):
-        if i + 1 < len(parts):
-            newline_and_m_separator = parts[i]  # This is '\nm='
-            media_section_content = parts[i + 1]
-            # Append the separator, the original media content (stripped), and the candidate section
-            modified_sdp_parts.append(
-                newline_and_m_separator
-                + media_section_content.rstrip()
-                + "\n"
-                + candidate_section
-            )
-        # Handle potential trailing delimiter if split results in odd number of parts (shouldn't happen)
-        # else:
-        #    modified_sdp_parts.append(parts[i])
-
-    return "".join(modified_sdp_parts)
-
-
-def patch_sdp_offer(sdp: str) -> str:
-    """
-    Patches an SDP offer to ensure consistent ICE and DTLS parameters across all media sections.
-
-    This function:
-    1. Ensures all media descriptions have the same ice-ufrag, ice-pwd, and fingerprint values
-       (using values from the first media section)
-    2. Sets all media descriptions' ports to match the first media description's port
-    3. Replaces all media descriptions' candidates with candidates from the first media description
-
-    Args:
-        sdp: The original SDP string.
-
-    Returns:
-        The modified SDP string with consistent parameters across all media sections.
-    """
-    # Parse the SDP
-    session = aiortc.sdp.SessionDescription.parse(sdp)
-
-    # If we have fewer than 2 media sections, nothing to patch
-    if len(session.media) < 2:
-        return sdp
-
-    # Get the values from the first media section
-    first_media = session.media[0]
-    reference_port = first_media.port
-    reference_ice = first_media.ice
-    reference_fingerprints = first_media.dtls.fingerprints if first_media.dtls else []
-    reference_candidates = first_media.ice_candidates
-
-    # Apply to all other media sections
-    for media in session.media[1:]:
-        # Update port
-        media.port = reference_port
-
-        # Update ICE parameters
-        if reference_ice:
-            media.ice.usernameFragment = reference_ice.usernameFragment
-            media.ice.password = reference_ice.password
-            media.ice.iceLite = reference_ice.iceLite
-
-        # Update DTLS fingerprints
-        if media.dtls and reference_fingerprints:
-            media.dtls.fingerprints = reference_fingerprints.copy()
-
-        # Replace ICE candidates
-        media.ice_candidates = reference_candidates.copy()
-        if reference_candidates:
-            media.ice_candidates_complete = True
-
-    # Convert back to string
-    return str(session)
 
 
 class ConnectionError(Exception):
     """Exception raised when connection to the call fails."""
 
     pass
-
-
-class PublisherPeerConnection(aiortc.RTCPeerConnection):
-    def __init__(
-        self,
-        manager: "ConnectionManager",
-        configuration: Optional[aiortc.RTCConfiguration] = None,
-    ) -> None:
-        if configuration is None:
-            configuration = aiortc.RTCConfiguration(
-                iceServers=[aiortc.RTCIceServer(urls="stun:stun.l.google.com:19302")]
-            )
-        logger.info(
-            f"Creating publisher peer connection with configuration: {configuration}"
-        )
-        super().__init__(configuration)
-        self.manager = manager
-        self._received_ice_event = asyncio.Event()
-        self._ice_candidates = []
-
-        @self.on("icegatheringstatechange")
-        def on_icegatheringstatechange():
-            logger.info(
-                f"Publisher ICE gathering state changed to {self.iceGatheringState}"
-            )
-            if self.iceGatheringState == "complete":
-                logger.info("Publisher: All ICE candidates have been gathered.")
-                # Optionally send a final ICE candidate message or null candidate if required by SFU
-
-    async def handle_answer(self, response: SetPublisherResponse):
-        """Handles the SDP answer received from the SFU for the publisher connection."""
-
-        logger.info(
-            f"Publisher received answer {response.sdp}, now waiting for ICE candidates."
-        )
-        await self._received_ice_event.wait()
-
-        # patch SDP to include the ICE candidates that were collected in the meantime
-        patched_sdp = add_ice_candidates_to_sdp(response.sdp, self._ice_candidates)
-
-        remote_description = aiortc.RTCSessionDescription(
-            type="answer", sdp=patched_sdp
-        )
-
-        await self.setRemoteDescription(remote_description)
-        logger.info(
-            f"Publisher remote description set successfully. {self.localDescription}"
-        )
-
-    async def handle_remote_ice_candidate(self, candidate: str) -> None:
-        self._ice_candidates.append(candidate)
-        # this is just here to test things
-        await asyncio.sleep(0.2)
-        self._received_ice_event.set()
-
-
-def parse_track_id(id: str) -> tuple[str, str]:
-    """
-    Parse the webRTC media track and returns a tuple including: the id of the participant, the type of track
-
-    """
-    participant_id, track_type, _ = id.split(":")
-    return participant_id, track_type
-
-
-class SubscriberPeerConnection(aiortc.RTCPeerConnection):
-    def __init__(
-        self,
-        manager: "ConnectionManager",
-        configuration: Optional[aiortc.RTCConfiguration] = None,
-    ) -> None:
-        if configuration is None:
-            configuration = aiortc.RTCConfiguration(
-                iceServers=[aiortc.RTCIceServer(urls="stun:stun.l.google.com:19302")]
-            )
-        logger.info(
-            f"creating subscriber peer connection with configuration: {configuration}"
-        )
-        super().__init__(configuration)
-        self.manager = manager
-
-        # this event is set when the first ice event is received from the SFU
-        # we need this setup because aiortc does not support ice trickling
-        # our SFU atm assumes that clients support ice trickling and does not include candidates
-        self._received_ice_event = asyncio.Event()
-
-        # the list of ice candidates received via signaling
-        self._ice_candidates = []
-
-        # the list of tracks
-        self.tracks = defaultdict(lambda: defaultdict(list))
-
-        @self.on("track")
-        async def on_track(track: aiortc.mediastreams.MediaStreamTrack):
-            logger.info(f"Track received: f{track.id}")
-            participant_id, track_type = parse_track_id(track.id)
-            self.tracks[participant_id][track_type].append(track)
-            track.on("ended", functools.partial(self.handle_track_ended, track))
-
-        @self.on("icegatheringstatechange")
-        def on_icegatheringstatechange():
-            logger.info(f"ICE gathering state changed to {self.iceGatheringState}")
-            if self.iceGatheringState == "complete":
-                logger.info("All ICE candidates have been gathered.")
-
-    async def handle_remote_ice_candidate(self, candidate: str) -> None:
-        self._ice_candidates.append(candidate)
-        self._received_ice_event.set()
-
-    def handle_track_ended(self, track: aiortc.mediastreams.MediaStreamTrack) -> None:
-        logger.info(f"track ended: f{track.id}")
 
 
 class ConnectionManager:
@@ -527,7 +322,85 @@ class ConnectionManager:
         # Add any other cleanup needed
         logger.info("Call left and connections closed")
 
-    async def addTracks(self, audio=None, video=None):
+    async def prepare_video_track_info(
+        self, video: aiortc.mediastreams.MediaStreamTrack
+    ) -> tuple[TrackInfo, aiortc.mediastreams.MediaStreamTrack]:
+        """
+        Prepare video track info by detecting its properties.
+
+        Args:
+            video: A video MediaStreamTrack
+
+        Returns:
+            A tuple of (TrackInfo, buffered_video_track)
+        """
+        buffered_video = None
+
+        try:
+            # Wrap the video track to buffer peeked frames
+            buffered_video = BufferedMediaTrack(video)
+
+            # Detect video properties - with timeout to avoid hanging
+            video_props = await asyncio.wait_for(
+                detect_video_properties(buffered_video), timeout=3.0
+            )
+
+            video_info = TrackInfo(
+                track_id=buffered_video.id,
+                track_type=TRACK_TYPE_VIDEO,
+                layers=[
+                    VideoLayer(
+                        rid="f",
+                        video_dimension=VideoDimension(
+                            width=video_props["width"],
+                            height=video_props["height"],
+                        ),
+                        bitrate=video_props["bitrate"],
+                        fps=video_props["fps"],
+                    ),
+                ],
+            )
+
+            # Return both the track info and the buffered track
+            return video_info, buffered_video
+
+        except asyncio.TimeoutError:
+            logger.error("Timeout detecting video properties")
+            # Fall back to default properties
+            if buffered_video:
+                video_info = TrackInfo(
+                    track_id=buffered_video.id,
+                    track_type=TRACK_TYPE_VIDEO,
+                    layers=[
+                        VideoLayer(
+                            rid="f",
+                            video_dimension=VideoDimension(
+                                width=1280,
+                                height=720,
+                            ),
+                            bitrate=1500,
+                            fps=30,
+                        ),
+                    ],
+                )
+                return video_info, buffered_video
+            raise
+        except Exception as e:
+            logger.error(f"Error preparing video track: {e}")
+            # Clean up on error
+            if buffered_video:
+                try:
+                    buffered_video.stop()
+                except Exception as e:
+                    logger.error(f"Error stopping buffered video: {e}")
+            # Re-raise the exception
+            raise
+
+    async def add_tracks(
+        self,
+        audio: Optional[aiortc.mediastreams.MediaStreamTrack] = None,
+        video: Optional[aiortc.mediastreams.MediaStreamTrack] = None,
+    ):
         """
         Add multiple audio and video tracks in a single negotiation.
 
@@ -558,27 +431,13 @@ class ConnectionManager:
 
         # Prepare video track info if provided
         if video:
-            video_info = TrackInfo(
-                track_id=video.id,
-                track_type=TRACK_TYPE_VIDEO,
-                layers=[
-                    VideoLayer(
-                        rid="f",
-                        video_dimension=VideoDimension(
-                            width=1280,
-                            height=720,
-                        ),
-                        bitrate=1250,
-                        fps=24,
-                    ),
-                ],
-            )
+            video_info, buffered_video = await self.prepare_video_track_info(video)
             track_infos.append(video_info)
-
-        # Acquire lock for negotiation
-        await self.publisher_negotiation_lock.acquire()
+            video = buffered_video
 
         try:
+            await self.publisher_negotiation_lock.acquire()
+
             logger.info(f"Adding tracks: {len(track_infos)} tracks")
 
             if self.publisher_pc is None:
@@ -614,25 +473,21 @@ class ConnectionManager:
                     request=signal_pb2.SetPublisherRequest(
                         session_id=self.session_id, sdp=patched_sdp, tracks=track_infos
                     ),
-                    server_path_prefix="",  # Note: Our wrapper doesn't need this, underlying client handles prefix
+                    server_path_prefix="",
                 )
                 logger.info("Publisher offer sent successfully.")
                 await self.publisher_pc.handle_answer(response)
             except SfuRpcError as e:
                 logger.error(f"Failed to set publisher: {e}")
-                # Decide how to handle: maybe close connection, notify user, etc.
-                # Raising ConnectionError might be appropriate here
                 if self.publisher_pc:
                     await self.publisher_pc.close()
                     self.publisher_pc = None
                 raise ConnectionError(f"Failed to set publisher: {e}") from e
             except Exception as e:
                 logger.error(f"Failed during publisher setup: {e}")
-                # Ensure cleanup
                 if self.publisher_pc:
                     await self.publisher_pc.close()
                     self.publisher_pc = None
-                # Re-raise as ConnectionError or a more specific error if appropriate
                 raise ConnectionError(
                     f"Unexpected error during publisher setup: {e}"
                 ) from e
@@ -640,35 +495,62 @@ class ConnectionManager:
             logger.info("Released publisher negotiation lock")
             self.publisher_negotiation_lock.release()
 
-        # Wait for the connection to establish
-        await asyncio.sleep(1)  # Initial wait for answer/ICE
-
-        # Monitor readyState for provided tracks
-        if audio or video:
-            while self.publisher_pc and self.publisher_pc.connectionState != "failed":
-                await asyncio.sleep(1)
-                # Check if either track has ended
-                if (audio and audio.readyState == "ended") or (
-                    video and video.readyState == "ended"
-                ):
-                    logger.info("One or more media tracks have ended.")
-                    break
-
     # Keep addTrack for backward compatibility
     async def addTrack(
-        self, track: aiortc.mediastreams.MediaStreamTrack, track_info: TrackInfo
+        self,
+        track: aiortc.mediastreams.MediaStreamTrack,
+        track_info: Optional[TrackInfo] = None,
     ):
         """
         Add a single track to the publisher peer connection.
 
         Note: This method is kept for backward compatibility.
         For better performance, use addTracks to add multiple tracks at once.
+
+        Args:
+            track: The MediaStreamTrack to add
+            track_info: Optional TrackInfo object. If not provided, it will be generated
+                       automatically for video tracks.
         """
         if not self.running:
             logger.error("Connection manager not running. Call join() first.")
             return
 
         logger.info(f"adding track {track.id}")
+
+        # If track is video and no track_info provided, generate it
+        if track.kind == "video" and track_info is None:
+            try:
+                track_info, track = await self.prepare_video_track_info(track)
+            except Exception as e:
+                logger.error(f"Failed to automatically detect video properties: {e}")
+                # Create a default track info if auto-detection fails
+                track_info = TrackInfo(
+                    track_id=track.id,
+                    track_type=TRACK_TYPE_VIDEO,
+                    layers=[
+                        VideoLayer(
+                            rid="f",
+                            video_dimension=VideoDimension(
+                                width=1280,
+                                height=720,
+                            ),
+                            bitrate=1500,
+                            fps=30,
+                        ),
+                    ],
+                )
+        # For audio tracks with no track_info, create a default one
+        elif track.kind == "audio" and track_info is None:
+            track_info = TrackInfo(
+                track_id=track.id,
+                track_type=TRACK_TYPE_AUDIO,
+            )
+
+        # Ensure we have a track_info at this point
+        if track_info is None:
+            logger.error("No track_info provided and couldn't create one automatically")
+            return
 
         await self.publisher_negotiation_lock.acquire()
 
@@ -744,16 +626,28 @@ class ConnectionManager:
         """
         Add an audio track to the publisher peer connection.
 
+        Args:
+            track: An audio MediaStreamTrack to publish
+
         Note: This method is kept for backward compatibility.
         For better performance, use addTracks to add multiple tracks at once.
         """
-        await self.addTracks(audio=track)
+        if track.kind != "audio":
+            raise ValueError("Expected an audio track")
+
+        await self.add_tracks(audio=track)
 
     async def add_video_track(self, track: aiortc.mediastreams.MediaStreamTrack):
         """
         Add a video track to the publisher peer connection.
 
+        Args:
+            track: A video MediaStreamTrack to publish
+
         Note: This method is kept for backward compatibility.
         For better performance, use addTracks to add multiple tracks at once.
         """
-        await self.addTracks(video=track)
+        if track.kind != "video":
+            raise ValueError("Expected a video track")
+
+        await self.add_tracks(video=track)

@@ -1,0 +1,306 @@
+import asyncio
+import logging
+import re
+from typing import Dict, Any, List
+
+import aiortc
+from aiortc.mediastreams import MediaStreamError
+
+logger = logging.getLogger("getstream.video.rtc.track_util")
+
+
+def add_ice_candidates_to_sdp(sdp: str, candidates: List[str]) -> str:
+    """
+    Adds ICE candidates to each media section (m=) in an SDP offer.
+
+    Args:
+        sdp: The original SDP string.
+        candidates: A list of ICE candidate strings (without the "a=candidate:" prefix).
+
+    Returns:
+        The modified SDP string with candidates added.
+    """
+    if not candidates:
+        return sdp
+
+    candidate_lines = [f"a=candidate:{c}" for c in candidates]
+    candidate_lines.append("a=end-of-candidates")
+    candidate_section = "\n".join(candidate_lines) + "\n"  # Ensure trailing newline
+
+    # Split SDP into session part and media parts, keeping the delimiter
+    parts = re.split("(\nm=)", sdp)
+    if not parts or len(parts) <= 1:
+        return sdp
+
+    # The first part is always the session description
+    modified_sdp_parts = [parts[0]]
+
+    # Iterate through the pairs of (delimiter, media_section)
+    for i in range(1, len(parts), 2):
+        if i + 1 < len(parts):
+            newline_and_m_separator = parts[i]  # This is '\nm='
+            media_section_content = parts[i + 1]
+            # Append the separator, the original media content (stripped), and the candidate section
+            modified_sdp_parts.append(
+                newline_and_m_separator
+                + media_section_content.rstrip()
+                + "\n"
+                + candidate_section
+            )
+
+    return "".join(modified_sdp_parts)
+
+
+def patch_sdp_offer(sdp: str) -> str:
+    """
+    Patches an SDP offer to ensure consistent ICE and DTLS parameters across all media sections.
+
+    This function:
+    1. Ensures all media descriptions have the same ice-ufrag, ice-pwd, and fingerprint values
+       (using values from the first media section)
+    2. Sets all media descriptions' ports to match the first media description's port
+    3. Replaces all media descriptions' candidates with candidates from the first media description
+
+    Args:
+        sdp: The original SDP string.
+
+    Returns:
+        The modified SDP string with consistent parameters across all media sections.
+    """
+    # Parse the SDP
+    session = aiortc.sdp.SessionDescription.parse(sdp)
+
+    # If we have fewer than 2 media sections, nothing to patch
+    if len(session.media) < 2:
+        return sdp
+
+    # Get the values from the first media section
+    first_media = session.media[0]
+    reference_port = first_media.port
+    reference_ice = first_media.ice
+    reference_fingerprints = first_media.dtls.fingerprints if first_media.dtls else []
+    reference_candidates = first_media.ice_candidates
+
+    # Apply to all other media sections
+    for media in session.media[1:]:
+        # Update port
+        media.port = reference_port
+
+        # Update ICE parameters
+        if reference_ice:
+            media.ice.usernameFragment = reference_ice.usernameFragment
+            media.ice.password = reference_ice.password
+            media.ice.iceLite = reference_ice.iceLite
+
+        # Update DTLS fingerprints
+        if media.dtls and reference_fingerprints:
+            media.dtls.fingerprints = reference_fingerprints.copy()
+
+        # Replace ICE candidates
+        media.ice_candidates = reference_candidates.copy()
+        if reference_candidates:
+            media.ice_candidates_complete = True
+
+    # Convert back to string
+    return str(session)
+
+
+class BufferedMediaTrack(aiortc.mediastreams.MediaStreamTrack):
+    """A wrapper for MediaStreamTrack that buffers one peeked frame."""
+
+    def __init__(self, track):
+        super().__init__()
+        self._track = track
+        self._buffered_frames = []  # Store multiple frames
+        self._kind = track.kind
+        self._id = track.id
+        self._ended = False
+
+    @property
+    def kind(self):
+        return self._kind
+
+    @property
+    def id(self):
+        return self._id
+
+    @property
+    def readyState(self):
+        return "ended" if self._ended else self._track.readyState
+
+    async def recv(self):
+        """Returns the next buffered frame if available, otherwise gets a new frame from the track."""
+        if self._ended:
+            raise MediaStreamError("Track is ended")
+
+        if self._buffered_frames:
+            # Return the oldest buffered frame (FIFO order)
+            return self._buffered_frames.pop(0)
+
+        try:
+            return await self._track.recv()
+        except Exception as e:
+            logger.error(f"Error receiving frame from track: {e}")
+            self._ended = True
+            raise MediaStreamError(f"Error receiving frame: {e}") from e
+
+    async def peek(self):
+        """Peek at the next frame without removing it from the stream."""
+        if self._ended:
+            raise MediaStreamError("Track is ended")
+
+        if not self._buffered_frames:
+            try:
+                # Buffer a new frame
+                frame = await self._track.recv()
+                self._buffered_frames.append(frame)
+            except Exception as e:
+                logger.error(f"Error peeking at frame: {e}")
+                self._ended = True
+                raise MediaStreamError(f"Error peeking at frame: {e}") from e
+
+        # Return the next frame that would be received, but don't remove it
+        if self._buffered_frames:
+            return self._buffered_frames[0]
+        return None
+
+    def stop(self):
+        """Stop the track and clean up resources."""
+        if not self._ended:
+            self._ended = True
+            self._buffered_frames = []  # Clear all buffered frames
+            # Stop the underlying track if it has a stop method
+            if hasattr(self._track, "stop"):
+                try:
+                    self._track.stop()
+                except Exception as e:
+                    logger.error(f"Error stopping track: {e}")
+
+
+async def detect_video_properties(
+    video_track: aiortc.mediastreams.MediaStreamTrack,
+) -> Dict[str, Any]:
+    """
+    Detect video track properties by peeking at frames.
+
+    Args:
+        video_track: A video MediaStreamTrack
+
+    Returns:
+        Dict containing width (int), height (int), fps (int), and bitrate (int) in kbps
+    """
+    logger.info("Detecting video track properties")
+
+    # Default properties in case of failure
+    default_properties = {"width": 640, "height": 480, "fps": 30, "bitrate": 800}
+
+    if not video_track or video_track.kind != "video":
+        logger.warning("No video track provided or track is not video")
+        return default_properties
+
+    # Flag to indicate if we created our own buffered track
+    own_buffered_track = False
+    buffered_track = None
+
+    try:
+        # Ensure we're using a buffered track
+        if isinstance(video_track, BufferedMediaTrack):
+            buffered_track = video_track
+        else:
+            buffered_track = BufferedMediaTrack(video_track)
+            own_buffered_track = True
+
+        # Peek at a frame to get dimensions
+        frame1 = await asyncio.wait_for(buffered_track.peek(), timeout=2.0)
+
+        if not frame1:
+            logger.warning("No frame received from video track")
+            return default_properties
+
+        # Extract width and height
+        width = getattr(frame1, "width", default_properties["width"])
+        height = getattr(frame1, "height", default_properties["height"])
+
+        # Calculate FPS based on time delta between consecutive frames
+        fps = 30  # Default value
+        try:
+            # Consume the first frame but store its pts and time_base
+            frame1 = await buffered_track.recv()
+            frame1_pts = getattr(frame1, "pts", None)
+            time_base = getattr(frame1, "time_base", None)
+
+            # Get the second frame
+            frame2 = await asyncio.wait_for(buffered_track.recv(), timeout=2.0)
+            frame2_pts = getattr(frame2, "pts", None)
+
+            # Calculate FPS if we have all the necessary information
+            if (
+                frame1_pts is not None
+                and frame2_pts is not None
+                and time_base is not None
+            ):
+                delta_ticks = frame2_pts - frame1_pts
+                delta_seconds = delta_ticks * time_base
+
+                if delta_seconds > 0:
+                    estimated_fps = 1 / delta_seconds
+                    fps = int(round(estimated_fps))
+                    logger.info(f"Calculated FPS: {fps} (delta: {delta_seconds}s)")
+                else:
+                    logger.warning("Cannot calculate FPS: zero or negative time delta")
+            else:
+                logger.warning(
+                    "Cannot calculate FPS: missing PTS or time_base information"
+                )
+        except Exception as e:
+            logger.warning(f"Error calculating FPS: {e}, using default 30 fps")
+
+        # Calculate a dynamic bitrate based on resolution and fps
+        # This formula accounts for both pixel count and frame rate
+        # Using bits-per-pixel approach for H.264 encoding
+        pixels_per_second = width * height * fps
+
+        # Different quality factors based on resolution
+        if width >= 1920 and height >= 1080:  # Full HD
+            # Higher quality for HD content: ~0.1 bits per pixel
+            bits_per_pixel = 0.1
+        elif width >= 1280 and height >= 720:  # HD
+            # Medium-high quality: ~0.08 bits per pixel
+            bits_per_pixel = 0.08
+        elif width >= 854 and height >= 480:  # SD
+            # Medium quality: ~0.06 bits per pixel
+            bits_per_pixel = 0.06
+        else:  # Lower quality
+            # Lower quality for smaller video: ~0.05 bits per pixel
+            bits_per_pixel = 0.05
+
+        # Calculate bitrate in kbps
+        estimated_bitrate = int(pixels_per_second * bits_per_pixel / 1000)
+
+        # Set reasonable min/max boundaries
+        min_bitrate = 100  # Minimum acceptable bitrate
+        max_bitrate = 5000  # Maximum reasonable bitrate for WebRTC
+
+        bitrate = max(min_bitrate, min(estimated_bitrate, max_bitrate))
+
+        logger.info(f"Detected video properties: {width}x{height} at {fps}fps")
+        logger.info(
+            f"Calculated bitrate: {bitrate} kbps (based on {bits_per_pixel} bits/pixel)"
+        )
+
+        return {"width": width, "height": height, "fps": fps, "bitrate": bitrate}
+    except asyncio.TimeoutError:
+        logger.error("Timeout while waiting for video frame")
+        return default_properties
+    except Exception as e:
+        logger.error(f"Error detecting video properties: {e}")
+        return default_properties
+    finally:
+        # Clean up only if we created our own buffered track
+        if own_buffered_track and buffered_track:
+            try:
+                # Clean up the buffered track but don't stop the original track
+                buffered_track._buffered_frames = []
+                buffered_track._ended = True
+            except Exception as e:
+                logger.error(f"Error cleaning up buffered track: {e}")
