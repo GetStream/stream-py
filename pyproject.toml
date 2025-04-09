@@ -19,6 +19,7 @@ dependencies = [
     "aiortc[webrtc]>=1.10.1",
     "websocket-client>=1.8.0",
     "pytest-timeout>=2.3.1",
+    "aiohttp>=3.11.16",
 ]
 
 [dependency-groups]
@@ -45,24 +46,8 @@ default-groups = [
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[tool.ruff]
-# Global exclude that applies to both lint and format
-exclude = [
-    "getstream/video/rtc/pb/**/*",
-]
-
 [tool.ruff.lint]
 ignore = ["F405", "F403"]
-# Make sure pb folder is explicitly excluded from linting
-exclude = [
-    "getstream/video/rtc/pb/**/*",
-]
-
-[tool.ruff.format]
-# Make sure pb folder is explicitly excluded from formatting
-exclude = [
-    "getstream/video/rtc/pb/**/*",
-]
 
 [project.optional-dependencies]
 openai-realtime = [

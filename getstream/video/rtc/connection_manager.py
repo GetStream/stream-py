@@ -14,7 +14,17 @@ from typing import AsyncIterator, Optional, List
 from getstream.video.call import Call
 from getstream.video.rtc.location_discovery import HTTPHintLocationDiscovery
 from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
+from getstream.video.rtc.pb.stream.video.sfu.models.models_pb2 import (
+    TrackInfo,
+    TRACK_TYPE_VIDEO,
+    TRACK_TYPE_AUDIO,
+    VideoLayer,
+    VideoDimension,
+)
 from getstream.video.rtc.pb.stream.video.sfu.signal_rpc import signal_pb2
+from getstream.video.rtc.pb.stream.video.sfu.signal_rpc.signal_pb2 import (
+    SetPublisherResponse,
+)
 from getstream.video.rtc.twirp_client_wrapper import SignalClient, SfuRpcError
 from getstream.video.rtc.signaling import WebSocketClient, SignalingError
 from getstream.video.rtc.pb.stream.video.sfu.event import events_pb2
@@ -23,9 +33,6 @@ from twirp import context
 
 # Import join_call_coordinator_request from coordinator module instead of __init__
 from getstream.video.rtc.coordinator import join_call_coordinator_request
-
-# Import MediaPlayer
-from aiortc.contrib.media import MediaPlayer
 
 logger = logging.getLogger("getstream.video.rtc.connection_manager")
 
@@ -75,6 +82,60 @@ def add_ice_candidates_to_sdp(sdp: str, candidates: List[str]) -> str:
     return "".join(modified_sdp_parts)
 
 
+def patch_sdp_offer(sdp: str) -> str:
+    """
+    Patches an SDP offer to ensure consistent ICE and DTLS parameters across all media sections.
+
+    This function:
+    1. Ensures all media descriptions have the same ice-ufrag, ice-pwd, and fingerprint values
+       (using values from the first media section)
+    2. Sets all media descriptions' ports to match the first media description's port
+    3. Replaces all media descriptions' candidates with candidates from the first media description
+
+    Args:
+        sdp: The original SDP string.
+
+    Returns:
+        The modified SDP string with consistent parameters across all media sections.
+    """
+    # Parse the SDP
+    session = aiortc.sdp.SessionDescription.parse(sdp)
+
+    # If we have fewer than 2 media sections, nothing to patch
+    if len(session.media) < 2:
+        return sdp
+
+    # Get the values from the first media section
+    first_media = session.media[0]
+    reference_port = first_media.port
+    reference_ice = first_media.ice
+    reference_fingerprints = first_media.dtls.fingerprints if first_media.dtls else []
+    reference_candidates = first_media.ice_candidates
+
+    # Apply to all other media sections
+    for media in session.media[1:]:
+        # Update port
+        media.port = reference_port
+
+        # Update ICE parameters
+        if reference_ice:
+            media.ice.usernameFragment = reference_ice.usernameFragment
+            media.ice.password = reference_ice.password
+            media.ice.iceLite = reference_ice.iceLite
+
+        # Update DTLS fingerprints
+        if media.dtls and reference_fingerprints:
+            media.dtls.fingerprints = reference_fingerprints.copy()
+
+        # Replace ICE candidates
+        media.ice_candidates = reference_candidates.copy()
+        if reference_candidates:
+            media.ice_candidates_complete = True
+
+    # Convert back to string
+    return str(session)
+
+
 class ConnectionError(Exception):
     """Exception raised when connection to the call fails."""
 
@@ -108,11 +169,31 @@ class PublisherPeerConnection(aiortc.RTCPeerConnection):
                 logger.info("Publisher: All ICE candidates have been gathered.")
                 # Optionally send a final ICE candidate message or null candidate if required by SFU
 
-    async def handle_remote_ice_candidate(self, candidate_sdp: str) -> None:
-        # Note: Publisher typically doesn't receive ICE candidates *from* the SFU
+    async def handle_answer(self, response: SetPublisherResponse):
+        """Handles the SDP answer received from the SFU for the publisher connection."""
+
         logger.info(
-            f"Publisher received remote ICE candidate (unexpected?): {candidate_sdp}"
+            f"Publisher received answer {response.sdp}, now waiting for ICE candidates."
         )
+        await self._received_ice_event.wait()
+
+        # patch SDP to include the ICE candidates that were collected in the meantime
+        patched_sdp = add_ice_candidates_to_sdp(response.sdp, self._ice_candidates)
+
+        remote_description = aiortc.RTCSessionDescription(
+            type="answer", sdp=patched_sdp
+        )
+
+        await self.setRemoteDescription(remote_description)
+        logger.info(
+            f"Publisher remote description set successfully. {self.localDescription}"
+        )
+
+    async def handle_remote_ice_candidate(self, candidate: str) -> None:
+        self._ice_candidates.append(candidate)
+        # this is just here to test things
+        await asyncio.sleep(0.2)
+        self._received_ice_event.set()
 
 
 def parse_track_id(id: str) -> tuple[str, str]:
@@ -200,6 +281,7 @@ class ConnectionManager:
 
         # set to true if you want to connect to a local SFU
         self.local_sfu = True
+        self.publisher_negotiation_lock = asyncio.Lock()
 
     async def _full_connect(self):
         """Perform location discovery and join call via coordinator.
@@ -297,8 +379,6 @@ class ConnectionManager:
 
         self.ws_client.on_event("ice_trickle", self._on_ice_trickle)
         self.ws_client.on_event("subscriber_offer", self._on_subscriber_offer)
-        # Add handler for publisher answer
-        self.ws_client.on_event("publisher_answer", self._on_publisher_answer)
         # Mark as running and clear stop event
         self.running = True
         self._stop_event.clear()
@@ -447,123 +527,233 @@ class ConnectionManager:
         # Add any other cleanup needed
         logger.info("Call left and connections closed")
 
-    async def _on_publisher_answer(self, event: events_pb2.PublisherAnswer):
-        """Handles the SDP answer received from the SFU for the publisher connection."""
-        if not self.publisher_pc:
-            logger.error(
-                "Received publisher answer but publisher PC is not initialized."
-            )
-            return
+    async def addTracks(self, audio=None, video=None):
+        """
+        Add multiple audio and video tracks in a single negotiation.
 
-        logger.info("Publisher answer received from SFU.")
-        answer_sdp = event.sdp
-        # Publisher might receive ICE candidates bundled in the answer SDP.
-        # aiortc's setRemoteDescription should handle this.
+        Args:
+            audio: An optional audio MediaStreamTrack to publish
+            video: An optional video MediaStreamTrack to publish
 
-        # If the SFU requires candidates to be added *before* setting remote description,
-        # you might need logic similar to the subscriber offer handling here.
-        # For simplicity, we assume aiortc handles bundled candidates.
-
-        remote_description = aiortc.RTCSessionDescription(type="answer", sdp=answer_sdp)
-        logger.debug(f"""Setting remote description for publisher:
-{remote_description.sdp}""")
-        try:
-            await self.publisher_pc.setRemoteDescription(remote_description)
-            logger.info("Publisher remote description set successfully.")
-        except Exception as e:
-            logger.error(f"Failed to set publisher remote description: {e}")
-
-    async def playFile(self, file_path: str):
-        """Connects as a publisher and plays audio/video from a file."""
+        This method is more efficient than adding tracks individually as it
+        performs a single offer/answer negotiation for all tracks.
+        """
         if not self.running:
             logger.error("Connection manager not running. Call join() first.")
-            # Consider connecting automatically if not running, or raise error
-            await self._full_connect()  # Attempt to connect if not already
-            if not self.running:
-                raise ConnectionError(
-                    "Failed to establish connection before playing file."
+            return
+
+        if not audio and not video:
+            logger.warning("No tracks provided to addTracks")
+            return
+
+        track_infos = []
+
+        # Prepare audio track info if provided
+        if audio:
+            audio_info = TrackInfo(
+                track_id=audio.id,
+                track_type=TRACK_TYPE_AUDIO,
+            )
+            track_infos.append(audio_info)
+
+        # Prepare video track info if provided
+        if video:
+            video_info = TrackInfo(
+                track_id=video.id,
+                track_type=TRACK_TYPE_VIDEO,
+                layers=[
+                    VideoLayer(
+                        rid="f",
+                        video_dimension=VideoDimension(
+                            width=1280,
+                            height=720,
+                        ),
+                        bitrate=1250,
+                        fps=24,
+                    ),
+                ],
+            )
+            track_infos.append(video_info)
+
+        # Acquire lock for negotiation
+        await self.publisher_negotiation_lock.acquire()
+
+        try:
+            logger.info(f"Adding tracks: {len(track_infos)} tracks")
+
+            if self.publisher_pc is None:
+                self.publisher_pc = PublisherPeerConnection(manager=self)
+
+            # Add all tracks to the peer connection
+            if audio:
+                self.publisher_pc.addTrack(audio)
+                logger.info(f"Added audio track {audio.id}")
+
+            if video:
+                self.publisher_pc.addTrack(video)
+                logger.info(f"Added video track {video.id}")
+
+            # Create and set local description
+            logger.info("Creating publisher offer for multiple tracks")
+            offer = await self.publisher_pc.createOffer()
+            await self.publisher_pc.setLocalDescription(offer)
+
+            logger.info(
+                f"Sending publisher offer to SFU with {len(track_infos)} tracks"
+            )
+
+            try:
+                # Patch the SDP offer to ensure consistent parameters
+                patched_sdp = patch_sdp_offer(self.publisher_pc.localDescription.sdp)
+                logger.info(
+                    "Patched SDP offer for consistent parameters across media sections"
                 )
 
-        logger.info(f"Starting to play file: {file_path}")
-        self.publisher_pc = PublisherPeerConnection(manager=self)
+                response = await self.twirp_signaling_client.SetPublisher(
+                    ctx=self.twirp_context,
+                    request=signal_pb2.SetPublisherRequest(
+                        session_id=self.session_id, sdp=patched_sdp, tracks=track_infos
+                    ),
+                    server_path_prefix="",  # Note: Our wrapper doesn't need this, underlying client handles prefix
+                )
+                logger.info("Publisher offer sent successfully.")
+                await self.publisher_pc.handle_answer(response)
+            except SfuRpcError as e:
+                logger.error(f"Failed to set publisher: {e}")
+                # Decide how to handle: maybe close connection, notify user, etc.
+                # Raising ConnectionError might be appropriate here
+                if self.publisher_pc:
+                    await self.publisher_pc.close()
+                    self.publisher_pc = None
+                raise ConnectionError(f"Failed to set publisher: {e}") from e
+            except Exception as e:
+                logger.error(f"Failed during publisher setup: {e}")
+                # Ensure cleanup
+                if self.publisher_pc:
+                    await self.publisher_pc.close()
+                    self.publisher_pc = None
+                # Re-raise as ConnectionError or a more specific error if appropriate
+                raise ConnectionError(
+                    f"Unexpected error during publisher setup: {e}"
+                ) from e
+        finally:
+            logger.info("Released publisher negotiation lock")
+            self.publisher_negotiation_lock.release()
 
-        player = MediaPlayer(file_path)
+        # Wait for the connection to establish
+        await asyncio.sleep(1)  # Initial wait for answer/ICE
 
-        # Add tracks to the publisher connection
-        if player.audio:
-            logger.info("Adding audio track from file")
-            self.publisher_pc.addTrack(player.audio)
-        if player.video:
-            logger.info("Adding video track from file")
-            self.publisher_pc.addTrack(player.video)
-
-        # Create offer
-        logger.info("Creating publisher offer")
-        offer = await self.publisher_pc.createOffer()
-        await self.publisher_pc.setLocalDescription(offer)
-
-        logger.info("Sending publisher offer to SFU")
-        try:
-            # Use the wrapped client; errors will raise SfuRpcError
-            await self.twirp_signaling_client.SetPublisher(
-                ctx=self.twirp_context,
-                request=signal_pb2.SetPublisherRequest(
-                    session_id=self.session_id,
-                    sdp=self.publisher_pc.localDescription.sdp,
-                    # Potentially add track info if needed by SFU
-                    # tracks=[...]
-                ),
-                server_path_prefix="",  # Note: Our wrapper doesn't need this, underlying client handles prefix
-            )
-            logger.info("Publisher offer sent successfully.")
-            # Now we need to wait for the PublisherAnswer event via WebSocket
-            # The _on_publisher_answer handler will process it.
-
-            # Wait for the connection to establish and media playing to finish
-            # This is a simplified wait; real-world might need more robust handling
-            # of player state or connection state changes.
-            await asyncio.sleep(1)  # Initial wait for answer/ICE
+        # Monitor readyState for provided tracks
+        if audio or video:
             while self.publisher_pc and self.publisher_pc.connectionState != "failed":
-                # Keep running while player is active or connection is ok
-                # MediaPlayer doesn't have an explicit 'done' event we can easily await
-                # We rely on the tracks ending or connection failing
                 await asyncio.sleep(1)
-                # Add checks here if player has specific state to monitor
-                if (
-                    player.audio
-                    and player.audio.readyState == "ended"
-                    and (not player.video or player.video.readyState == "ended")
+                # Check if either track has ended
+                if (audio and audio.readyState == "ended") or (
+                    video and video.readyState == "ended"
                 ):
-                    logger.info("Media player tracks have ended.")
+                    logger.info("One or more media tracks have ended.")
                     break
 
-        except SfuRpcError as e:
-            logger.error(f"Failed to set publisher: {e}")
-            # Decide how to handle: maybe close connection, notify user, etc.
-            # Raising ConnectionError might be appropriate here
-            if self.publisher_pc:
-                await self.publisher_pc.close()
-                self.publisher_pc = None
-            raise ConnectionError(f"Failed to set publisher: {e}") from e
-        except Exception as e:
-            logger.error(f"Failed during publisher setup or file playback: {e}")
-            # Ensure cleanup
-            if self.publisher_pc:
-                await self.publisher_pc.close()
-                self.publisher_pc = None
-            # Re-raise as ConnectionError or a more specific error if appropriate
-            raise ConnectionError(
-                f"Unexpected error during publisher setup/playback: {e}"
-            ) from e
+    # Keep addTrack for backward compatibility
+    async def addTrack(
+        self, track: aiortc.mediastreams.MediaStreamTrack, track_info: TrackInfo
+    ):
+        """
+        Add a single track to the publisher peer connection.
+
+        Note: This method is kept for backward compatibility.
+        For better performance, use addTracks to add multiple tracks at once.
+        """
+        if not self.running:
+            logger.error("Connection manager not running. Call join() first.")
+            return
+
+        logger.info(f"adding track {track.id}")
+
+        await self.publisher_negotiation_lock.acquire()
+
+        try:
+            logger.info(f"track {track.id} enter exclusive lock")
+            if self.publisher_pc is None:
+                self.publisher_pc = PublisherPeerConnection(manager=self)
+
+            self.publisher_pc.addTrack(track)
+            logger.info("Creating publisher offer")
+
+            offer = await self.publisher_pc.createOffer()
+            await self.publisher_pc.setLocalDescription(offer)
+
+            logger.info(
+                f"Sending publisher offer to SFU {self.publisher_pc.localDescription.sdp}"
+            )
+
+            try:
+                # Patch the SDP offer to ensure consistent parameters
+                patched_sdp = patch_sdp_offer(self.publisher_pc.localDescription.sdp)
+                logger.info(
+                    "Patched SDP offer for consistent parameters across media sections"
+                )
+
+                response = await self.twirp_signaling_client.SetPublisher(
+                    ctx=self.twirp_context,
+                    request=signal_pb2.SetPublisherRequest(
+                        session_id=self.session_id, sdp=patched_sdp, tracks=[track_info]
+                    ),
+                    server_path_prefix="",  # Note: Our wrapper doesn't need this, underlying client handles prefix
+                )
+                logger.info("Publisher offer sent successfully.")
+                await self.publisher_pc.handle_answer(response)
+            except SfuRpcError as e:
+                logger.error(f"Failed to set publisher: {e}")
+                # Decide how to handle: maybe close connection, notify user, etc.
+                # Raising ConnectionError might be appropriate here
+                if self.publisher_pc:
+                    await self.publisher_pc.close()
+                    self.publisher_pc = None
+                raise ConnectionError(f"Failed to set publisher: {e}") from e
+            except Exception as e:
+                logger.error(f"Failed during publisher setup or file playback: {e}")
+                # Ensure cleanup
+                if self.publisher_pc:
+                    await self.publisher_pc.close()
+                    self.publisher_pc = None
+                # Re-raise as ConnectionError or a more specific error if appropriate
+                raise ConnectionError(
+                    f"Unexpected error during publisher setup/playback: {e}"
+                ) from e
         finally:
-            logger.info("Finished playing file.")
-            # Explicitly close the publisher connection if it hasn't been closed by error handling
-            if self.publisher_pc:
-                await self.publisher_pc.close()
-                self.publisher_pc = None
-            # Close the MediaPlayer resources
-            if player:
-                if player.audio:
-                    player.audio.stop()
-                if player.video:
-                    player.video.stop()
+            logger.info(f"track {track.id} release exclusive lock")
+            self.publisher_negotiation_lock.release()
+
+        # Wait for the connection to establish and media playing to finish
+        # This is a simplified wait; real-world might need more robust handling
+        # of player state or connection state changes.
+        await asyncio.sleep(1)  # Initial wait for answer/ICE
+        while self.publisher_pc and self.publisher_pc.connectionState != "failed":
+            # Keep running while player is active or connection is ok
+            # MediaPlayer doesn't have an explicit 'done' event we can easily await
+            # We rely on the tracks ending or connection failing
+            await asyncio.sleep(1)
+            # Add checks here if player has specific state to monitor
+            if track.readyState == "ended":
+                logger.info("Media player tracks have ended.")
+                break
+
+    # Add convenience methods for backward compatibility that use the new addTracks method
+    async def add_audio_track(self, track: aiortc.mediastreams.MediaStreamTrack):
+        """
+        Add an audio track to the publisher peer connection.
+
+        Note: This method is kept for backward compatibility.
+        For better performance, use addTracks to add multiple tracks at once.
+        """
+        await self.addTracks(audio=track)
+
+    async def add_video_track(self, track: aiortc.mediastreams.MediaStreamTrack):
+        """
+        Add a video track to the publisher peer connection.
+
+        Note: This method is kept for backward compatibility.
+        For better performance, use addTracks to add multiple tracks at once.
+        """
+        await self.addTracks(video=track)
