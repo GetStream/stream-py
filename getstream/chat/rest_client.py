@@ -1607,6 +1607,8 @@ class ChatRestClient(BaseClient):
         prev: Optional[str] = None,
         reply_limit: Optional[int] = None,
         user_id: Optional[str] = None,
+        sort: Optional[List[SortParamRequest]] = None,
+        filter: Optional[Dict[str, object]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[QueryThreadsResponse]:
         json = build_body_dict(
@@ -1617,6 +1619,8 @@ class ChatRestClient(BaseClient):
             prev=prev,
             reply_limit=reply_limit,
             user_id=user_id,
+            sort=sort,
+            filter=filter,
             user=user,
         )
 
