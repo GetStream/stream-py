@@ -447,3 +447,37 @@ async def test_event_representation():
     for key, value in event_dict.items():
         assert f"{key}=" in event_str
         assert str(repr(value)) in event_str
+
+
+
+def test_ring_individual_members(client: Stream, get_user):
+    """Test ringing individual members in a call."""
+    call_id = str(uuid.uuid4())
+    call = client.video.call("default", call_id)
+    
+    # Create users
+    myself = get_user(name="myself")
+    my_friend = get_user(name="my-friend")
+    my_other_friend = get_user(name="my-other-friend")
+    
+    # Create call with two members
+    call.get_or_create(
+        data=CallRequest(
+            created_by_id=myself.id,
+            members=[
+                MemberRequest(user_id=myself.id), 
+                MemberRequest(user_id=my_friend.id)
+            ],
+        )
+    )
+    
+    # Ring existing member
+    response = call.ring(member_ids=[my_friend.id])
+    assert response.status_code == 200
+    
+    # Add and ring a new member
+    call.update_call_members(
+        update_members=[{"user_id": my_other_friend.id}]
+    )
+    response = call.ring(member_ids=[my_other_friend.id])
+    assert response.status_code == 200

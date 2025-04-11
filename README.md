@@ -86,6 +86,41 @@ call.get_or_create(
 )
 ```
 
+#### Ringing Individual Members
+
+In some cases, you may want to ring individual members instead of the whole call, or you want to ring a member into an existing call. You can do this by using the `ring` method:
+
+```python
+import uuid
+from getstream import Stream
+
+# Initialize client
+client = Stream(api_key="your_api_key", api_secret="your_api_secret")
+
+# Create a call
+call = client.video.call("default", str(uuid.uuid4()))
+
+# Create or get a call with members
+call.get_or_create(
+    data=CallRequest(
+        created_by_id="myself",
+        members=[
+            MemberRequest(user_id= "myself"), 
+           MemberRequest(user_id="my-friend")
+        ],
+    )
+)
+
+# Ring an existing member
+call.ring(member_ids=["my-friend"])
+
+# Add a new member to the call and ring them
+call.update_call_members(
+    update_members=[{"user_id": "my-other-friend"}]
+)
+call.ring(member_ids=["my-other-friend"])
+```
+
 ### App configuration
 
 ```python
