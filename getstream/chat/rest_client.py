@@ -795,19 +795,6 @@ class ChatRestClient(BaseClient):
             "/api/v2/chat/export_channels", ExportChannelsResponse, json=json
         )
 
-    def get_export_channels_status(
-        self, id: str
-    ) -> StreamResponse[GetExportChannelsStatusResponse]:
-        path_params = {
-            "id": id,
-        }
-
-        return self.get(
-            "/api/v2/chat/export_channels/{id}",
-            GetExportChannelsStatusResponse,
-            path_params=path_params,
-        )
-
     def query_members(
         self, payload: Optional[QueryMembersPayload] = None
     ) -> StreamResponse[MembersResponse]:
