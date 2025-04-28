@@ -1,9 +1,11 @@
+from collections import OrderedDict
+
 import json
 import uuid
 
 import asyncio
 import logging
-from typing import AsyncIterator, Optional
+from typing import Optional, Callable, Any, TypeVar, Dict
 
 import aiortc
 
@@ -24,23 +26,23 @@ from getstream.video.rtc.pb.stream.video.sfu.event import events_pb2
 
 from twirp import context
 
-# Import join_call_coordinator_request from coordinator module instead of __init__
 from getstream.video.rtc.coordinator import join_call_coordinator_request
 
-# Import from the new modules
 from getstream.video.rtc.track_util import (
     BufferedMediaTrack,
     detect_video_properties,
     patch_sdp_offer,
     add_ice_candidates_to_sdp,
 )
+
 from getstream.video.rtc.pc import (
     PublisherPeerConnection,
     SubscriberPeerConnection,
 )
 
-logger = logging.getLogger("getstream.video.rtc.connection_manager")
+from pyee.asyncio import AsyncIOEventEmitter
 
+logger = logging.getLogger("getstream.video.rtc.connection_manager")
 
 class ConnectionError(Exception):
     """Exception raised when connection to the call fails."""
@@ -48,8 +50,37 @@ class ConnectionError(Exception):
     pass
 
 
-class ConnectionManager:
+class ParticipantsState(AsyncIOEventEmitter):
+
+    def __init__(self):
+        super().__init__()
+        self._participants = {}
+        self._track_lookup_prefixes = {}
+
+    def get_user_from_track_id(self, track_id: str) -> Optional[models_pb2.Participant]:
+        prefix = track_id.split(":")[0]
+        return self._participants.get(self._participants.get(prefix))
+
+    @staticmethod
+    def participant_id(participant: models_pb2.Participant):
+        return participant.session_id, participant.user_id
+
+    async def _on_participant_joined(self, event: events_pb2.ParticipantJoined):
+        self._track_lookup_prefixes[event.participant.track_lookup_prefix] = event.participant.user_id
+        self._participants[ParticipantsState.participant_id(event.participant)] = event.participant
+        self.emit("participant_joined", event.participant)
+
+    async def _on_participant_left(self, event: events_pb2.ParticipantLeft):
+        del(self._track_lookup_prefixes[event.participant.track_lookup_prefix])
+        del(self._participants[ParticipantsState.participant_id(event.participant)])
+        self.emit("participant_left", event.participant)
+
+
+class ConnectionManager(AsyncIOEventEmitter):
+
     def __init__(self, call: Call, user_id: str = None, create: bool = True, **kwargs):
+        super().__init__()
+
         self.call = call
         self.user_id = user_id
         self.create = create
@@ -64,7 +95,7 @@ class ConnectionManager:
         # WebSocket client for SFU communication
         self.ws_client = None
         self.session_id = str(uuid.uuid4())
-        self.subscriber_pc: SubscriberPeerConnection
+        self.subscriber_pc: Optional[SubscriberPeerConnection] = None
         self.twirp_signaling_client: SignalClient
         self.twirp_context: context.Context
 
@@ -77,6 +108,9 @@ class ConnectionManager:
         # set to true if you want to connect to a local SFU
         self.local_sfu = True
         self.publisher_negotiation_lock = asyncio.Lock()
+        self.subscriber_negotiation_lock = asyncio.Lock()
+
+        self.participants_state = ParticipantsState()
 
     async def _full_connect(self):
         """Perform location discovery and join call via coordinator.
@@ -148,7 +182,12 @@ class ConnectionManager:
             logger.info(f"Establishing WebSocket connection to {ws_url}")
             sfu_event = await self.ws_client.connect()
 
-            self.subscriber_pc = SubscriberPeerConnection(manager=self)
+            self.subscriber_pc = SubscriberPeerConnection(connection=self)
+
+            @self.subscriber_pc.on('audio')
+            async def on_audio(pcm_data, user):
+                self.emit('audio', pcm_data, user)
+
             self.twirp_signaling_client = SignalClient(
                 address=self.join_response.data.credentials.server.url
             )
@@ -172,6 +211,7 @@ class ConnectionManager:
                 self.ws_client = None
             raise ConnectionError(f"Unexpected error connecting to SFU: {e}")
 
+        self.ws_client.on_event("participant_joined", self.participants_state._on_participant_joined)
         self.ws_client.on_event("ice_trickle", self._on_ice_trickle)
         self.ws_client.on_event("subscriber_offer", self._on_subscriber_offer)
         # Mark as running and clear stop event
@@ -199,7 +239,7 @@ class ConnectionManager:
         if self.ws_client:
             self.ws_client.close()
             self.ws_client = None
-        if self.subscriber_pc:
+        if self.subscriber_pc is not None:
             await self.subscriber_pc.close()
             self.subscriber_pc = None
         if self.publisher_pc:
@@ -209,59 +249,63 @@ class ConnectionManager:
         # Add any other cleanup needed
         logger.info("Call left and connections closed")
 
-    # TODO: synchronize access to this method
     async def _on_subscriber_offer(self, event: events_pb2.SubscriberOffer):
-        logger.info(
-            "Subscriber offer received, waiting for ICE gathering to be complete"
-        )
+        logger.info("Subscriber offer received")
 
-        # Wait for at least one ICE candidate to be received/gathered locally
-        # This avoids sending an answer before we have any candidates to include.
-        # Note: In a production scenario, you might want a more sophisticated
-        # mechanism to ensure *all* relevant candidates are gathered, possibly
-        # involving the 'icegatheringstatechange' event being 'complete'.
-        await self.subscriber_pc._received_ice_event.wait()
+        await self.subscriber_negotiation_lock.acquire()
 
-        # Use the new robust function to add candidates
-        patched_sdp = add_ice_candidates_to_sdp(
-            event.sdp, self.subscriber_pc._ice_candidates
-        )
-
-        # The SDP offer from the SFU might already contain candidates (trickled)
-        # or have a different structure. We set it as the remote description.
-        # The aiortc library handles merging and interpretation.
-        remote_description = aiortc.RTCSessionDescription(type="offer", sdp=patched_sdp)
-        logger.debug(f"""Setting remote description with patched SDP:
-{remote_description.sdp}""")
-        await self.subscriber_pc.setRemoteDescription(remote_description)
-
-        # Create the answer based on the remote offer (which includes our candidates)
-        answer = await self.subscriber_pc.createAnswer()
-        # Set the local description. aiortc will manage the SDP content.
-        await self.subscriber_pc.setLocalDescription(answer)
-
-        logger.info(
-            f"""Sending answer with local description:
-{self.subscriber_pc.localDescription.sdp}"""
-        )
-        # Use the wrapped client; errors will raise SfuRpcError
         try:
-            await self.twirp_signaling_client.SendAnswer(
-                ctx=self.twirp_context,
-                request=signal_pb2.SendAnswerRequest(
-                    peer_type=models_pb2.PEER_TYPE_SUBSCRIBER,
-                    sdp=self.subscriber_pc.localDescription.sdp,
-                    session_id=self.session_id,
-                ),
-                server_path_prefix="",  # Note: Our wrapper doesn't need this, underlying client handles prefix
+            logger.info(
+                "Subscriber offer received, waiting for ICE gathering to be complete"
             )
-            logger.info("Subscriber answer sent successfully.")
-        except SfuRpcError as e:
-            logger.error(f"Failed to send subscriber answer: {e}")
-            # Decide how to handle: maybe close connection, notify user, etc.
-            # For now, just log the error.
-        except Exception as e:
-            logger.error(f"Unexpected error sending subscriber answer: {e}")
+            # Wait for at least one ICE candidate to be received/gathered locally
+            # This avoids sending an answer before we have any candidates to include.
+            # Note: In a production scenario, you might want a more sophisticated
+            # mechanism to ensure *all* relevant candidates are gathered, possibly
+            # involving the 'icegatheringstatechange' event being 'complete'.
+            await self.subscriber_pc._received_ice_event.wait()
+
+            patched_sdp = add_ice_candidates_to_sdp(
+                event.sdp, self.subscriber_pc._ice_candidates
+            )
+
+            # The SDP offer from the SFU might already contain candidates (trickled)
+            # or have a different structure. We set it as the remote description.
+            # The aiortc library handles merging and interpretation.
+            remote_description = aiortc.RTCSessionDescription(type="offer", sdp=patched_sdp)
+            logger.debug(f"""Setting remote description with patched SDP:
+            {remote_description.sdp}""")
+            await self.subscriber_pc.setRemoteDescription(remote_description)
+
+            # Create the answer based on the remote offer (which includes our candidates)
+            answer = await self.subscriber_pc.createAnswer()
+            # Set the local description. aiortc will manage the SDP content.
+            await self.subscriber_pc.setLocalDescription(answer)
+
+            logger.info(
+                f"""Sending answer with local description:
+            {self.subscriber_pc.localDescription.sdp}"""
+            )
+
+            try:
+                await self.twirp_signaling_client.SendAnswer(
+                    ctx=self.twirp_context,
+                    request=signal_pb2.SendAnswerRequest(
+                        peer_type=models_pb2.PEER_TYPE_SUBSCRIBER,
+                        sdp=self.subscriber_pc.localDescription.sdp,
+                        session_id=self.session_id,
+                    ),
+                    server_path_prefix="",  # Note: Our wrapper doesn't need this, underlying client handles prefix
+                )
+                logger.info("Subscriber answer sent successfully.")
+            except SfuRpcError as e:
+                logger.error(f"Failed to send subscriber answer: {e}")
+                # Decide how to handle: maybe close connection, notify user, etc.
+                # For now, just log the error.
+            except Exception as e:
+                logger.error(f"Unexpected error sending subscriber answer: {e}")
+        finally:
+            self.subscriber_negotiation_lock.release()
 
     async def _on_ice_trickle(self, event: events_pb2.ICETrickle):
         logger.info(
@@ -306,33 +350,6 @@ class ConnectionManager:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit that leaves the call."""
         await self.leave()
-
-    async def __anext__(self):
-        """Async iterator method to yield events from the WebSocket connection."""
-        if not self.running or self._stop_event.is_set():
-            raise StopAsyncIteration
-
-        try:
-            # Wait for the next event from the WebSocket client
-            # Add a timeout to prevent indefinite blocking if stop_event is set
-            event = await asyncio.wait_for(
-                self.ws_client.event_queue.get(), timeout=0.1
-            )
-            self.ws_client.event_queue.task_done()
-            return event
-        except asyncio.TimeoutError:
-            # If timeout occurs, check stop_event again and continue or raise StopAsyncIteration
-            if not self.running or self._stop_event.is_set():
-                raise StopAsyncIteration
-            # If not stopping, continue waiting for the next event
-            return await self.__anext__()  # Recursive call, ensure base case works
-        except asyncio.CancelledError:
-            logger.info("Async iterator cancelled.")
-            raise StopAsyncIteration
-
-    def __aiter__(self) -> AsyncIterator:
-        """Return self as the async iterator."""
-        return self
 
     async def prepare_video_track_info(
         self, video: aiortc.mediastreams.MediaStreamTrack

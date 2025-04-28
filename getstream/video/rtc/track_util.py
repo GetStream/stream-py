@@ -1,12 +1,23 @@
+from collections import namedtuple
+
 import asyncio
+import numpy as np
+from aiortc import MediaStreamTrack
+
 import logging
 import re
-from typing import Dict, Any, List
+from typing import Dict, Any, List, NamedTuple, Callable
 
 import aiortc
 from aiortc.mediastreams import MediaStreamError
+from numpy.typing import NDArray
 
 logger = logging.getLogger("getstream.video.rtc.track_util")
+
+class PcmData(NamedTuple):
+    format: str
+    sample_rate: int
+    samples: NDArray
 
 
 def add_ice_candidates_to_sdp(sdp: str, candidates: List[str]) -> str:
@@ -304,3 +315,66 @@ async def detect_video_properties(
                 buffered_track._ended = True
             except Exception as e:
                 logger.error(f"Error cleaning up buffered track: {e}")
+
+
+class AudioTrackHandler:
+    """
+    A helper to receive raw PCM data from an aiortc AudioStreamTrack
+    and feed it into the provided callback.
+    """
+    def __init__(self, track: MediaStreamTrack, on_audio_frame: Callable[[PcmData], Any]):
+        """
+        :param track: The incoming audio track (from `pc.on("track")`).
+        :param on_audio_frame: A callback function that will receive
+                               the PCM data as a NumPy array (int16).
+        """
+        self.track = track
+        self._on_audio_frame = on_audio_frame
+        self._task = None
+        self._stopped = False
+
+    async def start(self):
+        """
+        Start reading frames from the track in a background task.
+        """
+        if self._task is None:
+            self._task = asyncio.create_task(self._run_track())
+
+    async def stop(self):
+        """
+        Stop reading frames and clean up.
+        """
+        self._stopped = True
+        if self._task:
+            self._task.cancel()
+            try:
+                await self._task
+            except asyncio.CancelledError:
+                pass
+            self._task = None
+
+    async def _run_track(self):
+        """
+        Internal coroutine that continuously pulls frames from the track.
+        """
+        while not self._stopped:
+            try:
+                frame = await self.track.recv()
+            except asyncio.CancelledError:
+                # Task was cancelled, safe to exit
+                break
+            except Exception as e:
+                print("Error receiving audio frame:", e)
+                break
+
+            if frame.sample_rate != 48000:
+                raise TypeError("only 48000 sample rate supported")
+
+            # Convert AudioFrame → int16 PCM. The returned shape is (samples, channels).
+            pcm_ndarray = frame.to_ndarray(format="s16")
+
+            if len(frame.layout.channels) > 1:
+                audio_stereo = pcm_ndarray.reshape(-1, 2)
+                pcm_ndarray = audio_stereo.mean(axis=1).astype(np.int16)
+
+            self._on_audio_frame(PcmData(sample_rate=48_000, samples=pcm_ndarray, format="s16"))

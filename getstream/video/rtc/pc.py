@@ -1,12 +1,12 @@
 import asyncio
-import functools
 import logging
 from collections import defaultdict
 from typing import Optional, Any
 
 import aiortc
 
-from getstream.video.rtc.track_util import add_ice_candidates_to_sdp
+from getstream.video.rtc.track_util import add_ice_candidates_to_sdp, AudioTrackHandler
+from pyee.asyncio import AsyncIOEventEmitter
 
 logger = logging.getLogger("getstream.video.rtc.pc")
 
@@ -73,10 +73,10 @@ class PublisherPeerConnection(aiortc.RTCPeerConnection):
         self._received_ice_event.set()
 
 
-class SubscriberPeerConnection(aiortc.RTCPeerConnection):
+class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
     def __init__(
         self,
-        manager: Any,
+        connection,
         configuration: Optional[aiortc.RTCConfiguration] = None,
     ) -> None:
         if configuration is None:
@@ -87,7 +87,7 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection):
             f"creating subscriber peer connection with configuration: {configuration}"
         )
         super().__init__(configuration)
-        self.manager = manager
+        self.connection = connection
 
         # this event is set when the first ice event is received from the SFU
         # we need this setup because aiortc does not support ice trickling
@@ -103,9 +103,11 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection):
         @self.on("track")
         async def on_track(track: aiortc.mediastreams.MediaStreamTrack):
             logger.info(f"Track received: f{track.id}")
-            participant_id, track_type = parse_track_id(track.id)
-            self.tracks[participant_id][track_type].append(track)
-            track.on("ended", functools.partial(self.handle_track_ended, track))
+            user = self.connection.participants_state.get_user_from_track_id(track.id)
+
+            if track.kind == "audio":
+                handler = AudioTrackHandler(track, lambda pcm: self.emit("audio", pcm, user))
+                asyncio.ensure_future(handler.start())
 
         @self.on("icegatheringstatechange")
         def on_icegatheringstatechange():

@@ -20,6 +20,16 @@ dependencies = [
     "websocket-client>=1.8.0",
     "pytest-timeout>=2.3.1",
     "aiohttp>=3.11.16",
+    "pyee>=13.0.0",
+    "numpy>=2.0.2",
+    "elevenlabs>=1.56.0",
+    "torch>=2.6.0",
+    "torchaudio>=2.6.0",
+    "onnxruntime>=1.20.1",
+    "silero>=0.4.1",
+    "soundfile>=0.13.1",
+    "scipy>=1.13.1",
+    "deepgram-sdk>=3.11.0",
 ]
 
 [dependency-groups]
