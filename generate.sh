@@ -20,4 +20,4 @@ set -ex
 ( cd $SOURCE_PATH ; make openapi ; go run ./cmd/chat-manager openapi generate-client --language python --spec ./releases/v2/serverside-api.yaml --output ../stream-py/getstream/ )
 
 # lint generated code with ruff
-poetry run ruff format getstream/ tests/
+uv run ruff format getstream/ tests/

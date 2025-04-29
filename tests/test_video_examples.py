@@ -338,6 +338,26 @@ def test_start_stop_frame_recording(client: Stream):
     )
 
 
+def test_query_call_participants(client):
+    call = client.video.call("default", "call-id")
+    call.get_or_create(
+        data=CallRequest(
+            created_by_id=str(uuid.uuid4()),
+        )
+    )
+
+    call.query_call_participants(filter_conditions={"user_id": {"$eq": "user-id"}})
+
+    # filter by published track
+    call.query_call_participants(
+        filter_conditions={"published_tracks": {"$eq": "video"}}
+    )
+    # filter multiple users
+    call.query_call_participants(
+        filter_conditions={"user_id": {"$in": ["user-id-1", "user-id-2"]}}, limit=100
+    )
+
+
 def test_create_call_with_custom_frame_recording_settings(client: Stream):
     user_id = str(uuid.uuid4())
 

@@ -256,7 +256,6 @@ class VideoRestClient(BaseClient):
         start_closed_caption: Optional[bool] = None,
         start_hls: Optional[bool] = None,
         start_recording: Optional[bool] = None,
-        start_rtmp_broadcasts: Optional[bool] = None,
         start_transcription: Optional[bool] = None,
         transcription_storage_name: Optional[str] = None,
     ) -> StreamResponse[GoLiveResponse]:
@@ -269,7 +268,6 @@ class VideoRestClient(BaseClient):
             start_closed_caption=start_closed_caption,
             start_hls=start_hls,
             start_recording=start_recording,
-            start_rtmp_broadcasts=start_rtmp_broadcasts,
             start_transcription=start_transcription,
             transcription_storage_name=transcription_storage_name,
         )
@@ -346,6 +344,28 @@ class VideoRestClient(BaseClient):
         return self.post(
             "/api/v2/video/call/{type}/{id}/mute_users",
             MuteUsersResponse,
+            path_params=path_params,
+            json=json,
+        )
+
+    def query_call_participants(
+        self,
+        id: str,
+        type: str,
+        limit: Optional[int] = None,
+        filter_conditions: Optional[Dict[str, object]] = None,
+    ) -> StreamResponse[QueryCallParticipantsResponse]:
+        query_params = build_query_param(limit=limit)
+        path_params = {
+            "id": id,
+            "type": type,
+        }
+        json = build_body_dict(filter_conditions=filter_conditions)
+
+        return self.post(
+            "/api/v2/video/call/{type}/{id}/participants",
+            QueryCallParticipantsResponse,
+            query_params=query_params,
             path_params=path_params,
             json=json,
         )
@@ -540,21 +560,6 @@ class VideoRestClient(BaseClient):
             StartTranscriptionResponse,
             path_params=path_params,
             json=json,
-        )
-
-    def get_call_stats(
-        self, type: str, id: str, session: str
-    ) -> StreamResponse[GetCallStatsResponse]:
-        path_params = {
-            "type": type,
-            "id": id,
-            "session": session,
-        }
-
-        return self.get(
-            "/api/v2/video/call/{type}/{id}/stats/{session}",
-            GetCallStatsResponse,
-            path_params=path_params,
         )
 
     def stop_hls_broadcasting(
