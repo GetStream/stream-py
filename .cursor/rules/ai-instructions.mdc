@@ -1,0 +1,8 @@
+---
+description: basic instructions
+globs:
+alwaysApply: true
+---
+- Always include [ai-basic.md](mdc:stream-py/stream-py/stream-py/stream-py/docs/ai-basic.md) file to the context
+- Do not mock things in python unless you are asked to do that directly
+- If you change proto files or change any go function that is exported to C, make sure to run make all and not protoc directly. Also make sure to adjust the python cffi code if necessary
