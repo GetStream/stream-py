@@ -146,7 +146,6 @@ class Call:
         start_closed_caption: Optional[bool] = None,
         start_hls: Optional[bool] = None,
         start_recording: Optional[bool] = None,
-        start_rtmp_broadcasts: Optional[bool] = None,
         start_transcription: Optional[bool] = None,
         transcription_storage_name: Optional[str] = None,
     ) -> StreamResponse[GoLiveResponse]:
@@ -157,7 +156,6 @@ class Call:
             start_closed_caption=start_closed_caption,
             start_hls=start_hls,
             start_recording=start_recording,
-            start_rtmp_broadcasts=start_rtmp_broadcasts,
             start_transcription=start_transcription,
             transcription_storage_name=transcription_storage_name,
         )
@@ -205,6 +203,20 @@ class Call:
             video=video,
             user_ids=user_ids,
             muted_by=muted_by,
+        )
+        self._sync_from_response(response.data)
+        return response
+
+    def query_call_participants(
+        self,
+        limit: Optional[int] = None,
+        filter_conditions: Optional[Dict[str, object]] = None,
+    ) -> StreamResponse[QueryCallParticipantsResponse]:
+        response = self.client.query_call_participants(
+            type=self.call_type,
+            id=self.id,
+            limit=limit,
+            filter_conditions=filter_conditions,
         )
         self._sync_from_response(response.data)
         return response
@@ -311,13 +323,6 @@ class Call:
             enable_closed_captions=enable_closed_captions,
             language=language,
             transcription_external_storage=transcription_external_storage,
-        )
-        self._sync_from_response(response.data)
-        return response
-
-    def get_call_stats(self, session: str) -> StreamResponse[GetCallStatsResponse]:
-        response = self.client.get_call_stats(
-            type=self.call_type, id=self.id, session=session
         )
         self._sync_from_response(response.data)
         return response
