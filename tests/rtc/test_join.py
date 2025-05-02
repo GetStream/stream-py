@@ -104,7 +104,9 @@ async def receiver_task(
 
         @connection.on("audio")
         async def audio_handler(pcm: PcmData, participant):
-            logger.info(f"Audio event received: {len(pcm.samples)} bytes of PCM data from {participant}")
+            logger.info(
+                f"Audio event received: {len(pcm.samples)} bytes of PCM data from {participant}"
+            )
             # Set the shared flag to indicate audio was received
             received_flag.value = 1
             # Leave the call
@@ -328,7 +330,9 @@ async def test_play_audio_track_from_text(client: Stream):
     from getstream.agents.elevenlanbs import tts
 
     audio = audio_track.AudioStreamTrack(framerate=16000)
-    tts_instance = tts.ElevenLabs('sk_5e3f3c68a8e32f9dcdf4a78c61fbf6ca6154a19963e19cb0', 'JBFqnCBsd6RMkjVDRZzb')
+    tts_instance = tts.ElevenLabs(
+        "sk_5e3f3c68a8e32f9dcdf4a78c61fbf6ca6154a19963e19cb0", "JBFqnCBsd6RMkjVDRZzb"
+    )
     tts_instance.set_output_track(audio)
     call = client.video.call("default", "mQbx3HG7wtTj")
 
@@ -362,9 +366,10 @@ async def test_vad(client: Stream):
         @vad.on("audio")
         async def on_speech_detected(pcm: PcmData, user):
             # Handle speech from participants
-            print(f"Speech detected from user: {user}")
+            print(f"Speech detected from user: {user} duration {pcm.duration}")
 
         await connection.wait()
+
 
 @pytest.mark.asyncio
 async def test_speech_to_text(client: Stream):
@@ -374,5 +379,5 @@ async def test_speech_to_text(client: Stream):
 
     async with await rtc.join(call, "test-user") as connection:
         stt = Deepgram(api_key="7575244dd57da3eb2cefe9744d70df37a87275ff")
-
+        print(stt)
         await connection.wait()

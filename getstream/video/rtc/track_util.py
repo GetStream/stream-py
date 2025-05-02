@@ -1,5 +1,3 @@
-from collections import namedtuple
-
 import asyncio
 import numpy as np
 from aiortc import MediaStreamTrack
@@ -14,10 +12,32 @@ from numpy.typing import NDArray
 
 logger = logging.getLogger("getstream.video.rtc.track_util")
 
+
 class PcmData(NamedTuple):
     format: str
     sample_rate: int
     samples: NDArray
+
+    @property
+    def duration(self) -> float:
+        """
+        Calculate the duration of the audio data in seconds.
+
+        Returns:
+            float: Duration in seconds.
+        """
+        if self.format == "s16":
+            # For s16 format, each sample is 2 bytes (16 bits)
+            num_samples = len(self.samples) // 2
+        elif self.format == "f32":
+            # For f32 format, each sample is 4 bytes (32 bits)
+            num_samples = len(self.samples) // 4
+        else:
+            # Default assumption for other formats (treat as raw bytes)
+            num_samples = len(self.samples)
+
+        # Calculate duration based on sample rate
+        return num_samples / self.sample_rate
 
 
 def add_ice_candidates_to_sdp(sdp: str, candidates: List[str]) -> str:
@@ -322,7 +342,10 @@ class AudioTrackHandler:
     A helper to receive raw PCM data from an aiortc AudioStreamTrack
     and feed it into the provided callback.
     """
-    def __init__(self, track: MediaStreamTrack, on_audio_frame: Callable[[PcmData], Any]):
+
+    def __init__(
+        self, track: MediaStreamTrack, on_audio_frame: Callable[[PcmData], Any]
+    ):
         """
         :param track: The incoming audio track (from `pc.on("track")`).
         :param on_audio_frame: A callback function that will receive
@@ -377,4 +400,6 @@ class AudioTrackHandler:
                 audio_stereo = pcm_ndarray.reshape(-1, 2)
                 pcm_ndarray = audio_stereo.mean(axis=1).astype(np.int16)
 
-            self._on_audio_frame(PcmData(sample_rate=48_000, samples=pcm_ndarray, format="s16"))
+            self._on_audio_frame(
+                PcmData(sample_rate=48_000, samples=pcm_ndarray, format="s16")
+            )

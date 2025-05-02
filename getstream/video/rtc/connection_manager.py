@@ -1,11 +1,9 @@
-from collections import OrderedDict
-
 import json
 import uuid
 
 import asyncio
 import logging
-from typing import Optional, Callable, Any, TypeVar, Dict
+from typing import Optional
 
 import aiortc
 
@@ -44,6 +42,7 @@ from pyee.asyncio import AsyncIOEventEmitter
 
 logger = logging.getLogger("getstream.video.rtc.connection_manager")
 
+
 class ConnectionError(Exception):
     """Exception raised when connection to the call fails."""
 
@@ -51,7 +50,6 @@ class ConnectionError(Exception):
 
 
 class ParticipantsState(AsyncIOEventEmitter):
-
     def __init__(self):
         super().__init__()
         self._participants = {}
@@ -66,18 +64,21 @@ class ParticipantsState(AsyncIOEventEmitter):
         return participant.session_id, participant.user_id
 
     async def _on_participant_joined(self, event: events_pb2.ParticipantJoined):
-        self._track_lookup_prefixes[event.participant.track_lookup_prefix] = event.participant.user_id
-        self._participants[ParticipantsState.participant_id(event.participant)] = event.participant
+        self._track_lookup_prefixes[event.participant.track_lookup_prefix] = (
+            event.participant.user_id
+        )
+        self._participants[ParticipantsState.participant_id(event.participant)] = (
+            event.participant
+        )
         self.emit("participant_joined", event.participant)
 
     async def _on_participant_left(self, event: events_pb2.ParticipantLeft):
-        del(self._track_lookup_prefixes[event.participant.track_lookup_prefix])
-        del(self._participants[ParticipantsState.participant_id(event.participant)])
+        del self._track_lookup_prefixes[event.participant.track_lookup_prefix]
+        del self._participants[ParticipantsState.participant_id(event.participant)]
         self.emit("participant_left", event.participant)
 
 
 class ConnectionManager(AsyncIOEventEmitter):
-
     def __init__(self, call: Call, user_id: str = None, create: bool = True, **kwargs):
         super().__init__()
 
@@ -184,9 +185,9 @@ class ConnectionManager(AsyncIOEventEmitter):
 
             self.subscriber_pc = SubscriberPeerConnection(connection=self)
 
-            @self.subscriber_pc.on('audio')
+            @self.subscriber_pc.on("audio")
             async def on_audio(pcm_data, user):
-                self.emit('audio', pcm_data, user)
+                self.emit("audio", pcm_data, user)
 
             self.twirp_signaling_client = SignalClient(
                 address=self.join_response.data.credentials.server.url
@@ -211,7 +212,9 @@ class ConnectionManager(AsyncIOEventEmitter):
                 self.ws_client = None
             raise ConnectionError(f"Unexpected error connecting to SFU: {e}")
 
-        self.ws_client.on_event("participant_joined", self.participants_state._on_participant_joined)
+        self.ws_client.on_event(
+            "participant_joined", self.participants_state._on_participant_joined
+        )
         self.ws_client.on_event("ice_trickle", self._on_ice_trickle)
         self.ws_client.on_event("subscriber_offer", self._on_subscriber_offer)
         # Mark as running and clear stop event
@@ -272,7 +275,9 @@ class ConnectionManager(AsyncIOEventEmitter):
             # The SDP offer from the SFU might already contain candidates (trickled)
             # or have a different structure. We set it as the remote description.
             # The aiortc library handles merging and interpretation.
-            remote_description = aiortc.RTCSessionDescription(type="offer", sdp=patched_sdp)
+            remote_description = aiortc.RTCSessionDescription(
+                type="offer", sdp=patched_sdp
+            )
             logger.debug(f"""Setting remote description with patched SDP:
             {remote_description.sdp}""")
             await self.subscriber_pc.setRemoteDescription(remote_description)
