@@ -106,7 +106,7 @@ class ConnectionManager(AsyncIOEventEmitter):
         self._track_user_prefixes = {}
 
         # set to true if you want to connect to a local SFU
-        self.local_sfu = True
+        self.local_sfu = False
         self.publisher_negotiation_lock = asyncio.Lock()
         self.subscriber_negotiation_lock = asyncio.Lock()
 

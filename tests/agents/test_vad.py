@@ -62,9 +62,7 @@ async def test_silero_vad_speech_detection(mia_wav_path, mia_metadata):
     """Test that the Silero VAD correctly detects speech in the mia.mp3 file."""
     # Create VAD with parameters tuned for the test
     vad = Silero(
-        sample_rate=16000,
-        frame_size=512,
-        silence_threshold=0.5,
+        sample_rate=44100,
         speech_pad_ms=100,  # Shorter padding for testing
         min_speech_ms=100,  # Lower minimum to catch shorter segments
     )
@@ -106,7 +104,7 @@ async def test_silero_vad_speech_detection(mia_wav_path, mia_metadata):
         pcm_data = (data * 32768.0).astype(np.int16).tobytes()
         
         # Process the audio data
-        await vad.process_audio(pcm_data)
+        await vad.process_audio(PcmData(samples=pcm_data, sample_rate=sample_rate, format="s16"))
         
         # Ensure we flush any remaining speech
         await vad._flush_speech_buffer()
