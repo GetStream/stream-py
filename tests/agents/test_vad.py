@@ -91,8 +91,8 @@ async def process_audio_file(vad, data, original_sample_rate, detected_segments)
     # Register event handler to collect speech segments
     @vad.on("audio")
     async def on_audio(pcm_data: PcmData, user):
-        # Use the new duration method instead of calculating manually
-        duration = pcm_data.duration()
+        # Use the duration property instead of calling it as a method
+        duration = pcm_data.duration
         detected_segments.append({"duration": duration, "bytes": len(pcm_data.samples)})
         logger.info(
             f"Detected speech segment: {duration:.2f} seconds ({len(pcm_data.samples)} bytes)"
@@ -128,8 +128,8 @@ async def process_audio_in_chunks(
     # Register event handler to collect speech segments
     @vad.on("audio")
     async def on_audio(pcm_data: PcmData, user):
-        # Use the new duration method instead of calculating manually
-        duration = pcm_data.duration()
+        # Use the duration property instead of calling it as a method
+        duration = pcm_data.duration
         detected_segments.append({"duration": duration, "bytes": len(pcm_data.samples)})
         logger.info(
             f"Detected speech segment: {duration:.2f} seconds ({len(pcm_data.samples)} bytes)"

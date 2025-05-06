@@ -363,9 +363,13 @@ async def test_vad(client: Stream):
     tts_instance.set_output_track(audio)
 
     async with await rtc.join(call, "test-user") as connection:
+        print("connected")
+
         await connection.add_tracks(
             audio=audio,
         )
+
+        print("track is added correctly now")
 
         @connection.on("audio")
         async def on_audio(pcm: PcmData, user):
@@ -373,7 +377,6 @@ async def test_vad(client: Stream):
 
         @vad.on("audio")
         async def on_speech_detected(pcm: PcmData, user):
-            # Handle speech from participants
             print(
                 f"{time.time()} Speech detected from user: {user} duration {pcm.duration}"
             )
