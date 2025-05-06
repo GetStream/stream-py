@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 from typing import Dict, Any, Optional, List, Tuple
 import numpy as np
 import os
@@ -8,6 +9,8 @@ import time
 from deepgram import DeepgramClient, LiveTranscriptionEvents, LiveOptions
 from getstream.agents import stt
 from getstream.video.rtc.track_util import PcmData
+
+logger = logging.getLogger(__name__)
 
 
 class Deepgram(stt.STT):
@@ -49,11 +52,12 @@ class Deepgram(stt.STT):
         if api_key is None:
             api_key = os.environ.get("DEEPGRAM_API_KEY")
             if not api_key:
-                print(
-                    "Warning: No API key provided and DEEPGRAM_API_KEY environment variable not found."
+                logger.warning(
+                    "No API key provided and DEEPGRAM_API_KEY environment variable not found."
                 )
 
         # Initialize DeepgramClient with the API key
+        logger.info("Initializing Deepgram client")
         self.deepgram = DeepgramClient(api_key)
         self.dg_connection = None
         self.options = options or LiveOptions(
@@ -77,6 +81,7 @@ class Deepgram(stt.STT):
         """Set up the Deepgram connection with event handlers."""
         try:
             # Use the newer websocket interface instead of deprecated live
+            logger.debug("Setting up Deepgram WebSocket connection")
             self.dg_connection = self.deepgram.listen.websocket.v("1")
 
             # Handler for transcript results
@@ -94,7 +99,9 @@ class Deepgram(stt.STT):
                     elif isinstance(result, (str, bytes, bytearray)):
                         transcript = json.loads(result)
                     else:
-                        print(f"Unrecognized transcript format: {type(result)}")
+                        logger.warning(
+                            "Unrecognized transcript format: %s", type(result)
+                        )
                         return
 
                     # Get the transcript text from the response
@@ -121,11 +128,16 @@ class Deepgram(stt.STT):
                     self._results_queue.put_nowait(
                         (is_final, transcript_text, metadata)
                     )
-                    print(
-                        f"Added transcript to queue: {transcript_text} (is_final: {is_final})"
+                    logger.debug(
+                        "Received transcript",
+                        extra={
+                            "is_final": is_final,
+                            "text_length": len(transcript_text),
+                            "confidence": metadata["confidence"],
+                        },
                     )
                 except Exception as e:
-                    print(f"Error processing transcript: {e}")
+                    logger.error("Error processing transcript", exc_info=e)
                     # Handle errors during transcript processing
                     error_obj = Exception(f"Transcript processing error: {e}")
                     self._results_queue.put_nowait((None, None, error_obj))
@@ -136,7 +148,7 @@ class Deepgram(stt.STT):
                 self.last_activity_time = time.time()
 
                 error_text = str(error) if error is not None else "Unknown error"
-                print(f"Deepgram error received: {error_text}")
+                logger.error("Deepgram error received: %s", error_text)
                 error_obj = Exception(f"Deepgram error: {error_text}")
                 # We can't use self.emit directly here since it's in a callback
                 # Instead, we'll put the error in the queue for the process_audio method to handle
@@ -147,6 +159,7 @@ class Deepgram(stt.STT):
             self.dg_connection.on(LiveTranscriptionEvents.Error, handle_error)
 
             # Start the connection
+            logger.info("Starting Deepgram connection with options %s", self.options)
             self.dg_connection.start(self.options)
 
             # Start the keep-alive task
@@ -155,7 +168,7 @@ class Deepgram(stt.STT):
 
         except Exception as e:
             # Log the error and set connection to None
-            print(f"Error setting up Deepgram connection: {e}")
+            logger.error("Error setting up Deepgram connection", exc_info=e)
             self.dg_connection = None
             # Put the error in the queue so it can be processed by _process_audio_impl
             self._results_queue.put_nowait((None, None, e))
@@ -163,6 +176,9 @@ class Deepgram(stt.STT):
     def _start_keep_alive_task(self):
         """Start the background task that sends keep-alive messages."""
         if self.keep_alive_task is None and self._running:
+            logger.debug(
+                "Starting keep-alive task with interval %ss", self.keep_alive_interval
+            )
             self.keep_alive_task = asyncio.create_task(self._keep_alive_loop())
 
     async def _keep_alive_loop(self):
@@ -176,6 +192,10 @@ class Deepgram(stt.STT):
 
                 if time_since_last_activity >= self.keep_alive_interval:
                     # Send a keep-alive message
+                    logger.debug(
+                        "Sending keep-alive message",
+                        extra={"time_since_activity": time_since_last_activity},
+                    )
                     await self.send_keep_alive()
                     # Update the last activity time
                     self.last_activity_time = time.time()
@@ -185,15 +205,17 @@ class Deepgram(stt.STT):
                 await asyncio.sleep(min(1.0, self.keep_alive_interval / 2))
             except asyncio.CancelledError:
                 # Task was cancelled, exit the loop
+                logger.info("Keep-alive task cancelled")
                 break
             except Exception as e:
-                print(f"Error in keep-alive loop: {e}")
+                logger.error("Error in keep-alive loop", exc_info=e)
                 # Sleep briefly to avoid tight loop in case of persistent errors
                 await asyncio.sleep(1.0)
 
     async def send_keep_alive(self):
         """Send a keep-alive message to maintain the connection."""
         if not self.dg_connection:
+            logger.warning("Cannot send keep-alive: no connection available")
             return False
 
         try:
@@ -212,10 +234,10 @@ class Deepgram(stt.STT):
                 # Fallback: try sending json as non-binary data
                 self.dg_connection.send(keep_alive_msg)
 
-            print("Sent keep-alive message to Deepgram")
+            logger.debug("Sent keep-alive message to Deepgram")
             return True
         except Exception as e:
-            print(f"Error sending keep-alive message: {e}")
+            logger.error("Error sending keep-alive message", exc_info=e)
             return False
 
     async def _process_audio_impl(
@@ -266,7 +288,7 @@ class Deepgram(stt.STT):
                 # Convert ndarray to bytes
                 audio_bytes = audio_data.tobytes()
                 self.dg_connection.send(audio_bytes)
-                print(f"Sent {len(audio_bytes)} bytes to Deepgram")
+                logger.debug(f"Sent {len(audio_bytes)} bytes to Deepgram")
 
                 # Update the last activity time since we sent audio
                 self.last_activity_time = time.time()
@@ -331,11 +353,11 @@ class Deepgram(stt.STT):
                             # Fallback to regular send for text data
                             self.dg_connection.send(close_msg)
                     except Exception as e:
-                        print(f"Error sending close message: {e}")
+                        logger.error("Error sending close message", exc_info=e)
 
                     # Finish the connection
                     self.dg_connection.finish()
                     self.dg_connection = None
                 except Exception as e:
                     # Just log errors during shutdown
-                    print(f"Error closing Deepgram connection: {e}")
+                    logger.error("Error closing Deepgram connection", exc_info=e)

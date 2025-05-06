@@ -86,3 +86,49 @@ Make sure to run the linter after you made changes and to fix issues that ruff c
 To make logging consistent, each python module should use this pattern for logging:
 
 -
+
+## Logging Guidelines
+
+Since this is a library, we follow specific logging practices to ensure good integration with applications:
+
+1. **Use standard library logging**: Always use the built-in `logging` module from the Python standard library.
+
+2. **Logger naming**: Each module should create a logger named after its package structure.
+   ```python
+   # In file getstream/agents/deepgram/stt.py
+   import logging
+   logger = logging.getLogger(__name__)  # Results in 'getstream.agents.deepgram.stt'
+   ```
+
+3. **No handler configuration**: As a library, we should not configure log handlers, set log levels globally, or modify the root logger. Those decisions belong to the application using the library.
+
+4. **Appropriate log levels**:
+   - `DEBUG`: Detailed diagnostic information (e.g., function entry/exit, variable values)
+   - `INFO`: Confirmation that things are working as expected (e.g., successful initialization)
+   - `WARNING`: Indication of potential issues that don't prevent operation (e.g., deprecated calls)
+   - `ERROR`: Error conditions that prevent specific operations (e.g., network failures)
+   - `CRITICAL`: Critical errors that may lead to program termination
+
+5. **Structured logging**: Include relevant context in log messages, using consistent key names:
+   ```python
+   logger.info("API request completed", extra={"request_id": req_id, "duration_ms": duration})
+   ```
+
+6. **Performance considerations**: Use lazy evaluation for expensive operations in logs:
+   ```python
+   # Good
+   logger.debug("Large data: %s", expensive_function()) # Only evaluates if debug is enabled
+
+   # Avoid
+   logger.debug(f"Large data: {expensive_function()}")  # Always evaluates
+   ```
+
+7. **Exception logging**: When catching exceptions, include the exception info:
+   ```python
+   try:
+       # some code
+   except Exception as e:
+       logger.error("Failed to process request", exc_info=e)
+   ```
+
+8. **Do not write directly to stdout or stderr**: As a library, usage of `print()` or writing to stderr/stdout should be avoided

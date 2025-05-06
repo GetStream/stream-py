@@ -8,7 +8,7 @@ import aiortc
 from getstream.video.rtc.track_util import add_ice_candidates_to_sdp, AudioTrackHandler
 from pyee.asyncio import AsyncIOEventEmitter
 
-logger = logging.getLogger("getstream.video.rtc.pc")
+logger = logging.getLogger(__name__)
 
 
 def parse_track_id(id: str) -> tuple[str, str]:
@@ -106,7 +106,9 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
             user = self.connection.participants_state.get_user_from_track_id(track.id)
 
             if track.kind == "audio":
-                handler = AudioTrackHandler(track, lambda pcm: self.emit("audio", pcm, user))
+                handler = AudioTrackHandler(
+                    track, lambda pcm: self.emit("audio", pcm, user)
+                )
                 asyncio.ensure_future(handler.start())
 
         @self.on("icegatheringstatechange")

@@ -1,9 +1,12 @@
 import abc
 import asyncio
+import logging
 from typing import Optional, Dict, Any, Tuple
 
 from pyee.asyncio import AsyncIOEventEmitter
 from getstream.video.rtc.track_util import PcmData
+
+logger = logging.getLogger(__name__)
 
 
 class STT(AsyncIOEventEmitter, abc.ABC):
@@ -35,6 +38,11 @@ class STT(AsyncIOEventEmitter, abc.ABC):
         self._buffer = []
         self._buffer_lock = asyncio.Lock()
 
+        logger.debug(
+            "Initialized STT base class",
+            extra={"sample_rate": sample_rate, "language": language},
+        )
+
     async def process_audio(
         self, pcm_data: PcmData, user_metadata: Optional[Dict[str, Any]] = None
     ):
@@ -46,10 +54,21 @@ class STT(AsyncIOEventEmitter, abc.ABC):
             user_metadata: Additional metadata about the user or session.
         """
         if self._is_closed:
+            logger.debug("Ignoring audio processing request - STT is closed")
             return
 
         try:
             # Process the audio data using the implementation-specific method
+            logger.debug(
+                "Processing audio chunk",
+                extra={
+                    "duration_ms": pcm_data.duration * 1000
+                    if pcm_data.duration
+                    else None,
+                    "has_user_metadata": user_metadata is not None,
+                },
+            )
+
             results = await self._process_audio_impl(pcm_data, user_metadata)
 
             # If no results were returned, just return
@@ -58,6 +77,16 @@ class STT(AsyncIOEventEmitter, abc.ABC):
 
             # Process each result and emit the appropriate event
             for is_final, text, metadata in results:
+                event_type = "transcript" if is_final else "partial_transcript"
+                logger.debug(
+                    f"Emitting {event_type} event",
+                    extra={
+                        "is_final": is_final,
+                        "text_length": len(text),
+                        "has_metadata": bool(metadata),
+                    },
+                )
+
                 if is_final:
                     self.emit("transcript", text, metadata)
                 else:
@@ -65,6 +94,7 @@ class STT(AsyncIOEventEmitter, abc.ABC):
 
         except Exception as e:
             # Emit any errors that occur during processing
+            logger.error("Error processing audio", exc_info=e)
             self.emit("error", e)
 
     @abc.abstractmethod

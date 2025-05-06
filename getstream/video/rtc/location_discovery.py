@@ -10,7 +10,7 @@ FALLBACK_LOCATION_NAME = "IAD"
 STREAM_PROD_URL = "https://hint.stream-io-video.com/"
 
 # Create a logger for the location discovery module
-logger = logging.getLogger("getstream.video.rtc.location_discovery")
+logger = logging.getLogger(__name__)
 
 
 class HTTPClient(Protocol):

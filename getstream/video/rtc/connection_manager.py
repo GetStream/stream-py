@@ -40,7 +40,7 @@ from getstream.video.rtc.pc import (
 
 from pyee.asyncio import AsyncIOEventEmitter
 
-logger = logging.getLogger("getstream.video.rtc.connection_manager")
+logger = logging.getLogger(__name__)
 
 
 class ConnectionError(Exception):

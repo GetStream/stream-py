@@ -16,7 +16,7 @@ from getstream.video.rtc.models import (
 from getstream.video.rtc.coordinator import join_call_coordinator_request
 from getstream.video.rtc.connection_manager import ConnectionManager
 
-logger = logging.getLogger("getstream.video.rtc")
+logger = logging.getLogger(__name__)
 
 try:
     import aiortc
