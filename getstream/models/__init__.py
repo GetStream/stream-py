@@ -7070,9 +7070,7 @@ class MessageNewEvent(DataClassJsonMixin):
         )
     )
     watcher_count: int = dc_field(metadata=dc_config(field_name="watcher_count"))
-    type: str = dc_field(
-        default="notification.thread_message_new", metadata=dc_config(field_name="type")
-    )
+    type: str = dc_field(default="message.new", metadata=dc_config(field_name="type"))
     team: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="team"))
     thread_participants: "Optional[List[User]]" = dc_field(
         default=None, metadata=dc_config(field_name="thread_participants")
@@ -10282,10 +10280,74 @@ class Role(DataClassJsonMixin):
 
 
 @dataclass
+class RuleBuilderAction(DataClassJsonMixin):
+    duration: Optional[int] = dc_field(
+        default=None, metadata=dc_config(field_name="duration")
+    )
+    ip_ban: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="ip_ban")
+    )
+    reason: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="reason")
+    )
+    shadow_ban: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="shadow_ban")
+    )
+    type: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="type"))
+
+
+@dataclass
+class RuleBuilderCondition(DataClassJsonMixin):
+    provider: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="provider")
+    )
+    threshold: Optional[int] = dc_field(
+        default=None, metadata=dc_config(field_name="threshold")
+    )
+    time_window: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="time_window")
+    )
+    labels: Optional[List[str]] = dc_field(
+        default=None, metadata=dc_config(field_name="labels")
+    )
+
+
+@dataclass
+class RuleBuilderConfig(DataClassJsonMixin):
+    _async: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="async")
+    )
+    enabled: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="enabled")
+    )
+    rules: "Optional[List[RuleBuilderRule]]" = dc_field(
+        default=None, metadata=dc_config(field_name="rules")
+    )
+
+
+@dataclass
+class RuleBuilderRule(DataClassJsonMixin):
+    enabled: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="enabled")
+    )
+    id: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="id"))
+    name: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="name"))
+    conditions: "Optional[List[RuleBuilderCondition]]" = dc_field(
+        default=None, metadata=dc_config(field_name="conditions")
+    )
+    action: "Optional[RuleBuilderAction]" = dc_field(
+        default=None, metadata=dc_config(field_name="action")
+    )
+
+
+@dataclass
 class S3Request(DataClassJsonMixin):
     s3_region: str = dc_field(metadata=dc_config(field_name="s3_region"))
     s3_api_key: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="s3_api_key")
+    )
+    s3_custom_endpoint_url: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="s3_custom_endpoint_url")
     )
     s3_secret: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="s3_secret")
@@ -12391,6 +12453,9 @@ class UpsertConfigRequest(DataClassJsonMixin):
     )
     google_vision_config: "Optional[GoogleVisionConfig]" = dc_field(
         default=None, metadata=dc_config(field_name="google_vision_config")
+    )
+    rule_builder_config: "Optional[RuleBuilderConfig]" = dc_field(
+        default=None, metadata=dc_config(field_name="rule_builder_config")
     )
     user: "Optional[UserRequest]" = dc_field(
         default=None, metadata=dc_config(field_name="user")

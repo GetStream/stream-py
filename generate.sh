@@ -8,7 +8,7 @@ then
   exit 1;
 fi
 
-if ! poetry -V &> /dev/null
+if ! uv -V &> /dev/null
 then
   echo "cannot find poetry in path, did you setup this repo correctly?";
   exit 1;
