@@ -330,20 +330,19 @@ async def test_play_audio_track_from_text(client: Stream):
     from getstream.agents.elevenlanbs import tts
 
     audio = audio_track.AudioStreamTrack(framerate=16000)
-    tts_instance = tts.ElevenLabs(
-        "sk_5e3f3c68a8e32f9dcdf4a78c61fbf6ca6154a19963e19cb0", "JBFqnCBsd6RMkjVDRZzb"
-    )
+    tts_instance = tts.ElevenLabs(voice_id="JBFqnCBsd6RMkjVDRZzb")
     tts_instance.set_output_track(audio)
     call = client.video.call("default", "mQbx3HG7wtTj")
 
     async with await rtc.join(call, "test-user") as connection:
+        # TODO: make connection.add_tracks block until the track is ready
         await connection.add_tracks(
             audio=audio,
         )
 
-        await asyncio.sleep(0.4)
         await tts_instance.send("hey how is it going?")
 
+        # wait a bit to avoid overlapping
         await asyncio.sleep(0.2)
         await tts_instance.send("do you think Stream is awesome so far?")
 
@@ -353,11 +352,20 @@ async def test_play_audio_track_from_text(client: Stream):
 @pytest.mark.asyncio
 async def test_vad(client: Stream):
     from getstream.agents.silero.vad import Silero
+    from getstream.agents.deepgram.stt import Deepgram
+    from getstream.agents.elevenlanbs import tts
 
+    audio = audio_track.AudioStreamTrack(framerate=16000)
     vad = Silero()
+    stt = Deepgram()
     call = client.video.call("default", "mQbx3HG7wtTj")
+    tts_instance = tts.ElevenLabs(voice_id="zOImbcIGBTxd0yXmwgRi")
+    tts_instance.set_output_track(audio)
 
     async with await rtc.join(call, "test-user") as connection:
+        await connection.add_tracks(
+            audio=audio,
+        )
 
         @connection.on("audio")
         async def on_audio(pcm: PcmData, user):
@@ -366,7 +374,17 @@ async def test_vad(client: Stream):
         @vad.on("audio")
         async def on_speech_detected(pcm: PcmData, user):
             # Handle speech from participants
-            print(f"Speech detected from user: {user} duration {pcm.duration}")
+            print(
+                f"{time.time()} Speech detected from user: {user} duration {pcm.duration}"
+            )
+            await stt.process_audio(pcm, None)
+
+        @stt.on("transcript")
+        async def on_transcript(text: str, user):
+            print(
+                f"{time.time()} got text from audio, will echo back the transcript {text}"
+            )
+            await tts_instance.send(text)
 
         await connection.wait()
 
@@ -378,6 +396,6 @@ async def test_speech_to_text(client: Stream):
     call = client.video.call("default", "mQbx3HG7wtTj")
 
     async with await rtc.join(call, "test-user") as connection:
-        stt = Deepgram(api_key="7575244dd57da3eb2cefe9744d70df37a87275ff")
+        stt = Deepgram()
         print(stt)
         await connection.wait()

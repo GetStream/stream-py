@@ -1,12 +1,31 @@
 from getstream.agents import tts
 from getstream.video.rtc.audio_track import AudioStreamTrack
-from typing import Iterator
+from typing import Iterator, Optional
+import os
+
 
 class ElevenLabs(tts.TTS):
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        voice_id: str = "21m00Tcm4TlvDq8ikWAM",
+        model_id: str = "eleven_multilingual_v2",
+    ):
+        """
+        Initialize the ElevenLabs TTS service.
 
-    def __init__(self, api_key: str, voice_id: str, model_id="eleven_multilingual_v2"):
+        Args:
+            api_key: ElevenLabs API key. If not provided, the ELEVENLABS_API_KEY
+                    environment variable will be used automatically.
+            voice_id: The voice ID to use for synthesis
+            model_id: The model ID to use for synthesis
+        """
         super().__init__()
         from elevenlabs.client import ElevenLabs
+
+        # elevenlabs sdk does not always load the env correctly (default kwarg)
+        if not api_key:
+            api_key = os.environ.get("ELEVENLABS_API_KEY")
 
         self.client = ElevenLabs(api_key=api_key)
         self.voice_id = voice_id
@@ -21,10 +40,10 @@ class ElevenLabs(tts.TTS):
     async def synthesize(self, text: str, *args, **kwargs) -> Iterator[bytes]:
         """
         Convert text to speech using ElevenLabs API.
-        
+
         Args:
             text: The text to convert to speech
-            
+
         Returns:
             An iterator of audio chunks as bytes
         """
@@ -32,7 +51,7 @@ class ElevenLabs(tts.TTS):
             text=text,
             voice_id=self.voice_id,
             output_format=self.output_format,
-            model_id=self.model_id
+            model_id=self.model_id,
         )
-        
+
         return audio_stream

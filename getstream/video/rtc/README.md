@@ -23,6 +23,7 @@
 - [ ] pypi package
 - [ ] Move ICE gather step to SFU (support without trickle)
 - [ ] Remove peer connection bundling hack from Python and move to SFU
+- [ ] Make connection.add_tracks wait correctly for the track to be ready
 
 # v2
 
@@ -48,15 +49,15 @@ with call.join() as connection:
     # a VAD handles "audio" events from the connection and emits "audio" events that contain speech
     vad = vad.Silero(option={})
     agent.add(vad)
-    
+
     # a TTS step handles "speech.audio" events and emits "speech.text" events
     tts = whisper.Whisper(options={})
     agent.add(tts)
-    
+
     # a simple LLM gets a "speech.text" event and creates "speech.text" events
     llm = gemini.LLM(call=call, tools=[])
     agent.add(llm)
-    
+
     # a TTS gets a "speech.text" event and creates a "audio" event
     tts = elevenlabs.TTS()
     agent.add(tts)

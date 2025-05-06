@@ -525,6 +525,8 @@ class ConnectionManager(AsyncIOEventEmitter):
                 raise ConnectionError(
                     f"Unexpected error during publisher setup: {e}"
                 ) from e
+            # TODO: use proper syncronization here!
+            await asyncio.sleep(1.2)
         finally:
             logger.info("Released publisher negotiation lock")
             self.publisher_negotiation_lock.release()

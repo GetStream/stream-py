@@ -79,3 +79,10 @@ When calling a client method that does an API call, an exception will be thrown 
 ### Linting
 
 Make sure to run the linter after you made changes and to fix issues that ruff cannot fix automatically using `uv run ruff format getstream/ tests/`
+
+
+### Logging
+
+To make logging consistent, each python module should use this pattern for logging:
+
+-
