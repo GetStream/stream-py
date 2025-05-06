@@ -1,6 +1,7 @@
 import abc
 import logging
 import inspect
+import time
 from typing import Optional, Dict, Any, Union, Iterator, AsyncIterator
 
 from pyee.asyncio import AsyncIOEventEmitter
@@ -89,25 +90,73 @@ class TTS(AsyncIOEventEmitter, abc.ABC):
             raise ValueError("No output track set. Call set_output_track() first.")
 
         try:
+            # Log start of synthesis
+            start_time = time.time()
+            logger.debug(
+                "Starting text-to-speech synthesis", extra={"text_length": len(text)}
+            )
+
+            # Synthesize audio
             audio_data = await self.synthesize(text, *args, **kwargs)
 
+            # Calculate synthesis time
+            synthesis_time = time.time() - start_time
+
+            # Track total audio duration and bytes
+            total_audio_bytes = 0
+            audio_chunks = 0
+
             if isinstance(audio_data, bytes):
+                total_audio_bytes = len(audio_data)
+                audio_chunks = 1
                 await self._track.write(audio_data)
                 self.emit("audio", audio_data, user)
             elif inspect.isasyncgen(audio_data):
                 async for chunk in audio_data:
+                    total_audio_bytes += len(chunk)
+                    audio_chunks += 1
                     await self._track.write(chunk)
                     self.emit("audio", chunk, user)
             elif hasattr(audio_data, "__iter__") and not isinstance(
                 audio_data, (str, bytes, bytearray)
             ):
                 for chunk in audio_data:
+                    total_audio_bytes += len(chunk)
+                    audio_chunks += 1
                     await self._track.write(chunk)
                     self.emit("audio", chunk, user)
             else:
                 raise TypeError(
                     f"Unsupported return type from synthesize: {type(audio_data)}"
                 )
+
+            # Log completion with timing information
+            end_time = time.time()
+            total_time = end_time - start_time
+
+            # Estimate audio duration - this is approximate without knowing format details
+            # Use track framerate if available, otherwise assume 16kHz
+            sample_rate = self._track.framerate if self._track else 16000
+            # For s16 format (16-bit samples), each byte is half a sample
+            estimated_audio_duration_ms = (total_audio_bytes / 2) / (sample_rate / 1000)
+
+            logger.info(
+                "Text-to-speech synthesis completed",
+                extra={
+                    "text_length": len(text),
+                    "synthesis_time_ms": synthesis_time * 1000,
+                    "total_time_ms": total_time * 1000,
+                    "audio_bytes": total_audio_bytes,
+                    "audio_chunks": audio_chunks,
+                    "estimated_audio_duration_ms": estimated_audio_duration_ms,
+                    "real_time_factor": (synthesis_time * 1000)
+                    / estimated_audio_duration_ms
+                    if estimated_audio_duration_ms > 0
+                    else None,
+                    "sample_rate": sample_rate,
+                },
+            )
+
         except Exception as e:
             # Emit any errors that occur during processing
             self.emit("error", e)

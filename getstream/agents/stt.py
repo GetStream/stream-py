@@ -1,6 +1,7 @@
 import abc
 import asyncio
 import logging
+import time
 from typing import Optional, Dict, Any, Tuple
 
 from pyee.asyncio import AsyncIOEventEmitter
@@ -59,20 +60,30 @@ class STT(AsyncIOEventEmitter, abc.ABC):
 
         try:
             # Process the audio data using the implementation-specific method
+            audio_duration_ms = (
+                pcm_data.duration * 1000 if hasattr(pcm_data, "duration") else None
+            )
             logger.debug(
                 "Processing audio chunk",
                 extra={
-                    "duration_ms": pcm_data.duration * 1000
-                    if pcm_data.duration
-                    else None,
+                    "duration_ms": audio_duration_ms,
                     "has_user_metadata": user_metadata is not None,
                 },
             )
 
+            start_time = time.time()
             results = await self._process_audio_impl(pcm_data, user_metadata)
+            processing_time = time.time() - start_time
 
             # If no results were returned, just return
             if not results:
+                logger.info(
+                    "No speech detected in audio",
+                    extra={
+                        "processing_time_ms": processing_time * 1000,
+                        "audio_duration_ms": audio_duration_ms,
+                    },
+                )
                 return
 
             # Process each result and emit the appropriate event
@@ -88,6 +99,18 @@ class STT(AsyncIOEventEmitter, abc.ABC):
                 )
 
                 if is_final:
+                    logger.info(
+                        "Processed speech to text",
+                        extra={
+                            "processing_time_ms": processing_time * 1000,
+                            "audio_duration_ms": audio_duration_ms,
+                            "text_length": len(text),
+                            "real_time_factor": (processing_time * 1000)
+                            / audio_duration_ms
+                            if audio_duration_ms
+                            else None,
+                        },
+                    )
                     self.emit("transcript", text, metadata)
                 else:
                     self.emit("partial_transcript", text, metadata)

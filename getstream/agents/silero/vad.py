@@ -20,7 +20,7 @@ class Silero(VAD):
         self,
         sample_rate: int = 48000,
         frame_size: int = 512,
-        silence_threshold: float = 0.5,
+        silence_threshold: float = 0.2,
         speech_pad_ms: int = 300,
         min_speech_ms: int = 250,
         max_speech_ms: int = 30000,

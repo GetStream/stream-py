@@ -350,7 +350,7 @@ async def test_play_audio_track_from_text(client: Stream):
 
 
 @pytest.mark.asyncio
-async def test_vad(client: Stream):
+async def test_full_echo(client: Stream):
     from getstream.agents.silero.vad import Silero
     from getstream.agents.deepgram.stt import Deepgram
     from getstream.agents.elevenlanbs import tts
@@ -363,13 +363,11 @@ async def test_vad(client: Stream):
     tts_instance.set_output_track(audio)
 
     async with await rtc.join(call, "test-user") as connection:
-        print("connected")
-
         await connection.add_tracks(
             audio=audio,
         )
 
-        print("track is added correctly now")
+        await tts_instance.send("welcome my friend, how's it going?")
 
         @connection.on("audio")
         async def on_audio(pcm: PcmData, user):
@@ -389,16 +387,4 @@ async def test_vad(client: Stream):
             )
             await tts_instance.send(text)
 
-        await connection.wait()
-
-
-@pytest.mark.asyncio
-async def test_speech_to_text(client: Stream):
-    from getstream.agents.deepgram.stt import Deepgram
-
-    call = client.video.call("default", "mQbx3HG7wtTj")
-
-    async with await rtc.join(call, "test-user") as connection:
-        stt = Deepgram()
-        print(stt)
         await connection.wait()
