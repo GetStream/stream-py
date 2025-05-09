@@ -5,7 +5,7 @@ from dataclasses_json import DataClassJsonMixin
 from dataclasses_json import config as dc_config
 from datetime import datetime
 from marshmallow import fields
-from typing import List, Dict, Optional, Final, NewType
+from typing import List, Dict, Optional, Final, NewType, Literal
 from getstream.utils import encode_datetime, datetime_from_unix_ns
 
 
@@ -797,6 +797,9 @@ class BanActionRequest(DataClassJsonMixin):
     )
     timeout: Optional[int] = dc_field(
         default=None, metadata=dc_config(field_name="timeout")
+    )
+    delete_messages: Optional[Literal["hard", "delete"]] = dc_field(
+        default=None, metadata=dc_config(field_name="delete_messages")
     )
 
 
