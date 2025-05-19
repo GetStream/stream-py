@@ -3,8 +3,7 @@ import numpy as np
 from aiortc import MediaStreamTrack
 
 import logging
-import re
-from typing import Dict, Any, List, NamedTuple, Callable
+from typing import Dict, Any, NamedTuple, Callable
 
 import aiortc
 from aiortc.mediastreams import MediaStreamError
@@ -38,48 +37,6 @@ class PcmData(NamedTuple):
 
         # Calculate duration based on sample rate
         return num_samples / self.sample_rate
-
-
-def add_ice_candidates_to_sdp(sdp: str, candidates: List[str]) -> str:
-    """
-    Adds ICE candidates to each media section (m=) in an SDP offer.
-
-    Args:
-        sdp: The original SDP string.
-        candidates: A list of ICE candidate strings (without the "a=candidate:" prefix).
-
-    Returns:
-        The modified SDP string with candidates added.
-    """
-    if not candidates:
-        return sdp
-
-    candidate_lines = [f"a=candidate:{c}" for c in candidates]
-    candidate_lines.append("a=end-of-candidates")
-    candidate_section = "\n".join(candidate_lines) + "\n"  # Ensure trailing newline
-
-    # Split SDP into session part and media parts, keeping the delimiter
-    parts = re.split("(\nm=)", sdp)
-    if not parts or len(parts) <= 1:
-        return sdp
-
-    # The first part is always the session description
-    modified_sdp_parts = [parts[0]]
-
-    # Iterate through the pairs of (delimiter, media_section)
-    for i in range(1, len(parts), 2):
-        if i + 1 < len(parts):
-            newline_and_m_separator = parts[i]  # This is '\nm='
-            media_section_content = parts[i + 1]
-            # Append the separator, the original media content (stripped), and the candidate section
-            modified_sdp_parts.append(
-                newline_and_m_separator
-                + media_section_content.rstrip()
-                + "\n"
-                + candidate_section
-            )
-
-    return "".join(modified_sdp_parts)
 
 
 def patch_sdp_offer(sdp: str) -> str:

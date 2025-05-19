@@ -388,3 +388,15 @@ async def test_full_echo(client: Stream):
             await tts_instance.send(text)
 
         await connection.wait()
+
+
+@pytest.mark.asyncio
+async def test_simple_capture(client: Stream):
+    call = client.video.call("default", "mQbx3HG7wtTj")
+    async with await rtc.join(call, "test-user") as connection:
+
+        @connection.on("audio")
+        async def on_audio(pcm: PcmData, user):
+            print("got audio")
+
+        await connection.wait()

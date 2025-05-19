@@ -5,7 +5,7 @@ from typing import Optional, Any
 
 import aiortc
 
-from getstream.video.rtc.track_util import add_ice_candidates_to_sdp, AudioTrackHandler
+from getstream.video.rtc.track_util import AudioTrackHandler
 from pyee.asyncio import AsyncIOEventEmitter
 
 logger = logging.getLogger(__name__)
@@ -49,28 +49,16 @@ class PublisherPeerConnection(aiortc.RTCPeerConnection):
     async def handle_answer(self, response):
         """Handles the SDP answer received from the SFU for the publisher connection."""
 
-        logger.info(
-            f"Publisher received answer {response.sdp}, now waiting for ICE candidates."
-        )
-        await self._received_ice_event.wait()
-
-        # patch SDP to include the ICE candidates that were collected in the meantime
-        patched_sdp = add_ice_candidates_to_sdp(response.sdp, self._ice_candidates)
+        logger.info(f"Publisher received answer {response.sdp}")
 
         remote_description = aiortc.RTCSessionDescription(
-            type="answer", sdp=patched_sdp
+            type="answer", sdp=response.sdp
         )
 
         await self.setRemoteDescription(remote_description)
         logger.info(
             f"Publisher remote description set successfully. {self.localDescription}"
         )
-
-    async def handle_remote_ice_candidate(self, candidate: str) -> None:
-        self._ice_candidates.append(candidate)
-        # this is just here to test things
-        await asyncio.sleep(0.2)
-        self._received_ice_event.set()
 
 
 class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
@@ -88,11 +76,6 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
         )
         super().__init__(configuration)
         self.connection = connection
-
-        # this event is set when the first ice event is received from the SFU
-        # we need this setup because aiortc does not support ice trickling
-        # our SFU atm assumes that clients support ice trickling and does not include candidates
-        self._received_ice_event = asyncio.Event()
 
         # the list of ice candidates received via signaling
         self._ice_candidates = []
@@ -116,10 +99,6 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
             logger.info(f"ICE gathering state changed to {self.iceGatheringState}")
             if self.iceGatheringState == "complete":
                 logger.info("All ICE candidates have been gathered.")
-
-    async def handle_remote_ice_candidate(self, candidate: str) -> None:
-        self._ice_candidates.append(candidate)
-        self._received_ice_event.set()
 
     def handle_track_ended(self, track: aiortc.mediastreams.MediaStreamTrack) -> None:
         logger.info(f"track ended: f{track.id}")

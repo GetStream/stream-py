@@ -5,6 +5,7 @@ import asyncio
 import logging
 from typing import Optional
 
+import aioice
 import aiortc
 
 from getstream.video.call import Call
@@ -30,7 +31,6 @@ from getstream.video.rtc.track_util import (
     BufferedMediaTrack,
     detect_video_properties,
     patch_sdp_offer,
-    add_ice_candidates_to_sdp,
 )
 
 from getstream.video.rtc.pc import (
@@ -258,27 +258,13 @@ class ConnectionManager(AsyncIOEventEmitter):
         await self.subscriber_negotiation_lock.acquire()
 
         try:
-            logger.info(
-                "Subscriber offer received, waiting for ICE gathering to be complete"
-            )
-            # Wait for at least one ICE candidate to be received/gathered locally
-            # This avoids sending an answer before we have any candidates to include.
-            # Note: In a production scenario, you might want a more sophisticated
-            # mechanism to ensure *all* relevant candidates are gathered, possibly
-            # involving the 'icegatheringstatechange' event being 'complete'.
-            await self.subscriber_pc._received_ice_event.wait()
-
-            patched_sdp = add_ice_candidates_to_sdp(
-                event.sdp, self.subscriber_pc._ice_candidates
-            )
-
             # The SDP offer from the SFU might already contain candidates (trickled)
             # or have a different structure. We set it as the remote description.
             # The aiortc library handles merging and interpretation.
             remote_description = aiortc.RTCSessionDescription(
-                type="offer", sdp=patched_sdp
+                type="offer", sdp=event.sdp
             )
-            logger.debug(f"""Setting remote description with patched SDP:
+            logger.debug(f"""Setting remote description with SDP:
             {remote_description.sdp}""")
             await self.subscriber_pc.setRemoteDescription(remote_description)
 
@@ -313,22 +299,35 @@ class ConnectionManager(AsyncIOEventEmitter):
             self.subscriber_negotiation_lock.release()
 
     async def _on_ice_trickle(self, event: events_pb2.ICETrickle):
-        logger.info(
-            f"received ICE trickle for peer type {models_pb2.PEER_TYPE_SUBSCRIBER}"
-        )
-        candidate_sdp = json.loads(event.ice_candidate)["candidate"]
+        logger.info(f"Received ICE trickle for peer type {event.peer_type}")
+        try:
+            # Parse candidate and create RTCIceCandidate
+            ice_candidate = json.loads(event.ice_candidate)
+            candidate_sdp = ice_candidate.get("candidate")
+            if not candidate_sdp:
+                logger.error("Missing 'candidate' field in ICE trickle")
+                return
 
-        if event.peer_type == models_pb2.PEER_TYPE_SUBSCRIBER:
-            await self.subscriber_pc.handle_remote_ice_candidate(candidate_sdp)
-        else:
-            # if we receive this and publisher_pc is not set, something is very wrong and we should crash
-            # Check if publisher_pc exists before accessing it
-            if self.publisher_pc:
-                await self.publisher_pc.handle_remote_ice_candidate(candidate_sdp)
+            candidate = aiortc.rtcicetransport.candidate_from_aioice(
+                aioice.Candidate.from_sdp(candidate_sdp)
+            )
+            candidate.sdpMid = ice_candidate.get("sdpMid")
+            candidate.sdpMLineIndex = ice_candidate.get("sdpMLineIndex")
+
+            # Add candidate to appropriate peer connection
+            if event.peer_type == models_pb2.PEER_TYPE_SUBSCRIBER:
+                if self.subscriber_pc:
+                    await self.subscriber_pc.addIceCandidate(candidate)
+                else:
+                    logger.warning("Subscriber peer connection not initialized")
             else:
-                logger.warning(
-                    "Received ICE trickle for publisher, but publisher_pc is not initialized."
-                )
+                if self.publisher_pc:
+                    await self.publisher_pc.addIceCandidate(candidate)
+                else:
+                    logger.warning("Publisher peer connection not initialized")
+
+        except Exception as e:
+            logger.error(f"Error handling ICE trickle: {e}")
 
     def _create_join_request(self) -> events_pb2.JoinRequest:
         """Create a JoinRequest protobuf message for the WebSocket connection.
