@@ -67,6 +67,9 @@ class CommonRestClient(BaseClient):
         grants: Optional[Dict[str, List[str]]] = None,
         huawei_config: Optional[HuaweiConfig] = None,
         image_upload_config: Optional[FileUploadConfig] = None,
+        moderation_dashboard_preferences: Optional[
+            ModerationDashboardPreferences
+        ] = None,
         push_config: Optional[PushConfig] = None,
         xiaomi_config: Optional[XiaomiConfig] = None,
     ) -> StreamResponse[Response]:
@@ -112,6 +115,7 @@ class CommonRestClient(BaseClient):
             grants=grants,
             huawei_config=huawei_config,
             image_upload_config=image_upload_config,
+            moderation_dashboard_preferences=moderation_dashboard_preferences,
             push_config=push_config,
             xiaomi_config=xiaomi_config,
         )
