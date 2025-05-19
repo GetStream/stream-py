@@ -2,7 +2,7 @@ import logging
 import torch
 import numpy as np
 
-from getstream.agents.vad import VAD
+from getstream.plugins.vad import VAD
 from getstream.video.rtc.track_util import PcmData
 
 logger = logging.getLogger(__name__)

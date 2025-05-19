@@ -1,5 +1,4 @@
 import os
-import json
 import pytest
 import asyncio
 import logging
@@ -9,8 +8,9 @@ import tempfile
 
 import torchaudio
 
-from getstream.agents.silero.vad import Silero
+from getstream.plugins.vad.silero import Silero
 from getstream.video.rtc.track_util import PcmData
+from getstream.plugins.test_utils import get_audio_asset, get_json_metadata
 
 # Setup logging for the test
 logging.basicConfig(level=logging.INFO)
@@ -20,22 +20,19 @@ logger = logging.getLogger(__name__)
 @pytest.fixture
 def mia_mp3_path():
     """Return the path to the mia.mp3 test file."""
-    return os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "mia.mp3")
+    return get_audio_asset("mia.mp3")
 
 
 @pytest.fixture
 def mia_json_path():
     """Return the path to the mia.json metadata file."""
-    return os.path.join(
-        os.path.dirname(os.path.dirname(__file__)), "assets", "mia.json"
-    )
+    return get_audio_asset("mia.json")
 
 
 @pytest.fixture
-def mia_metadata(mia_json_path):
+def mia_metadata():
     """Load the mia.json metadata."""
-    with open(mia_json_path, "r") as f:
-        return json.load(f)
+    return get_json_metadata("mia.json")
 
 
 @pytest.fixture
@@ -198,127 +195,94 @@ def verify_detected_speech(detected_segments, expected_duration, tolerance=0.55)
         for i, segment in enumerate(detected_segments):
             logger.info(f"Speech segment {i+1}: {segment['duration']:.2f}s")
 
-    # Assert that the detected duration is within tolerance
-    assert min_expected <= total_detected_duration <= max_expected, (
-        f"Detected duration {total_detected_duration:.2f}s not within expected range "
-        f"({min_expected:.2f}s - {max_expected:.2f}s)"
-    )
+    # Verify that the duration is within expected range
+    assert (
+        min_expected <= total_detected_duration <= max_expected
+    ), f"Expected speech duration {expected_duration}s, got {total_detected_duration}s"
 
 
 @pytest.mark.asyncio
 async def test_silero_vad_initialization():
-    """Test that the Silero VAD initializes correctly."""
+    """Test that the Silero VAD can be initialized with default parameters."""
     vad = Silero()
     assert vad is not None
-    await vad.close()
+    assert vad.model is not None
 
 
 @pytest.mark.asyncio
 async def test_silero_vad_speech_detection(audio_data, mia_metadata, vad_setup):
-    """Test that the Silero VAD correctly detects speech in the audio file."""
+    """Test that the Silero VAD can detect speech in an audio file."""
     vad, detected_segments = vad_setup
     data, sample_rate = audio_data
 
-    try:
-        # Process the audio
-        await process_audio_file(vad, data, sample_rate, detected_segments)
+    # Process the entire audio file
+    await process_audio_file(vad, data, sample_rate, detected_segments)
 
-        # Get expected segments from metadata
-        expected_segments = mia_metadata["segments"]
-        expected_duration = sum(
-            seg["end_time"] - seg["start_time"] for seg in expected_segments
-        )
-
-        # Verify the results
-        verify_detected_speech(detected_segments, expected_duration)
-
-    finally:
-        # Clean up
-        await vad.close()
+    # Verify speech detection
+    expected_duration = mia_metadata["duration"]
+    verify_detected_speech(detected_segments, expected_duration)
 
 
 @pytest.mark.asyncio
 async def test_vad_with_connection_manager_format(audio_data, vad_setup):
-    """Test that the VAD works with the connection_manager's audio event format."""
-    vad, _ = vad_setup
+    """Test VAD with PCM data in bytes format."""
+    vad, detected_segments = vad_setup
     data, sample_rate = audio_data
 
-    # Flag to indicate audio was received
-    audio_received = asyncio.Event()
-    received_audio_data = []
+    # Resample if needed
+    if sample_rate != vad.sample_rate:
+        import scipy.signal
 
-    # Create event handler similar to connection_manager
+        num_samples = int(len(data) * vad.sample_rate / sample_rate)
+        data = scipy.signal.resample(data, num_samples)
+
+    # Convert to int16 PCM bytes
+    pcm_bytes = (data * 32768.0).astype(np.int16).tobytes()
+
     @vad.on("audio")
     async def on_audio(pcm_data, user):
-        received_audio_data.append(pcm_data)
-        audio_received.set()
-
-    try:
-        # Resample if needed
-        if sample_rate != vad.sample_rate:
-            import scipy.signal
-
-            num_samples = int(len(data) * vad.sample_rate / sample_rate)
-            data = scipy.signal.resample(data, num_samples)
-
-        # Convert to int16 PCM
-        pcm_samples = (data * 32768.0).astype(np.int16)
-
-        # Create user metadata similar to what connection_manager would provide
-        user_metadata = {"user_id": "test-user", "session_id": "test-session"}
-
-        # Process the audio data with user metadata
-        await vad.process_audio(
-            PcmData(samples=pcm_samples, sample_rate=vad.sample_rate, format="s16"),
-            user_metadata,
+        # Use the duration property instead of calling it as a method
+        duration = pcm_data.duration
+        detected_segments.append({"duration": duration, "bytes": len(pcm_data.samples)})
+        logger.info(
+            f"Detected speech segment: {duration:.2f} seconds ({len(pcm_data.samples)} bytes)"
         )
 
-        # Wait for audio event or timeout
-        try:
-            await asyncio.wait_for(audio_received.wait(), timeout=5.0)
-        except asyncio.TimeoutError:
-            assert False, "No audio event was emitted within timeout"
+    # Process the audio data as bytes
+    await vad.process_audio(
+        PcmData(samples=pcm_bytes, sample_rate=vad.sample_rate, format="s16")
+    )
 
-        # Verify that audio was received with correct metadata
-        assert len(received_audio_data) > 0, "No audio data was received"
+    # Ensure we flush any remaining speech
+    await vad._flush_speech_buffer()
 
-    finally:
-        # Clean up
-        await vad.close()
+    # Add a small delay to allow all events to be processed
+    await asyncio.sleep(0.1)
+
+    # Verify that speech was detected
+    assert len(detected_segments) > 0, "No speech segments were detected"
+    logger.info(f"Detected {len(detected_segments)} speech segments")
 
 
 @pytest.mark.asyncio
 async def test_silero_vad_with_short_chunks(audio_data, mia_metadata):
-    """Test the Silero VAD with audio streamed in small chunks like in WebRTC."""
-    # Create VAD with parameters optimized for chunked processing
+    """Test that the Silero VAD works correctly with small audio chunks."""
+    # Create a new VAD for this test
     vad = Silero(
-        sample_rate=16000,  # Match the model's native sample rate
-        frame_size=320,  # 20ms at 16kHz
-        silence_threshold=0.2,  # Lower threshold to be more sensitive
-        speech_pad_ms=500,  # Increase padding to connect speech segments
-        min_speech_ms=100,  # Lower minimum to catch shorter segments
-        max_speech_ms=30000,
+        sample_rate=16000,  # Use the model's native sample rate
+        speech_pad_ms=400,  # Increase padding to connect nearby speech segments
+        min_speech_ms=100,  # Keep minimum low to catch shorter segments
+        silence_threshold=0.2,  # Lower threshold for more sensitivity
     )
-
-    # Create a list to store detected speech segments
     detected_segments = []
     data, sample_rate = audio_data
 
-    try:
-        # Process the audio in small chunks
-        await process_audio_in_chunks(
-            vad, data, sample_rate, detected_segments, chunk_size_ms=20
-        )
+    # Process the audio in small chunks to simulate streaming
+    await process_audio_in_chunks(
+        vad, data, sample_rate, detected_segments, chunk_size_ms=20
+    )
 
-        # Get expected segments from metadata
-        expected_segments = mia_metadata["segments"]
-        expected_duration = sum(
-            seg["end_time"] - seg["start_time"] for seg in expected_segments
-        )
-
-        # Verify the results with increased tolerance for chunked processing
-        verify_detected_speech(detected_segments, expected_duration, tolerance=0.6)
-
-    finally:
-        # Clean up
-        await vad.close()
+    # Verify that speech was detected and is close to expected duration
+    # We allow more tolerance when processing in chunks
+    expected_duration = mia_metadata["duration"]
+    verify_detected_speech(detected_segments, expected_duration, tolerance=0.6)

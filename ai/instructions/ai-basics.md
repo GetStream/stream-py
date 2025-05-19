@@ -95,9 +95,9 @@ Since this is a library, we follow specific logging practices to ensure good int
 
 2. **Logger naming**: Each module should create a logger named after its package structure.
    ```python
-   # In file getstream/agents/deepgram/stt.py
+   # In file getstream/plugins/stt/deepgram/stt.py
    import logging
-   logger = logging.getLogger(__name__)  # Results in 'getstream.agents.deepgram.stt'
+   logger = logging.getLogger(__name__)  # Results in 'getstream.plugins.stt.deepgram.stt'
    ```
 
 3. **No handler configuration**: As a library, we should not configure log handlers, set log levels globally, or modify the root logger. Those decisions belong to the application using the library.

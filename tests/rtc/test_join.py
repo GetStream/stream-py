@@ -327,10 +327,10 @@ async def test_play_file(client: Stream):
 
 @pytest.mark.asyncio
 async def test_play_audio_track_from_text(client: Stream):
-    from getstream.agents.elevenlanbs import tts
+    from getstream.plugins.tts.elevenlabs import ElevenLabs
 
     audio = audio_track.AudioStreamTrack(framerate=16000)
-    tts_instance = tts.ElevenLabs(voice_id="JBFqnCBsd6RMkjVDRZzb")
+    tts_instance = ElevenLabs(voice_id="JBFqnCBsd6RMkjVDRZzb")
     tts_instance.set_output_track(audio)
     call = client.video.call("default", "mQbx3HG7wtTj")
 
@@ -351,15 +351,15 @@ async def test_play_audio_track_from_text(client: Stream):
 
 @pytest.mark.asyncio
 async def test_full_echo(client: Stream):
-    from getstream.agents.silero.vad import Silero
-    from getstream.agents.deepgram.stt import Deepgram
-    from getstream.agents.elevenlanbs import tts
+    from getstream.plugins.vad.silero import Silero
+    from getstream.plugins.stt.deepgram import Deepgram
+    from getstream.plugins.tts.elevenlabs import ElevenLabs
 
     audio = audio_track.AudioStreamTrack(framerate=16000)
     vad = Silero()
     stt = Deepgram()
     call = client.video.call("default", "mQbx3HG7wtTj")
-    tts_instance = tts.ElevenLabs(voice_id="zOImbcIGBTxd0yXmwgRi")
+    tts_instance = ElevenLabs(voice_id="zOImbcIGBTxd0yXmwgRi")
     tts_instance.set_output_track(audio)
 
     async with await rtc.join(call, "test-user") as connection:

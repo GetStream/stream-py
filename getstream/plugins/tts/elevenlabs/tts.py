@@ -1,10 +1,10 @@
-from getstream.agents import tts
+from getstream.plugins.tts import TTS
 from getstream.video.rtc.audio_track import AudioStreamTrack
 from typing import Iterator, Optional
 import os
 
 
-class ElevenLabs(tts.TTS):
+class ElevenLabs(TTS):
     def __init__(
         self,
         api_key: Optional[str] = None,

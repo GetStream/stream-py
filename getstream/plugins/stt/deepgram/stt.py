@@ -7,13 +7,13 @@ import os
 import time
 
 from deepgram import DeepgramClient, LiveTranscriptionEvents, LiveOptions
-from getstream.agents import stt
+from getstream.plugins.stt import STT
 from getstream.video.rtc.track_util import PcmData
 
 logger = logging.getLogger(__name__)
 
 
-class Deepgram(stt.STT):
+class Deepgram(STT):
     """
     Deepgram-based Speech-to-Text implementation.
 
@@ -30,7 +30,7 @@ class Deepgram(stt.STT):
         self,
         api_key: Optional[str] = None,
         options: Optional[LiveOptions] = None,
-        sample_rate: int = 16000,
+        sample_rate: int = 48000,
         language: str = "en-US",
         keep_alive_interval: float = 5.0,
     ):
@@ -41,7 +41,7 @@ class Deepgram(stt.STT):
             api_key: Deepgram API key. If not provided, the DEEPGRAM_API_KEY
                     environment variable will be used automatically.
             options: Deepgram live transcription options
-            sample_rate: Sample rate of the audio in Hz
+            sample_rate: Sample rate of the audio in Hz (default: 48000)
             language: Language code for transcription
             keep_alive_interval: Interval in seconds to send keep-alive messages.
                                 Default is 5.0 seconds (recommended value by Deepgram)
@@ -74,6 +74,7 @@ class Deepgram(stt.STT):
         self.last_activity_time = time.time()
         self.keep_alive_task = None
         self._running = False
+        self._setup_attempted = False
 
         self._setup_connection()
 
@@ -247,117 +248,127 @@ class Deepgram(stt.STT):
         Process audio data through Deepgram for transcription.
 
         Args:
-            pcm_data: The PCM audio data to process
-            user_metadata: Additional user metadata (ignored by Deepgram)
+            pcm_data: The PCM audio data to process.
+            user_metadata: Additional metadata about the user or session.
 
         Returns:
             A list of tuples (is_final, text, metadata) representing transcription results,
             or None if no results are available.
         """
-        # Ensure we have a valid connection
+        if self._is_closed:
+            logger.warning("Deepgram connection is closed, ignoring audio")
+            return None
+
+        # Check if the input sample rate matches the expected sample rate
+        if pcm_data.sample_rate != self.sample_rate:
+            logger.warning(
+                "Input audio sample rate (%s Hz) does not match the expected sample rate (%s Hz). "
+                "This may result in incorrect transcriptions. Consider resampling the audio.",
+                pcm_data.sample_rate,
+                self.sample_rate,
+            )
+
+        # Ensure connection is set up
+        if not self.dg_connection and not self._setup_attempted:
+            logger.warning("Deepgram connection not initialized, attempting setup")
+            self._setup_connection()
+            self._setup_attempted = True
+
         if not self.dg_connection:
-            try:
+            if not self._setup_attempted:
+                logger.info("No Deepgram connection available, retrying setup")
                 self._setup_connection()
-                if not self.dg_connection:
-                    raise ValueError(
-                        "Failed to create Deepgram connection. Check your API key."
-                    )
-            except Exception as e:
-                raise ValueError(f"Failed to create Deepgram connection: {e}") from e
+                self._setup_attempted = True
+            else:
+                logger.error("No Deepgram connection available after retry")
+                # Emit an error and return
+                error = Exception("No Deepgram connection available")
+                self.emit("error", error)
+                return None
 
-        # Handle different audio formats
-        if pcm_data.format == "s16":
-            # Deepgram expects s16 linear PCM, which is what we have
-            audio_data = pcm_data.samples
+        # Mark that we've attempted setup
+        self._setup_attempted = True
 
-            # If we need to resample, handle that here
-            if pcm_data.sample_rate != self.sample_rate:
-                # Simple resampling for demonstration purposes
-                # In production, use a proper resampling library
-                import scipy.signal
+        # Update the last activity time
+        self.last_activity_time = time.time()
 
-                num_samples = int(
-                    len(audio_data) * self.sample_rate / pcm_data.sample_rate
-                )
-                audio_data = scipy.signal.resample(audio_data, num_samples).astype(
-                    np.int16
-                )
+        # Convert PCM data to bytes if needed
+        audio_data = pcm_data.samples
+        if not isinstance(audio_data, bytes):
+            # Convert numpy array to bytes
+            audio_data = audio_data.astype(np.int16).tobytes()
 
-            # Send audio data to Deepgram
-            try:
-                # Convert ndarray to bytes
-                audio_bytes = audio_data.tobytes()
-                self.dg_connection.send(audio_bytes)
-                logger.debug(f"Sent {len(audio_bytes)} bytes to Deepgram")
+        # Send the audio data to Deepgram
+        try:
+            logger.debug(
+                "Sending audio data to Deepgram",
+                extra={"audio_bytes": len(audio_data)},
+            )
+            self.dg_connection.send(audio_data)
+        except Exception as e:
+            logger.error("Error sending audio to Deepgram", exc_info=e)
+            # Emit an error and return
+            self.emit("error", e)
+            return None
 
-                # Update the last activity time since we sent audio
-                self.last_activity_time = time.time()
-
-                # Wait for results with a longer timeout
-                results = []
+        # Collect any available results from the queue with a short timeout
+        # We use a timeout to avoid blocking indefinitely if no results arrive
+        results = []
+        try:
+            # Check if there are any results already in the queue
+            while True:
                 try:
-                    # Try to get results with longer timeout (1 second)
-                    while True:
-                        try:
-                            # Use a longer timeout to capture results from the API
-                            result = await asyncio.wait_for(
-                                self._results_queue.get(), timeout=1.0
-                            )
+                    # Try to get a result without blocking
+                    result = self._results_queue.get_nowait()
+                    # Check if this is an error
+                    if (
+                        result[0] is None
+                        and result[1] is None
+                        and isinstance(result[2], Exception)
+                    ):
+                        self.emit("error", result[2])
+                    else:
+                        # Add the result to our list
+                        results.append(result)
+                except asyncio.QueueEmpty:
+                    # No more results in the queue
+                    break
+        except Exception as e:
+            logger.error("Error retrieving results from queue", exc_info=e)
+            # Emit an error but don't return, we might still have some results
+            self.emit("error", e)
 
-                            # Check if this is an error
-                            if result[0] is None and isinstance(result[2], Exception):
-                                raise result[2]
-
-                            results.append(result)
-                        except asyncio.TimeoutError:
-                            # No more results available right now
-                            break
-                except Exception as e:
-                    # Re-raise any exceptions from the results queue
-                    raise e
-
-                return results if results else None
-
-            except Exception as e:
-                # Propagate the error up
-                raise e
-        else:
-            # If we get another format, raise an error
-            raise ValueError(f"Unsupported audio format: {pcm_data.format}")
+        # If we collected any results, return them
+        return results if results else None
 
     async def close(self):
         """Close the Deepgram connection and clean up resources."""
-        if not self._is_closed:
-            self._is_closed = True
-            self._running = False
+        logger.info("Closing Deepgram STT service")
+        self._is_closed = True
+        self._running = False
 
-            # Cancel the keep-alive task
-            if self.keep_alive_task:
-                self.keep_alive_task.cancel()
-                try:
-                    await self.keep_alive_task
-                except asyncio.CancelledError:
-                    pass
-                self.keep_alive_task = None
+        # Cancel the keep-alive task if it exists
+        if self.keep_alive_task:
+            logger.debug("Cancelling keep-alive task")
+            self.keep_alive_task.cancel()
+            try:
+                await self.keep_alive_task
+            except asyncio.CancelledError:
+                pass
+            self.keep_alive_task = None
 
-            if self.dg_connection:
-                try:
-                    # Send a clean close message
-                    try:
-                        # Try different methods to close the connection cleanly
-                        close_msg = json.dumps({"type": "CloseStream"})
+        # Close the Deepgram connection if it exists
+        if self.dg_connection:
+            logger.debug("Closing Deepgram connection")
+            try:
+                self.dg_connection.finish()
+                self.dg_connection = None
+            except Exception as e:
+                logger.error("Error closing Deepgram connection", exc_info=e)
 
-                        if hasattr(self.dg_connection, "send_text"):
-                            self.dg_connection.send_text(close_msg)
-                        else:
-                            # Fallback to regular send for text data
-                            self.dg_connection.send(close_msg)
-                    except Exception as e:
-                        logger.error("Error sending close message", exc_info=e)
-
-                    # Finish the connection
-                    self.dg_connection.finish()
-                    self.dg_connection = None
-                except Exception as e:
-                    # Just log errors during shutdown
-                    logger.error("Error closing Deepgram connection", exc_info=e)
+        # Clear the results queue
+        while not self._results_queue.empty():
+            try:
+                self._results_queue.get_nowait()
+            except asyncio.QueueEmpty:
+                break
