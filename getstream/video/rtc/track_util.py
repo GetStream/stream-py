@@ -94,7 +94,7 @@ def patch_sdp_offer(sdp: str) -> str:
     return str(session)
 
 
-def fix_sdp_msid_semantic(self, sdp: str) -> str:
+def fix_sdp_msid_semantic(sdp: str) -> str:
     """
     Fix SDP msid-semantic format by ensuring there is a space after "WMS".
     

@@ -30,6 +30,7 @@ from getstream.video.rtc.coordinator import join_call_coordinator_request
 from getstream.video.rtc.track_util import (
     BufferedMediaTrack,
     detect_video_properties,
+    fix_sdp_msid_semantic,
     patch_sdp_offer,
     parse_track_stream_mapping,
 )
@@ -281,7 +282,7 @@ class ConnectionManager(AsyncIOEventEmitter):
 
         try:
             # Fix any invalid msid-semantic format in the SDP
-            fixed_sdp = self._fix_sdp_msid_semantic(event.sdp)
+            fixed_sdp = fix_sdp_msid_semantic(event.sdp)
             # Parse SDP to create track_id to stream_id mapping
             self.participants_state.set_track_stream_mapping(parse_track_stream_mapping(fixed_sdp))
             # The SDP offer from the SFU might already contain candidates (trickled)
