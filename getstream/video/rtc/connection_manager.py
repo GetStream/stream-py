@@ -31,6 +31,7 @@ from getstream.video.rtc.track_util import (
     BufferedMediaTrack,
     detect_video_properties,
     patch_sdp_offer,
+    parse_track_stream_mapping,
 )
 
 from getstream.video.rtc.pc import (
@@ -52,32 +53,34 @@ class ConnectionError(Exception):
 class ParticipantsState(AsyncIOEventEmitter):
     def __init__(self):
         super().__init__()
-        self._participants = {}
-        self._track_lookup_prefixes = {}
+        self._participant_by_prefix = {}
+        self._track_stream_mapping = {}
 
     def get_user_from_track_id(self, track_id: str) -> Optional[models_pb2.Participant]:
-        prefix = track_id.split(":")[0]
-        return self._participants.get(self._participants.get(prefix))
+        stream_id = self._track_stream_mapping.get(track_id)
+        if stream_id:
+            prefix = stream_id.split(':')[0]
+            participant = self._participant_by_prefix.get(prefix)
+            return participant
+        return None
+
+    def get_stream_id_from_track_id(self, track_id: str) -> Optional[str]:
+        """Get the stream ID associated with a track ID."""
+        return self._track_stream_mapping.get(track_id)
+
+    def set_track_stream_mapping(self, mapping: dict):
+        """Set the track_id to stream_id mapping."""
+        logger.info(f"Setting track stream mapping: {mapping}")
+        self._track_stream_mapping = mapping
 
     def add_participant(self, participant: models_pb2.Participant):
         """Add a participant to the internal state along with their track lookup prefix."""
-        self._participants[ParticipantsState.participant_id(participant)] = participant
-        self._track_lookup_prefixes[participant.track_lookup_prefix] = (
-            participant.user_id
-        )
-
-    def add_track_prefix(self, prefix: str, user_id: str):
-        """Add a track lookup prefix for a user."""
-        self._track_lookup_prefixes[prefix] = user_id
+        self._participant_by_prefix[participant.track_lookup_prefix] = participant
 
     def remove_participant(self, participant: models_pb2.Participant):
-        """Remove a participant and their associated track prefix."""
-        del self._track_lookup_prefixes[participant.track_lookup_prefix]
-        del self._participants[ParticipantsState.participant_id(participant)]
-
-    @staticmethod
-    def participant_id(participant: models_pb2.Participant):
-        return participant.session_id, participant.user_id
+        """Remove a participant based on their track lookup prefix."""
+        if participant.track_lookup_prefix in self._participant_by_prefix:
+            del self._participant_by_prefix[participant.track_lookup_prefix]
 
     async def _on_participant_joined(self, event: events_pb2.ParticipantJoined):
         self.add_participant(event.participant)
@@ -277,11 +280,15 @@ class ConnectionManager(AsyncIOEventEmitter):
         await self.subscriber_negotiation_lock.acquire()
 
         try:
+            # Fix any invalid msid-semantic format in the SDP
+            fixed_sdp = self._fix_sdp_msid_semantic(event.sdp)
+            # Parse SDP to create track_id to stream_id mapping
+            self.participants_state.set_track_stream_mapping(parse_track_stream_mapping(fixed_sdp))
             # The SDP offer from the SFU might already contain candidates (trickled)
             # or have a different structure. We set it as the remote description.
             # The aiortc library handles merging and interpretation.
             remote_description = aiortc.RTCSessionDescription(
-                type="offer", sdp=event.sdp
+                type="offer", sdp=fixed_sdp
             )
             logger.debug(f"""Setting remote description with SDP:
             {remote_description.sdp}""")
