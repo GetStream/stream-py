@@ -59,22 +59,32 @@ class ParticipantsState(AsyncIOEventEmitter):
         prefix = track_id.split(":")[0]
         return self._participants.get(self._participants.get(prefix))
 
+    def add_participant(self, participant: models_pb2.Participant):
+        """Add a participant to the internal state along with their track lookup prefix."""
+        self._participants[ParticipantsState.participant_id(participant)] = participant
+        self._track_lookup_prefixes[participant.track_lookup_prefix] = (
+            participant.user_id
+        )
+
+    def add_track_prefix(self, prefix: str, user_id: str):
+        """Add a track lookup prefix for a user."""
+        self._track_lookup_prefixes[prefix] = user_id
+
+    def remove_participant(self, participant: models_pb2.Participant):
+        """Remove a participant and their associated track prefix."""
+        del self._track_lookup_prefixes[participant.track_lookup_prefix]
+        del self._participants[ParticipantsState.participant_id(participant)]
+
     @staticmethod
     def participant_id(participant: models_pb2.Participant):
         return participant.session_id, participant.user_id
 
     async def _on_participant_joined(self, event: events_pb2.ParticipantJoined):
-        self._track_lookup_prefixes[event.participant.track_lookup_prefix] = (
-            event.participant.user_id
-        )
-        self._participants[ParticipantsState.participant_id(event.participant)] = (
-            event.participant
-        )
+        self.add_participant(event.participant)
         self.emit("participant_joined", event.participant)
 
     async def _on_participant_left(self, event: events_pb2.ParticipantLeft):
-        del self._track_lookup_prefixes[event.participant.track_lookup_prefix]
-        del self._participants[ParticipantsState.participant_id(event.participant)]
+        self.remove_participant(event.participant)
         self.emit("participant_left", event.participant)
 
 
@@ -182,6 +192,15 @@ class ConnectionManager(AsyncIOEventEmitter):
             # Connect to the WebSocket server and wait for the first message
             logger.info(f"Establishing WebSocket connection to {ws_url}")
             sfu_event = await self.ws_client.connect()
+
+            # Populate participants state with existing participants in the call
+            if hasattr(sfu_event, "join_response") and hasattr(
+                sfu_event.join_response, "call_state"
+            ):
+                [
+                    self.participants_state.add_participant(p)
+                    for p in sfu_event.join_response.call_state.participants
+                ]
 
             self.subscriber_pc = SubscriberPeerConnection(connection=self)
 
