@@ -1,6 +1,30 @@
 import logging
 import torch
 import numpy as np
+import warnings
+import time
+from typing import Dict, Any, Optional
+
+try:
+    import scipy.signal
+
+    has_scipy = True
+except ImportError:
+    has_scipy = False
+
+try:
+    import torchaudio
+
+    has_torchaudio = True
+except ImportError:
+    has_torchaudio = False
+
+try:
+    import onnxruntime as ort
+
+    has_onnx = True
+except ImportError:
+    has_onnx = False
 
 from getstream.plugins.vad import VAD
 from getstream.video.rtc.track_util import PcmData
@@ -14,117 +38,296 @@ class Silero(VAD):
 
     This class implements the VAD interface using the Silero VAD model,
     which is a high-performance speech detection model.
+
+    Features:
+    - Asymmetric thresholds for speech detection (activation_th and deactivation_th)
+    - Automatic resampling to model's required rate (typically 16kHz)
+    - GPU acceleration support with automatic fallback to CPU
+    - Optional ONNX runtime support for potential performance improvements
+    - Early partial events for real-time UI feedback during speech
+    - Memory-efficient audio buffering using bytearrays
     """
 
     def __init__(
         self,
         sample_rate: int = 48000,
-        frame_size: int = 512,
+        frame_size: int = None,
         silence_threshold: float = 0.2,
+        activation_th: float = None,
+        deactivation_th: float = None,
         speech_pad_ms: int = 300,
         min_speech_ms: int = 250,
         max_speech_ms: int = 30000,
+        model_rate: int = 16000,
+        window_samples: int = 512,
+        device: str = "cpu",
+        partial_frames: int = 10,
+        use_onnx: bool = False,
     ):
         """
         Initialize the Silero VAD.
 
         Args:
-            sample_rate: Audio sample rate in Hz expected
-            frame_size: Size of audio frames to process
-            silence_threshold: Threshold for detecting silence (0.0 to 1.0)
+            sample_rate: Audio sample rate in Hz expected for input
+            frame_size: (Deprecated) Size of audio frames to process, use window_samples instead
+            silence_threshold: Threshold for detecting silence (0.0 to 1.0) - deprecated, use activation_th/deactivation_th instead
+            activation_th: Threshold for starting speech detection (0.0 to 1.0), defaults to silence_threshold if not provided
+            deactivation_th: Threshold for ending speech detection (0.0 to 1.0), defaults to 0.7*activation_th if not provided
             speech_pad_ms: Number of milliseconds to pad before/after speech
             min_speech_ms: Minimum milliseconds of speech to emit
             max_speech_ms: Maximum milliseconds of speech before forced flush
+            model_rate: Sample rate the model operates on (typically 16000 Hz)
+            window_samples: Number of samples per window (must be 512 for 16kHz, 256 for 8kHz)
+            device: Device to run the model on ("cpu", "cuda", "cuda:0", etc.)
+            partial_frames: Number of frames to process before emitting a "partial" event
+            use_onnx: Whether to use ONNX runtime for inference instead of PyTorch
         """
+        # Issue deprecation warning for frame_size
+        if frame_size is not None:
+            warnings.warn(
+                "The 'frame_size' parameter is deprecated and will be removed in a future version. "
+                "Use 'window_samples' instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            window_samples = frame_size
+
+        # Determine thresholds
+        if activation_th is None:
+            activation_th = silence_threshold
+
+        if deactivation_th is None:
+            deactivation_th = activation_th * 0.7
+
         super().__init__(
             sample_rate=sample_rate,
-            frame_size=frame_size,
+            frame_size=window_samples,  # Use window_samples for frame_size
             silence_threshold=silence_threshold,
+            activation_th=activation_th,
+            deactivation_th=deactivation_th,
             speech_pad_ms=speech_pad_ms,
             min_speech_ms=min_speech_ms,
             max_speech_ms=max_speech_ms,
+            partial_frames=partial_frames,
         )
 
-        # Buffer for accumulating audio frames for Silero model
-        self.audio_buffer = []
+        # Model parameters
+        self.model_rate = model_rate
+        self.window_samples = window_samples
+        self.device_name = device
+        self.use_onnx = use_onnx and has_onnx
 
-        # Minimum milliseconds of audio needed for Silero to work properly
-        self.min_silero_audio_ms = 30
+        # Verify window size is correct for the Silero model
+        if self.model_rate == 16000 and self.window_samples != 512:
+            logger.warning(
+                f"Adjusting window_samples from {self.window_samples} to 512, "
+                "which is required by Silero VAD at 16kHz"
+            )
+            self.window_samples = 512
+        elif self.model_rate == 8000 and self.window_samples != 256:
+            logger.warning(
+                f"Adjusting window_samples from {self.window_samples} to 256, "
+                "which is required by Silero VAD at 8kHz"
+            )
+            self.window_samples = 256
 
-        # Calculate buffer size based on sample rate
-        self.min_buffer_samples = int(self.min_silero_audio_ms * sample_rate / 1000)
+        # Buffer for raw input samples (before resampling)
+        self._raw_buffer = np.array([], dtype=np.float32)
 
+        # Buffer for resampled samples at model rate
+        self._resampled = np.array([], dtype=np.float32)
+
+        # ONNX session and model
+        self.onnx_session = None
+        self.model = None
+
+        # Load the appropriate model
         self._load_model()
 
     def _load_model(self) -> None:
-        """Load the Silero VAD model using torch hub."""
+        """Load the Silero VAD model using torch hub or ONNX runtime."""
         try:
-            logger.info("Loading Silero VAD model from torch hub")
+            if self.use_onnx:
+                self._load_onnx_model()
+            else:
+                self._load_torch_model()
+        except Exception as e:
+            logger.error(f"Failed to load Silero VAD model: {e}")
+            raise
 
-            # Use torch.hub to load the model and utils
-            self.model, utils = torch.hub.load(
+    def _load_torch_model(self) -> None:
+        """Load the PyTorch version of the Silero VAD model."""
+        logger.info("Loading Silero VAD PyTorch model from torch hub")
+
+        # Use torch.hub to load the model and utils
+        self.model, utils = torch.hub.load(
+            repo_or_dir="snakers4/silero-vad",
+            model="silero_vad",
+            force_reload=False,
+            trust_repo=True,
+        )
+
+        # Set model to evaluation mode
+        self.model.eval()
+
+        # Try to use the specified device, fall back to CPU if not available
+        try:
+            self.device = torch.device(self.device_name)
+            # Test if CUDA is actually available when requested
+            if self.device.type == "cuda" and not torch.cuda.is_available():
+                logger.warning("CUDA requested but not available, falling back to CPU")
+                self.device = torch.device("cpu")
+                self.device_name = "cpu"
+            self.model.to(self.device)
+            logger.info(f"Using device: {self.device}")
+        except Exception as e:
+            logger.warning(
+                f"Failed to use device {self.device_name}: {e}, falling back to CPU"
+            )
+            self.device = torch.device("cpu")
+            self.device_name = "cpu"
+            self.model.to(self.device)
+
+        # Reset states
+        self.reset_states()
+        logger.info("Silero VAD PyTorch model loaded successfully")
+
+    def _load_onnx_model(self) -> None:
+        """Load the ONNX version of the Silero VAD model."""
+        if not has_onnx:
+            logger.warning("ONNX Runtime not available, falling back to PyTorch model")
+            self.use_onnx = False
+            self._load_torch_model()
+            return
+
+        logger.info("Loading Silero VAD ONNX model")
+
+        try:
+            # First load the model with PyTorch to get access to the ONNX export functionality
+            model, utils = torch.hub.load(
                 repo_or_dir="snakers4/silero-vad",
                 model="silero_vad",
                 force_reload=False,
                 trust_repo=True,
             )
 
-            # Set model to evaluation mode
-            self.model.eval()
+            # Try to use the specified device for ONNX
+            providers = []
+            if (
+                self.device_name.startswith("cuda")
+                and "CUDAExecutionProvider" in ort.get_available_providers()
+            ):
+                providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
+                logger.info("Using CUDA for ONNX inference")
+            else:
+                if self.device_name.startswith("cuda"):
+                    logger.warning(
+                        "CUDA requested but not available for ONNX, falling back to CPU"
+                    )
+                providers = ["CPUExecutionProvider"]
+                self.device_name = "cpu"
 
-            # Set the device (CPU in this case)
-            self.device = torch.device("cpu")
-            self.model.to(self.device)
+            # Create a session options object and set graph optimization level
+            session_options = ort.SessionOptions()
+            session_options.graph_optimization_level = (
+                ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+            )
 
-            # Initialize necessary for prediction
-            self.reset_states()
+            # Export model to ONNX format in memory and load with ONNX Runtime
+            import tempfile
 
-            logger.info("Silero VAD model loaded successfully")
+            with tempfile.NamedTemporaryFile(suffix=".onnx") as tmp:
+                # Create dummy input for model
+                dummy_input = torch.randn(1, self.window_samples)
+
+                # Export the model
+                torch.onnx.export(
+                    model,
+                    dummy_input,
+                    tmp.name,
+                    input_names=["input"],
+                    output_names=["output"],
+                    dynamic_axes={
+                        "input": {0: "batch_size", 1: "sequence"},
+                        "output": {0: "batch_size"},
+                    },
+                    opset_version=12,
+                )
+
+                # Create ONNX session
+                self.onnx_session = ort.InferenceSession(
+                    tmp.name, sess_options=session_options, providers=providers
+                )
+
+                # Get input name
+                self.onnx_input_name = self.onnx_session.get_inputs()[0].name
+
+            logger.info("Silero VAD ONNX model loaded successfully")
+
         except Exception as e:
-            logger.error(f"Failed to load Silero VAD model: {e}")
-            raise
+            logger.warning(
+                f"Failed to load ONNX model: {e}, falling back to PyTorch model"
+            )
+            self.use_onnx = False
+            self._load_torch_model()
 
     def reset_states(self) -> None:
         """Reset the model states."""
-        # Clear audio buffer only - no longer need to maintain h and c states
-        self.audio_buffer = []
+        # Clear buffers
+        self._raw_buffer = np.array([], dtype=np.float32)
+        self._resampled = np.array([], dtype=np.float32)
 
-    def _resample_audio(
-        self, frame: np.ndarray, from_rate: int, to_rate: int
-    ) -> np.ndarray:
+    def _resample(self, frame: np.ndarray, from_sr: int, to_sr: int) -> np.ndarray:
         """
-        Resample audio from one sample rate to another using simple averaging.
+        Resample audio from one sample rate to another using high-quality methods.
 
         Args:
             frame: Audio frame as numpy array
-            from_rate: Original sample rate
-            to_rate: Target sample rate
+            from_sr: Original sample rate
+            to_sr: Target sample rate
 
         Returns:
             Resampled audio frame
         """
-        if from_rate == to_rate:
+        if from_sr == to_sr:
             return frame
 
-        # Calculate the ratio for resampling
-        ratio = from_rate // to_rate
+        # Use scipy's polyphase resampling (high quality)
+        if has_scipy:
+            try:
+                return scipy.signal.resample_poly(frame, to_sr, from_sr, axis=-1)
+            except Exception as e:
+                logger.warning(f"Scipy resampling failed: {e}, trying fallback methods")
 
-        if from_rate % to_rate != 0:
-            logger.warning(
-                f"Resampling from {from_rate} to {to_rate} Hz is not an integer ratio"
-            )
+        # Fall back to torchaudio if available
+        if has_torchaudio:
+            try:
+                tensor = torch.tensor(frame, dtype=torch.float32)
+                resampler = torchaudio.transforms.Resample(
+                    orig_freq=from_sr, new_freq=to_sr
+                )
+                resampled = resampler(tensor).numpy()
+                return resampled
+            except Exception as e:
+                logger.warning(
+                    f"Torchaudio resampling failed: {e}, using simple resampling"
+                )
 
-        # Reshape the frame to handle the exact number of samples
-        # Trim if necessary to make it divisible by ratio
-        trim_size = len(frame) - (len(frame) % ratio)
-        if trim_size < len(frame):
-            frame = frame[:trim_size]
+        # Fall back to simple averaging as last resort
+        ratio = from_sr / to_sr
+        output_length = int(len(frame) / ratio)
+        resampled = np.zeros(output_length, dtype=np.float32)
 
-        # Reshape and average
-        resampled = frame.reshape(-1, ratio).mean(axis=1)
+        for i in range(output_length):
+            start = int(i * ratio)
+            end = int((i + 1) * ratio)
+            if start < len(frame):
+                chunk = frame[start : min(end, len(frame))]
+                if len(chunk) > 0:
+                    resampled[i] = np.mean(chunk)
 
         logger.debug(
-            f"Resampled audio from {len(frame)} samples to {len(resampled)} samples"
+            f"Resampled audio from {len(frame)} to {len(resampled)} samples using simple method"
         )
         return resampled
 
@@ -142,83 +345,143 @@ class Silero(VAD):
             # Convert PCM data to float32 in range [-1.0, 1.0]
             audio_array = frame.samples.astype(np.float32) / 32768.0
 
-            # Add current frame to buffer
-            self.audio_buffer.append(audio_array)
+            # Add current frame to raw buffer (in original sample rate)
+            self._raw_buffer = np.append(self._raw_buffer, audio_array)
 
-            # Calculate total samples in buffer
-            buffer_samples = sum(len(f) for f in self.audio_buffer)
+            # Resample the accumulated raw buffer to model rate if needed
+            if frame.sample_rate != self.model_rate:
+                resampled_new = self._resample(
+                    self._raw_buffer, frame.sample_rate, self.model_rate
+                )
+                # Reset raw buffer after resampling
+                self._raw_buffer = np.array([], dtype=np.float32)
+            else:
+                resampled_new = self._raw_buffer
+                self._raw_buffer = np.array([], dtype=np.float32)
 
-            # If we have fewer samples than required, return a low probability
-            # This avoids processing with Silero until we have enough audio data
-            if buffer_samples < self.min_buffer_samples:
+            # Add newly resampled data to existing resampled buffer
+            self._resampled = np.append(self._resampled, resampled_new)
+
+            # If we don't have enough samples for a full window, return 0
+            if len(self._resampled) < self.window_samples:
                 return 0.0
 
-            # Concatenate all frames in the buffer
-            concatenated_frame = np.concatenate(self.audio_buffer)
-
-            # Reset buffer for next time
-            self.audio_buffer = []
-
-            # Resample the audio if needed (e.g., from 48000 Hz to 16000 Hz)
-            model_sample_rate = 16000  # The model works with 16kHz audio
-            if frame.sample_rate != model_sample_rate:
-                concatenated_frame = self._resample_audio(
-                    concatenated_frame, frame.sample_rate, model_sample_rate
-                )
-
-            # The Silero VAD model requires exactly 512 samples for 16kHz
-            # Chunk the audio into 512-sample frames and average the results
-            chunk_size = 512
+            # Process full windows of audio
             speech_probs = []
 
-            # Process each chunk
-            for i in range(0, len(concatenated_frame), chunk_size):
-                chunk = concatenated_frame[i : i + chunk_size]
+            # Process each complete window (512 samples @ 16kHz or 256 @ 8kHz)
+            while len(self._resampled) >= self.window_samples:
+                # Extract a window of samples
+                window = self._resampled[: self.window_samples]
+                self._resampled = self._resampled[self.window_samples :]
 
-                # Ensure the chunk is exactly 512 samples
-                if len(chunk) < chunk_size:
-                    # If not enough samples, pad with zeros
-                    padded_chunk = np.zeros(chunk_size, dtype=np.float32)
-                    padded_chunk[: len(chunk)] = chunk
-                    chunk = padded_chunk
-                elif len(chunk) > chunk_size:
-                    # If too many samples, truncate
-                    chunk = chunk[:chunk_size]
+                # Measure inference time for RTF calculation
+                start_time = time.time()
 
-                # Convert numpy array to PyTorch tensor
-                tensor = torch.from_numpy(chunk).unsqueeze(0).to(self.device)
+                try:
+                    if self.use_onnx and self.onnx_session is not None:
+                        # Convert to the format expected by ONNX (batch_size, sequence_length)
+                        onnx_input = window.reshape(1, -1).astype(np.float32)
 
-                # Get model predictions - Silero model requires sample rate as an integer
-                with torch.no_grad():
-                    try:
-                        # The model only needs the tensor and sample rate - older versions used other params
-                        speech_prob = self.model(tensor, model_sample_rate)
-                        speech_probs.append(float(speech_prob.item()))
-                    except Exception as e:
-                        logger.warning(f"Error during inference: {e}")
-                        # Try with fallback approach if available models
-                        try:
-                            # Some versions of the model might have different signature
-                            speech_prob = self.model(tensor)
-                            speech_probs.append(float(speech_prob.item()))
-                        except Exception as e2:
-                            logger.error(f"Fallback inference failed: {e2}")
-                            continue
+                        # Run ONNX inference
+                        ort_inputs = {self.onnx_input_name: onnx_input}
+                        ort_outputs = self.onnx_session.run(None, ort_inputs)
+
+                        # Extract the speech probability
+                        speech_prob = float(ort_outputs[0][0])
+                    else:
+                        # Convert numpy array to PyTorch tensor
+                        tensor = torch.from_numpy(window).unsqueeze(0).to(self.device)
+
+                        # Get model predictions using PyTorch
+                        with torch.no_grad():
+                            speech_prob = self.model(tensor, self.model_rate)
+                            speech_prob = float(speech_prob.item())
+
+                    # Calculate real-time factor (RTF)
+                    end_time = time.time()
+                    inference_time = end_time - start_time
+                    # Time taken to process window_samples at model_rate
+                    audio_duration = self.window_samples / self.model_rate
+                    rtf = inference_time / audio_duration
+
+                    # Log speech probability and RTF at DEBUG level
+                    logger.debug(
+                        "Speech detection window processed",
+                        extra={"p": speech_prob, "rtf": rtf},
+                    )
+
+                    speech_probs.append(speech_prob)
+
+                except Exception as e:
+                    logger.warning(f"Error during inference: {e}")
+                    # If there was an error, continue with the next window
+                    continue
 
             # Return highest probability if we have any valid predictions
             return max(speech_probs) if speech_probs else 0.0
 
         except Exception as e:
             logger.error(f"Error processing audio frame: {e}")
-            # On error, return low probability but don't clear the buffer
+            # On error, return low probability
             return 0.0
+
+    async def _flush_speech_buffer(self, user: Optional[Dict[str, Any]] = None) -> None:
+        """
+        Flush the accumulated speech buffer if it meets minimum length requirements.
+
+        Args:
+            user: User metadata to include with emitted audio events
+        """
+        # Calculate min speech frames based on ms
+        min_speech_frames = int(
+            self.min_speech_ms * self.sample_rate / 1000 / self.frame_size
+        )
+
+        # Convert bytearray to numpy array
+        speech_data = np.frombuffer(self.speech_buffer, dtype=np.int16).copy()
+
+        if len(speech_data) >= min_speech_frames * self.frame_size:
+            # Create a PcmData object and emit the audio event
+            pcm_data = PcmData(
+                sample_rate=self.sample_rate, samples=speech_data, format="s16"
+            )
+
+            # Log turn emission at INFO level with duration and samples
+            duration_ms = len(speech_data) / self.sample_rate * 1000
+            logger.info(
+                "Turn emitted",
+                extra={"duration_ms": duration_ms, "samples": len(speech_data)},
+            )
+
+            self.emit("audio", pcm_data, user)
+
+        # Reset state variables
+        self.speech_buffer = bytearray()
+        self.silence_counter = 0
+        self.is_speech_active = False
+        self.total_speech_frames = 0
+        self.partial_counter = 0
 
     async def reset(self) -> None:
         """Reset the VAD state."""
         await super().reset()
         self.reset_states()
 
+    async def flush(self, user=None) -> None:
+        """
+        Flush accumulated speech buffer and emit any pending audio events.
+
+        Args:
+            user: User metadata to include with emitted audio events
+        """
+        await super().flush(user)
+        # Reset buffer after flushing
+        self.reset_states()
+
     async def close(self) -> None:
         """Release resources used by the model."""
         self.model = None
-        self.audio_buffer = []
+        if self.onnx_session is not None:
+            self.onnx_session = None
+        self.reset_states()

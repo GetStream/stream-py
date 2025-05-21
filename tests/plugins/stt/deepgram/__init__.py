@@ -1,1 +1,0 @@
-# Deepgram STT test package

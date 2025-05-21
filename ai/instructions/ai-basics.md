@@ -15,6 +15,7 @@
 7. keep tests well organized and use test classes for similar tests
 8. tests that rely on file assets should always rely on files inside the `tests/assets/` folder, new files should be added there and existing ones used if possible. Do not use files larger than 256 kilobytes.
 9- do not use mocks or mock things in general unless you are asked to do that directly
+10- always run tests using `uv run pytest` from the root of the project, dont cd into folders to run tests
 
 ## Project layout
 
@@ -132,3 +133,5 @@ Since this is a library, we follow specific logging practices to ensure good int
    ```
 
 8. **Do not write directly to stdout or stderr**: As a library, usage of `print()` or writing to stderr/stdout should be avoided
+
+9. When working with testfiles, make sure to re-use files under the tests/assets folder and get the file path using `get_audio_asset` from `getstream.plugins.test_utils`
