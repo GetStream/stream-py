@@ -1,118 +1,76 @@
-───────────────────────────────
-STAGE 1 — Clean-up the base VAD
-───────────────────────────────
 
-Make the generic `VAD` class safe for streaming and testable in isolation.
+Read file: getstream/plugins/stt/deepgram/tests/test_stt.py
 
-Code changes
-1. `getstream/plugins/vad/__init__.py`
-   a. Add `self._leftover: np.ndarray = np.empty(0, np.int16)`
-   b. In `process_audio()`
-      • prepend `self._leftover` to the new samples;
-      • process only full frames (`while len(buffer) >= frame_size`) – **no zero-padding**;
-      • keep the tail in `self._leftover`.
-   c. Convert all length thresholds (`speech_pad_*`, `min_speech_*`, …) to milliseconds and compute required frame counts on the fly so later changes to `frame_size` stay valid.
-   d. Public `async def flush(self):` wrapper that calls the (renamed) `_flush_speech_buffer`.
-2. Keep current logging style but switch “missing samples” from `logger.debug` to `logger.warning` to catch edge cases faster.
+“Refactor Deepgram STT for real-time transcript emission”
 
-Tests
-• Update existing Silero tests so they call `await vad.flush()` instead of the private method.
-• Add `test_silence_no_turns`: feed 5 s of zeros, assert that no `audio` event fires.
-`verify_detected_speech()` tolerance stays at ±55 % for now (we will tighten later).
+Please modify the following files only:
 
-Pass criteria
-All tests green, no Ruff violations, and CPU time unchanged (<±3 %).
+1. getstream/plugins/stt/deepgram/stt.py
+2. (optional but preferred) getstream/plugins/stt/__init__.py – add a tiny helper if you decide to share background-dispatch logic across providers.
 
-────────────────────────────────────────────
-STAGE 2 — Model-aware chunking & resampling
-────────────────────────────────────────────
-Goal
-Guarantee that whatever sample-rate arrives, the Silero model always receives 16 kHz, 512|1024|1536 sample windows.
+Required behaviour
 
-Code changes
-1. `getstream/plugins/vad/silero/vad.py`
-   a. New ctor args:
-      `model_rate=16000`, `window_samples=1536`, `device="cpu"`.
-   b. Replace `_resample_audio()` with a band-limited polyphase helper:
-      ```python
-      def _resample(frame, from_sr, to_sr):
-          if from_sr == to_sr:
-              return frame
-          return scipy.signal.resample_poly(frame, to_sr, from_sr, axis=-1)
-      ```
-      (fall back to torchaudio if available).
-   c. Persistent hidden state:
-      ```
-      self.h, self.c = None, None
-      prob, self.h, self.c = self.model(tensor, self.h, self.c, model_sr)
-      ```
-      Reset them in `reset()` and right after emitting a turn.
-   d. Keep a raw-sample bytearray (`self._raw_buffer`) in **input** sample-rate and only resample slices that form a complete window.
-   e. Remove the “min_buffer_samples” magic; instead wait until `len(self._resampled) >= window_samples`.
-2. Update `__init__.py` thresholds to default to Silero: `frame_size` → `window_samples` (1536 @ 16 kHz ≈ 96 ms).
+A. Background dispatcher
+   • In Deepgram._setup_connection() create an asyncio task (e.g. self._result_task) that runs a private async method _result_dispatch_loop().
+   • The loop must do `item = await self._results_queue.get()` and, for every item:
+     – if item is (is_final, text, metadata): emit `"transcript"` when is_final else `"partial_transcript"`;
+     – if item is an Exception (our error sentinel) emit `"error"`.
+   • The loop exits cleanly when self._running becomes False.
+   • Store the task so it can be cancelled in close().
 
-Tests
-• Add asset `speech_48k.wav` (<256 KB).
-• New `test_mixed_samplerate` – feed that 48 kHz clip, expect the same single turn length as for 16 kHz copy.
-• Existing tests still pass.
+B. Thread-safety for callbacks
+   • handle_transcript / handle_error in _setup_connection must push into the queue using `asyncio.get_running_loop().call_soon_threadsafe(...)` because the Deepgram SDK may call the handlers on a different thread.
 
-Pass criteria
-All tests green; `rtf = processing_time / audio_time` reported by `logger.debug` ≤ 0.2 on CPU.
+C. Slimmer _process_audio_impl
+   • Keep the existing audio-sending logic (conversion + `self.dg_connection.send(...)`).
+   • REMOVE the section that drains self._results_queue – result delivery is now the dispatch loop’s job.
+   • Return None; callers no longer need the results list.
 
-──────────────────────────────────────────────
-STAGE 3 — Proper turn-detection state machine
-──────────────────────────────────────────────
-Goal
-Match fastrtc’s behaviour: asymmetric thresholds, early partial events, efficient buffers.
+D. Lifecycle
+   • In close():
+       – cancel self._result_task, await it and ignore CancelledError.
+       – keep the rest of the cleanup.
+   • Guard double-initialisation / double-close.
 
-Code changes
-1. Base `VAD` (same file):
-   a. Accept new ctor params: `activation_th=0.5`, `deactivation_th=0.35`.
-   b. Replace the old `silence_counter / speech_counter` logic by:
-      ```
-      if prob >= activation_th:   # start/keep speech
-      if prob < deactivation_th:  # start/keep silence
-      ```
-      This removes the need for two separate counters.
-   c. Every N windows (e.g. 10) while in speech emit
-      `self.emit("partial", pcm_chunk, user)` so downstream UI can show live wave-form.
-   d. Replace list-of-numpy `speech_buffer` by `bytearray` to avoid O(n²) mem-copy.
+E. Do **not** break Silero VAD, TTS, or existing public APIs. No new dependencies.
 
-2. Silero subclass: no code change – it already feeds probabilities upstream.
+F. Logging
+   • Add concise INFO logs when the dispatcher starts/stops and DEBUG logs for each item processed.
 
-Tests
-• Tighten duration tolerance to ±10 % and add “expected number of turns = 1”.
-• New `test_streaming_chunks_20ms` (kept from original suite) now **must** match the single-turn detection test exactly.
-• Verify that at least one `partial` event was observed before each final `audio`.
+------------------------------------------------
+PROMPT #2 – Update / add tests
+Title: “Tests for immediate transcript emission”
 
-Pass criteria
-Tests green with stricter asserts; `bytearray` profiling shows ≤ 1 copy per 1 MB of speech (rough check with `tracemalloc`).
+Files to touch / create:
 
-────────────────────────────────────────────
-STAGE 4 — Polish, performance, configurability
-────────────────────────────────────────────
-Goal
-Give production-ready touches and optional optimisations.
+1. tests/plugins/stt/deepgram/test_stt.py   (update existing)
+2. tests/plugins/stt/deepgram/test_realtime.py   (new)
 
-Code changes
-1. Silero VAD
-   • Allow `device="cuda:0"`; fall back to CPU if not available.
-   • Optional `use_onnx=True` switches to ORT session (load once, call `run(None, {input_name: arr})`).
-   • Deprecation warning if user passes `frame_size` instead of `window_samples`.
-2. Logging
-   • At INFO: `logger.info("Turn emitted", extra={"duration_ms": dur, "samples": n})`
-   • At DEBUG: each window logs `{"p": prob, "rtf": rtf}` (already in Stage 2).
-3. Docs
-   • Update module docstrings and README snippet.
-4. Lint & format (`ruff format getstream/ tests/`).
+Changes & expectations
 
-Tests
-• Add `test_cuda_fallback` (mark xfail if CUDA not present).
-• Add `test_flush_api` – stream half a sentence, call `flush()`, ensure turn is emitted.
-• Run `pytest -q` plus `uv run python -m timeit -n5 -s "from tests.bench import bench"` (simple 10-s benchmark).
+A. Adjust existing unit-tests
+   • All tests that pushed items into `stt._results_queue` and then called `await stt.process_audio(...)` must now *await a small sleep* (e.g. 0.05 s) to let the background dispatcher emit events.
+   • Remove calls that rely on `_process_audio_impl` draining the queue – that code path no longer exists.
 
-Pass criteria
-All tests (incl. CPU fallback path) pass; benchmark shows **no** regression vs Stage 3; Ruff clean.
+B. New real-time test (test_realtime.py)
+   Purpose: guarantee that a transcript is emitted without having to send a second chunk of audio.
 
-───────────────────────────────
-After Stage 4 the upgraded VAD ships the same ergonomic contract as fastrtc’s implementation, handles any PCM rate, streams efficiently, exposes partial events and is fully covered by deterministic tests.
+   Steps:
+   1. Use the existing MockDeepgramClient / MockDeepgramConnection.
+   2. Instantiate Deepgram(), register a transcript event collector list.
+   3. Simulate audio:
+        pcm = PcmData(samples=b"\x00\x00"*800, sample_rate=48000, format="s16")
+        await stt.process_audio(pcm)        # send some bytes
+        # immediately trigger server transcript
+        stt.dg_connection.emit_transcript("hello world")
+   4. Await asyncio.sleep(0.05).
+   5. Assert len(collected) == 1 and collected[0][0] == "hello world".
+   6. Cleanup.
+
+C. Continuous-integration speed
+   • Keep sleeps short (≤0.1 s).
+   • Mark tests that hit the real server unchanged but ensure they still pass.
+
+D. No network access is necessary for the new test; rely on mocks only.
+
+E. When finished, run tests for all changed files using uv pytest and from the root project
