@@ -1,11 +1,12 @@
 import asyncio
 import numpy as np
-from aiortc import MediaStreamTrack
+import re
 
 import logging
 from typing import Dict, Any, NamedTuple, Callable
 
 import aiortc
+from aiortc import MediaStreamTrack
 from aiortc.mediastreams import MediaStreamError
 from numpy.typing import NDArray
 
@@ -91,6 +92,37 @@ def patch_sdp_offer(sdp: str) -> str:
 
     # Convert back to string
     return str(session)
+
+
+def fix_sdp_msid_semantic(sdp: str) -> str:
+    """
+    Fix SDP msid-semantic format by ensuring there is a space after "WMS".
+    
+    The WebRTC spec requires a space between "WMS" and any identifiers.
+    Some SDPs may incorrectly have "WMS*" instead of "WMS *" which can 
+    cause connection issues.
+    
+    Args:
+        sdp: The SDP string to fix
+        
+    Returns:
+        The fixed SDP string
+    """
+    return re.sub(r'a=msid-semantic:WMS\*', r'a=msid-semantic:WMS *', sdp)
+
+
+def parse_track_stream_mapping(sdp: str) -> dict:
+    """Parse SDP to extract track_id to stream_id mapping from msid lines."""
+    mapping = {}
+    for line in sdp.split('\n'):
+        if line.startswith('a=msid:'):
+            parts = line.strip().split(' ')
+            if len(parts) >= 2:
+                # Format: a=msid:stream_id track_id
+                track_id = parts[1]
+                stream_id = parts[0].replace('a=msid:', '')
+                mapping[track_id] = stream_id
+    return mapping
 
 
 class BufferedMediaTrack(aiortc.mediastreams.MediaStreamTrack):
