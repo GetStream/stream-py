@@ -1,6 +1,6 @@
 import abc
 import logging
-from typing import List, Optional, Dict, Any
+from typing import Optional, Dict, Any
 
 import numpy as np
 from pyee.asyncio import AsyncIOEventEmitter
@@ -21,6 +21,7 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
     - Accumulating speech and discarding silence
     - Flushing accumulated speech when a pause is detected
     - Emitting "audio" events with the speech data
+    - Emitting "partial" events while speech is ongoing
     """
 
     def __init__(
@@ -28,9 +29,12 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
         sample_rate: int = 16000,
         frame_size: int = 512,
         silence_threshold: float = 0.5,
+        activation_th: float = 0.5,
+        deactivation_th: float = 0.35,
         speech_pad_ms: int = 300,
         min_speech_ms: int = 250,
         max_speech_ms: int = 30000,
+        partial_frames: int = 10,
     ):
         """
         Initialize the VAD.
@@ -38,25 +42,36 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
         Args:
             sample_rate: Audio sample rate in Hz
             frame_size: Size of audio frames to process
-            silence_threshold: Threshold for detecting silence (0.0 to 1.0)
+            silence_threshold: Threshold for detecting silence (0.0 to 1.0) - deprecated, use activation_th/deactivation_th instead
+            activation_th: Threshold for starting speech detection (0.0 to 1.0)
+            deactivation_th: Threshold for ending speech detection (0.0 to 1.0)
             speech_pad_ms: Number of milliseconds to pad before/after speech
             min_speech_ms: Minimum milliseconds of speech to emit
             max_speech_ms: Maximum milliseconds of speech before forced flush
+            partial_frames: Number of frames to process before emitting a "partial" event
         """
         super().__init__()
 
         self.sample_rate = sample_rate
         self.frame_size = frame_size
+        # Keep silence_threshold for backward compatibility
         self.silence_threshold = silence_threshold
-        self.speech_pad_frames = int(speech_pad_ms * sample_rate / 1000 / frame_size)
-        self.min_speech_frames = int(min_speech_ms * sample_rate / 1000 / frame_size)
-        self.max_speech_frames = int(max_speech_ms * sample_rate / 1000 / frame_size)
+        self.activation_th = activation_th
+        self.deactivation_th = deactivation_th
+        self.speech_pad_ms = speech_pad_ms
+        self.min_speech_ms = min_speech_ms
+        self.max_speech_ms = max_speech_ms
+        self.partial_frames = partial_frames
 
         # State variables
-        self.speech_buffer: List[np.ndarray] = []
+        self.speech_buffer = (
+            bytearray()
+        )  # Use bytearray instead of list of numpy arrays
         self.silence_counter = 0
         self.is_speech_active = False
         self.total_speech_frames = 0
+        self.partial_counter = 0
+        self._leftover: np.ndarray = np.empty(0, np.int16)
 
     @abc.abstractmethod
     async def is_speech(self, frame: PcmData) -> float:
@@ -96,15 +111,17 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
                 format=pcm_data.format,
             )
 
-        # Process audio in frames
-        for i in range(0, len(pcm_data.samples), self.frame_size):
-            if i + self.frame_size > len(pcm_data.samples):
-                # Not enough samples for a full frame, pad with zeros
-                # TODO: this might not be ideal (to pad with zeroes)
-                frame = np.zeros(self.frame_size, dtype=np.int16)
-                frame[: len(pcm_data.samples) - i] = pcm_data.samples[i:]
-            else:
-                frame = pcm_data.samples[i : i + self.frame_size]
+        # Prepend leftover samples from previous call
+        if len(self._leftover) > 0:
+            buffer = np.concatenate([self._leftover, pcm_data.samples])
+        else:
+            buffer = pcm_data.samples
+
+        # Process audio in full frames only, without zero-padding
+        frame_start = 0
+        while frame_start + self.frame_size <= len(buffer):
+            frame = buffer[frame_start : frame_start + self.frame_size]
+            frame_start += self.frame_size
 
             await self._process_frame(
                 PcmData(
@@ -114,6 +131,15 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
                 ),
                 user,
             )
+
+        # Store any remaining samples for the next call
+        if frame_start < len(buffer):
+            self._leftover = buffer[frame_start:]
+        else:
+            self._leftover = np.empty(0, np.int16)
+
+        if len(self._leftover) > 0:
+            logger.info(f"Keeping {len(self._leftover)} samples for next processing")
 
     async def _process_frame(
         self, frame: PcmData, user: Optional[Dict[str, Any]] = None
@@ -126,12 +152,41 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
             user: User metadata to include with emitted audio events
         """
         speech_prob = await self.is_speech(frame)
-        is_speech = speech_prob > self.silence_threshold
+
+        # Determine speech state based on asymmetric thresholds
+        if self.is_speech_active:
+            is_speech = (
+                speech_prob >= self.deactivation_th
+            )  # Continue speech if above deactivation threshold
+        else:
+            is_speech = (
+                speech_prob >= self.activation_th
+            )  # Start speech only if above activation threshold
 
         # Add frame to buffer in all cases during active speech
         if self.is_speech_active:
-            self.speech_buffer.append(frame.samples)
+            # Append the frame bytes to the bytearray buffer
+            # Make a copy of samples to avoid BufferError due to memory view restrictions
+            self.speech_buffer.extend(frame.samples.tobytes())
             self.total_speech_frames += 1
+            self.partial_counter += 1
+
+            # Emit partial event every N frames while in speech
+            if self.partial_counter >= self.partial_frames:
+                # Create a copy of the current speech data
+                current_samples = np.frombuffer(
+                    self.speech_buffer, dtype=np.int16
+                ).copy()
+
+                # Create a PcmData object and emit the partial event
+                partial_pcm_data = PcmData(
+                    sample_rate=self.sample_rate, samples=current_samples, format="s16"
+                )
+                self.emit("partial", partial_pcm_data, user)
+                logger.debug(
+                    f"Emitted partial event with {len(current_samples)} samples"
+                )
+                self.partial_counter = 0
 
             if is_speech:
                 # Reset silence counter when speech is detected
@@ -140,12 +195,22 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
                 # Increment silence counter when silence is detected
                 self.silence_counter += 1
 
+                # Calculate silence pad frames based on ms
+                speech_pad_frames = int(
+                    self.speech_pad_ms * self.sample_rate / 1000 / self.frame_size
+                )
+
                 # If silence exceeds padding duration, emit audio and reset
-                if self.silence_counter >= self.speech_pad_frames:
+                if self.silence_counter >= speech_pad_frames:
                     await self._flush_speech_buffer(user)
 
+            # Calculate max speech frames based on ms
+            max_speech_frames = int(
+                self.max_speech_ms * self.sample_rate / 1000 / self.frame_size
+            )
+
             # Force flush if speech duration exceeds maximum
-            if self.total_speech_frames >= self.max_speech_frames:
+            if self.total_speech_frames >= max_speech_frames:
                 await self._flush_speech_buffer(user)
 
         # Start collecting speech when detected
@@ -153,9 +218,10 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
             self.is_speech_active = True
             self.silence_counter = 0
             self.total_speech_frames = 1
+            self.partial_counter = 1
 
             # Add this frame to the buffer
-            self.speech_buffer.append(frame.samples)
+            self.speech_buffer.extend(frame.samples.tobytes())
 
     async def _flush_speech_buffer(self, user: Optional[Dict[str, Any]] = None) -> None:
         """
@@ -164,10 +230,15 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
         Args:
             user: User metadata to include with emitted audio events
         """
-        if len(self.speech_buffer) >= self.min_speech_frames:
-            # Concatenate all frames in the buffer
-            speech_data = np.concatenate(self.speech_buffer)
+        # Calculate min speech frames based on ms
+        min_speech_frames = int(
+            self.min_speech_ms * self.sample_rate / 1000 / self.frame_size
+        )
 
+        # Convert bytearray to numpy array
+        speech_data = np.frombuffer(self.speech_buffer, dtype=np.int16).copy()
+
+        if len(speech_data) >= min_speech_frames * self.frame_size:
             # Create a PcmData object and emit the audio event
             pcm_data = PcmData(
                 sample_rate=self.sample_rate, samples=speech_data, format="s16"
@@ -176,14 +247,26 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
             logger.debug(f"Emitted audio event with {len(speech_data)} samples")
 
         # Reset state variables
-        self.speech_buffer = []
+        self.speech_buffer = bytearray()
         self.silence_counter = 0
         self.is_speech_active = False
         self.total_speech_frames = 0
+        self.partial_counter = 0
+
+    async def flush(self, user: Optional[Dict[str, Any]] = None) -> None:
+        """
+        Public method to flush any accumulated speech buffer.
+
+        Args:
+            user: User metadata to include with emitted audio events
+        """
+        await self._flush_speech_buffer(user)
 
     async def reset(self) -> None:
         """Reset the VAD state."""
-        self.speech_buffer = []
+        self.speech_buffer = bytearray()
         self.silence_counter = 0
         self.is_speech_active = False
         self.total_speech_frames = 0
+        self.partial_counter = 0
+        self._leftover = np.empty(0, np.int16)

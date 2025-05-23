@@ -1,1 +1,0 @@
-# Silero VAD test package
