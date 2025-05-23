@@ -537,6 +537,7 @@ class ConnectionManager(AsyncIOEventEmitter):
                 )
                 logger.info("Publisher offer sent successfully.")
                 await self.publisher_pc.handle_answer(response)
+                await self.publisher_pc.wait_for_connected()
             except SfuRpcError as e:
                 logger.error(f"Failed to set publisher: {e}")
                 if self.publisher_pc:
@@ -551,8 +552,6 @@ class ConnectionManager(AsyncIOEventEmitter):
                 raise ConnectionError(
                     f"Unexpected error during publisher setup: {e}"
                 ) from e
-            # TODO: use proper syncronization here!
-            await asyncio.sleep(1.2)
         finally:
             logger.info("Released publisher negotiation lock")
             self.publisher_negotiation_lock.release()
