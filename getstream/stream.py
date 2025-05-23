@@ -8,8 +8,22 @@ from getstream.common.client import CommonClient
 from getstream.models import UserRequest
 from getstream.utils import validate_and_clean_url
 from getstream.video.client import VideoClient
+from pydantic import BaseSettings, AnyHttpUrl
 
 BASE_URL = "https://chat.stream-io-api.com/"
+
+
+class Settings(BaseSettings):
+    STREAM_API_KEY: str
+    STREAM_API_SECRET: str
+    STREAM_BASE_URL: AnyHttpUrl = BASE_URL
+
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+
+
+settings = Settings()
 
 
 class Stream(CommonClient):
@@ -24,7 +38,7 @@ class Stream(CommonClient):
         api_key: str,
         api_secret: str,
         timeout=6.0,
-        base_url=BASE_URL,
+        base_url=settings.BASE_URL,
     ):
         if api_key is None or api_key == "":
             raise ValueError("api_key is required")
@@ -41,6 +55,19 @@ class Stream(CommonClient):
         self.base_url = validate_and_clean_url(base_url)
         self.token = self._create_token()
         super().__init__(self.api_key, self.base_url, self.token, self.timeout)
+
+    @classmethod
+    def from_env(cls, timeout: float = 6.0) -> "Stream":
+        """
+        Construct a StreamClient by loading its credentials and base_url
+        from environment variables (via our pydantic Settings).
+        """
+        return cls(
+            api_key=settings.STREAM_API_KEY,
+            api_secret=settings.STREAM_API_SECRET,
+            base_url=settings.STREAM_BASE_URL,
+            timeout=timeout,
+        )
 
     @cached_property
     def video(self):
