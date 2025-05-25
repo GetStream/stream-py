@@ -34,6 +34,7 @@ class PublisherPeerConnection(aiortc.RTCPeerConnection):
         )
         super().__init__(configuration)
         self.manager = manager
+        self._connected_event = asyncio.Event()
 
         @self.on("icegatheringstatechange")
         def on_icegatheringstatechange():
@@ -42,6 +43,18 @@ class PublisherPeerConnection(aiortc.RTCPeerConnection):
             )
             if self.iceGatheringState == "complete":
                 logger.info("Publisher: All ICE candidates have been gathered.")
+
+        @self.on("iceconnectionstatechange")
+        def on_iceconnectionstatechange():
+            logger.info(
+                f"Publisher ICE connection state changed to {self.iceConnectionState}"
+            )
+
+        @self.on("connectionstatechange")
+        def on_connectionstatechange():
+            logger.info(f"Publisher connection state changed to {self.connectionState}")
+            if self.connectionState == "connected":
+                self._connected_event.set()
 
     async def handle_answer(self, response):
         """Handles the SDP answer received from the SFU for the publisher connection."""
@@ -56,6 +69,21 @@ class PublisherPeerConnection(aiortc.RTCPeerConnection):
         logger.info(
             f"Publisher remote description set successfully. {self.localDescription}"
         )
+
+    async def wait_for_connected(self, timeout: float = 5.0):
+        # If already connected, return immediately
+        if self.connectionState == "connected":
+            logger.info("Publisher already connected, no need to wait")
+            return
+
+        logger.info(f"Waiting for publisher connection with {timeout}s timeout")
+        try:
+            # Wait for the connected event with timeout
+            await asyncio.wait_for(self._connected_event.wait(), timeout=timeout)
+            logger.info("Publisher successfully connected")
+        except asyncio.TimeoutError:
+            logger.error(f"Publisher connection timed out after {timeout}s")
+            raise TimeoutError(f"Connection timed out after {timeout} seconds")
 
 
 class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):

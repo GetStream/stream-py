@@ -342,8 +342,6 @@ async def test_play_audio_track_from_text(client: Stream):
 
         await tts_instance.send("hey how is it going?")
 
-        # wait a bit to avoid overlapping
-        await asyncio.sleep(0.2)
         await tts_instance.send("do you think Stream is awesome so far?")
 
         await connection.wait()

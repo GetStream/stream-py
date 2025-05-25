@@ -119,7 +119,9 @@ class AudioStreamTrack(aiortc.mediastreams.MediaStreamTrack):
         if not self._queue.empty():
             try:
                 while len(data_to_play) < bytes_per_frame and not self._queue.empty():
-                    chunk = await asyncio.wait_for(self._queue.get(), 0.001)
+                    # Being less aggressive with the timeout here, as we
+                    # don't want to add blocks of silence to the queue
+                    chunk = await asyncio.wait_for(self._queue.get(), 0.5)
                     self._queue.task_done()
                     data_to_play.extend(chunk)
             except asyncio.TimeoutError:
