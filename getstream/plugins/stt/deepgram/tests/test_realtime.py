@@ -98,12 +98,12 @@ async def test_real_time_transcript_emission():
 
     # Register event handlers
     @stt.on("transcript")
-    def on_transcript(text, metadata):
-        transcript_events.append((text, metadata))
+    def on_transcript(text, user, metadata):
+        transcript_events.append((text, user, metadata))
 
     @stt.on("partial_transcript")
-    def on_partial_transcript(text, metadata):
-        partial_transcript_events.append((text, metadata))
+    def on_partial_transcript(text, user, metadata):
+        partial_transcript_events.append((text, user, metadata))
 
     @stt.on("error")
     def on_error(error):
@@ -122,7 +122,7 @@ async def test_real_time_transcript_emission():
     # Check that we received the transcript event
     assert len(transcript_events) == 1, "Expected 1 transcript event"
     assert transcript_events[0][0] == "hello world", "Incorrect transcript text"
-    assert transcript_events[0][1]["is_final"], "Transcript should be marked as final"
+    assert transcript_events[0][2]["is_final"], "Transcript should be marked as final"
 
     # No errors should have occurred
     assert len(error_events) == 0, f"Unexpected errors: {error_events}"
@@ -146,12 +146,12 @@ async def test_real_time_partial_transcript_emission():
 
     # Register event handlers
     @stt.on("transcript")
-    def on_transcript(text, metadata):
-        transcript_events.append((text, metadata))
+    def on_transcript(text, user, metadata):
+        transcript_events.append((text, user, metadata))
 
     @stt.on("partial_transcript")
-    def on_partial_transcript(text, metadata):
-        partial_transcript_events.append((text, metadata))
+    def on_partial_transcript(text, user, metadata):
+        partial_transcript_events.append((text, user, metadata))
 
     # Send some audio data to ensure the connection is active
     pcm_data = PcmData(samples=b"\x00\x00" * 800, sample_rate=48000, format="s16")
@@ -253,8 +253,8 @@ async def test_dispatcher_shutdown():
     transcript_events = []
 
     @stt.on("transcript")
-    def on_transcript(text, metadata):
-        transcript_events.append((text, metadata))
+    def on_transcript(text, user, metadata):
+        transcript_events.append((text, user, metadata))
 
     # Attempt to emit a transcript
     try:

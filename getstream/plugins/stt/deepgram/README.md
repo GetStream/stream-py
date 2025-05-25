@@ -21,12 +21,12 @@ stt = Deepgram(api_key="your_deepgram_api_key")
 
 # Register event handlers
 @stt.on("transcript")
-def on_transcript(text, metadata):
-    print(f"Final transcript: {text}")
+def on_transcript(text, user, metadata):
+    print(f"Final transcript from {user}: {text}")
 
 @stt.on("partial_transcript")
-def on_partial(text, metadata):
-    print(f"Partial transcript: {text}")
+def on_partial(text, user, metadata):
+    print(f"Partial transcript from {user}: {text}")
 
 # Process audio
 await stt.process_audio(pcm_data)

@@ -12,8 +12,8 @@ from getstream.video.rtc.track_util import PcmData
 
 logger = logging.getLogger(__name__)
 
-# Type for transcript results: (is_final, text, metadata)
-TranscriptResult = Tuple[bool, str, Dict[str, Any]]
+# Type for transcript results: (is_final, text, user, metadata)
+TranscriptResult = Tuple[bool, str, Any, Dict[str, Any]]
 # Type for queue items: either a transcript result or an exception
 QueueItem = Union[TranscriptResult, Exception]
 
@@ -86,6 +86,9 @@ class Deepgram(STT):
         self._setup_attempted = False
         self._is_closed = False
 
+        # Track current user context for associating transcripts with users
+        self._current_user = None
+
         self._setup_connection()
 
     def _process_queue_item(self, item: QueueItem):
@@ -95,15 +98,16 @@ class Deepgram(STT):
             if isinstance(item, Exception):
                 logger.debug("Dispatching error event from queue")
                 self.emit("error", item)
-            # Otherwise it should be a tuple (is_final, text, metadata)
-            elif isinstance(item, tuple) and len(item) == 3:
-                is_final, text, metadata = item
+            # Otherwise it should be a tuple (is_final, text, user, metadata)
+            elif isinstance(item, tuple) and len(item) == 4:
+                is_final, text, user, metadata = item
                 event_type = "transcript" if is_final else "partial_transcript"
                 logger.debug(
                     f"Dispatching {event_type} event from queue",
                     extra={"is_final": is_final, "text_length": len(text)},
                 )
-                self.emit(event_type, text, metadata)
+                print(event_type)
+                self.emit(event_type, text, user, metadata)
             else:
                 logger.warning(f"Unrecognized item in results queue: {type(item)}")
         except Exception as e:
@@ -166,7 +170,8 @@ class Deepgram(STT):
 
                     # Add to the queue using the dispatcher's thread-safe method
                     self._dispatcher.add_item(
-                        (is_final, transcript_text, metadata), threadsafe=True
+                        (is_final, transcript_text, self._current_user, metadata),
+                        threadsafe=True,
                     )
 
                     logger.debug(
@@ -302,6 +307,9 @@ class Deepgram(STT):
         if self._is_closed:
             logger.warning("Deepgram connection is closed, ignoring audio")
             return None
+
+        # Store the current user context for transcript events
+        self._current_user = user_metadata
 
         # Check if the input sample rate matches the expected sample rate
         if pcm_data.sample_rate != self.sample_rate:

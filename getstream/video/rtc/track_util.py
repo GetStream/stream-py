@@ -40,87 +40,33 @@ class PcmData(NamedTuple):
         return num_samples / self.sample_rate
 
 
-def patch_sdp_offer(sdp: str) -> str:
-    """
-    Patches an SDP offer to ensure consistent ICE and DTLS parameters across all media sections.
-
-    This function:
-    1. Ensures all media descriptions have the same ice-ufrag, ice-pwd, and fingerprint values
-       (using values from the first media section)
-    2. Sets all media descriptions' ports to match the first media description's port
-    3. Replaces all media descriptions' candidates with candidates from the first media description
-
-    Args:
-        sdp: The original SDP string.
-
-    Returns:
-        The modified SDP string with consistent parameters across all media sections.
-    """
-    # Parse the SDP
-    session = aiortc.sdp.SessionDescription.parse(sdp)
-
-    # If we have fewer than 2 media sections, nothing to patch
-    if len(session.media) < 2:
-        return sdp
-
-    # Get the values from the first media section
-    first_media = session.media[0]
-    reference_port = first_media.port
-    reference_ice = first_media.ice
-    reference_fingerprints = first_media.dtls.fingerprints if first_media.dtls else []
-    reference_candidates = first_media.ice_candidates
-
-    # Apply to all other media sections
-    for media in session.media[1:]:
-        # Update port
-        media.port = reference_port
-
-        # Update ICE parameters
-        if reference_ice:
-            media.ice.usernameFragment = reference_ice.usernameFragment
-            media.ice.password = reference_ice.password
-            media.ice.iceLite = reference_ice.iceLite
-
-        # Update DTLS fingerprints
-        if media.dtls and reference_fingerprints:
-            media.dtls.fingerprints = reference_fingerprints.copy()
-
-        # Replace ICE candidates
-        media.ice_candidates = reference_candidates.copy()
-        if reference_candidates:
-            media.ice_candidates_complete = True
-
-    # Convert back to string
-    return str(session)
-
-
 def fix_sdp_msid_semantic(sdp: str) -> str:
     """
     Fix SDP msid-semantic format by ensuring there is a space after "WMS".
-    
+
     The WebRTC spec requires a space between "WMS" and any identifiers.
-    Some SDPs may incorrectly have "WMS*" instead of "WMS *" which can 
+    Some SDPs may incorrectly have "WMS*" instead of "WMS *" which can
     cause connection issues.
-    
+
     Args:
         sdp: The SDP string to fix
-        
+
     Returns:
         The fixed SDP string
     """
-    return re.sub(r'a=msid-semantic:WMS\*', r'a=msid-semantic:WMS *', sdp)
+    return re.sub(r"a=msid-semantic:WMS\*", r"a=msid-semantic:WMS *", sdp)
 
 
 def parse_track_stream_mapping(sdp: str) -> dict:
     """Parse SDP to extract track_id to stream_id mapping from msid lines."""
     mapping = {}
-    for line in sdp.split('\n'):
-        if line.startswith('a=msid:'):
-            parts = line.strip().split(' ')
+    for line in sdp.split("\n"):
+        if line.startswith("a=msid:"):
+            parts = line.strip().split(" ")
             if len(parts) >= 2:
                 # Format: a=msid:stream_id track_id
                 track_id = parts[1]
-                stream_id = parts[0].replace('a=msid:', '')
+                stream_id = parts[0].replace("a=msid:", "")
                 mapping[track_id] = stream_id
     return mapping
 

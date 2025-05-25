@@ -16,7 +16,6 @@ dependencies = [
     "twirp[all,webrtc]>=0.0.7",
     "protobuf[webrtc]>=4.25.1",
     "python-dateutil[webrtc]>=2.8.2",
-    "aiortc[webrtc]>=1.10.1",
     "websocket-client>=1.8.0",
     "pytest-timeout>=2.3.1",
     "aiohttp>=3.11.16",
@@ -66,5 +65,5 @@ openai-realtime = [
   "trio >=0.22.2",
 ]
 webrtc = [
-    "aiortc==1.10.1"
+    "aiortc>=1.12.0"
 ]

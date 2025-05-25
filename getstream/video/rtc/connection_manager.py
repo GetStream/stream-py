@@ -31,7 +31,6 @@ from getstream.video.rtc.track_util import (
     BufferedMediaTrack,
     detect_video_properties,
     fix_sdp_msid_semantic,
-    patch_sdp_offer,
     parse_track_stream_mapping,
 )
 
@@ -60,7 +59,7 @@ class ParticipantsState(AsyncIOEventEmitter):
     def get_user_from_track_id(self, track_id: str) -> Optional[models_pb2.Participant]:
         stream_id = self._track_stream_mapping.get(track_id)
         if stream_id:
-            prefix = stream_id.split(':')[0]
+            prefix = stream_id.split(":")[0]
             participant = self._participant_by_prefix.get(prefix)
             return participant
         return None
@@ -284,7 +283,9 @@ class ConnectionManager(AsyncIOEventEmitter):
             # Fix any invalid msid-semantic format in the SDP
             fixed_sdp = fix_sdp_msid_semantic(event.sdp)
             # Parse SDP to create track_id to stream_id mapping
-            self.participants_state.set_track_stream_mapping(parse_track_stream_mapping(fixed_sdp))
+            self.participants_state.set_track_stream_mapping(
+                parse_track_stream_mapping(fixed_sdp)
+            )
             # The SDP offer from the SFU might already contain candidates (trickled)
             # or have a different structure. We set it as the remote description.
             # The aiortc library handles merging and interpretation.
@@ -522,16 +523,12 @@ class ConnectionManager(AsyncIOEventEmitter):
             )
 
             try:
-                # Patch the SDP offer to ensure consistent parameters
-                patched_sdp = patch_sdp_offer(self.publisher_pc.localDescription.sdp)
-                logger.info(
-                    "Patched SDP offer for consistent parameters across media sections"
-                )
-
                 response = await self.twirp_signaling_client.SetPublisher(
                     ctx=self.twirp_context,
                     request=signal_pb2.SetPublisherRequest(
-                        session_id=self.session_id, sdp=patched_sdp, tracks=track_infos
+                        session_id=self.session_id,
+                        sdp=self.publisher_pc.localDescription.sdp,
+                        tracks=track_infos,
                     ),
                     server_path_prefix="",
                 )
@@ -632,16 +629,12 @@ class ConnectionManager(AsyncIOEventEmitter):
             )
 
             try:
-                # Patch the SDP offer to ensure consistent parameters
-                patched_sdp = patch_sdp_offer(self.publisher_pc.localDescription.sdp)
-                logger.info(
-                    "Patched SDP offer for consistent parameters across media sections"
-                )
-
                 response = await self.twirp_signaling_client.SetPublisher(
                     ctx=self.twirp_context,
                     request=signal_pb2.SetPublisherRequest(
-                        session_id=self.session_id, sdp=patched_sdp, tracks=[track_info]
+                        session_id=self.session_id,
+                        sdp=self.publisher_pc.localDescription.sdp,
+                        tracks=[track_info],
                     ),
                     server_path_prefix="",  # Note: Our wrapper doesn't need this, underlying client handles prefix
                 )

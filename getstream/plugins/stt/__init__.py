@@ -149,9 +149,9 @@ class STT(AsyncIOEventEmitter, abc.ABC):
 
     Events:
         - transcript: Emitted when a complete transcript is available.
-            Args: text (str), metadata (dict)
+            Args: text (str), user (any), metadata (dict)
         - partial_transcript: Emitted when a partial transcript is available.
-            Args: text (str), metadata (dict)
+            Args: text (str), user (any), metadata (dict)
         - error: Emitted when an error occurs during transcription.
             Args: error (Exception)
     """
@@ -210,7 +210,7 @@ class STT(AsyncIOEventEmitter, abc.ABC):
 
             # If no results were returned, just return
             if not results:
-                logger.info(
+                logger.debug(
                     "No speech detected in audio",
                     extra={
                         "processing_time_ms": processing_time * 1000,
@@ -244,9 +244,9 @@ class STT(AsyncIOEventEmitter, abc.ABC):
                             else None,
                         },
                     )
-                    self.emit("transcript", text, metadata)
+                    self.emit("transcript", text, user_metadata, metadata)
                 else:
-                    self.emit("partial_transcript", text, metadata)
+                    self.emit("partial_transcript", text, user_metadata, metadata)
 
         except Exception as e:
             # Emit any errors that occur during processing

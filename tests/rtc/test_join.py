@@ -381,7 +381,7 @@ async def test_full_echo(client: Stream):
             await stt.process_audio(pcm, None)
 
         @stt.on("transcript")
-        async def on_transcript(text: str, user):
+        async def on_transcript(text: str, user, metadata):
             print(
                 f"{time.time()} got text from audio, will echo back the transcript {text}"
             )

@@ -28,21 +28,22 @@ from getstream.video.rtc.track_util import PcmData
 from getstream.plugins.stt.deepgram import Deepgram
 
 
-def open_browser(api_key: str, token: str) -> str:
+def open_browser(api_key: str, token: str, call_id: str) -> str:
     """
     Helper function to open browser with Stream call link.
 
     Args:
         api_key: Stream API key
         token: JWT token for the user
+        call_id: ID of the call
 
     Returns:
         The URL that was opened
     """
     base_url = "https://pronto.getstream.io/bare/join/"
-    params = {"api_key": api_key, "token": token}
+    params = {"api_key": api_key, "token": token, "skip_lobby": "true"}
 
-    url = f"{base_url}?{urlencode(params)}"
+    url = f"{base_url}{call_id}?{urlencode(params)}"
     print(f"Opening browser to: {url}")
 
     try:
@@ -56,16 +57,18 @@ def open_browser(api_key: str, token: str) -> str:
 
 
 async def main():
-    load_dotenv()
     """Main example function."""
     print("🎙️  Stream + Deepgram Real-time Transcription Example")
     print("=" * 55)
 
-    # Initialize Stream client
+    # Load environment variables
+    load_dotenv()
+
+    # Initialize Stream client from ENV
     client = Stream.from_env()
 
     # Create a unique call ID for this session
-    call_id = f"transcription-demo-{uuid.uuid4().hex[:8]}"
+    call_id = str(uuid.uuid4())
     print(f"📞 Call ID: {call_id}")
 
     # Create a token for a user to join the call from browser
@@ -84,7 +87,7 @@ async def main():
     print(f"📞 Call created: {call_id}")
 
     # Open browser for users to join with the user token
-    open_browser(client.api_key, user_token)
+    open_browser(client.api_key, user_token, call_id)
 
     print("\n🤖 Starting transcription bot...")
     print("The bot will join the call and transcribe all audio it receives.")
@@ -105,9 +108,24 @@ async def main():
                 await stt.process_audio(pcm, user)
 
             @stt.on("transcript")
-            async def on_transcript(text: str, user):
+            async def on_transcript(text: str, user: any, metadata: dict):
                 timestamp = time.strftime("%H:%M:%S")
-                print(f"[{timestamp}] {user}: {text}")
+                user_info = user if user else "unknown"
+                print(f"[{timestamp}] {user_info}: {text}")
+                if metadata.get("confidence"):
+                    print(f"    └─ confidence: {metadata['confidence']:.2%}")
+
+            @stt.on("partial_transcript")
+            async def on_partial_transcript(text: str, user: any, metadata: dict):
+                if text.strip():  # Only show non-empty partial transcripts
+                    user_info = user if user else "unknown"
+                    print(
+                        f"    {user_info} (partial): {text}", end="\r"
+                    )  # Overwrite line
+
+            @stt.on("error")
+            async def on_stt_error(error):
+                print(f"\n❌ STT Error: {error}")
 
             # Keep the connection alive and wait for audio
             print("🎧 Listening for audio... (Press Ctrl+C to stop)")

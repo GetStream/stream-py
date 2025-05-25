@@ -268,8 +268,8 @@ async def test_deepgram_stt_transcript_events(mia_metadata):
     transcripts = []
 
     @stt.on("transcript")
-    def on_transcript(text, metadata):
-        transcripts.append((text, metadata))
+    def on_transcript(text, user, metadata):
+        transcripts.append((text, user, metadata))
 
     # Emit a transcript using the mock connection
     stt.dg_connection.emit_transcript("This is a final transcript")
@@ -332,8 +332,8 @@ async def test_deepgram_end_to_end(audio_data, mia_metadata):
     errors = []
 
     @stt.on("transcript")
-    def on_transcript(text, metadata):
-        transcripts.append((text, metadata))
+    def on_transcript(text, user, metadata):
+        transcripts.append((text, user, metadata))
 
     @stt.on("error")
     def on_error(error):
@@ -394,12 +394,12 @@ async def test_deepgram_with_real_api(
     errors = []
 
     @stt.on("transcript")
-    def on_transcript(text, metadata):
-        transcripts.append((text, metadata))
+    def on_transcript(text, user, metadata):
+        transcripts.append((text, user, metadata))
 
     @stt.on("partial_transcript")
-    def on_partial(text, metadata):
-        partial_transcripts.append((text, metadata))
+    def on_partial(text, user, metadata):
+        partial_transcripts.append((text, user, metadata))
 
     @stt.on("error")
     def on_error(error):
@@ -488,12 +488,12 @@ async def test_deepgram_with_real_api(
 
                 # Re-register event handlers
                 @stt.on("transcript")
-                def on_transcript(text, metadata):
-                    transcripts.append((text, metadata))
+                def on_transcript(text, user, metadata):
+                    transcripts.append((text, user, metadata))
 
                 @stt.on("partial_transcript")
-                def on_partial(text, metadata):
-                    partial_transcripts.append((text, metadata))
+                def on_partial(text, user, metadata):
+                    partial_transcripts.append((text, user, metadata))
 
                 @stt.on("error")
                 def on_error(error):
@@ -683,8 +683,8 @@ async def test_deepgram_with_real_api_keep_alive(
     errors = []
 
     @stt.on("transcript")
-    def on_transcript(text, metadata):
-        transcripts.append((text, metadata))
+    def on_transcript(text, user, metadata):
+        transcripts.append((text, user, metadata))
 
     @stt.on("error")
     def on_error(error):

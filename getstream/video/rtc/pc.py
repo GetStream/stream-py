@@ -34,8 +34,6 @@ class PublisherPeerConnection(aiortc.RTCPeerConnection):
         )
         super().__init__(configuration)
         self.manager = manager
-        self._received_ice_event = asyncio.Event()
-        self._ice_candidates = []
 
         @self.on("icegatheringstatechange")
         def on_icegatheringstatechange():
@@ -44,7 +42,6 @@ class PublisherPeerConnection(aiortc.RTCPeerConnection):
             )
             if self.iceGatheringState == "complete":
                 logger.info("Publisher: All ICE candidates have been gathered.")
-                # Optionally send a final ICE candidate message or null candidate if required by SFU
 
     async def handle_answer(self, response):
         """Handles the SDP answer received from the SFU for the publisher connection."""
@@ -76,9 +73,6 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
         )
         super().__init__(configuration)
         self.connection = connection
-
-        # the list of ice candidates received via signaling
-        self._ice_candidates = []
 
         # the list of tracks
         self.tracks = defaultdict(lambda: defaultdict(list))

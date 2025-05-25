@@ -21,7 +21,6 @@ async def test_detect_video_properties():
     if not os.path.exists(file_path):
         pytest.skip(f"Test media file not found at {file_path}")
 
-    player = None
     buffered_track = None
 
     try:
