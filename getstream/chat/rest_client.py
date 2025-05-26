@@ -568,6 +568,7 @@ class ChatRestClient(BaseClient):
         skip_push: Optional[bool] = None,
         truncated_at: Optional[datetime] = None,
         user_id: Optional[str] = None,
+        member_ids: Optional[List[str]] = None,
         message: Optional[MessageRequest] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[TruncateChannelResponse]:
@@ -580,6 +581,7 @@ class ChatRestClient(BaseClient):
             skip_push=skip_push,
             truncated_at=truncated_at,
             user_id=user_id,
+            member_ids=member_ids,
             message=message,
             user=user,
         )
@@ -930,12 +932,18 @@ class ChatRestClient(BaseClient):
         )
 
     def update_message(
-        self, id: str, message: MessageRequest, skip_enrich_url: Optional[bool] = None
+        self,
+        id: str,
+        message: MessageRequest,
+        skip_enrich_url: Optional[bool] = None,
+        skip_push: Optional[bool] = None,
     ) -> StreamResponse[UpdateMessageResponse]:
         path_params = {
             "id": id,
         }
-        json = build_body_dict(message=message, skip_enrich_url=skip_enrich_url)
+        json = build_body_dict(
+            message=message, skip_enrich_url=skip_enrich_url, skip_push=skip_push
+        )
 
         return self.post(
             "/api/v2/chat/messages/{id}",
@@ -1105,12 +1113,18 @@ class ChatRestClient(BaseClient):
         )
 
     def undelete_message(
-        self, id: str, message: MessageRequest, skip_enrich_url: Optional[bool] = None
+        self,
+        id: str,
+        message: MessageRequest,
+        skip_enrich_url: Optional[bool] = None,
+        skip_push: Optional[bool] = None,
     ) -> StreamResponse[UpdateMessageResponse]:
         path_params = {
             "id": id,
         }
-        json = build_body_dict(message=message, skip_enrich_url=skip_enrich_url)
+        json = build_body_dict(
+            message=message, skip_enrich_url=skip_enrich_url, skip_push=skip_push
+        )
 
         return self.post(
             "/api/v2/chat/messages/{id}/undelete",
@@ -1491,6 +1505,39 @@ class ChatRestClient(BaseClient):
 
         return self.post(
             "/api/v2/chat/push_preferences", UpsertPushPreferencesResponse, json=json
+        )
+
+    def get_push_templates(
+        self, push_provider_type: str, push_provider_name: Optional[str] = None
+    ) -> StreamResponse[GetPushTemplatesResponse]:
+        query_params = build_query_param(
+            push_provider_type=push_provider_type, push_provider_name=push_provider_name
+        )
+
+        return self.get(
+            "/api/v2/chat/push_templates",
+            GetPushTemplatesResponse,
+            query_params=query_params,
+        )
+
+    def upsert_push_template(
+        self,
+        event_type: str,
+        push_provider_type: str,
+        enable_push: Optional[bool] = None,
+        push_provider_name: Optional[str] = None,
+        template: Optional[str] = None,
+    ) -> StreamResponse[UpsertPushTemplateResponse]:
+        json = build_body_dict(
+            event_type=event_type,
+            push_provider_type=push_provider_type,
+            enable_push=enable_push,
+            push_provider_name=push_provider_name,
+            template=template,
+        )
+
+        return self.post(
+            "/api/v2/chat/push_templates", UpsertPushTemplateResponse, json=json
         )
 
     def query_banned_users(
