@@ -87,9 +87,16 @@ dependencies = [
 # Optional: mark this as a plugin for dynamic discovery
 [project.entry-points."getstream.plugins.stt"]
 whisper = "getstream.plugins.stt.whisper:Whisper"
+
+# Required for UV workspace
+[tool.uv.sources]
+getstream = { workspace = true }
+getstream-plugins-stt-deepgram = { workspace = true }
+getstream-plugins-tts-elevenlabs = { workspace = true }
+getstream-plugins-vad-silero = { workspace = true }
 ```
 
-> 📝 **Dependency Note**: Since most plugins work with audio, video, or WebRTC functionality, they should depend on `getstream[webrtc]` rather than just `getstream`. This ensures all necessary WebRTC-related dependencies are available.
+> 📝 **Dependency Note**: Since most plugins work with audio, video, or WebRTC functionality, they should depend on `getstream[webrtc]` rather than just `getstream`. This ensures all necessary WebRTC-related dependencies are available. The `[tool.uv.sources]` section is required for the workspace setup to use the local development version of getstream.
 
 ---
 
@@ -147,6 +154,20 @@ examples/
 
 • The example's `pyproject.toml` should list your plugin in its dependencies so a simple `uv pip install -e .` inside the example folder pulls everything needed.
 
+**Example dependencies:**
+```toml
+dependencies = [
+    "getstream[webrtc]",
+    "getstream-plugins-stt-whisper",  # Use the plugin package, not openai-whisper directly
+    "python-dotenv>=1.0.0",
+]
+```
+
+This approach ensures that:
+- The example uses the exact plugin implementation you built
+- All plugin dependencies are automatically included
+- The example works with the workspace development setup
+
 • Keep the demo minimal: a short script that loads some sample data (use assets from `tests/assets` if possible), runs the plugin, and prints or plays the result.
 
 • **Optimize for readability**: The `main.py` file should be clean and easy to follow. Keep the main function focused on the core logic flow. Move error handling (try/except blocks) to the entry point (`if __name__ == "__main__":`) rather than cluttering the main function. This makes it easier for users to understand the essential steps and adapt the code to their needs.
@@ -156,6 +177,103 @@ examples/
 ---
 
 ## 7. Checklist before opening a PR
+
+- [ ] Sub-directory under the correct plugin type.
+- [ ] Inherits from the right base class.
+- [ ] Contains `pyproject.toml` with precise dependencies.
+- [ ] Includes at least one passing test that uses `getstream.plugins.test_utils`.
+- [ ] Exports the plugin class in `__init__.py`.
+- [ ] (Recommended) Adds a minimal example project under `examples/` that demonstrates basic usage.
+- [ ] `uv run pytest` passes from project root.
+
+---
+
+## 8. Working with the UV Workspace
+
+This project uses UV workspace configuration for seamless local development across plugins, the main package, and examples.
+
+### Workspace Setup
+
+The root `pyproject.toml` defines a workspace that includes:
+- All plugins: `getstream/plugins/stt/*`, `getstream/plugins/tts/*`, `getstream/plugins/vad/*`
+- All examples: `examples/*`
+- The main `getstream` package (root)
+
+### Development Workflow
+
+**Initial setup:**
+```bash
+# From project root - installs everything in editable mode
+uv sync --all-extras --dev
+```
+
+**Adding a new plugin to the workspace:**
+New plugins and examples are automatically included! The workspace uses wildcard patterns:
+```toml
+[tool.uv.workspace]
+members = [
+    "getstream/plugins/*/*",        # Automatically includes all plugins
+    "examples/*",                   # Automatically includes all examples
+]
+exclude = [
+    "**/__pycache__",              # Exclude cache directories
+]
+```
+
+Just create your plugin or example with a `pyproject.toml` file in the right location and it will be automatically included.
+
+**Plugin development:**
+```bash
+# All packages are automatically available in editable mode
+# Changes to getstream core are immediately available to plugins
+# Changes to plugins are immediately available to examples
+
+# Run tests for a specific plugin
+uv run pytest getstream/plugins/stt/whisper/tests/ -v
+
+# Run tests for all plugins
+uv run pytest getstream/plugins/ -v
+
+# Run example
+cd examples/your_example_name
+uv run python main.py
+```
+
+**Key Benefits:**
+- ✅ **No manual editable installs**: Everything is automatically linked
+- ✅ **Immediate changes**: Modifications to any package are instantly available
+- ✅ **Consistent dependencies**: Single lock file manages all versions
+- ✅ **Easy testing**: Run tests across the entire workspace
+- ✅ **Simple CI**: Single command to test everything
+
+### Plugin Dependencies
+
+In your plugin's `pyproject.toml`, you can simply depend on `getstream[webrtc]` - the workspace ensures it uses the local development version. You should also include workspace sources for all plugins to enable cross-plugin dependencies:
+
+```toml
+dependencies = [
+    "getstream[webrtc]",  # Uses local workspace version during development
+    "your-plugin-specific-deps>=1.0.0",
+]
+
+[tool.uv.sources]
+getstream = { workspace = true }
+getstream-plugins-stt-deepgram = { workspace = true }
+getstream-plugins-tts-elevenlabs = { workspace = true }
+getstream-plugins-vad-silero = { workspace = true }
+# Add any new plugins here as they're created
+```
+
+### Publishing vs Development
+
+- **Development**: Workspace automatically uses local versions
+- **Publishing**: When published to PyPI, plugins will use the published `getstream[webrtc]` package
+
+This gives you the best of both worlds: easy local development with proper published dependencies.
+
+---
+
+## 9. Checklist before opening a PR
 
 - [ ] Sub-directory under the correct plugin type.
 - [ ] Inherits from the right base class.

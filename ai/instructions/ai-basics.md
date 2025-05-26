@@ -15,8 +15,37 @@
 6. .env is used to load credentials, the client fixture will load credentials from there
 7. keep tests well organized and use test classes for similar tests
 8. tests that rely on file assets should always rely on files inside the `tests/assets/` folder, new files should be added there and existing ones used if possible. Do not use files larger than 256 kilobytes.
-9- do not use mocks or mock things in general unless you are asked to do that directly
-10- always run tests using `uv run pytest` from the root of the project, dont cd into folders to run tests
+9. do not use mocks or mock things in general unless you are asked to do that directly
+10. always run tests using `uv run pytest` from the root of the project, dont cd into folders to run tests
+
+### Running tests in the workspace
+
+With the UV workspace setup, you can run tests for different parts of the project:
+
+**Main package tests:**
+```bash
+uv run pytest tests/                    # Run all main package tests
+uv run pytest tests/test_video.py      # Run specific test file
+```
+
+**Plugin tests:**
+```bash
+uv run pytest getstream/plugins/stt/deepgram/tests/     # Run specific plugin tests
+uv run pytest getstream/plugins/*/tests/               # Run all plugin tests
+```
+
+**Example tests:**
+```bash
+uv run pytest examples/stt_deepgram_transcription/tests/  # Run specific example tests
+uv run pytest examples/*/tests/                           # Run all example tests
+```
+
+**All tests:**
+```bash
+uv run pytest                          # Run all tests in the workspace
+```
+
+**Important:** Always run tests from the project root directory. The workspace configuration ensures that all packages (main, plugins, examples) are available in editable mode during testing, so imports will work correctly across the entire codebase.
 
 ## Project layout
 

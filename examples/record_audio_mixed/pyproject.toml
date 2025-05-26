@@ -1,17 +1,14 @@
 [project]
-name = "getstream-stt-deepgram-transcription-example"
+name = "getstream-record-audio-mixed-example"
 version = "0.1.0"
-description = "Example project showing how to transcribe a call using STT with Deepgram"
+description = "Example project showing how to record mixed audio from a call"
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}
 
 dependencies = [
     "getstream[webrtc]",
-    "getstream-plugins-stt-deepgram",
     "python-dotenv>=1.0.0",
-    "aiortc>=1.10.1",
-    "numpy>=2.0.0",
 ]
 
 [project.optional-dependencies]

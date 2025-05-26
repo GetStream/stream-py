@@ -1,17 +1,15 @@
 [project]
-name = "getstream-stt-deepgram-transcription-example"
+name = "getstream-tts-eleventlabs-example"
 version = "0.1.0"
-description = "Example project showing how to transcribe a call using STT with Deepgram"
+description = "Example project showing how to use ElevenLabs TTS with GetStream"
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}
 
 dependencies = [
     "getstream[webrtc]",
-    "getstream-plugins-stt-deepgram",
     "python-dotenv>=1.0.0",
-    "aiortc>=1.10.1",
-    "numpy>=2.0.0",
+    "getstream-plugins-tts-elevenlabs",
 ]
 
 [project.optional-dependencies]

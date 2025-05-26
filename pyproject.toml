@@ -13,13 +13,9 @@ dependencies = [
     "pyjwt>=2.8.0,<3",
     "dataclasses-json>=0.6.0,<0.7",
     "marshmallow>=3.21.0,<4",
-    "twirp>=0.0.7",
-    "protobuf>=4.25.1",
     "python-dateutil>=2.8.2",
-    "websocket-client>=1.8.0",
     "pytest-timeout>=2.3.1",
     "aiohttp>=3.11.16",
-    "pyee>=13.0.0",
     "pydantic-settings>=2.9.1",
 ]
 
@@ -41,6 +37,15 @@ dev-dependencies = [
 default-groups = [
     "dev",
     "dev-dependencies",
+]
+
+[tool.uv.workspace]
+members = [
+    "getstream/plugins/*/*",
+    "examples/*",
+]
+exclude = [
+    "**/__pycache__",
 ]
 
 [build-system]
@@ -66,4 +71,8 @@ webrtc = [
     "soundfile>=0.13.1",
     "scipy>=1.13.1",
     "deepgram-sdk>=3.11.0",
+    "twirp>=0.0.7",
+    "protobuf>=4.25.1",
+    "websocket-client>=1.8.0",
+    "pyee>=13.0.0",
 ]

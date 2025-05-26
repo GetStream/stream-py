@@ -1,6 +1,6 @@
 # GetStream Plugins
 
-This package contains various plugins for the GetStream SDK, organized by functionality:
+This package contains various plugins for the GetStream SDK, organized by functionality. The project uses UV workspace configuration for seamless development across plugins, the main package, and examples.
 
 ## Directory Structure
 
@@ -15,6 +15,34 @@ getstream/plugins/
 └── vad/                # Voice Activity Detection
     ├── silero/         # Silero VAD implementation
     └── ...             # Other VAD implementations
+```
+
+## Workspace Development
+
+All plugins are part of the UV workspace, which means:
+- **Automatic editable installs**: No need to manually install plugins during development
+- **Live updates**: Changes to the main `getstream` package are immediately available to plugins
+- **Consistent dependencies**: Single lock file manages versions across all plugins
+- **Easy testing**: Run tests for all plugins from the project root
+
+### Development Setup
+
+From the project root:
+```bash
+uv sync --all-extras --dev  # Sets up everything in editable mode
+```
+
+### Running Plugin Tests
+
+```bash
+# Run specific plugin tests
+uv run pytest getstream/plugins/stt/deepgram/tests/
+
+# Run all plugin tests
+uv run pytest getstream/plugins/*/tests/
+
+# Run tests from project root (recommended)
+uv run pytest
 ```
 
 ## Available Plugins
@@ -53,5 +81,14 @@ All plugins follow a consistent API within their category. You can access the ba
 ```python
 from getstream.plugins import STT, TTS, VAD
 ```
+
+## Creating New Plugins
+
+See the [Plugin Development Guide](../../ai/instructions/projects/ai-plugin.md) for detailed instructions on creating new plugins. The workspace setup makes plugin development straightforward:
+
+1. Create your plugin directory under the appropriate type folder
+2. Add a `pyproject.toml` with `getstream[webrtc]` as a dependency
+3. The workspace automatically makes it available for development
+4. Run tests from the project root
 
 For more detailed usage instructions, see the documentation for each specific plugin.
