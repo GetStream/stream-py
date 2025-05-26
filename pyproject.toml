@@ -13,22 +13,13 @@ dependencies = [
     "pyjwt>=2.8.0,<3",
     "dataclasses-json>=0.6.0,<0.7",
     "marshmallow>=3.21.0,<4",
-    "twirp[all,webrtc]>=0.0.7",
-    "protobuf[webrtc]>=4.25.1",
-    "python-dateutil[webrtc]>=2.8.2",
+    "twirp>=0.0.7",
+    "protobuf>=4.25.1",
+    "python-dateutil>=2.8.2",
     "websocket-client>=1.8.0",
     "pytest-timeout>=2.3.1",
     "aiohttp>=3.11.16",
     "pyee>=13.0.0",
-    "numpy>=2.0.2",
-    "elevenlabs>=1.56.0",
-    "torch>=2.6.0",
-    "torchaudio>=2.6.0",
-    "onnxruntime>=1.20.1",
-    "silero>=0.4.1",
-    "soundfile>=0.13.1",
-    "scipy>=1.13.1",
-    "deepgram-sdk>=3.11.0",
     "pydantic-settings>=2.9.1",
 ]
 
@@ -65,5 +56,14 @@ openai-realtime = [
   "trio >=0.22.2",
 ]
 webrtc = [
-    "aiortc>=1.12.0"
+    "aiortc>=1.12.0",
+    "numpy>=2.0.2",
+    "elevenlabs>=1.56.0",
+    "torch>=2.6.0",
+    "torchaudio>=2.6.0",
+    "onnxruntime>=1.20.1",
+    "silero>=0.4.1",
+    "soundfile>=0.13.1",
+    "scipy>=1.13.1",
+    "deepgram-sdk>=3.11.0",
 ]

@@ -7,7 +7,7 @@ requires-python = ">=3.9"
 license = {text = "MIT"}
 
 dependencies = [
-    "getstream>=1.4.0",
+    "getstream[webrtc]",
     "deepgram-sdk>=3.11.0",
     "python-dotenv>=1.0.0",
     "aiortc>=1.10.1",

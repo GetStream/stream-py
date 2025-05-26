@@ -25,6 +25,15 @@ pip install getstream
 uv add getstream
 ```
 
+If you want to use WebRTC, audio, or video functionality (like real-time call joining, audio processing, STT/TTS plugins), install with the webrtc extra:
+
+```sh
+pip install getstream[webrtc]
+
+# or using uv
+uv add 'getstream[webrtc]'
+```
+
 If you want to use the openai realtime integration, you need to install the package with the additional dependencies:
 
 ```sh

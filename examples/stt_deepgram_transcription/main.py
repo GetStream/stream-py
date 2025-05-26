@@ -78,7 +78,6 @@ async def main():
 
     # Create a token for the transcription bot
     bot_user_id = "transcription-bot"
-    client.create_token(user_id=bot_user_id)
     print(f"🤖 Created token for bot user: {bot_user_id}")
 
     # Create the call
@@ -97,40 +96,45 @@ async def main():
     # Initialize Deepgram STT (api_key comes from .env)
     stt = Deepgram()
 
-    try:
-        async with await rtc.join(call, bot_user_id) as connection:
-            print(f"✅ Bot joined call: {call_id}")
+    async with await rtc.join(call, bot_user_id) as connection:
+        print(f"✅ Bot joined call: {call_id}")
 
-            # Set up transcription handlers
-            @connection.on("audio")
-            async def on_audio(pcm: PcmData, user):
-                # Process audio through Deepgram STT
-                await stt.process_audio(pcm, user)
+        # Set up transcription handlers
+        @connection.on("audio")
+        async def on_audio(pcm: PcmData, user):
+            # Process audio through Deepgram STT
+            await stt.process_audio(pcm, user)
 
-            @stt.on("transcript")
-            async def on_transcript(text: str, user: any, metadata: dict):
-                timestamp = time.strftime("%H:%M:%S")
+        @stt.on("transcript")
+        async def on_transcript(text: str, user: any, metadata: dict):
+            timestamp = time.strftime("%H:%M:%S")
+            user_info = user if user else "unknown"
+            print(f"[{timestamp}] {user_info}: {text}")
+            if metadata.get("confidence"):
+                print(f"    └─ confidence: {metadata['confidence']:.2%}")
+
+        @stt.on("partial_transcript")
+        async def on_partial_transcript(text: str, user: any, metadata: dict):
+            if text.strip():  # Only show non-empty partial transcripts
                 user_info = user if user else "unknown"
-                print(f"[{timestamp}] {user_info}: {text}")
-                if metadata.get("confidence"):
-                    print(f"    └─ confidence: {metadata['confidence']:.2%}")
+                print(f"    {user_info} (partial): {text}", end="\r")  # Overwrite line
 
-            @stt.on("partial_transcript")
-            async def on_partial_transcript(text: str, user: any, metadata: dict):
-                if text.strip():  # Only show non-empty partial transcripts
-                    user_info = user if user else "unknown"
-                    print(
-                        f"    {user_info} (partial): {text}", end="\r"
-                    )  # Overwrite line
+        @stt.on("error")
+        async def on_stt_error(error):
+            print(f"\n❌ STT Error: {error}")
 
-            @stt.on("error")
-            async def on_stt_error(error):
-                print(f"\n❌ STT Error: {error}")
+        # Keep the connection alive and wait for audio
+        print("🎧 Listening for audio... (Press Ctrl+C to stop)")
+        await connection.wait()
 
-            # Keep the connection alive and wait for audio
-            print("🎧 Listening for audio... (Press Ctrl+C to stop)")
-            await connection.wait()
+    # Clean up STT service
+    await stt.close()
+    print("🧹 Cleanup completed")
 
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
     except KeyboardInterrupt:
         print("\n⏹️  Stopping transcription bot...")
     except Exception as e:
@@ -138,11 +142,3 @@ async def main():
         import traceback
 
         traceback.print_exc()
-    finally:
-        # Clean up STT service
-        await stt.close()
-        print("🧹 Cleanup completed")
-
-
-if __name__ == "__main__":
-    asyncio.run(main())

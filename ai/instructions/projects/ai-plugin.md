@@ -80,6 +80,7 @@ requires-python = ">=3.9"
 license = {text = "MIT"}
 
 dependencies = [
+    "getstream[webrtc]",  # Use webrtc extra for audio/video/WebRTC plugins
     "openai-whisper>=0.1.0",  # replace with your specific runtime deps
 ]
 
@@ -88,7 +89,7 @@ dependencies = [
 whisper = "getstream.plugins.stt.whisper:Whisper"
 ```
 
-> ℹ️  Keep **only the dependencies your plugin really needs** here – they are installed independently of the main library.
+> 📝 **Dependency Note**: Since most plugins work with audio, video, or WebRTC functionality, they should depend on `getstream[webrtc]` rather than just `getstream`. This ensures all necessary WebRTC-related dependencies are available.
 
 ---
 
@@ -148,6 +149,8 @@ examples/
 
 • Keep the demo minimal: a short script that loads some sample data (use assets from `tests/assets` if possible), runs the plugin, and prints or plays the result.
 
+• **Optimize for readability**: The `main.py` file should be clean and easy to follow. Keep the main function focused on the core logic flow. Move error handling (try/except blocks) to the entry point (`if __name__ == "__main__":`) rather than cluttering the main function. This makes it easier for users to understand the essential steps and adapt the code to their needs.
+
 • Examples are **optional but strongly encouraged**; they double as integration smoke-tests and real-world documentation.
 
 ---
@@ -160,6 +163,6 @@ examples/
 - [ ] Includes at least one passing test that uses `getstream.plugins.test_utils`.
 - [ ] Exports the plugin class in `__init__.py`.
 - [ ] (Recommended) Adds a minimal example project under `examples/` that demonstrates basic usage.
-- [ ] `make test` (or `uv run pytest`) passes from project root.
+- [ ] `uv run pytest` passes from project root.
 
 Happy hacking! 🎉

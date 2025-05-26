@@ -41,7 +41,7 @@ fi
 
 # Install Python dependencies
 echo "Installing Python dependencies..."
-uv add "twirp[all]" "protobuf>=4.25.1" "python-dateutil>=2.8.2" "aiortc>=1.10.1" --extra webrtc
+uv add "twirp>=0.0.7" "protobuf>=4.25.1" "python-dateutil>=2.8.2" "aiortc>=1.10.1" --optional webrtc
 
 # Ensure Go tools are available for Twirp
 if ! command -v go &> /dev/null; then
@@ -55,12 +55,9 @@ if ! command -v protoc-gen-twirpy &> /dev/null; then
     go install github.com/verloop/twirpy/protoc-gen-twirpy@latest
 fi
 
-# Install required Python dependencies in the webrtc group
-echo "Installing Python dependencies..."
-uv pip install \
-    "protobuf[webrtc]>=4.25.1" \
-    "twirp[all]>=0.0.7" \
-    mypy-protobuf==3.5.0
+# Install required Python dependencies for code generation
+echo "Installing code generation dependencies..."
+uv add mypy-protobuf==3.5.0 --dev
 
 # Get the path to protoc
 PROTOC_PATH=$(command -v protoc)
