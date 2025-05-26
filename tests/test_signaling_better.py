@@ -1,16 +1,10 @@
 import pytest
 from unittest.mock import MagicMock, patch
 
-# Mock optional dependencies to avoid import errors
-import sys
-
-mock_aiortc = MagicMock()
-mock_aiortc.__version__ = "1.0.0"  # Add mock version
-sys.modules["aiortc"] = mock_aiortc
-
 # Mock websocket module
 mock_websocket = MagicMock()
 mock_websocket.WebSocketApp = MagicMock
+import sys
 sys.modules["websocket"] = mock_websocket
 
 
@@ -74,10 +68,17 @@ class ModuleFactory:
 @pytest.mark.asyncio
 async def test_websocket_client_initialization():
     """Test WebSocketClient initialization."""
+    # Create aiortc mock for this test only
+    mock_aiortc = MagicMock()
+    mock_aiortc.__version__ = "1.0.0"
+    
     # Patch the dependencies
     with patch.dict(
         "sys.modules",
-        {"getstream.video.rtc.pb.stream.video.sfu.event.events_pb2": mock_events_pb2},
+        {
+            "aiortc": mock_aiortc,
+            "getstream.video.rtc.pb.stream.video.sfu.event.events_pb2": mock_events_pb2
+        },
     ):
         # Import the client after patching
         from getstream.video.rtc.signaling import WebSocketClient
@@ -100,10 +101,17 @@ async def test_websocket_client_initialization():
 @pytest.mark.asyncio
 async def test_websocket_client_event_registration():
     """Test event handler registration."""
+    # Create aiortc mock for this test only
+    mock_aiortc = MagicMock()
+    mock_aiortc.__version__ = "1.0.0"
+    
     # Patch the dependencies
     with patch.dict(
         "sys.modules",
-        {"getstream.video.rtc.pb.stream.video.sfu.event.events_pb2": mock_events_pb2},
+        {
+            "aiortc": mock_aiortc,
+            "getstream.video.rtc.pb.stream.video.sfu.event.events_pb2": mock_events_pb2
+        },
     ):
         # Import the client after patching
         from getstream.video.rtc.signaling import WebSocketClient
@@ -134,10 +142,17 @@ async def test_websocket_client_event_registration():
 @pytest.mark.asyncio
 async def test_websocket_client_direct_methods():
     """Test WebSocketClient methods directly without connecting."""
+    # Create aiortc mock for this test only
+    mock_aiortc = MagicMock()
+    mock_aiortc.__version__ = "1.0.0"
+    
     # Patch the dependencies
     with patch.dict(
         "sys.modules",
-        {"getstream.video.rtc.pb.stream.video.sfu.event.events_pb2": mock_events_pb2},
+        {
+            "aiortc": mock_aiortc,
+            "getstream.video.rtc.pb.stream.video.sfu.event.events_pb2": mock_events_pb2
+        },
     ):
         # Import the client after patching
         from getstream.video.rtc.signaling import WebSocketClient
@@ -182,10 +197,17 @@ async def test_websocket_client_direct_methods():
 @pytest.mark.asyncio
 async def test_websocket_client_close():
     """Test that close properly cleans up resources."""
+    # Create aiortc mock for this test only
+    mock_aiortc = MagicMock()
+    mock_aiortc.__version__ = "1.0.0"
+    
     # Patch the dependencies
     with patch.dict(
         "sys.modules",
-        {"getstream.video.rtc.pb.stream.video.sfu.event.events_pb2": mock_events_pb2},
+        {
+            "aiortc": mock_aiortc,
+            "getstream.video.rtc.pb.stream.video.sfu.event.events_pb2": mock_events_pb2
+        },
     ):
         # Import the client after patching
         from getstream.video.rtc.signaling import WebSocketClient

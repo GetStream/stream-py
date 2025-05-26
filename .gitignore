@@ -12,3 +12,6 @@ lib/*
 shell.nix
 pyrightconfig.json
 .DS_Store
+__pycache__/
+*.py[cod]
+*$py.class
