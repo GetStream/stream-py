@@ -10,7 +10,7 @@ from aiortc import MediaStreamTrack
 from aiortc.mediastreams import MediaStreamError
 from numpy.typing import NDArray
 
-logger = logging.getLogger("getstream.video.rtc.track_util")
+logger = logging.getLogger(__name__)
 
 
 class PcmData(NamedTuple):
@@ -315,6 +315,7 @@ class AudioTrackHandler:
         """
         Internal coroutine that continuously pulls frames from the track.
         """
+
         while not self._stopped:
             try:
                 frame = await self.track.recv()
@@ -328,8 +329,13 @@ class AudioTrackHandler:
             if frame.sample_rate != 48000:
                 raise TypeError("only 48000 sample rate supported")
 
-            # Convert AudioFrame → int16 PCM. The returned shape is (samples, channels).
-            pcm_ndarray = frame.to_ndarray(format="s16")
+            try:
+                pcm_ndarray = frame.to_ndarray()
+            except Exception as plane_error:
+                logger.error(
+                    f"Error converting audio frame to ndarray: {plane_error}, dropping frame"
+                )
+                break
 
             if len(frame.layout.channels) > 1:
                 audio_stereo = pcm_ndarray.reshape(-1, 2)
