@@ -116,7 +116,7 @@ class WebSocketClient:
 
         event = events_pb2.SfuEvent()
         event.ParseFromString(message)
-        logger.debug(f"WebSocket message received {event.WhichOneof("event_payload")}")
+        logger.debug(f"WebSocket message received {event.WhichOneof('event_payload')}")
 
         if event.HasField("health_check_response"):
             logger.debug("received health check response")
