@@ -456,6 +456,7 @@ class TestWebSocketClient:
     @pytest.mark.asyncio
     async def test_connect_error(self, join_request):
         """Test connection with error response."""
+        client = WebSocketClient("wss://test.url", join_request, asyncio.get_running_loop())
 
         try:
             # Start connection task
