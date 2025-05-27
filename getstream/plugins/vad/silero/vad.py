@@ -4,20 +4,9 @@ import numpy as np
 import warnings
 import time
 from typing import Dict, Any, Optional
-
-try:
-    import scipy.signal
-
-    has_scipy = True
-except ImportError:
-    has_scipy = False
-
-try:
-    import torchaudio
-
-    has_torchaudio = True
-except ImportError:
-    has_torchaudio = False
+from getstream.plugins.vad import VAD
+from getstream.video.rtc.track_util import PcmData
+from getstream.audio.utils import resample_audio
 
 try:
     import onnxruntime as ort
@@ -26,8 +15,6 @@ try:
 except ImportError:
     has_onnx = False
 
-from getstream.plugins.vad import VAD
-from getstream.video.rtc.track_util import PcmData
 
 logger = logging.getLogger(__name__)
 
@@ -277,60 +264,6 @@ class Silero(VAD):
         self._raw_buffer = np.array([], dtype=np.float32)
         self._resampled = np.array([], dtype=np.float32)
 
-    def _resample(self, frame: np.ndarray, from_sr: int, to_sr: int) -> np.ndarray:
-        """
-        Resample audio from one sample rate to another using high-quality methods.
-
-        Args:
-            frame: Audio frame as numpy array
-            from_sr: Original sample rate
-            to_sr: Target sample rate
-
-        Returns:
-            Resampled audio frame
-        """
-        if from_sr == to_sr:
-            return frame
-
-        # Use scipy's polyphase resampling (high quality)
-        if has_scipy:
-            try:
-                return scipy.signal.resample_poly(frame, to_sr, from_sr, axis=-1)
-            except Exception as e:
-                logger.warning(f"Scipy resampling failed: {e}, trying fallback methods")
-
-        # Fall back to torchaudio if available
-        if has_torchaudio:
-            try:
-                tensor = torch.tensor(frame, dtype=torch.float32)
-                resampler = torchaudio.transforms.Resample(
-                    orig_freq=from_sr, new_freq=to_sr
-                )
-                resampled = resampler(tensor).numpy()
-                return resampled
-            except Exception as e:
-                logger.warning(
-                    f"Torchaudio resampling failed: {e}, using simple resampling"
-                )
-
-        # Fall back to simple averaging as last resort
-        ratio = from_sr / to_sr
-        output_length = int(len(frame) / ratio)
-        resampled = np.zeros(output_length, dtype=np.float32)
-
-        for i in range(output_length):
-            start = int(i * ratio)
-            end = int((i + 1) * ratio)
-            if start < len(frame):
-                chunk = frame[start : min(end, len(frame))]
-                if len(chunk) > 0:
-                    resampled[i] = np.mean(chunk)
-
-        logger.debug(
-            f"Resampled audio from {len(frame)} to {len(resampled)} samples using simple method"
-        )
-        return resampled
-
     async def is_speech(self, frame: PcmData) -> float:
         """
         Detect speech in an audio frame using the Silero VAD model.
@@ -350,7 +283,7 @@ class Silero(VAD):
 
             # Resample the accumulated raw buffer to model rate if needed
             if frame.sample_rate != self.model_rate:
-                resampled_new = self._resample(
+                resampled_new = resample_audio(
                     self._raw_buffer, frame.sample_rate, self.model_rate
                 )
                 # Reset raw buffer after resampling
@@ -447,9 +380,9 @@ class Silero(VAD):
                 sample_rate=self.sample_rate, samples=speech_data, format="s16"
             )
 
-            # Log turn emission at INFO level with duration and samples
+            # Log turn emission at DEBUG level with duration and samples
             duration_ms = len(speech_data) / self.sample_rate * 1000
-            logger.info(
+            logger.debug(
                 "Turn emitted",
                 extra={"duration_ms": duration_ms, "samples": len(speech_data)},
             )

@@ -1,150 +1,124 @@
-Step 1 - Twirp/Protoc codegen
 
-First read these docs and make sure to follow the recommendations from there @ai-basics.md @ai-webrtc.md
 
-- add the @https://github.com/GetStream/protocol as a git submodule
+Ran tool
 
-create a script similar to @generate.sh script called generate_webrtc.sh that does the following things
+Re-scoped play-book – same objective (higher quality + lower latency) but
+**all inference must now go through the ONNX runtime and the light-weight
+`useful-moonshine-onnx` package**.
+Everything once tied to Keras/PyTorch/Transformers disappears.
 
-- update the protocol submodule to its latest version
-- generates the service defined in protobuf/video/sfu/signal_rpc using Twirp
-- make sure all python dependencies are added to the webrtc group
-- the generated code should live in getstream/video/rtc/pb (make sure it has a init.py file)
+──────────────────────────────────────────────────────────
+PREP: create branch & green baseline (unchanged)
+──────────────────────────────────────────────────────────
+PHASE 0 Bootstrap ONNX environment
+1. Edit `getstream/plugins/stt/moonshine/pyproject.toml`
 
-Step 2 - Implement location discovery
+   a. In `[project].dependencies`
+      – delete: `torch`, `torchaudio`, `useful-moonshine@git+…`, **any** `keras`/`tensorflow` extras
+      – add:
+      ```
+      "useful-moonshine-onnx@git+https://github.com/usefulsensors/moonshine.git#subdirectory=moonshine-onnx",
+      "onnxruntime>=1.17.0",
+      "soxr>=0.3.7",              # light & fast resampler
+      ```
+      (keep `numpy`, `scipy`, `soundfile`).
 
-Implement location discovery inside inside rtc/location_discovery.py
+   b. Run `uv pip install -r` (or whatever your env manager is) and ensure it resolves.
 
-This is how the same functionality is implemented in Golang, make sure to keep the same logic and to create integration tests and pure unit tests using pytest
+2. yank the env var hack
+   – delete the two lines that set `KERAS_BACKEND=torch`.
 
-```
-package videosdk
+──────────────────────────────────────────────────────────
+PHASE 1 Switch the import & one-time model load
+File: `getstream/plugins/stt/moonshine/stt.py`
 
-import (
-	"context"
-	"net"
-	"net/http"
-	"time"
+1. Replace
+   ```python
+   import moonshine
+   ```
+   with
+   ```python
+   import moonshine_onnx as moonshine
+   ```
 
-	"github.com/GetStream/kit/v3/logging"
-	"github.com/GetStream/kit/v3/stack"
-	"github.com/sirupsen/logrus"
-)
+2. At the end of `__init__` add one load that we reuse:
 
-const (
-	HeaderCloudFrontPop  = "X-Amz-Cf-Pop"
-	FallbackLocationName = "IAD"
-	StreamProdURL        = "https://hint.stream-io-video.com/"
-)
+   ```python
+   self._model = moonshine.load_model(self.model_name)
+   ```
 
-type HTTPClient interface {
-	Do(req *http.Request) (*http.Response, error)
-}
+3. In `_transcribe_audio()` replace
 
-type LocationDiscovery interface {
-	Discover(_ context.Context) string
-}
+   ```python
+   result = moonshine.transcribe(temp_path, self.model_name)
+   ```
+   with
+   ```python
+   result = self._model.transcribe(temp_path)
+   ```
 
-type CloudFrontDiscovery struct {
-	client     HTTPClient
-	url        string
-	maxRetries int
-	logger     logrus.FieldLogger
-}
+   (API is identical; the ONNX stub ignores the second arg.)
 
-var locationHttpClient *http.Client
+──────────────────────────────────────────────────────────
+PHASE 2
 
-func init() {
-	locationHttpClient = &http.Client{
-		Transport: &http.Transport{
-			DialContext: (&net.Dialer{
-				Timeout:   time.Second,
-				KeepAlive: 30 * time.Second,
-			}).DialContext,
-			MaxIdleConns:          10,
-			IdleConnTimeout:       10 * time.Second,
-			TLSHandshakeTimeout:   1 * time.Second,
-			ExpectContinueTimeout: 1 * time.Second,
-		},
-		Timeout: time.Second,
-	}
-}
+Delete all torch-specific code
+1. Remove the entire “device” selection block that consulted `torch.cuda.is_available()`.
+   ONNX chooses provider internally; if the user installs `onnxruntime-gpu`, CUDA will be used automatically.
 
-func NewCloudFrontDiscovery(url string, maxRetries int, client HTTPClient, logger logrus.FieldLogger) *CloudFrontDiscovery {
-	return &CloudFrontDiscovery{
-		url:        url,
-		maxRetries: maxRetries,
-		client:     client,
-		logger:     logger,
-	}
-}
+2. Rewrite `_resample_audio()` without PyTorch:
 
-func (c *CloudFrontDiscovery) Discover(ctx context.Context) string {
-	r, err := http.NewRequestWithContext(ctx, http.MethodHead, c.url, http.NoBody)
-	if err != nil {
-		logging.LogWarningCtx(ctx, c.logger, stack.Wrap(err))
-		return FallbackLocationName
-	}
+   ```python
+   import soxr
 
-	for i := 0; i < c.maxRetries; i++ {
-		c.logger.Infof("Discovering location, attempt %d", i+1)
-		resp, err := c.client.Do(r)
-		if err != nil {
-			logging.LogWarningCtx(ctx, c.logger, stack.Wrapf(err, "HEAD request failed"))
-			continue
-		}
-		if resp.StatusCode != http.StatusOK {
-			logging.LogWarningCtx(ctx, c.logger, stack.Errorf("unexpected status code: %d", resp.StatusCode))
-			continue
-		}
-		popName := []rune(resp.Header.Get(HeaderCloudFrontPop))
-		_ = resp.Body.Close()
+   def _resample_audio(self, audio: np.ndarray, orig_sr: int) -> np.ndarray:
+       if orig_sr == self.sample_rate:
+           return audio
+       return soxr.resample(audio.astype(np.float32), orig_sr, self.sample_rate).astype(np.int16)
+   ```
 
-		if len(popName) < 3 {
-			logging.LogWarningCtx(ctx, c.logger, stack.Errorf("invalid pop name: %q", string(popName)))
-			return FallbackLocationName
-		}
+   (drop the `torchaudio` + `scipy` branches).
 
-		return string(popName[:3])
-	}
+3. Delete the `import torch`, `import torchaudio` lines at the top.
 
-	return FallbackLocationName
-}
+──────────────────────────────────────────────────────────
+PHASE 3 Fix the int16 overflow & double-normalisation issue
+1. Keep audio in float until final write; when converting use 32767:
+
+   ```python
+   pcm = np.clip(np.round(float_audio * 32767.0), -32768, 32767).astype(np.int16)
+   ```
+
+2. Move `_rms_normalise()` call **before** the quantisation so the gain is applied in float once.
+
+──────────────────────────────────────────────────────────
+PHASE 4 Context-aware chunking (identical to previous plan)
+— Increase overlap, add `max_chunk_ms`, tie into VAD if available.
+
+──────────────────────────────────────────────────────────
+PHASE 5 House-keeping
+1. Remove any tests that import `torch` or mock torch objects; update fixtures to patch `moonshine_onnx` instead of `moonshine`.
+
+2. Update `README.md` inside the plugin: installation line now reads
 
 ```
+pip install useful-moonshine-onnx@git+https://github.com/usefulsensors/moonshine.git#subdirectory=moonshine-onnx
+```
 
-Make sure to decorate Discover with a cache decorator so we only make the HTTP call once. run the tests you create until they all pass.
+3. CI matrix: drop GPU/torch job; add job with `onnxruntime`.
 
-- Keep your changes limited to this request, do not implement anythign else in other parts of the codebase
-- Use the mock library to test without real http (you can avoid the interface type if not necessary)
-- Call CloudFrontDiscovery HTTPHintLocationDiscovery
-- If possible use a cache decorator from functools instead of building your own
+──────────────────────────────────────────────────────────
+PHASE 6 Smoke-test
+```
+pytest -q getstream/plugins/stt/moonshine/tests
+python -c "from getstream.plugins.stt.moonshine import Moonshine; m = Moonshine(); print(m._model)"
+```
+Should print an ONNX model handle and all tests green.
 
-Step 2 - Implement websocket signaling
+──────────────────────────────────────────────────────────
+Outcome
+• Keras / PyTorch / Transformers → gone (hundreds of MB lighter).
+• Same accuracy (ONNX uses the identical weights) but faster cold-start.
+• Simpler dependency tree, easier deployment on CPU-only servers or Raspberry Pi.
 
-Create a websocket client using the websocket-client python library. inside @signaling.py
-
-the websocket should be a class and accept an instance of JoinRequest in its constructor (see below):
-
-it should expose an async .connect method, the .connect event needs to do this:
-
-- estabilish the ws connection
-- send an authentication payload using the JoinRequest type from @events_pb2.py you can look at @events_pb2.pyi to better understand its fields
-- the connect method should "resolve" after the ws client receives its first message and either raise an exception or return the message. see the on_message part of this class
--
-
-The ws class should decode incoming messages using protobuf, messages are SfuEvent messages. See @events_pb2.py and @events_pb2.pyi to undertsand this better.
-
-SfuEvent encapsulate different type of events using the oneof type. If the first message is JoinResponse then the connection is resolved. If the first event is an error (Error) then the connect should throw and use the content of the event as the message of the exception.
-
-The websocket class should have an `on_event(type: str, callback)` that allows you to subscribe to events by their name. The event callbacks must be async functions and the websocket class should use a separate thread to execute these callbacks. If you pass "*" the handler will receive any event (type SfuEvent). If you give it participant_joined it will get ParticipantJoined. This mapping should be done dynamically, this way if a new oneof is added the code will not need to be updated.
-
-The websocket should have a close() method that will cleanup all resources
-
-Step 3 - Websocket event handling
-
-Step 4 - Websocket automatic reconnection
-
-Step 5 - Join call flow connection manager
-
-Step 6 -
+You can now execute the edits phase-by-phase in Cursor; run tests after each phase before committing.

@@ -49,7 +49,25 @@ class Whisper(STT):
 
 ---
 
-## 3. Package skeleton
+## 3. Shared audio utilities
+
+For common audio processing tasks, use the shared utilities in `getstream.audio.utils`:
+
+```python
+from getstream.audio.utils import resample_audio
+
+# High-quality resampling with automatic fallbacks
+resampled_audio = resample_audio(audio_data, from_sample_rate, to_sample_rate)
+```
+
+**Available utilities:**
+- `resample_audio(frame, from_sr, to_sr)` – Multi-backend resampler that prefers scipy.signal.resample_poly, falls back to torchaudio, and has a simple averaging fallback for tests
+
+This avoids duplicating resampling logic across plugins and ensures consistent, high-quality audio processing.
+
+---
+
+## 4. Package skeleton
 
 Inside your plugin folder:
 
@@ -100,7 +118,7 @@ getstream-plugins-vad-silero = { workspace = true }
 
 ---
 
-## 4. Writing tests
+## 5. Writing tests
 
 1. Put your tests in `whisper/tests/` (or `tests/` inside the plugin folder).
 2. **Reuse shared fixtures & helpers** from `getstream.plugins.test_utils`:
@@ -131,13 +149,13 @@ uv run pytest getstream/plugins/stt/whisper/tests
 
 ---
 
-## 5. Registering your plugin (optional)
+## 6. Registering your plugin (optional)
 
 If you rely on dynamic plugin discovery, expose an **entry-point** in `pyproject.toml` (see above). Otherwise, make sure your plugin is imported somewhere in client code so the class is registered.
 
 ---
 
-## 6. Providing an example project (highly recommended)
+## 7. Providing an example project (highly recommended)
 
 A tiny runnable demo makes it much easier for others to try the plugin.
 
@@ -176,7 +194,7 @@ This approach ensures that:
 
 ---
 
-## 7. Checklist before opening a PR
+## 8. Checklist before opening a PR
 
 - [ ] Sub-directory under the correct plugin type.
 - [ ] Inherits from the right base class.
@@ -188,7 +206,7 @@ This approach ensures that:
 
 ---
 
-## 8. Working with the UV Workspace
+## 9. Working with the UV Workspace
 
 This project uses UV workspace configuration for seamless local development across plugins, the main package, and examples.
 
@@ -273,7 +291,7 @@ This gives you the best of both worlds: easy local development with proper publi
 
 ---
 
-## 9. Checklist before opening a PR
+## 10. Checklist before opening a PR
 
 - [ ] Sub-directory under the correct plugin type.
 - [ ] Inherits from the right base class.

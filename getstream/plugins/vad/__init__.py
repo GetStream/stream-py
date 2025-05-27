@@ -139,7 +139,7 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
             self._leftover = np.empty(0, np.int16)
 
         if len(self._leftover) > 0:
-            logger.info(f"Keeping {len(self._leftover)} samples for next processing")
+            logger.debug(f"Keeping {len(self._leftover)} samples for next processing")
 
     async def _process_frame(
         self, frame: PcmData, user: Optional[Dict[str, Any]] = None
