@@ -88,7 +88,7 @@ class WebSocketClient:
 
         # Check if the first message is an error
         if self.first_message and self.first_message.HasField("error"):
-            error_msg = self.first_message.error.error.description
+            error_msg = self.first_message.error.error.message
             raise SignalingError(f"Connection failed: {error_msg}")
 
         # Check if we got join_response
@@ -136,7 +136,7 @@ class WebSocketClient:
         if not self.first_message_event.is_set():
             # Create an error event
             error_event = events_pb2.SfuEvent()
-            error_event.error.error.description = str(error)
+            error_event.error.error.message = str(error)
             self.first_message = error_event
             self.first_message_event.set()
 
