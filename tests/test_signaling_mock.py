@@ -352,7 +352,6 @@ class TestWebSocketClient:
                     payload: The event payload to pass to the handler
                 """
 
-                    handler_loop = asyncio.new_event_loop()
                 # In test environment, run handlers directly in the main loop
                 try:
                     # Schedule the handler to run in the main loop
