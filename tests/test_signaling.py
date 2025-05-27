@@ -16,7 +16,7 @@ class TestWebSocketClient:
     @pytest.fixture
     def mock_websocket(self):
         """Create a mock WebSocketApp."""
-        with patch("websocket.WebSocketApp") as mock_ws:
+        with patch("getstream.video.rtc.signaling.websocket.WebSocketApp") as mock_ws:
             # Configure the mock
             instance = mock_ws.return_value
             # Make run_forever block until the WebSocket is closed
