@@ -195,13 +195,11 @@ async def test_moonshine_custom_initialization():
         stt = Moonshine(
             model_name="moonshine/base",
             sample_rate=16000,
-            chunk_duration_ms=2000,
             min_audio_length_ms=1000,
         )
 
         assert stt.model_name == "moonshine/base"  # Canonical value after validation
         assert stt.sample_rate == 16000
-        assert stt.chunk_duration_ms == 2000
         assert stt.min_audio_length_ms == 1000
         await stt.close()
 
@@ -244,17 +242,32 @@ async def test_moonshine_audio_normalization():
 
 
 @pytest.mark.asyncio
-async def test_moonshine_buffer_processing():
-    """Test that audio buffering and processing logic works correctly."""
+async def test_moonshine_immediate_processing():
+    """Test that audio is processed immediately without buffering."""
     with patch("getstream.plugins.stt.moonshine.stt.moonshine"):
-        stt = Moonshine(chunk_duration_ms=1000, sample_rate=16000)
+        stt = Moonshine(sample_rate=16000)
 
-        # Test buffer size calculation
-        stt._audio_buffer = np.zeros(8000, dtype=np.int16)  # 0.5 seconds
-        assert not stt._should_process_buffer()
+        # Mock the _transcribe_audio method to track calls
+        transcribe_calls = []
 
-        stt._audio_buffer = np.zeros(16000, dtype=np.int16)  # 1.0 seconds
-        assert stt._should_process_buffer()
+        async def mock_transcribe_audio(audio_data):
+            transcribe_calls.append(len(audio_data))
+            return "test transcription"
+
+        stt._transcribe_audio = mock_transcribe_audio
+
+        # Create test audio
+        audio_array = np.random.randint(
+            -1000, 1000, 8000, dtype=np.int16
+        )  # 0.5 seconds
+        pcm_data = PcmData(samples=audio_array, sample_rate=16000, format="s16")
+
+        # Process audio - should be immediate, no buffering
+        await stt.process_audio(pcm_data)
+
+        # Should have called transcribe immediately
+        assert len(transcribe_calls) == 1
+        assert transcribe_calls[0] == 8000  # Same length as input
 
         await stt.close()
 
@@ -263,9 +276,7 @@ async def test_moonshine_buffer_processing():
 async def test_moonshine_process_audio_short_chunk(audio_data_16k):
     """Test processing audio that's too short to trigger transcription."""
     with patch("getstream.plugins.stt.moonshine.stt.moonshine"):
-        stt = Moonshine(
-            chunk_duration_ms=2000, min_audio_length_ms=1000
-        )  # Require 2s chunks, 1s minimum
+        stt = Moonshine(min_audio_length_ms=1000)  # Require 1s minimum
 
         # Track events
         transcripts = []
@@ -289,7 +300,7 @@ async def test_moonshine_process_audio_short_chunk(audio_data_16k):
         # Process the short audio
         await stt.process_audio(short_audio)
 
-        # Should not trigger transcription
+        # Should not trigger transcription due to min_audio_length_ms
         assert len(transcripts) == 0
         assert len(errors) == 0
 
@@ -301,7 +312,7 @@ async def test_moonshine_process_audio_sufficient_chunk(audio_data_16k):
     """Test processing audio that's long enough to trigger transcription."""
     with patch("getstream.plugins.stt.moonshine.stt.moonshine"):
         # Mock the _transcribe_audio method directly instead of moonshine.transcribe
-        stt = Moonshine(chunk_duration_ms=1000, min_audio_length_ms=500)
+        stt = Moonshine(min_audio_length_ms=500)
 
         # Track events
         transcripts = []
@@ -345,7 +356,7 @@ async def test_moonshine_process_audio_sufficient_chunk(audio_data_16k):
 async def test_moonshine_process_audio_with_resampling(audio_data_48k):
     """Test processing audio that requires resampling."""
     with patch("getstream.plugins.stt.moonshine.stt.moonshine"):
-        stt = Moonshine(sample_rate=16000, chunk_duration_ms=1000)
+        stt = Moonshine(sample_rate=16000)
 
         # Track events
         transcripts = []
@@ -374,11 +385,9 @@ async def test_moonshine_process_audio_with_resampling(audio_data_48k):
 
 @pytest.mark.asyncio
 async def test_moonshine_flush_functionality(audio_data_16k):
-    """Test that flush processes remaining audio in buffer."""
+    """Test that flush is a no-op since we no longer buffer."""
     with patch("getstream.plugins.stt.moonshine.stt.moonshine"):
-        stt = Moonshine(
-            chunk_duration_ms=5000, min_audio_length_ms=500
-        )  # Large chunk size
+        stt = Moonshine(min_audio_length_ms=500)
 
         # Track events
         transcripts = []
@@ -393,29 +402,25 @@ async def test_moonshine_flush_functionality(audio_data_16k):
 
         stt._transcribe_audio = mock_transcribe_audio
 
-        # Process audio that won't trigger automatic processing
-        short_audio = PcmData(
+        # Process audio - should trigger immediate transcription
+        audio = PcmData(
             samples=audio_data_16k.samples[:16000],  # 1 second
             sample_rate=16000,
             format="s16",
         )
-        await stt.process_audio(short_audio)
-
-        # Should not have triggered transcription yet
-        assert len(transcripts) == 0
-
-        # Flush should process the remaining buffer
-        await stt.flush()
+        await stt.process_audio(audio)
 
         # Give some time for async processing
         await asyncio.sleep(0.1)
 
-        # Should now have a transcript
-        assert len(transcripts) > 0
+        # Should have triggered transcription immediately
+        assert len(transcripts) == 1
 
-        # Check that it's marked as from flush
-        text, user, metadata = transcripts[0]
-        assert metadata.get("from_flush") is True
+        # Flush should be a no-op
+        await stt.flush()
+
+        # Should still have only one transcript
+        assert len(transcripts) == 1
 
         await stt.close()
 
@@ -424,7 +429,7 @@ async def test_moonshine_flush_functionality(audio_data_16k):
 async def test_moonshine_bytes_input():
     """Test processing audio data provided as bytes."""
     with patch("getstream.plugins.stt.moonshine.stt.moonshine"):
-        stt = Moonshine(chunk_duration_ms=1000)
+        stt = Moonshine()
 
         # Track events
         transcripts = []
@@ -459,7 +464,7 @@ async def test_moonshine_bytes_input():
 async def test_moonshine_error_handling():
     """Test error handling during transcription."""
     with patch("getstream.plugins.stt.moonshine.stt.moonshine"):
-        stt = Moonshine(chunk_duration_ms=1000)
+        stt = Moonshine()
 
         # Track events
         errors = []
@@ -543,9 +548,7 @@ async def test_moonshine_with_mia_audio_mocked(mia_audio_data, mia_metadata):
         # Mock the transcribe function to return the expected text
         mock_moonshine.transcribe.return_value = [expected_full_text]
 
-        stt = Moonshine(
-            model_name="moonshine/base", chunk_duration_ms=1000, min_audio_length_ms=500
-        )
+        stt = Moonshine(model_name="moonshine/base", min_audio_length_ms=500)
 
         # Track events
         transcripts = []
@@ -638,7 +641,6 @@ async def test_moonshine_real_integration(mia_audio_data, mia_metadata):
 
     stt = Moonshine(
         model_name="moonshine/tiny",  # Use tiny model for faster testing
-        chunk_duration_ms=2000,  # Larger chunks for better accuracy
         min_audio_length_ms=500,
     )
 
