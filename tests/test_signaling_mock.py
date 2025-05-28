@@ -355,7 +355,7 @@ class TestWebSocketClient:
                 # In test environment, run handlers directly in the main loop
                 try:
                     # Schedule the handler to run in the main loop
-                    task = asyncio.run_coroutine_threadsafe(handler(payload), self.main_loop)
+                    asyncio.run_coroutine_threadsafe(handler(payload), self.main_loop)
                     # Don't wait for the result to avoid blocking
                 except Exception as e:
                     logger.error(f"Error in event handler: {str(e)}")

@@ -1,8 +1,5 @@
-import asyncio
 import pytest
-import os
 import numpy as np
-from unittest.mock import patch
 
 from getstream.video.rtc.audio_track import AudioStreamTrack
 

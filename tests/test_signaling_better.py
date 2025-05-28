@@ -1,12 +1,11 @@
 import pytest
 from unittest.mock import MagicMock, patch
 import asyncio
-
+import sys
 
 # Mock websocket module
 mock_websocket = MagicMock()
 mock_websocket.WebSocketApp = MagicMock
-import sys
 sys.modules["websocket"] = mock_websocket
 
 

@@ -59,6 +59,11 @@ getstream-plugins-vad-silero = { workspace = true }
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.ruff]
+exclude = [
+    "video/rtc/pb",
+    ".venv"
+]
 [tool.ruff.lint]
 ignore = ["F405", "F403"]
 
