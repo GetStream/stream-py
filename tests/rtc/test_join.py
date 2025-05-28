@@ -14,6 +14,9 @@ from typing import Callable, Any
 from getstream.video.rtc.track_util import PcmData
 
 
+CALL_ID = os.getenv("CALL_ID")
+
+
 # Shared function for process setup and error handling
 def run_process_with_stream_client(
     process_type: str,
@@ -305,7 +308,7 @@ async def test_detect_video_properties(client: Stream):
 async def test_play_file(client: Stream):
     from aiortc.contrib.media import MediaPlayer
 
-    call = client.video.call("default", "mQbx3HG7wtTj")
+    call = client.video.call("default", CALL_ID)
 
     file_path = "/Users/tommaso/src/data-samples/video/SampleVideo_1280x720_30mb.mp4"
 
@@ -332,7 +335,7 @@ async def test_play_audio_track_from_text(client: Stream):
     audio = audio_track.AudioStreamTrack(framerate=16000)
     tts_instance = ElevenLabs(voice_id="JBFqnCBsd6RMkjVDRZzb")
     tts_instance.set_output_track(audio)
-    call = client.video.call("default", "mQbx3HG7wtTj")
+    call = client.video.call("default", CALL_ID)
 
     async with await rtc.join(call, "test-user") as connection:
         # TODO: make connection.add_tracks block until the track is ready
@@ -356,7 +359,7 @@ async def test_full_echo(client: Stream):
     audio = audio_track.AudioStreamTrack(framerate=16000)
     vad = Silero()
     stt = Deepgram()
-    call = client.video.call("default", "mQbx3HG7wtTj")
+    call = client.video.call("default", CALL_ID)
     tts_instance = ElevenLabs(voice_id="zOImbcIGBTxd0yXmwgRi")
     tts_instance.set_output_track(audio)
 
@@ -379,18 +382,18 @@ async def test_full_echo(client: Stream):
             await stt.process_audio(pcm, None)
 
         @stt.on("transcript")
-        async def on_transcript(text: str, user, metadata):
+        async def on_transcript(text: str, user: Any, metadata: dict[str, Any]):
             print(
                 f"{time.time()} got text from audio, will echo back the transcript {text}"
             )
             await tts_instance.send(text)
 
-        await asyncio.sleep(10)
+        await asyncio.sleep(30)
 
 
 @pytest.mark.asyncio
 async def test_simple_capture(client: Stream):
-    call = client.video.call("default", "mQbx3HG7wtTj")
+    call = client.video.call("default", CALL_ID)
     async with await rtc.join(call, "test-user") as connection:
 
         @connection.on("audio")
