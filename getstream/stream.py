@@ -8,21 +8,22 @@ from getstream.common.client import CommonClient
 from getstream.models import UserRequest
 from getstream.utils import validate_and_clean_url
 from getstream.video.client import VideoClient
-from pydantic import AnyHttpUrl
+from pydantic import AnyHttpUrl, ConfigDict
 from pydantic_settings import BaseSettings
 
 BASE_URL = "https://chat.stream-io-api.com/"
 
 
 class Settings(BaseSettings):
+    model_config = ConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore"
+    )
+    
     STREAM_API_KEY: str
     STREAM_API_SECRET: str
     STREAM_BASE_URL: AnyHttpUrl = BASE_URL
-
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        extra = "ignore"
 
 
 class Stream(CommonClient):

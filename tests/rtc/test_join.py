@@ -322,7 +322,7 @@ async def test_play_file(client: Stream):
             audio=player.audio,
         )
 
-        await connection.wait()
+        await asyncio.sleep(10)
 
 
 @pytest.mark.asyncio
@@ -344,7 +344,7 @@ async def test_play_audio_track_from_text(client: Stream):
 
         await tts_instance.send("do you think Stream is awesome so far?")
 
-        await connection.wait()
+        await asyncio.sleep(1)
 
 
 @pytest.mark.asyncio
@@ -385,7 +385,7 @@ async def test_full_echo(client: Stream):
             )
             await tts_instance.send(text)
 
-        await connection.wait()
+        await asyncio.sleep(10)
 
 
 @pytest.mark.asyncio
@@ -397,4 +397,4 @@ async def test_simple_capture(client: Stream):
         async def on_audio(pcm: PcmData, user):
             print("got audio")
 
-        await connection.wait()
+        await asyncio.sleep(10)

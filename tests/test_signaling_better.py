@@ -1,5 +1,7 @@
 import pytest
 from unittest.mock import MagicMock, patch
+import asyncio
+
 
 # Mock websocket module
 mock_websocket = MagicMock()
@@ -10,7 +12,12 @@ sys.modules["websocket"] = mock_websocket
 
 # Create full mock versions of all dependencies
 class MockSfuRequest:
-    def __init__(self, **kwargs):
+    def __init__(self, join_request=None, **kwargs):
+        # Handle join_request parameter specifically
+        if join_request is not None:
+            self.join_request = join_request
+        
+        # Handle other keyword arguments
         for key, value in kwargs.items():
             setattr(self, key, value)
 
@@ -42,7 +49,7 @@ class MockErrorEvent:
 
 class MockError:
     def __init__(self):
-        self.description = "Test error"
+        self.message = "Test error"
 
 
 class MockJoinRequest:
@@ -85,7 +92,7 @@ async def test_websocket_client_initialization():
 
         # Create a client
         join_request = MockJoinRequest()
-        client = WebSocketClient("wss://test.url", join_request)
+        client = WebSocketClient("wss://test.url", join_request, asyncio.get_running_loop())
 
         # Verify initial state
         assert client.url == "wss://test.url"
@@ -118,7 +125,7 @@ async def test_websocket_client_event_registration():
 
         # Create a client
         join_request = MockJoinRequest()
-        client = WebSocketClient("wss://test.url", join_request)
+        client = WebSocketClient("wss://test.url", join_request, asyncio.get_running_loop())
 
         # Register event handlers
         async def handler1(event):
@@ -146,20 +153,20 @@ async def test_websocket_client_direct_methods():
     mock_aiortc = MagicMock()
     mock_aiortc.__version__ = "1.0.0"
     
-    # Patch the dependencies
+    # Patch the dependencies with the correct path
     with patch.dict(
         "sys.modules",
         {
             "aiortc": mock_aiortc,
             "getstream.video.rtc.pb.stream.video.sfu.event.events_pb2": mock_events_pb2
         },
-    ):
+    ), patch("getstream.video.rtc.signaling.events_pb2", mock_events_pb2):
         # Import the client after patching
         from getstream.video.rtc.signaling import WebSocketClient
 
         # Create a client with mocked dependencies
         join_request = MockJoinRequest()
-        client = WebSocketClient("wss://test.url", join_request)
+        client = WebSocketClient("wss://test.url", join_request, asyncio.get_running_loop())
 
         # Create mocks for testing callbacks
         mock_ws = MagicMock()
@@ -187,11 +194,12 @@ async def test_websocket_client_direct_methods():
 
         # Test on_error callback
         client.first_message = None
+        client.first_message_event.clear()  # Reset the event state
         client._on_error(mock_ws, Exception("Test error"))
 
         # Verify an error event was created
         assert client.first_message is not None
-        assert client.first_message.error.error.description == "Test error"
+        assert client.first_message.error.error.message == "Test error"
 
 
 @pytest.mark.asyncio
@@ -214,14 +222,17 @@ async def test_websocket_client_close():
 
         # Create a client
         join_request = MockJoinRequest()
-        client = WebSocketClient("wss://test.url", join_request)
+        client = WebSocketClient("wss://test.url", join_request, asyncio.get_running_loop())
 
         # Create mocks for the resources
-        client.ws = MagicMock()
-        client.thread = MagicMock()
-        client.thread.is_alive.return_value = True
-        client.executor = MagicMock()
-        client.event_loop = MagicMock()
+        mock_ws = MagicMock()
+        client.ws = mock_ws
+        mock_thread = MagicMock()
+        client.thread = mock_thread
+        mock_thread.is_alive.return_value = True
+        mock_ping_thread = MagicMock()
+        client.ping_thread = mock_ping_thread
+        mock_ping_thread.is_alive.return_value = True
 
         # Add some handlers to verify they're cleared
         async def handler(event):
@@ -235,15 +246,15 @@ async def test_websocket_client_close():
         # Verify resources were cleaned up
         assert client.closed
         assert not client.running
-        client.ws.close.assert_called_once()
-        client.thread.join.assert_called_once_with(timeout=1.0)
-        client.executor.shutdown.assert_called_once_with(wait=False)
+        mock_ws.close.assert_called_once()
+        mock_thread.join.assert_called_once_with(timeout=2.0)
+        mock_ping_thread.join.assert_called_once_with(timeout=2.0)
         assert not client.event_handlers  # Should be empty
 
         # Call close again - should be a no-op
         client.close()
 
         # Verify no additional calls were made
-        client.ws.close.assert_called_once()
-        client.thread.join.assert_called_once()
-        client.executor.shutdown.assert_called_once()
+        mock_ws.close.assert_called_once()
+        mock_thread.join.assert_called_once()
+        mock_ping_thread.join.assert_called_once()
