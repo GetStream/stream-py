@@ -44,7 +44,6 @@ default-groups = [
 [tool.uv.workspace]
 members = [
     "getstream/plugins/*/*",
-    "examples/*",
 ]
 exclude = [
     "**/__pycache__",
