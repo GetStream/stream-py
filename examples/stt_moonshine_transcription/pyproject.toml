@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stt-moonshine-transcription-example"
+version = "0.1.0"
+description = "Example: Real-time Call Transcription with Moonshine STT"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+dependencies = [
+    "getstream[webrtc]",
+    "getstream-plugins-stt-moonshine",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.18.0",
+]
+
+[tool.uv.sources]
+getstream = { workspace = true }
+getstream-plugins-stt-deepgram = { workspace = true }
+getstream-plugins-stt-moonshine = { workspace = true }
+getstream-plugins-tts-elevenlabs = { workspace = true }
+getstream-plugins-vad-silero = { workspace = true }

@@ -97,17 +97,15 @@ class Deepgram(STT):
             # Check if the item is an Exception (error sentinel)
             if isinstance(item, Exception):
                 logger.debug("Dispatching error event from queue")
-                self.emit("error", item)
+                self._emit_error_event(item, "Deepgram queue processing")
             # Otherwise it should be a tuple (is_final, text, user, metadata)
             elif isinstance(item, tuple) and len(item) == 4:
                 is_final, text, user, metadata = item
-                event_type = "transcript" if is_final else "partial_transcript"
-                logger.debug(
-                    f"Dispatching {event_type} event from queue",
-                    extra={"is_final": is_final, "text_length": len(text)},
-                )
-                print(event_type)
-                self.emit(event_type, text, user, metadata)
+                print("transcript" if is_final else "partial_transcript")
+                if is_final:
+                    self._emit_transcript_event(text, user, metadata)
+                else:
+                    self._emit_partial_transcript_event(text, user, metadata)
             else:
                 logger.warning(f"Unrecognized item in results queue: {type(item)}")
         except Exception as e:
@@ -335,7 +333,7 @@ class Deepgram(STT):
                 logger.error("No Deepgram connection available after retry")
                 # Emit an error and return
                 error = Exception("No Deepgram connection available")
-                self.emit("error", error)
+                self._emit_error_event(error, "Deepgram connection setup")
                 return None
 
         # Mark that we've attempted setup
@@ -358,9 +356,8 @@ class Deepgram(STT):
             )
             self.dg_connection.send(audio_data)
         except Exception as e:
-            logger.error("Error sending audio to Deepgram", exc_info=e)
             # Emit an error and return
-            self.emit("error", e)
+            self._emit_error_event(e, "Deepgram audio transmission")
             return None
 
         # No need to drain the queue or return results anymore

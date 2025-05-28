@@ -330,9 +330,8 @@ class Moonshine(STT):
             return None
 
         except Exception as e:
-            logger.error("Error processing audio", exc_info=e)
-            # Emit error event
-            self.emit("error", e)
+            # Use the base class helper for consistent error handling
+            self._emit_error_event(e, "Moonshine audio processing")
             return None
 
     async def flush(self):

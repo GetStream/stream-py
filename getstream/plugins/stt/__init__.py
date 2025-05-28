@@ -147,13 +147,26 @@ class STT(AsyncIOEventEmitter, abc.ABC):
     """
     Abstract base class for Speech-to-Text implementations.
 
+    This class provides a standardized interface for STT implementations with consistent
+    event emission patterns and error handling.
+
     Events:
         - transcript: Emitted when a complete transcript is available.
-            Args: text (str), user (any), metadata (dict)
+            Args: text (str), user_metadata (dict), metadata (dict)
         - partial_transcript: Emitted when a partial transcript is available.
-            Args: text (str), user (any), metadata (dict)
+            Args: text (str), user_metadata (dict), metadata (dict)
         - error: Emitted when an error occurs during transcription.
             Args: error (Exception)
+
+    Standard Error Handling:
+        - All implementations should catch exceptions in _process_audio_impl and emit error events
+        - Use _emit_error_event() helper for consistent error emission
+        - Log errors with appropriate context using the logger
+
+    Standard Event Emission:
+        - Use _emit_transcript_event() and _emit_partial_transcript_event() helpers
+        - Include processing time and audio duration in metadata when available
+        - Maintain consistent metadata structure across implementations
     """
 
     def __init__(self, sample_rate: int = 16000, language: str = "en-US"):
@@ -169,13 +182,103 @@ class STT(AsyncIOEventEmitter, abc.ABC):
         self.sample_rate = sample_rate
         self.language = language
         self._is_closed = False
-        self._buffer = []
-        self._buffer_lock = asyncio.Lock()
 
         logger.debug(
             "Initialized STT base class",
             extra={"sample_rate": sample_rate, "language": language},
         )
+
+    def _validate_pcm_data(self, pcm_data: PcmData) -> bool:
+        """
+        Validate PCM data input for processing.
+
+        Args:
+            pcm_data: The PCM audio data to validate.
+
+        Returns:
+            True if the data is valid, False otherwise.
+        """
+        if pcm_data is None:
+            logger.warning("Received None PCM data")
+            return False
+
+        if not hasattr(pcm_data, "samples") or pcm_data.samples is None:
+            logger.warning("PCM data has no samples")
+            return False
+
+        if not hasattr(pcm_data, "sample_rate") or pcm_data.sample_rate <= 0:
+            logger.warning("PCM data has invalid sample rate")
+            return False
+
+        # Check if samples are empty
+        if hasattr(pcm_data.samples, "__len__") and len(pcm_data.samples) == 0:
+            logger.debug("Received empty audio samples")
+            return False
+
+        return True
+
+    def _emit_transcript_event(
+        self,
+        text: str,
+        user_metadata: Optional[Dict[str, Any]],
+        metadata: Dict[str, Any],
+    ):
+        """
+        Emit a final transcript event with consistent logging.
+
+        Args:
+            text: The transcribed text.
+            user_metadata: User-specific metadata.
+            metadata: Transcription metadata (processing time, confidence, etc.).
+        """
+        logger.info(
+            "Emitting final transcript",
+            extra={
+                "text_length": len(text),
+                "has_user_metadata": user_metadata is not None,
+                "processing_time_ms": metadata.get("processing_time_ms"),
+                "confidence": metadata.get("confidence"),
+            },
+        )
+        self.emit("transcript", text, user_metadata, metadata)
+
+    def _emit_partial_transcript_event(
+        self,
+        text: str,
+        user_metadata: Optional[Dict[str, Any]],
+        metadata: Dict[str, Any],
+    ):
+        """
+        Emit a partial transcript event with consistent logging.
+
+        Args:
+            text: The partial transcribed text.
+            user_metadata: User-specific metadata.
+            metadata: Transcription metadata (processing time, confidence, etc.).
+        """
+        logger.debug(
+            "Emitting partial transcript",
+            extra={
+                "text_length": len(text),
+                "has_user_metadata": user_metadata is not None,
+                "confidence": metadata.get("confidence"),
+            },
+        )
+        self.emit("partial_transcript", text, user_metadata, metadata)
+
+    def _emit_error_event(self, error: Exception, context: str = ""):
+        """
+        Emit an error event with consistent logging.
+
+        Args:
+            error: The exception that occurred.
+            context: Additional context about where the error occurred.
+        """
+        logger.error(
+            f"STT error{' in ' + context if context else ''}",
+            exc_info=error,
+        )
+        self.emit("error", error)
 
     async def process_audio(
         self, pcm_data: PcmData, user_metadata: Optional[Dict[str, Any]] = None
@@ -189,6 +292,11 @@ class STT(AsyncIOEventEmitter, abc.ABC):
         """
         if self._is_closed:
             logger.debug("Ignoring audio processing request - STT is closed")
+            return
+
+        # Validate input data
+        if not self._validate_pcm_data(pcm_data):
+            logger.warning("Invalid PCM data received, skipping processing")
             return
 
         try:
@@ -221,37 +329,18 @@ class STT(AsyncIOEventEmitter, abc.ABC):
 
             # Process each result and emit the appropriate event
             for is_final, text, metadata in results:
-                event_type = "transcript" if is_final else "partial_transcript"
-                logger.debug(
-                    f"Emitting {event_type} event",
-                    extra={
-                        "is_final": is_final,
-                        "text_length": len(text),
-                        "has_metadata": bool(metadata),
-                    },
-                )
+                # Ensure metadata includes processing time if not already present
+                if "processing_time_ms" not in metadata:
+                    metadata["processing_time_ms"] = processing_time * 1000
 
                 if is_final:
-                    logger.info(
-                        "Processed speech to text",
-                        extra={
-                            "processing_time_ms": processing_time * 1000,
-                            "audio_duration_ms": audio_duration_ms,
-                            "text_length": len(text),
-                            "real_time_factor": (processing_time * 1000)
-                            / audio_duration_ms
-                            if audio_duration_ms
-                            else None,
-                        },
-                    )
-                    self.emit("transcript", text, user_metadata, metadata)
+                    self._emit_transcript_event(text, user_metadata, metadata)
                 else:
-                    self.emit("partial_transcript", text, user_metadata, metadata)
+                    self._emit_partial_transcript_event(text, user_metadata, metadata)
 
         except Exception as e:
             # Emit any errors that occur during processing
-            logger.error("Error processing audio", exc_info=e)
-            self.emit("error", e)
+            self._emit_error_event(e, "audio processing")
 
     @abc.abstractmethod
     async def _process_audio_impl(
@@ -260,13 +349,28 @@ class STT(AsyncIOEventEmitter, abc.ABC):
         """
         Implementation-specific method to process audio data.
 
+        This method must be implemented by all STT providers and should handle the core
+        transcription logic. The base class handles event emission and error handling.
+
         Args:
-            pcm_data: The PCM audio data to process.
+            pcm_data: The PCM audio data to process. Guaranteed to be valid by base class.
             user_metadata: Additional metadata about the user or session.
 
         Returns:
             A list of tuples (is_final, text, metadata) representing transcription results,
             or None if no results are available.
+
+            Each tuple contains:
+            - is_final (bool): True for final transcripts, False for partial/interim results
+            - text (str): The transcribed text
+            - metadata (dict): Implementation-specific metadata including:
+                - confidence (float, optional): Confidence score if available
+                - processing_time_ms (float, optional): Processing time in milliseconds
+                - Any other provider-specific metadata
+
+        Raises:
+            Exception: Implementations should let exceptions bubble up to be handled
+                      by the base class, which will emit appropriate error events.
         """
         pass
 
@@ -274,5 +378,11 @@ class STT(AsyncIOEventEmitter, abc.ABC):
     async def close(self):
         """
         Close the STT service and release any resources.
+
+        Implementations should:
+        - Set self._is_closed = True
+        - Clean up any background tasks or connections
+        - Release any allocated resources
+        - Log the closure appropriately
         """
         pass
