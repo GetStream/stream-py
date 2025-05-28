@@ -7,6 +7,13 @@ on:
   pull_request:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      branch_name:
+        description: 'Branch to checkout (defaults to main)'
+        required: false
+        type: string
+        default: 'main'
 
 jobs:
   test:
@@ -21,6 +28,8 @@ jobs:
     steps:
     - name: Check out repo
       uses: actions/checkout@v4
+      with:
+        ref: '${{ github.event.inputs.branch_name }}'
     - uses: chartboost/ruff-action@v1
       continue-on-error: false
     - name: Install uv and set the python version
@@ -28,10 +37,10 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install the project
-      run: uv sync --all-extras --dev
+      run: uv sync --all-packages
     - name: Run tests
       env:
         STREAM_BASE_URL: ${{ vars.STREAM_BASE_URL }}
         STREAM_API_KEY: ${{ vars.STREAM_API_KEY }}
         STREAM_API_SECRET: ${{ secrets.STREAM_API_SECRET }}
-      run: uv run pytest tests/ getstream/
+      run: uv run pytest
