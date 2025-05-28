@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - webrtc # ONLY FOR TESTING
   pull_request:
     branches:
       - main
