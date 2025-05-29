@@ -76,7 +76,7 @@ def open_browser(api_key: str, token: str, call_id: str) -> str:
 
 async def main():
     """Main example function."""
-    load_dotenv()
+    load_dotenv("../.env")
 
     print("🎙️  Stream + VAD + Deepgram STT + ElevenLabs TTS Example")
     print("=" * 60)
@@ -111,7 +111,9 @@ async def main():
     audio = audio_track.AudioStreamTrack(framerate=16000)
     vad = Silero()
     stt = Deepgram()
-    tts_instance = ElevenLabs(voice_id="zOImbcIGBTxd0yXmwgRi")
+
+    # Use "Arnold" voice - a default ElevenLabs voice available to all users
+    tts_instance = ElevenLabs(voice_id="VR6AewLTigWG4xSOukaG")  # ID of default voice
     openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     tts_instance.set_output_track(audio)
 
@@ -133,6 +135,7 @@ async def main():
             async def on_audio(pcm: PcmData, user):
                 await vad.process_audio(pcm, user)
 
+            # TODO: add interruption logic to flush the audio queue when the user speaks to interrupt the LLM
             @vad.on("audio")
             async def on_speech_detected(pcm: PcmData, user):
                 print(

@@ -42,11 +42,14 @@ This example demonstrates how to build a real-time AI conversation bot using Str
    Note: This will install the getstream package, deepgram-sdk, elevenlabs, openai, silero-vad, aiortc (for WebRTC), and other required dependencies.
 
 3. **Set up environment variables:**
+
+   The environment file is shared across all examples and located in the parent directory:
    ```bash
+   cd ../  # Go to examples directory
    cp env.example .env
    ```
 
-   Edit `.env` with your actual credentials:
+   Edit `examples/.env` with your actual credentials:
    ```env
    STREAM_API_KEY=your_actual_stream_api_key
    STREAM_API_SECRET=your_actual_stream_api_secret
@@ -54,6 +57,11 @@ This example demonstrates how to build a real-time AI conversation bot using Str
    DEEPGRAM_API_KEY=your_actual_deepgram_api_key
    ELEVENLABS_API_KEY=your_actual_elevenlabs_api_key
    OPENAI_API_KEY=your_actual_openai_api_key
+   ```
+
+   Then return to the example directory:
+   ```bash
+   cd llm_audio_conversation
    ```
 
 ## Usage
@@ -210,6 +218,17 @@ You can change the ElevenLabs voice by modifying the `voice_id` parameter:
 ```python
 tts_instance = ElevenLabs(voice_id="your_preferred_voice_id")
 ```
+
+**Default ElevenLabs voices available to all users:**
+- **Rachel** (`21m00Tcm4TlvDq8ikWAM`) - Calm, young female voice (currently used)
+- **Adam** (`pNInz6obpgDQGcFmaJgB`) - Deep, male voice with American accent
+- **Antoni** (`ErXwobaYiN019PkySvjV`) - Well-rounded, young male voice
+- **Arnold** (`VR6AewLTigWG4xSOukaG`) - Crisp, middle-aged male voice
+- **Domi** (`AZnzlk1XvdvUeBnXmlld`) - Strong, young female voice
+- **Josh** (`TxGEqnHWrfWFTfGW9XjX`) - Deep, young male voice
+- **Sam** (`yoZ06aMxZJJ28mfd3POQ`) - Raspy, young male voice
+
+These voices are pre-made by ElevenLabs and don't require any special setup beyond your API key.
 
 ### OpenAI Model
 You can change the OpenAI model by modifying the `model` parameter:
