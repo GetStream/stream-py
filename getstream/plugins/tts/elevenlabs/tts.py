@@ -47,7 +47,7 @@ class ElevenLabs(TTS):
         Returns:
             An iterator of audio chunks as bytes
         """
-        audio_stream = self.client.text_to_speech.convert_as_stream(
+        audio_stream = self.client.text_to_speech.stream(
             text=text,
             voice_id=self.voice_id,
             output_format=self.output_format,
