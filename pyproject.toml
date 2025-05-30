@@ -18,6 +18,7 @@ dependencies = [
     "aiohttp>=3.11.16",
     "pydantic-settings>=2.9.1",
     "pydantic>=2.10.6",
+    "openai>=1.65.4",
 ]
 
 [dependency-groups]
@@ -30,7 +31,7 @@ dev = [
 ]
 dev-dependencies = [
     "python-dotenv>=1.0.1,<2",
-    "ruff>=0.4.1,<0.5",
+    "ruff>=0.11.0",
     "pre-commit>=3.7.0,<4",
     "pytest-asyncio>=0.23.8"
 ]
@@ -61,7 +62,7 @@ build-backend = "hatchling.build"
 
 [tool.ruff]
 exclude = [
-    "video/rtc/pb",
+    "getstream/video/rtc/pb",
     ".venv"
 ]
 [tool.ruff.lint]
@@ -69,7 +70,7 @@ ignore = ["F405", "F403"]
 
 [project.optional-dependencies]
 openai-realtime = [
-  "openai[realtime]==1.65.4",
+  "openai[realtime]>=1.82.0",
   "trio >=0.22.2",
 ]
 webrtc = [

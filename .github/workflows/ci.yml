@@ -38,7 +38,7 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install the project
-      run: uv sync --all-packages
+      run: uv sync --all-packages --dev --all-extras
     - name: Run tests
       env:
         STREAM_BASE_URL: ${{ vars.STREAM_BASE_URL }}

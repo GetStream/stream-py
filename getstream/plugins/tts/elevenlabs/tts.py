@@ -8,7 +8,7 @@ class ElevenLabs(TTS):
     def __init__(
         self,
         api_key: Optional[str] = None,
-        voice_id: str = "21m00Tcm4TlvDq8ikWAM",
+        voice_id: str = "VR6AewLTigWG4xSOukaG",  # Default ElevenLabs voice
         model_id: str = "eleven_multilingual_v2",
     ):
         """
@@ -47,7 +47,7 @@ class ElevenLabs(TTS):
         Returns:
             An iterator of audio chunks as bytes
         """
-        audio_stream = self.client.text_to_speech.convert_as_stream(
+        audio_stream = self.client.text_to_speech.stream(
             text=text,
             voice_id=self.voice_id,
             output_format=self.output_format,
