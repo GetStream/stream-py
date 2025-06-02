@@ -691,7 +691,7 @@ async def test_deepgram_with_real_api_keep_alive(
         errors.append(error)
 
     # Wait for keep-alive messages to be sent
-    print("Waiting for keep-alive timeout (5 seconds)...")
+    print("Waiting for keep-alive timeout (3 seconds)...")
 
     # Create some empty audio data to initiate the connection
     audio_data = PcmData(samples=b"\x00\x00" * 1000, sample_rate=48000, format="s16")

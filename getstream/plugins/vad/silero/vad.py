@@ -39,9 +39,8 @@ class Silero(VAD):
         self,
         sample_rate: int = 48000,
         frame_size: int = None,
-        silence_threshold: float = 0.2,
-        activation_th: float = None,
-        deactivation_th: float = None,
+        activation_th: float = 0.4,
+        deactivation_th: float = 0.2,
         speech_pad_ms: int = 300,
         min_speech_ms: int = 250,
         max_speech_ms: int = 30000,
@@ -57,9 +56,8 @@ class Silero(VAD):
         Args:
             sample_rate: Audio sample rate in Hz expected for input
             frame_size: (Deprecated) Size of audio frames to process, use window_samples instead
-            silence_threshold: Threshold for detecting silence (0.0 to 1.0) - deprecated, use activation_th/deactivation_th instead
-            activation_th: Threshold for starting speech detection (0.0 to 1.0), defaults to silence_threshold if not provided
-            deactivation_th: Threshold for ending speech detection (0.0 to 1.0), defaults to 0.7*activation_th if not provided
+            activation_th: Threshold for starting speech detection (0.0 to 1.0)
+            deactivation_th: Threshold for ending speech detection (0.0 to 1.0) (defaults to 0.7*activation_th)
             speech_pad_ms: Number of milliseconds to pad before/after speech
             min_speech_ms: Minimum milliseconds of speech to emit
             max_speech_ms: Maximum milliseconds of speech before forced flush
@@ -79,17 +77,9 @@ class Silero(VAD):
             )
             window_samples = frame_size
 
-        # Determine thresholds
-        if activation_th is None:
-            activation_th = silence_threshold
-
-        if deactivation_th is None:
-            deactivation_th = activation_th * 0.7
-
         super().__init__(
             sample_rate=sample_rate,
             frame_size=window_samples,  # Use window_samples for frame_size
-            silence_threshold=silence_threshold,
             activation_th=activation_th,
             deactivation_th=deactivation_th,
             speech_pad_ms=speech_pad_ms,

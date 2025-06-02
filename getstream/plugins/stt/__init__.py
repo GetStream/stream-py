@@ -198,9 +198,6 @@ class STT(AsyncIOEventEmitter, abc.ABC):
         Returns:
             True if the data is valid, False otherwise.
         """
-        if pcm_data is None:
-            logger.warning("Received None PCM data")
-            return False
 
         if not hasattr(pcm_data, "samples") or pcm_data.samples is None:
             logger.warning("PCM data has no samples")
