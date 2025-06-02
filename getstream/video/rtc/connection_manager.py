@@ -355,7 +355,7 @@ class ConnectionManager(AsyncIOEventEmitter):
                     logger.warning("Publisher peer connection not initialized")
 
         except Exception as e:
-            logger.error(f"Error handling ICE trickle: {e}")
+            logger.error(f"Error handling ICE trickle: {e}", exc_info=e)
 
     def _create_join_request(self) -> events_pb2.JoinRequest:
         """Create a JoinRequest protobuf message for the WebSocket connection.

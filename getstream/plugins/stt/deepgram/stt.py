@@ -1,21 +1,19 @@
 import asyncio
 import json
 import logging
-from typing import Dict, Any, Optional, Tuple, Union
+from typing import Dict, Any, Optional, Tuple, List
 import numpy as np
 import os
 import time
 
 from deepgram import DeepgramClient, LiveTranscriptionEvents, LiveOptions
-from getstream.plugins.stt import STT, BackgroundDispatcher
+from getstream.plugins.stt import STT
 from getstream.video.rtc.track_util import PcmData
 
 logger = logging.getLogger(__name__)
 
-# Type for transcript results: (is_final, text, user, metadata)
-TranscriptResult = Tuple[bool, str, Any, Dict[str, Any]]
-# Type for queue items: either a transcript result or an exception
-QueueItem = Union[TranscriptResult, Exception]
+# Type for collected transcript results
+TranscriptResult = Tuple[bool, str, Dict[str, Any]]
 
 
 class Deepgram(STT):
@@ -24,9 +22,9 @@ class Deepgram(STT):
 
     Events:
         - transcript: Emitted when a complete transcript is available.
-            Args: text (str), metadata (dict)
+            Args: text (str), user_metadata (dict), metadata (dict)
         - partial_transcript: Emitted when a partial transcript is available.
-            Args: text (str), metadata (dict)
+            Args: text (str), user_metadata (dict), metadata (dict)
         - error: Emitted when an error occurs during transcription.
             Args: error (Exception)
     """
@@ -73,10 +71,8 @@ class Deepgram(STT):
             channels=1,
         )
 
-        # Create the result dispatcher
-        self._dispatcher = BackgroundDispatcher[QueueItem](
-            process_item=self._process_queue_item, name="transcript_dispatcher"
-        )
+        # Collect results to return from _process_audio_impl (for consistency)
+        self._pending_results: List[TranscriptResult] = []
 
         # Keep-alive mechanism
         self.keep_alive_interval = keep_alive_interval
@@ -91,25 +87,34 @@ class Deepgram(STT):
 
         self._setup_connection()
 
-    def _process_queue_item(self, item: QueueItem):
-        """Process an item from the queue and emit the appropriate event."""
-        try:
-            # Check if the item is an Exception (error sentinel)
-            if isinstance(item, Exception):
-                logger.debug("Dispatching error event from queue")
-                self._emit_error_event(item, "Deepgram queue processing")
-            # Otherwise it should be a tuple (is_final, text, user, metadata)
-            elif isinstance(item, tuple) and len(item) == 4:
-                is_final, text, user, metadata = item
-                print("transcript" if is_final else "partial_transcript")
-                if is_final:
-                    self._emit_transcript_event(text, user, metadata)
-                else:
-                    self._emit_partial_transcript_event(text, user, metadata)
-            else:
-                logger.warning(f"Unrecognized item in results queue: {type(item)}")
-        except Exception as e:
-            logger.error("Error processing queue item", exc_info=e)
+    def _handle_transcript_result(
+        self, is_final: bool, text: str, metadata: Dict[str, Any]
+    ):
+        """
+        Handle a transcript result by both collecting it and emitting it immediately.
+
+        This hybrid approach ensures:
+        1. Real-time event emission for immediate responsiveness
+        2. Collection for return from _process_audio_impl for consistency
+        """
+        # Collect the result for consistency with base class pattern
+        result = (is_final, text, metadata)
+        self._pending_results.append(result)
+
+        # Also emit immediately for real-time responsiveness
+        if is_final:
+            self._emit_transcript_event(text, self._current_user, metadata)
+        else:
+            self._emit_partial_transcript_event(text, self._current_user, metadata)
+
+        logger.debug(
+            "Handled transcript result",
+            extra={
+                "is_final": is_final,
+                "text_length": len(text),
+                "pending_count": len(self._pending_results),
+            },
+        )
 
     def _setup_connection(self):
         """Set up the Deepgram connection with event handlers."""
@@ -127,7 +132,6 @@ class Deepgram(STT):
             self.dg_connection = self.deepgram.listen.websocket.v("1")
 
             # Handler for transcript results
-            # Updates to handle LiveResultResponse objects from the Deepgram SDK
             def handle_transcript(conn, result=None):
                 try:
                     # Update the last activity time
@@ -166,11 +170,8 @@ class Deepgram(STT):
                         "channel_index": transcript.get("channel_index", 0),
                     }
 
-                    # Add to the queue using the dispatcher's thread-safe method
-                    self._dispatcher.add_item(
-                        (is_final, transcript_text, self._current_user, metadata),
-                        threadsafe=True,
-                    )
+                    # Handle the result (both collect and emit)
+                    self._handle_transcript_result(is_final, transcript_text, metadata)
 
                     logger.debug(
                         "Received transcript",
@@ -182,22 +183,20 @@ class Deepgram(STT):
                     )
                 except Exception as e:
                     logger.error("Error processing transcript", exc_info=e)
-                    # Handle errors during transcript processing
-                    error_obj = Exception(f"Transcript processing error: {e}")
-                    # Add to the queue using the dispatcher's thread-safe method
-                    self._dispatcher.add_item(error_obj, threadsafe=True)
+                    # Emit error immediately
+                    self._emit_error_event(e, "Deepgram transcript processing")
 
-            # Handler for errors - updated to accept the connection object
+            # Handler for errors
             def handle_error(conn, error=None):
                 # Update the last activity time
                 self.last_activity_time = time.time()
 
                 error_text = str(error) if error is not None else "Unknown error"
                 logger.error("Deepgram error received: %s", error_text)
-                error_obj = Exception(f"Deepgram error: {error_text}")
 
-                # Add to the queue using the dispatcher's thread-safe method
-                self._dispatcher.add_item(error_obj, threadsafe=True)
+                # Emit error immediately
+                error_obj = Exception(f"Deepgram error: {error_text}")
+                self._emit_error_event(error_obj, "Deepgram connection")
 
             # Register event handlers directly
             self.dg_connection.on(LiveTranscriptionEvents.Transcript, handle_transcript)
@@ -211,16 +210,12 @@ class Deepgram(STT):
             self._running = True
             self._start_keep_alive_task()
 
-            # Start the result dispatcher
-            self._dispatcher.start()
-
         except Exception as e:
             # Log the error and set connection to None
             logger.error("Error setting up Deepgram connection", exc_info=e)
             self.dg_connection = None
-            # Add error to the queue using the dispatcher
-            error_obj = Exception(f"Connection setup error: {e}")
-            self._dispatcher.add_item(error_obj)
+            # Emit error immediately
+            self._emit_error_event(e, "Deepgram connection setup")
 
     def _start_keep_alive_task(self):
         """Start the background task that sends keep-alive messages."""
@@ -291,7 +286,7 @@ class Deepgram(STT):
 
     async def _process_audio_impl(
         self, pcm_data: PcmData, user_metadata: Optional[Dict[str, Any]] = None
-    ) -> None:
+    ) -> Optional[List[Tuple[bool, str, Dict[str, Any]]]]:
         """
         Process audio data through Deepgram for transcription.
 
@@ -300,7 +295,12 @@ class Deepgram(STT):
             user_metadata: Additional metadata about the user or session.
 
         Returns:
-            None - Results are now delivered through the dispatch loop and events.
+            List of tuples (is_final, text, metadata) representing transcription results,
+            or None if no results are available.
+
+        Note: For real-time responsiveness, events are also emitted immediately when
+        transcripts arrive from Deepgram. This method primarily handles audio sending
+        and returns any collected results for consistency with the base class pattern.
         """
         if self._is_closed:
             logger.warning("Deepgram connection is closed, ignoring audio")
@@ -331,10 +331,8 @@ class Deepgram(STT):
                 self._setup_attempted = True
             else:
                 logger.error("No Deepgram connection available after retry")
-                # Emit an error and return
-                error = Exception("No Deepgram connection available")
-                self._emit_error_event(error, "Deepgram connection setup")
-                return None
+                # Return an error result instead of emitting directly
+                raise Exception("No Deepgram connection available")
 
         # Mark that we've attempted setup
         self._setup_attempted = True
@@ -356,12 +354,21 @@ class Deepgram(STT):
             )
             self.dg_connection.send(audio_data)
         except Exception as e:
-            # Emit an error and return
-            self._emit_error_event(e, "Deepgram audio transmission")
-            return None
+            # Raise exception to be handled by base class
+            raise Exception(f"Deepgram audio transmission error: {e}")
 
-        # No need to drain the queue or return results anymore
-        # Results are handled by the dispatch loop
+        # Return any pending results and clear the list
+        # Note: In streaming scenarios, results may come asynchronously after this call
+        if self._pending_results:
+            results = self._pending_results.copy()
+            self._pending_results.clear()
+            logger.debug(
+                "Returning collected results",
+                extra={"result_count": len(results)},
+            )
+            return results
+
+        # No results available in this call (they may arrive later asynchronously)
         return None
 
     async def close(self):
@@ -373,9 +380,6 @@ class Deepgram(STT):
         logger.info("Closing Deepgram STT service")
         self._is_closed = True
         self._running = False
-
-        # Stop the result dispatcher
-        await self._dispatcher.stop()
 
         # Cancel the keep-alive task if it exists
         if self.keep_alive_task:
@@ -395,3 +399,6 @@ class Deepgram(STT):
                 self.dg_connection = None
             except Exception as e:
                 logger.error("Error closing Deepgram connection", exc_info=e)
+
+        # Clear any pending results
+        self._pending_results.clear()
