@@ -2,7 +2,8 @@ import abc
 import logging
 import time
 from typing import Optional, Dict, Any, Tuple, List
-
+import asyncio
+from asyncio import AbstractEventLoop
 from pyee.asyncio import AsyncIOEventEmitter
 from getstream.video.rtc.track_util import PcmData
 
@@ -35,15 +36,38 @@ class STT(AsyncIOEventEmitter, abc.ABC):
         - Maintain consistent metadata structure across implementations
     """
 
-    def __init__(self, sample_rate: int = 16000, language: str = "en-US"):
+    def __init__(
+        self,
+        sample_rate: int = 16000,
+        language: str = "en-US",
+        *,
+        loop: Optional[AbstractEventLoop] = None,
+    ):
         """
         Initialize the STT service.
 
         Args:
             sample_rate: The sample rate of the audio to process, in Hz.
             language: The language code to use for transcription.
+            loop: The asyncio event loop that should be used by the underlying
+                  ``AsyncIOEventEmitter`` when scheduling coroutine callbacks.
+
+        Providing an explicit event loop is critical when callbacks may be
+        emitted from background threads (for example, SDK-managed listening
+        threads).  When the loop is not specified, ``pyee.AsyncIOEventEmitter``
+        falls back to ``asyncio.ensure_future`` without an explicit loop which
+        relies on ``asyncio.get_event_loop``.  In non-main threads this raises
+        ``RuntimeError: There is no current event loop``.  Capturing the running
+        loop at instantiation guarantees the callbacks are always scheduled on
+        the correct loop regardless of the calling thread.
         """
-        super().__init__()
+
+        _loop = loop or asyncio.get_event_loop()
+
+        # Pass the resolved loop to the ``AsyncIOEventEmitter`` base class so
+        # that all callbacks are scheduled on this loop even when ``emit`` is
+        # invoked from worker threads.
+        super().__init__(loop=_loop)
         self._track = None
         self.sample_rate = sample_rate
         self.language = language
@@ -51,7 +75,11 @@ class STT(AsyncIOEventEmitter, abc.ABC):
 
         logger.debug(
             "Initialized STT base class",
-            extra={"sample_rate": sample_rate, "language": language},
+            extra={
+                "sample_rate": sample_rate,
+                "language": language,
+                "loop": str(_loop),
+            },
         )
 
     def _validate_pcm_data(self, pcm_data: PcmData) -> bool:
