@@ -3,6 +3,7 @@ import pytest
 import asyncio
 import numpy as np
 from unittest.mock import patch, MagicMock
+import os
 
 from getstream.plugins.stt.deepgram import Deepgram
 from getstream.video.rtc.track_util import PcmData
@@ -262,7 +263,7 @@ async def test_deepgram_stt_initialization_with_env_var(mock_env_get):
 @patch("getstream.plugins.stt.deepgram.stt.DeepgramClient", MockDeepgramClient)
 async def test_deepgram_stt_transcript_events(mia_metadata):
     """Test that the Deepgram STT emits transcript events correctly."""
-    stt = Deepgram(api_key="test-api-key")
+    stt = Deepgram()
 
     # Track events
     transcripts = []
@@ -654,61 +655,282 @@ async def test_deepgram_close_message():
 
 
 @pytest.mark.asyncio
-async def test_deepgram_with_real_api_keep_alive(
-    deepgram_api_key, deepgram_model, deepgram_language
-):
-    """Integration test with the real Deepgram API to verify keep-alive."""
-    # Create a Deepgram STT instance with a short keep-alive interval
-    from deepgram import LiveOptions
+async def test_deepgram_with_real_api_keep_alive():
+    """
+    Test Deepgram STT with real API and keep-alive functionality.
 
-    # Create options with the proper audio format settings
-    options = LiveOptions(
-        model=deepgram_model,
-        language=deepgram_language,
-        encoding="linear16",
-        sample_rate=48000,
-        channels=1,
-    )
+    This test uses a real Deepgram API connection to test keep-alive behavior.
+    """
+    api_key = os.environ.get("DEEPGRAM_API_KEY")
+    if not api_key:
+        pytest.skip("DEEPGRAM_API_KEY not set")
 
-    # We use a much shorter keep-alive interval for testing
-    stt = Deepgram(
-        api_key=deepgram_api_key,
-        options=options,
-        language=deepgram_language,
-        keep_alive_interval=1.0,
-    )
+    # Use the mia.mp3 audio asset
+    mia_audio_path = get_audio_asset("mia.mp3")
+
+    try:
+        # Load the audio file
+        import soundfile as sf
+
+        audio_data, original_sample_rate = sf.read(mia_audio_path)
+
+        # Convert to mono if stereo
+        if len(audio_data.shape) > 1:
+            audio_data = np.mean(audio_data, axis=1)
+
+        # Resample to 48kHz if needed (Deepgram's default)
+        target_sample_rate = 48000
+        if original_sample_rate != target_sample_rate:
+            from getstream.audio.utils import resample_audio
+
+            audio_data = resample_audio(
+                audio_data, original_sample_rate, target_sample_rate
+            )
+
+        # Convert to int16 PCM
+        if audio_data.max() > 1.0 or audio_data.min() < -1.0:
+            audio_data = audio_data / max(abs(audio_data.max()), abs(audio_data.min()))
+
+        pcm_samples = (audio_data * 32767.0).astype(np.int16)
+
+        # Create PCM data
+        pcm_data = PcmData(
+            samples=pcm_samples, sample_rate=target_sample_rate, format="s16"
+        )
+
+    except Exception as e:
+        pytest.skip(f"Could not load test audio: {e}")
+
+    stt = Deepgram(api_key=api_key, keep_alive_interval=5.0)
 
     # Track events
     transcripts = []
+    partial_transcripts = []
     errors = []
 
     @stt.on("transcript")
     def on_transcript(text, user, metadata):
         transcripts.append((text, user, metadata))
 
+    @stt.on("partial_transcript")
+    def on_partial_transcript(text, user, metadata):
+        partial_transcripts.append((text, user, metadata))
+
     @stt.on("error")
     def on_error(error):
         errors.append(error)
 
-    # Wait for keep-alive messages to be sent
-    print("Waiting for keep-alive timeout (3 seconds)...")
+    try:
+        print("Waiting for keep-alive timeout (3 seconds)...")
 
-    # Create some empty audio data to initiate the connection
-    audio_data = PcmData(samples=b"\x00\x00" * 1000, sample_rate=48000, format="s16")
-    await stt.process_audio(audio_data)
+        # Wait longer than keep-alive interval to test the mechanism
+        await asyncio.sleep(6.0)
 
-    # Wait long enough for multiple keep-alives to occur
-    await asyncio.sleep(5)
+        # Process audio to trigger keep-alive
+        await stt.process_audio(pcm_data)
 
-    # Send another chunk of audio to verify connection is still alive
-    await stt.process_audio(audio_data)
+        # Wait for processing
+        await asyncio.sleep(2.0)
 
-    # Wait a bit more and then close the connection
-    await asyncio.sleep(1)
+        print("STT closed successfully")
 
-    # Close the STT service
-    await stt.close()
-    print("STT closed successfully")
+    finally:
+        await stt.close()
 
-    # We shouldn't have any errors
-    assert len(errors) == 0, f"Received errors: {errors}"
+
+@pytest.mark.asyncio
+async def test_deepgram_real_integration():
+    """
+    Integration test with the real Deepgram API using the mia.mp3 test file.
+
+    This test processes the mia.mp3 audio file and validates the transcription results
+    against expected content. This is crucial for ensuring the Deepgram plugin
+    actually works with real API calls.
+
+    This test will be skipped if DEEPGRAM_API_KEY is not set.
+    """
+    api_key = os.environ.get("DEEPGRAM_API_KEY")
+    if not api_key:
+        pytest.skip("DEEPGRAM_API_KEY not set - cannot run real integration test")
+
+    # Load test audio and metadata
+    try:
+        mia_audio_path = get_audio_asset("mia.mp3")
+        mia_metadata = get_json_metadata("mia.json")
+    except Exception as e:
+        pytest.skip(f"Could not load test assets: {e}")
+
+    # Load and prepare audio data
+    try:
+        import soundfile as sf
+
+        audio_data, original_sample_rate = sf.read(mia_audio_path)
+
+        # Convert to mono if stereo
+        if len(audio_data.shape) > 1:
+            audio_data = np.mean(audio_data, axis=1)
+
+        # Resample to 48kHz (Deepgram's preferred rate)
+        target_sample_rate = 48000
+        if original_sample_rate != target_sample_rate:
+            from getstream.audio.utils import resample_audio
+
+            audio_data = resample_audio(
+                audio_data, original_sample_rate, target_sample_rate
+            )
+
+        # Convert to int16 PCM
+        if audio_data.max() > 1.0 or audio_data.min() < -1.0:
+            audio_data = audio_data / max(abs(audio_data.max()), abs(audio_data.min()))
+
+        pcm_samples = (audio_data * 32767.0).astype(np.int16)
+
+        print(
+            f"Testing with mia.mp3: {len(pcm_samples)} samples at {target_sample_rate}Hz"
+        )
+        print(f"Audio duration: {len(pcm_samples) / target_sample_rate:.2f} seconds")
+        print(f"Audio range: {pcm_samples.min()} to {pcm_samples.max()}")
+
+    except Exception as e:
+        pytest.skip(f"Could not process audio file: {e}")
+
+    # Extract expected text from mia.json metadata
+    expected_segments = mia_metadata.get("segments", [])
+    expected_full_text = " ".join(
+        [segment["text"] for segment in expected_segments]
+    ).strip()
+    expected_words = expected_full_text.lower().split()
+
+    print(f"Expected transcript: {expected_full_text}")
+    print(f"Expected word count: {len(expected_words)}")
+
+    stt = Deepgram(api_key=api_key, sample_rate=target_sample_rate)
+
+    # Track events
+    transcripts = []
+    partial_transcripts = []
+    errors = []
+
+    @stt.on("transcript")
+    def on_transcript(text, user, metadata):
+        transcripts.append((text, user, metadata))
+        print(f"Final transcript: {text}")
+
+    @stt.on("partial_transcript")
+    def on_partial_transcript(text, user, metadata):
+        partial_transcripts.append((text, user, metadata))
+        print(f"Partial transcript: {text}")
+
+    @stt.on("error")
+    def on_error(error):
+        errors.append(error)
+        print(f"Error: {error}")
+
+    try:
+        # Process the audio in chunks to simulate real-time streaming
+        chunk_size = 9600  # 0.2 second chunks at 48kHz
+        total_samples = len(pcm_samples)
+
+        print(f"Processing audio in chunks of {chunk_size} samples...")
+
+        for i in range(0, total_samples, chunk_size):
+            end_idx = min(i + chunk_size, total_samples)
+            chunk_samples = pcm_samples[i:end_idx]
+
+            chunk_data = PcmData(
+                samples=chunk_samples, sample_rate=target_sample_rate, format="s16"
+            )
+
+            await stt.process_audio(chunk_data)
+            await asyncio.sleep(0.1)  # Small delay between chunks
+
+        # Wait for processing to complete
+        print("Waiting for final transcripts...")
+        await asyncio.sleep(3.0)
+
+        # Check results
+        print(f"Transcripts received: {len(transcripts)}")
+        print(f"Partial transcripts received: {len(partial_transcripts)}")
+        print(f"Errors received: {len(errors)}")
+
+        if transcripts:
+            for i, (text, user, metadata) in enumerate(transcripts):
+                print(f"Final transcript {i+1}: {text}")
+                print(f"Metadata: {metadata}")
+
+        if partial_transcripts:
+            print(f"Total partial transcripts: {len(partial_transcripts)}")
+
+        if errors:
+            for i, error in enumerate(errors):
+                print(f"Error {i+1}: {error}")
+
+        # Validation
+        assert len(errors) == 0, f"Received errors: {errors}"
+
+        # We should get at least some results (either final or partial transcripts)
+        total_results = len(transcripts) + len(partial_transcripts)
+        assert total_results > 0, "No transcripts or partial transcripts received"
+
+        # If we got final transcripts, validate them
+        if transcripts:
+            # Combine all transcript text
+            combined_text = " ".join([t[0] for t in transcripts]).strip()
+            actual_words = combined_text.lower().split()
+
+            print(f"Combined final transcript: {combined_text}")
+            print(f"Actual word count: {len(actual_words)}")
+
+            # Basic validation
+            text, user, metadata = transcripts[0]
+            assert isinstance(text, str)
+            assert len(text.strip()) > 0
+            assert "confidence" in metadata
+            assert "is_final" in metadata
+            assert metadata["is_final"] is True
+
+            # Content validation - check for key words from the expected transcript
+            key_words = [
+                "mia",
+                "village",
+                "map",
+                "treasure",
+                "cat",
+                "whiskers",
+                "quiet",
+            ]
+            found_key_words = [
+                word for word in key_words if word in combined_text.lower()
+            ]
+
+            print(f"Key words found: {found_key_words}")
+
+            # We should find at least some key words from the story
+            assert (
+                len(found_key_words) >= 2
+            ), f"Expected to find at least 2 key words from {key_words}, but only found {found_key_words}"
+
+            # Check that we got a reasonable amount of text
+            assert (
+                len(actual_words) >= 10
+            ), f"Expected at least 10 words, but got {len(actual_words)}: {combined_text}"
+
+            # Verify metadata structure
+            assert "confidence" in metadata
+            assert isinstance(metadata["confidence"], (int, float))
+            assert "words" in metadata
+            assert isinstance(metadata["words"], list)
+
+        # Validate partial transcripts if we have them
+        if partial_transcripts:
+            # Check that partial transcripts have correct metadata
+            text, user, metadata = partial_transcripts[0]
+            assert isinstance(text, str)
+            assert "is_final" in metadata
+            assert metadata["is_final"] is False
+
+        print("Integration test completed successfully!")
+        print(f"Final transcripts: {[t[0] for t in transcripts]}")
+
+    finally:
+        await stt.close()

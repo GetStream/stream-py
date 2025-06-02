@@ -1,8 +1,8 @@
 ## Project setup
 
 1. This project uses `uv`,  `pyproject.toml` and venv to manage dependencies
-2. Never use pip directly, use `uv add` to add dependencies and `uv sync --all-extras --dev` to install the dependency
-3. Do not change codegenerate python code, `./generate.sh` is the script responsible of rebuilding all API endpoints and API models
+2. Never use pip directly, use `uv add` to add dependencies and `uv sync --dev --all-packages` to install the dependency
+3. Do not change code generated python code, `./generate.sh` is the script responsible of rebuilding all API endpoints and API models
 4. **WebRTC Dependencies**: All dependencies related to WebRTC, audio, video processing (like `aiortc`, `numpy`, `torch`, `torchaudio`, `soundfile`, `scipy`, `deepgram-sdk`, `elevenlabs`, etc.) are organized under the `webrtc` optional dependencies group. Plugins that work with audio, video, or WebRTC functionality should depend on `getstream[webrtc]` instead of just `getstream`.
 
 ## Python testing

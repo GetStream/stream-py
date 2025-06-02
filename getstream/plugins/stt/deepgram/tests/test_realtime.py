@@ -68,6 +68,16 @@ class MockDeepgramConnection:
                 self, result=transcript_json
             )
 
+    def emit_error(self, error_message):
+        """Helper to emit an error event"""
+        from deepgram import LiveTranscriptionEvents
+
+        if LiveTranscriptionEvents.Error in self.event_handlers:
+            # Call the error handler
+            self.event_handlers[LiveTranscriptionEvents.Error](
+                self, error=error_message
+            )
+
 
 class MockDeepgramClient:
     def __init__(self, api_key=None):
@@ -85,8 +95,8 @@ async def test_real_time_transcript_emission():
 
     This test verifies that:
     1. A transcript can be emitted immediately after receiving it from the server
-    2. The background dispatcher correctly processes items in the queue
-    3. The events are properly emitted to listeners
+    2. Events are properly emitted to listeners through the hybrid approach
+    3. Both collection and immediate emission work correctly
     """
     # Create the Deepgram STT instance
     stt = Deepgram(api_key="test-api-key")
@@ -116,8 +126,9 @@ async def test_real_time_transcript_emission():
     # Immediately trigger a transcript from the server
     stt.dg_connection.emit_transcript("hello world", is_final=True)
 
-    # Wait a small amount of time for the background dispatcher to process the event
-    await asyncio.sleep(0.05)
+    # With the new hybrid approach, events should be emitted immediately
+    # Wait a very small amount to allow synchronous execution to complete
+    await asyncio.sleep(0.01)
 
     # Check that we received the transcript event
     assert len(transcript_events) == 1, "Expected 1 transcript event"
@@ -160,20 +171,20 @@ async def test_real_time_partial_transcript_emission():
     # Emit a partial transcript
     stt.dg_connection.emit_transcript("typing in prog", is_final=False)
 
-    # Wait a small amount of time for the background dispatcher
-    await asyncio.sleep(0.05)
+    # With immediate emission, we don't need to wait long
+    await asyncio.sleep(0.01)
 
     # Emit another partial transcript
     stt.dg_connection.emit_transcript("typing in progress", is_final=False)
 
     # Wait again
-    await asyncio.sleep(0.05)
+    await asyncio.sleep(0.01)
 
     # Emit the final transcript
     stt.dg_connection.emit_transcript("typing in progress complete", is_final=True)
 
-    # Wait a small amount of time for the background dispatcher to process the events
-    await asyncio.sleep(0.05)
+    # Wait a small amount of time for processing
+    await asyncio.sleep(0.01)
 
     # Check that we received the partial transcript events
     assert len(partial_transcript_events) == 2, "Expected 2 partial transcript events"
@@ -215,16 +226,15 @@ async def test_real_time_error_emission():
     pcm_data = PcmData(samples=b"\x00\x00" * 800, sample_rate=48000, format="s16")
     await stt.process_audio(pcm_data)
 
-    # Trigger an error by manually inserting to the queue
-    error = Exception("Test error message")
-    stt._dispatcher.add_item(error)
+    # Trigger an error by emitting it directly from the mock connection
+    stt.dg_connection.emit_error("Test error message")
 
-    # Wait a small amount of time for the background dispatcher to process the event
-    await asyncio.sleep(0.05)
+    # With immediate emission, error should be available quickly
+    await asyncio.sleep(0.01)
 
     # Check that we received the error event
     assert len(error_events) == 1, "Expected 1 error event"
-    assert str(error_events[0]) == "Test error message", "Incorrect error message"
+    assert "Test error message" in str(error_events[0]), "Incorrect error message"
 
     # Cleanup
     await stt.close()
@@ -232,38 +242,82 @@ async def test_real_time_error_emission():
 
 @pytest.mark.asyncio
 @patch("getstream.plugins.stt.deepgram.stt.DeepgramClient", MockDeepgramClient)
-async def test_dispatcher_shutdown():
+async def test_hybrid_architecture_consistency():
     """
-    Test that the dispatcher is properly shutdown when the STT service is closed.
+    Test that the hybrid architecture maintains consistency between:
+    1. Immediate event emission for real-time responsiveness
+    2. Result collection for base class pattern compliance
     """
     # Create the Deepgram STT instance
     stt = Deepgram(api_key="test-api-key")
 
-    # Verify the dispatcher is running
-    assert stt._dispatcher.running, "Dispatcher should be running after initialization"
+    # Collection for events
+    transcript_events = []
+
+    # Register event handler
+    @stt.on("transcript")
+    def on_transcript(text, user, metadata):
+        transcript_events.append((text, user, metadata))
+
+    # Send some audio data
+    pcm_data = PcmData(samples=b"\x00\x00" * 800, sample_rate=48000, format="s16")
+    await stt.process_audio(pcm_data)
+
+    # Trigger a transcript
+    stt.dg_connection.emit_transcript("test message", is_final=True)
+
+    # Event should be emitted immediately
+    await asyncio.sleep(0.01)
+    assert len(transcript_events) == 1, "Event should be emitted immediately"
+
+    # The result should also be collectible in the pending results
+    # Send another audio chunk to get collected results
+    results = await stt._process_audio_impl(pcm_data, {"user_id": "test"})
+
+    # Should have the collected result from previous emission
+    assert results is not None, "Should have collected results"
+    assert len(results) == 1, "Should have one collected result"
+    assert results[0][0] is True, "Should be final result"
+    assert results[0][1] == "test message", "Should have correct text"
+
+    # Cleanup
+    await stt.close()
+
+
+@pytest.mark.asyncio
+@patch("getstream.plugins.stt.deepgram.stt.DeepgramClient", MockDeepgramClient)
+async def test_close_cleanup():
+    """
+    Test that the STT service is properly closed and cleaned up.
+    """
+    # Create the Deepgram STT instance
+    stt = Deepgram(api_key="test-api-key")
+
+    # Verify the service is running
+    assert not stt._is_closed, "Service should be running after initialization"
+    assert stt._running, "Running flag should be True"
 
     # Close the STT service
     await stt.close()
 
-    # Verify the dispatcher has been stopped
-    assert not stt._dispatcher.running, "Dispatcher should be stopped after close"
-    assert stt._dispatcher.task is None, "Dispatcher task should be None after close"
+    # Verify the service has been stopped
+    assert stt._is_closed, "Service should be closed"
+    assert not stt._running, "Running flag should be False"
+    assert stt.keep_alive_task is None, "Keep-alive task should be None after close"
 
-    # Try to emit a transcript after closing (should not crash but no events should be received)
+    # Try to emit a transcript after closing (should not crash)
     transcript_events = []
 
     @stt.on("transcript")
     def on_transcript(text, user, metadata):
         transcript_events.append((text, user, metadata))
 
-    # Attempt to emit a transcript
-    try:
-        stt.dg_connection.emit_transcript("this should not be received")
-    except Exception:
-        pass  # It's okay if this fails
+    # Process audio after close should be ignored
+    pcm_data = PcmData(samples=b"\x00\x00" * 800, sample_rate=48000, format="s16")
+    result = await stt._process_audio_impl(pcm_data)
 
-    # Wait a small amount of time
-    await asyncio.sleep(0.05)
+    # Should return None since service is closed
+    assert result is None, "Should return None when closed"
 
     # No events should have been received
     assert len(transcript_events) == 0, "Should not receive events after close"

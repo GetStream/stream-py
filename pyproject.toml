@@ -74,7 +74,7 @@ openai-realtime = [
   "trio >=0.22.2",
 ]
 webrtc = [
-    "aiortc>=1.12.0",
+    "aiortc==1.12.0",
     "numpy>=2.0.2",
     "elevenlabs>=1.56.0",
     "torch>=2.6.0",

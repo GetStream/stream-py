@@ -8,6 +8,11 @@ import soundfile as sf
 from getstream.plugins.stt import STT
 from getstream.video.rtc.track_util import PcmData
 from getstream.audio.utils import resample_audio
+from getstream.audio.pcm_utils import (
+    pcm_to_numpy_array,
+    validate_sample_rate_compatibility,
+    log_audio_processing_info,
+)
 import moonshine_onnx as moonshine
 
 logger = logging.getLogger(__name__)
@@ -258,46 +263,21 @@ class Moonshine(STT):
         self._current_user = user_metadata
 
         try:
-            # Log incoming audio details for debugging
-            logger.debug(
-                "Processing audio chunk",
-                extra={
-                    "input_sample_rate": pcm_data.sample_rate,
-                    "target_sample_rate": self.sample_rate,
-                    "input_format": pcm_data.format,
-                    "samples_type": type(pcm_data.samples).__name__,
-                    "samples_length": len(pcm_data.samples),
-                    "duration_ms": (len(pcm_data.samples) / pcm_data.sample_rate) * 1000
-                    if pcm_data.sample_rate > 0
-                    else 0,
-                },
+            # Log incoming audio details for debugging using shared utility
+            log_audio_processing_info(pcm_data, self.sample_rate, "Moonshine")
+
+            # Convert PCM data to numpy array using shared utility
+            audio_array = pcm_to_numpy_array(pcm_data)
+
+            # Validate and resample if needed using shared utility
+            validate_sample_rate_compatibility(
+                pcm_data.sample_rate, self.sample_rate, "Moonshine"
             )
 
-            # Convert PCM data to numpy array
-            if isinstance(pcm_data.samples, bytes):
-                # Convert bytes to numpy array
-                audio_array = np.frombuffer(pcm_data.samples, dtype=np.int16)
-            else:
-                # Assume it's already a numpy array
-                audio_array = pcm_data.samples.astype(np.int16)
-
-            # Validate and resample if needed
             if pcm_data.sample_rate != self.sample_rate:
-                if pcm_data.sample_rate == 48000 and self.sample_rate == 16000:
-                    # This is the expected WebRTC -> Moonshine conversion
-                    logger.debug(
-                        "Converting WebRTC audio (48kHz) to Moonshine format (16kHz)"
-                    )
-                else:
-                    logger.warning(
-                        f"Unexpected sample rate conversion: {pcm_data.sample_rate}Hz -> {self.sample_rate}Hz"
-                    )
-
                 audio_array = resample_audio(
                     audio_array, pcm_data.sample_rate, self.sample_rate
                 ).astype(np.int16)
-            else:
-                logger.debug("No resampling needed - sample rates match")
 
             # Normalize audio for Moonshine
             normalized_audio = self._normalize_audio(audio_array)

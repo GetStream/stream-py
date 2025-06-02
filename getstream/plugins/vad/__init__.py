@@ -6,6 +6,7 @@ import numpy as np
 from pyee.asyncio import AsyncIOEventEmitter
 
 from getstream.video.rtc.track_util import PcmData
+from getstream.audio.pcm_utils import pcm_to_numpy_array, numpy_array_to_bytes
 
 logger = logging.getLogger(__name__)
 
@@ -102,14 +103,13 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
                 f"vad is initialized with sample rate {self.sample_rate} but pcm data has sample rate {pcm_data.sample_rate}"
             )
 
-        # Convert samples to numpy array if it's bytes
-        if isinstance(pcm_data.samples, bytes):
-            samples = np.frombuffer(pcm_data.samples, dtype=np.int16)
-            pcm_data = PcmData(
-                samples=samples,
-                sample_rate=pcm_data.sample_rate,
-                format=pcm_data.format,
-            )
+        # Convert samples to numpy array using shared utility
+        samples = pcm_to_numpy_array(pcm_data)
+        pcm_data = PcmData(
+            samples=samples,
+            sample_rate=pcm_data.sample_rate,
+            format=pcm_data.format,
+        )
 
         # Prepend leftover samples from previous call
         if len(self._leftover) > 0:
@@ -165,9 +165,10 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
 
         # Add frame to buffer in all cases during active speech
         if self.is_speech_active:
-            # Append the frame bytes to the bytearray buffer
+            # Append the frame bytes to the bytearray buffer using shared utility
             # Make a copy of samples to avoid BufferError due to memory view restrictions
-            self.speech_buffer.extend(frame.samples.tobytes())
+            frame_bytes = numpy_array_to_bytes(frame.samples)
+            self.speech_buffer.extend(frame_bytes)
             self.total_speech_frames += 1
             self.partial_counter += 1
 
@@ -220,8 +221,9 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
             self.total_speech_frames = 1
             self.partial_counter = 1
 
-            # Add this frame to the buffer
-            self.speech_buffer.extend(frame.samples.tobytes())
+            # Add this frame to the buffer using shared utility
+            frame_bytes = numpy_array_to_bytes(frame.samples)
+            self.speech_buffer.extend(frame_bytes)
 
     async def _flush_speech_buffer(self, user: Optional[Dict[str, Any]] = None) -> None:
         """

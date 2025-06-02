@@ -222,7 +222,7 @@ The root `pyproject.toml` defines a workspace that includes:
 **Initial setup:**
 ```bash
 # From project root - installs everything in editable mode
-uv sync --all-extras --dev
+uv sync --dev --all-extras --all-packages
 ```
 
 **Adding a new plugin to the workspace:**
@@ -231,7 +231,6 @@ New plugins and examples are automatically included! The workspace uses wildcard
 [tool.uv.workspace]
 members = [
     "getstream/plugins/*/*",        # Automatically includes all plugins
-    "examples/*",                   # Automatically includes all examples
 ]
 exclude = [
     "**/__pycache__",              # Exclude cache directories
@@ -300,5 +299,4 @@ This gives you the best of both worlds: easy local development with proper publi
 - [ ] Exports the plugin class in `__init__.py`.
 - [ ] (Recommended) Adds a minimal example project under `examples/` that demonstrates basic usage.
 - [ ] `uv run pytest` passes from project root.
-
-Happy hacking! 🎉
+- [ ] When adding external dependencies, make sure to specify conservative version constraints (eg. dont use >=2.4.0)

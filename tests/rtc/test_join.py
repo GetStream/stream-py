@@ -359,7 +359,7 @@ async def test_full_echo(client: Stream):
     audio = audio_track.AudioStreamTrack(framerate=16000)
     vad = Silero()
     stt = Deepgram()
-    call = client.video.call("default", CALL_ID)
+    call = client.video.call("default", "mQbx3HG7wtTj")
     tts_instance = ElevenLabs(voice_id="zOImbcIGBTxd0yXmwgRi")
     tts_instance.set_output_track(audio)
 
