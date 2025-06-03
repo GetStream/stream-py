@@ -13,7 +13,9 @@ logger = logging.getLogger(__name__)
 class AudioStreamTrack(aiortc.mediastreams.MediaStreamTrack):
     kind = "audio"
 
-    def __init__(self, framerate=8000, stereo=False, format="s16", max_queue_size=100):
+    def __init__(
+        self, framerate=8000, stereo=False, format="s16", max_queue_size=10000
+    ):
         """
         Initialize an AudioStreamTrack that reads data from a queue.
 

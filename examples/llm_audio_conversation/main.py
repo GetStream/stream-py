@@ -1,82 +1,46 @@
 #!/usr/bin/env python3
 """
-Example: LLM Audio Conversation with Stream, Deepgram STT, and ElevenLabs TTS
+Example: AI Voice Conversation Bot with Stream, Deepgram STT, ElevenLabs TTS, and OpenAI
 
 This example demonstrates how to:
-1. Join a Stream video call
-2. Use VAD (Voice Activity Detection) to detect speech
-3. Transcribe audio in real-time using Deepgram STT
-4. Echo back the transcript using ElevenLabs TTS
+1. Create a Stream video call and add an AI bot
+2. Use VAD (Voice Activity Detection) to detect when users speak
+3. Transcribe user speech in real-time using Deepgram STT
+4. Send transcribed text to OpenAI's LLM for intelligent responses
+5. Convert LLM responses to speech using ElevenLabs TTS
+6. Enable natural voice conversations between users and AI
 
 Usage:
     python main.py
 
 Requirements:
-    - Create a .env file with your Stream, Deepgram, and ElevenLabs credentials
+    - Create a .env file with your Stream, Deepgram, ElevenLabs, and OpenAI credentials
     - Install dependencies: pip install -e .
 """
 
 import asyncio
 import os
 import time
-import webbrowser
-from urllib.parse import urlencode
 from typing import Any
-from dotenv import load_dotenv
 from uuid import uuid4
 
-from getstream.models import UserRequest
+from dotenv import load_dotenv
+from openai import OpenAI
+
+from examples.utils import create_user, open_browser
+from getstream.plugins.stt.deepgram import Deepgram
+from getstream.plugins.tts.elevenlabs import ElevenLabs
+from getstream.plugins.vad.silero import Silero
 from getstream.stream import Stream
 from getstream.video import rtc
 from getstream.video.rtc import audio_track
-from getstream.plugins.vad.silero import Silero
-from getstream.plugins.stt.deepgram import Deepgram
-from getstream.plugins.tts.elevenlabs import ElevenLabs
 from getstream.video.rtc.track_util import PcmData
-
-from openai import OpenAI
-
-
-def create_user(client: Stream, id: str, name: str) -> None:
-    """
-    Create a user with a unique Stream ID.
-    """
-    user_request = UserRequest(id=id, name=name)
-
-    client.upsert_users(user_request)
-
-
-def open_browser(api_key: str, token: str, call_id: str) -> str:
-    """
-    Helper function to open browser with Stream call link.
-
-    Args:
-        api_key: Stream API key
-        token: JWT token for the user
-        call_id: ID of the call
-
-    Returns:
-        The URL that was opened
-    """
-    base_url = "https://pronto.getstream.io/bare/join/"
-    params = {"api_key": api_key, "token": token, "skip_lobby": "true"}
-
-    url = f"{base_url}{call_id}?{urlencode(params)}"
-    print(f"Opening browser to: {url}")
-
-    try:
-        webbrowser.open(url)
-        print("Browser opened successfully!")
-    except Exception as e:
-        print(f"Failed to open browser: {e}")
-        print(f"Please manually open this URL: {url}")
-
-    return url
 
 
 async def main():
     """Main example function."""
-    load_dotenv("../.env")
+    # Load environment variables from the parent directory (examples/.env)
+    load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 
     print("🎙️  Stream + VAD + Deepgram STT + ElevenLabs TTS Example")
     print("=" * 60)
@@ -85,8 +49,8 @@ async def main():
     client = Stream.from_env()
 
     # Create a user
-    id = f"user-{str(uuid4())}"
-    create_user(client, id, "My User")
+    id = f"example-user-{str(uuid4())}"
+    create_user(client, id, "Me")
     print(f"👤 Created user: {id}")
     user_token = client.create_token(id, expiration=3600)
     print(f"🔑 Created token for user: {id}")
@@ -129,7 +93,7 @@ async def main():
 
             print(f"✅ Bot joined call: {call_id}")
 
-            await tts_instance.send("welcome my friend, how's it going?")
+            await tts_instance.send("welcome my friend, how's it going today?")
 
             @connection.on("audio")
             async def on_audio(pcm: PcmData, user):

@@ -22,7 +22,8 @@ async def test_performance():
     vad = Silero(
         sample_rate=16000,
         frame_size=512,
-        silence_threshold=0.5,
+        activation_th=0.5,
+        deactivation_th=0.5,
         speech_pad_ms=30,
         min_speech_ms=250,
         model_rate=16000,

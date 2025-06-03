@@ -36,7 +36,7 @@ class Deepgram(STT):
         options: Optional[LiveOptions] = None,
         sample_rate: int = 48000,
         language: str = "en-US",
-        keep_alive_interval: float = 5.0,
+        keep_alive_interval: float = 3.0,
     ):
         """
         Initialize the Deepgram STT service.
@@ -267,7 +267,7 @@ class Deepgram(STT):
                 # Fallback: try sending json as non-binary data
                 self.dg_connection.send(keep_alive_msg)
 
-            logger.debug("Sent keep-alive message to Deepgram")
+            logger.info("Sent keep-alive message to Deepgram")
             return True
         except Exception as e:
             logger.error("Error sending keep-alive message", exc_info=e)

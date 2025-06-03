@@ -52,7 +52,7 @@ class ElevenLabs(TTS):
             voice_id=self.voice_id,
             output_format=self.output_format,
             model_id=self.model_id,
-            request_options={"chunk_size": 3200},
+            request_options={"chunk_size": 64000},
         )
 
         return audio_stream

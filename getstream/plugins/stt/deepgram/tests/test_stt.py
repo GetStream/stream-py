@@ -721,7 +721,7 @@ async def test_deepgram_with_real_api_keep_alive():
         errors.append(error)
 
     try:
-        print("Waiting for keep-alive timeout (5 seconds)...")
+        print("Waiting for keep-alive timeout (3 seconds)...")
 
         # Wait longer than keep-alive interval to test the mechanism
         await asyncio.sleep(6.0)
