@@ -36,20 +36,108 @@ Import the base class and implement the abstract methods:
 ```python
 # getstream/plugins/stt/whisper/whisper.py
 from getstream.plugins.stt import STT
+from typing import Optional, Dict, Any, List, Tuple
+from getstream.video.rtc.track_util import PcmData
 
 class Whisper(STT):
     """OpenAI Whisper based STT implementation."""
 
-    name = "whisper"  # mandatory – used for discovery
+    def __init__(self, model: str = "base", **kwargs):
+        super().__init__(**kwargs)
+        self.model = model
+        # Initialize your model here
 
-    def transcribe(self, audio_path: str) -> str:
-        # your implementation here
-        ...
-```
+    async def _process_audio_impl(
+        self, pcm_data: PcmData, user_metadata: Optional[Dict[str, Any]] = None
+    ) -> Optional[List[Tuple[bool, str, Dict[str, Any]]]]:
+        """
+        Process audio for transcription.
+
+        Choose your implementation mode:
+
+        SYNCHRONOUS MODE (like Moonshine):
+        - Process audio and return results
+        - Base class will emit events for you
+
+        ASYNCHRONOUS MODE (like Deepgram):
+        - Emit events directly using self._emit_transcript_event()
+        - Return None
+
+        This example shows synchronous mode:
+        """
+        if self._is_closed:
+            return None
+
+        # Your transcription logic here
+        text = self.transcribe_audio(pcm_data.samples)
+
+        if text:
+            metadata = {
+                "confidence": 0.95,
+                "model": self.model,
+                "processing_time_ms": 100,
+            }
+            # Return results for base class to emit
+            return [(True, text, metadata)]
+
+        return None
+
+    async def close(self):
+        """Clean up resources."""
+        self._is_closed = True
 
 ---
 
-## 3. Shared audio utilities
+## 3. STT Dual-Mode Contract
+
+STT implementations can choose between two operation modes:
+
+### Synchronous Mode (Recommended for Offline Models)
+- **Process audio immediately** and return results
+- **Base class emits events** for you
+- **Simple to implement** - just return `List[Tuple[bool, str, Dict]]`
+- **Example**: Moonshine, Whisper, local models
+
+```python
+async def _process_audio_impl(self, pcm_data, user_metadata=None):
+    # Process audio immediately
+    text = await self.transcribe(pcm_data.samples)
+
+    if text:
+        metadata = {"confidence": 0.95, "processing_time_ms": 100}
+        # Return results - base class will emit events
+        return [(True, text, metadata)]  # is_final=True
+
+    return None  # No results
+```
+
+### Asynchronous Mode (Recommended for Streaming Services)
+- **Emit events directly** when they arrive
+- **Return None** to indicate asynchronous operation
+- **Real-time responsiveness** for streaming scenarios
+- **Example**: Deepgram, Google Speech, Azure Speech
+
+```python
+async def _process_audio_impl(self, pcm_data, user_metadata=None):
+    # Send audio to streaming service
+    await self.send_audio(pcm_data.samples)
+
+    # Events will be emitted when transcripts arrive via callbacks:
+    # self._emit_transcript_event(text, user_metadata, metadata)
+    # self._emit_partial_transcript_event(text, user_metadata, metadata)
+
+    # Return None for asynchronous mode
+    return None
+```
+
+### Important Rules
+- **Never do both**: Don't emit events AND return results - it causes duplicates
+- **Choose one mode per call**: Be consistent in your implementation
+- **Use helpers**: `self._emit_transcript_event()`, `self._emit_partial_transcript_event()`, `self._emit_error_event()`
+
+---
+
+## 4. Shared audio utilities
 
 For common audio processing tasks, use the shared utilities in `getstream.audio.utils`:
 
@@ -67,7 +155,7 @@ This avoids duplicating resampling logic across plugins and ensures consistent, 
 
 ---
 
-## 4. Package skeleton
+## 5. Package skeleton
 
 Inside your plugin folder:
 
@@ -118,7 +206,7 @@ getstream-plugins-vad-silero = { workspace = true }
 
 ---
 
-## 5. Writing tests
+## 6. Writing tests
 
 1. Put your tests in `whisper/tests/` (or `tests/` inside the plugin folder).
 2. **Reuse shared fixtures & helpers** from `getstream.plugins.test_utils`:
@@ -129,16 +217,51 @@ import pytest
 
 from getstream.plugins.test_utils import get_audio_asset
 from getstream.plugins.stt.whisper import Whisper
+from getstream.video.rtc.track_util import PcmData
 
 @pytest.fixture()
 def plugin():
     return Whisper()
 
 
-def test_transcribe_simple(plugin):
-    audio = get_audio_asset("mia.mp3")
-    text = plugin.transcribe(audio)
-    assert "hello" in text.lower()
+@pytest.mark.asyncio
+async def test_transcribe_simple(plugin):
+    """Test basic transcription functionality."""
+    # Get test audio
+    audio_path = get_audio_asset("mia.mp3")
+
+    # Create PCM data (you may need to load and convert the audio)
+    pcm_data = PcmData(samples=audio_samples, sample_rate=16000, format="s16")
+
+    # Test synchronous mode - should return results
+    results = await plugin._process_audio_impl(pcm_data)
+
+    assert results is not None, "Should return results in synchronous mode"
+    assert len(results) > 0, "Should have at least one result"
+
+    is_final, text, metadata = results[0]
+    assert is_final, "Result should be final"
+    assert "hello" in text.lower(), "Should contain expected text"
+    assert "confidence" in metadata, "Should include confidence"
+
+
+@pytest.mark.asyncio
+async def test_transcript_events(plugin):
+    """Test that events are emitted correctly."""
+    transcript_events = []
+
+    @plugin.on("transcript")
+    def on_transcript(text, user_metadata, metadata):
+        transcript_events.append((text, user_metadata, metadata))
+
+    # Process audio using the public interface
+    pcm_data = PcmData(samples=audio_samples, sample_rate=16000, format="s16")
+    await plugin.process_audio(pcm_data, {"user_id": "test"})
+
+    # Should have received transcript event
+    assert len(transcript_events) == 1
+    text, user_metadata, metadata = transcript_events[0]
+    assert user_metadata["user_id"] == "test"
 ```
 
 Running the test from project root will automatically resolve `test_utils` and load `.env` files thanks to the helper module.
@@ -149,13 +272,13 @@ uv run pytest getstream/plugins/stt/whisper/tests
 
 ---
 
-## 6. Registering your plugin (optional)
+## 7. Registering your plugin (optional)
 
 If you rely on dynamic plugin discovery, expose an **entry-point** in `pyproject.toml` (see above). Otherwise, make sure your plugin is imported somewhere in client code so the class is registered.
 
 ---
 
-## 7. Providing an example project (highly recommended)
+## 8. Providing an example project (highly recommended)
 
 A tiny runnable demo makes it much easier for others to try the plugin.
 
@@ -194,7 +317,7 @@ This approach ensures that:
 
 ---
 
-## 8. Checklist before opening a PR
+## 9. Checklist before opening a PR
 
 - [ ] Sub-directory under the correct plugin type.
 - [ ] Inherits from the right base class.
@@ -206,7 +329,7 @@ This approach ensures that:
 
 ---
 
-## 9. Working with the UV Workspace
+## 10. Working with the UV Workspace
 
 This project uses UV workspace configuration for seamless local development across plugins, the main package, and examples.
 
@@ -290,7 +413,7 @@ This gives you the best of both worlds: easy local development with proper publi
 
 ---
 
-## 10. Checklist before opening a PR
+## 11. Checklist before opening a PR
 
 - [ ] Sub-directory under the correct plugin type.
 - [ ] Inherits from the right base class.

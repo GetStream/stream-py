@@ -12,13 +12,14 @@ from getstream.video.rtc.track_util import PcmData
 
 logger = logging.getLogger(__name__)
 
-# Type for collected transcript results
-TranscriptResult = Tuple[bool, str, Dict[str, Any]]
-
 
 class Deepgram(STT):
     """
     Deepgram-based Speech-to-Text implementation.
+
+    This implementation operates in asynchronous mode - it receives streaming transcripts
+    from Deepgram's WebSocket connection and emits events immediately as they arrive,
+    providing real-time responsiveness for live transcription scenarios.
 
     Events:
         - transcript: Emitted when a complete transcript is available.
@@ -71,9 +72,6 @@ class Deepgram(STT):
             channels=1,
         )
 
-        # Collect results to return from _process_audio_impl (for consistency)
-        self._pending_results: List[TranscriptResult] = []
-
         # Keep-alive mechanism
         self.keep_alive_interval = keep_alive_interval
         self.last_activity_time = time.time()
@@ -91,17 +89,9 @@ class Deepgram(STT):
         self, is_final: bool, text: str, metadata: Dict[str, Any]
     ):
         """
-        Handle a transcript result by both collecting it and emitting it immediately.
-
-        This hybrid approach ensures:
-        1. Real-time event emission for immediate responsiveness
-        2. Collection for return from _process_audio_impl for consistency
+        Handle a transcript result by emitting it immediately.
         """
-        # Collect the result for consistency with base class pattern
-        result = (is_final, text, metadata)
-        self._pending_results.append(result)
-
-        # Also emit immediately for real-time responsiveness
+        # Emit immediately for real-time responsiveness
         if is_final:
             self._emit_transcript_event(text, self._current_user, metadata)
         else:
@@ -112,7 +102,6 @@ class Deepgram(STT):
             extra={
                 "is_final": is_final,
                 "text_length": len(text),
-                "pending_count": len(self._pending_results),
             },
         )
 
@@ -295,12 +284,8 @@ class Deepgram(STT):
             user_metadata: Additional metadata about the user or session.
 
         Returns:
-            List of tuples (is_final, text, metadata) representing transcription results,
-            or None if no results are available.
-
-        Note: For real-time responsiveness, events are also emitted immediately when
-        transcripts arrive from Deepgram. This method primarily handles audio sending
-        and returns any collected results for consistency with the base class pattern.
+            None - Deepgram operates in asynchronous mode and emits events directly
+            when transcripts arrive from the streaming service.
         """
         if self._is_closed:
             logger.warning("Deepgram connection is closed, ignoring audio")
@@ -357,18 +342,7 @@ class Deepgram(STT):
             # Raise exception to be handled by base class
             raise Exception(f"Deepgram audio transmission error: {e}")
 
-        # Return any pending results and clear the list
-        # Note: In streaming scenarios, results may come asynchronously after this call
-        if self._pending_results:
-            results = self._pending_results.copy()
-            self._pending_results.clear()
-            logger.debug(
-                "Returning collected results",
-                extra={"result_count": len(results)},
-            )
-            return results
-
-        # No results available in this call (they may arrive later asynchronously)
+        # Return None for asynchronous mode - events are emitted when they arrive
         return None
 
     async def close(self):
@@ -399,6 +373,3 @@ class Deepgram(STT):
                 self.dg_connection = None
             except Exception as e:
                 logger.error("Error closing Deepgram connection", exc_info=e)
-
-        # Clear any pending results
-        self._pending_results.clear()

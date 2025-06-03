@@ -251,20 +251,15 @@ class STT(AsyncIOEventEmitter, abc.ABC):
             user_metadata: Additional metadata about the user or session.
 
         Returns:
-            A list of tuples (is_final, text, metadata) representing transcription results,
-            or None if no results are available.
+            optional list[tuple[bool, str, dict]] | None
+                • synchronous providers: a list of results.
+                • asynchronous providers: None (they emit events themselves).
 
-            Each tuple contains:
-            - is_final (bool): True for final transcripts, False for partial/interim results
-            - text (str): The transcribed text
-            - metadata (dict): Implementation-specific metadata including:
-                - confidence (float, optional): Confidence score if available
-                - processing_time_ms (float, optional): Processing time in milliseconds
-                - Any other provider-specific metadata
-
-        Raises:
-            Exception: Implementations should let exceptions bubble up to be handled
-                      by the base class, which will emit appropriate error events.
+        Notes:
+            Implementations must not both emit events and return non-empty results,
+            or duplicate events will be produced.
+            Exceptions should bubble up; process_audio() will catch them
+            and emit a single "error" event.
         """
         pass
 

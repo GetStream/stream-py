@@ -33,11 +33,14 @@ class Moonshine(STT):
     Moonshine is a family of speech-to-text models optimized for fast and accurate
     automatic speech recognition (ASR) on resource-constrained devices.
 
+    This implementation operates in synchronous mode - it processes audio immediately
+    and returns results to the base class, which then emits the appropriate events.
+
     Events:
         - transcript: Emitted when a complete transcript is available.
-            Args: text (str), user (any), metadata (dict)
+            Args: text (str), user_metadata (dict), metadata (dict)
         - partial_transcript: Emitted when a partial transcript is available.
-            Args: text (str), user (any), metadata (dict)
+            Args: text (str), user_metadata (dict), metadata (dict)
         - error: Emitted when an error occurs during transcription.
             Args: error (Exception)
     """
@@ -247,13 +250,17 @@ class Moonshine(STT):
         """
         Process audio data through Moonshine for transcription.
 
+        Moonshine operates in synchronous mode - it processes audio immediately and
+        returns results to the base class for event emission.
+
         Args:
             pcm_data: The PCM audio data to process.
             user_metadata: Additional metadata about the user or session.
 
         Returns:
             List of tuples (is_final, text, metadata) representing transcription results,
-            or None if no results are available.
+            or None if no results are available. Moonshine returns final results only
+            since it doesn't support streaming transcription.
         """
         if self._is_closed:
             logger.warning("Moonshine STT is closed, ignoring audio")

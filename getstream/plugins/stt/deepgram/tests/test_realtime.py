@@ -242,50 +242,6 @@ async def test_real_time_error_emission():
 
 @pytest.mark.asyncio
 @patch("getstream.plugins.stt.deepgram.stt.DeepgramClient", MockDeepgramClient)
-async def test_hybrid_architecture_consistency():
-    """
-    Test that the hybrid architecture maintains consistency between:
-    1. Immediate event emission for real-time responsiveness
-    2. Result collection for base class pattern compliance
-    """
-    # Create the Deepgram STT instance
-    stt = Deepgram(api_key="test-api-key")
-
-    # Collection for events
-    transcript_events = []
-
-    # Register event handler
-    @stt.on("transcript")
-    def on_transcript(text, user, metadata):
-        transcript_events.append((text, user, metadata))
-
-    # Send some audio data
-    pcm_data = PcmData(samples=b"\x00\x00" * 800, sample_rate=48000, format="s16")
-    await stt.process_audio(pcm_data)
-
-    # Trigger a transcript
-    stt.dg_connection.emit_transcript("test message", is_final=True)
-
-    # Event should be emitted immediately
-    await asyncio.sleep(0.01)
-    assert len(transcript_events) == 1, "Event should be emitted immediately"
-
-    # The result should also be collectible in the pending results
-    # Send another audio chunk to get collected results
-    results = await stt._process_audio_impl(pcm_data, {"user_id": "test"})
-
-    # Should have the collected result from previous emission
-    assert results is not None, "Should have collected results"
-    assert len(results) == 1, "Should have one collected result"
-    assert results[0][0] is True, "Should be final result"
-    assert results[0][1] == "test message", "Should have correct text"
-
-    # Cleanup
-    await stt.close()
-
-
-@pytest.mark.asyncio
-@patch("getstream.plugins.stt.deepgram.stt.DeepgramClient", MockDeepgramClient)
 async def test_close_cleanup():
     """
     Test that the STT service is properly closed and cleaned up.
@@ -321,3 +277,43 @@ async def test_close_cleanup():
 
     # No events should have been received
     assert len(transcript_events) == 0, "Should not receive events after close"
+
+
+@pytest.mark.asyncio
+@patch("getstream.plugins.stt.deepgram.stt.DeepgramClient", MockDeepgramClient)
+async def test_asynchronous_mode_behavior():
+    """
+    Test that Deepgram operates in asynchronous mode:
+    1. Events are emitted immediately when they arrive
+    2. _process_audio_impl always returns None (no result collection)
+    """
+    # Create the Deepgram STT instance
+    stt = Deepgram(api_key="test-api-key")
+
+    # Collection for events
+    transcript_events = []
+
+    # Register event handler
+    @stt.on("transcript")
+    def on_transcript(text, user, metadata):
+        transcript_events.append((text, user, metadata))
+
+    # Send some audio data
+    pcm_data = PcmData(samples=b"\x00\x00" * 800, sample_rate=48000, format="s16")
+    await stt.process_audio(pcm_data)
+
+    # Trigger a transcript
+    stt.dg_connection.emit_transcript("test message", is_final=True)
+
+    # Event should be emitted immediately
+    await asyncio.sleep(0.01)
+    assert len(transcript_events) == 1, "Event should be emitted immediately"
+
+    # _process_audio_impl should always return None in asynchronous mode
+    results = await stt._process_audio_impl(pcm_data, {"user_id": "test"})
+
+    # Should always return None for asynchronous mode
+    assert results is None, "Asynchronous mode should always return None"
+
+    # Cleanup
+    await stt.close()
