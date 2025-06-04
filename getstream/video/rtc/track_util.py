@@ -1,10 +1,11 @@
 import asyncio
+
+import av
 import numpy as np
 import re
+from typing import Dict, Any, NamedTuple, Callable, Optional
 
 import logging
-from typing import Dict, Any, NamedTuple, Callable
-
 import aiortc
 from aiortc import MediaStreamTrack
 from aiortc.mediastreams import MediaStreamError
@@ -17,6 +18,9 @@ class PcmData(NamedTuple):
     format: str
     sample_rate: int
     samples: NDArray
+    pts: Optional[int] = None  # Presentation timestamp
+    dts: Optional[int] = None  # Decode timestamp
+    time_base: Optional[float] = None  # Time base for converting timestamps to seconds
 
     @property
     def duration(self) -> float:
@@ -26,18 +30,46 @@ class PcmData(NamedTuple):
         Returns:
             float: Duration in seconds.
         """
-        if self.format == "s16":
-            # For s16 format, each sample is 2 bytes (16 bits)
-            num_samples = len(self.samples) // 2
-        elif self.format == "f32":
-            # For f32 format, each sample is 4 bytes (32 bits)
-            num_samples = len(self.samples) // 4
-        else:
-            # Default assumption for other formats (treat as raw bytes)
+        # The samples field contains a numpy array of audio samples
+        # For s16 format, each element in the array is one sample (int16)
+        # For f32 format, each element in the array is one sample (float32)
+        
+        if isinstance(self.samples, np.ndarray):
+            # Direct count of samples in the numpy array
             num_samples = len(self.samples)
+        elif isinstance(self.samples, bytes):
+            # If samples is bytes, calculate based on format
+            if self.format == "s16":
+                # For s16 format, each sample is 2 bytes (16 bits)
+                num_samples = len(self.samples) // 2
+            elif self.format == "f32":
+                # For f32 format, each sample is 4 bytes (32 bits)
+                num_samples = len(self.samples) // 4
+            else:
+                # Default assumption for other formats (treat as raw bytes)
+                num_samples = len(self.samples)
+        else:
+            # Fallback: try to get length
+            try:
+                num_samples = len(self.samples)
+            except TypeError:
+                logger.warning(f"Cannot determine sample count for type {type(self.samples)}")
+                return 0.0
 
         # Calculate duration based on sample rate
         return num_samples / self.sample_rate
+
+    @property
+    def pts_seconds(self) -> Optional[float]:
+        if self.pts is not None and self.time_base is not None:
+            return self.pts * self.time_base
+        return None
+
+    @property
+    def dts_seconds(self) -> Optional[float]:
+        if self.dts is not None and self.time_base is not None:
+            return self.dts * self.time_base
+        return None
 
 
 def fix_sdp_msid_semantic(sdp: str) -> str:
@@ -326,6 +358,9 @@ class AudioTrackHandler:
                 print("Error receiving audio frame:", e)
                 break
 
+            if not isinstance(frame, av.AudioFrame):
+                raise TypeError(f"Audio frame not received")
+
             if frame.sample_rate != 48000:
                 raise TypeError("only 48000 sample rate supported")
 
@@ -337,10 +372,40 @@ class AudioTrackHandler:
                 )
                 break
 
+            # Handle stereo to mono conversion
             if len(frame.layout.channels) > 1:
-                audio_stereo = pcm_ndarray.reshape(-1, 2)
-                pcm_ndarray = audio_stereo.mean(axis=1).astype(np.int16)
+                try:
+                    # Reshape to separate stereo channels: [L, R, L, R, ...] -> [[L, R], [L, R], ...]
+                    # This assumes the data is interleaved stereo
+                    audio_stereo = pcm_ndarray.reshape(-1, len(frame.layout.channels))
+                    # Take the mean across channels to convert to mono
+                    pcm_ndarray = audio_stereo.mean(axis=1).astype(np.int16)
+                except ValueError as e:
+                    logger.error(f"Error reshaping stereo audio: {e}. "
+                               f"Original shape: {pcm_ndarray.shape}, channels: {len(frame.layout.channels)}")
+                    break
+
+            # Extract timestamp information from the frame
+            pts = getattr(frame, 'pts', None)
+            dts = getattr(frame, 'dts', None)
+            time_base = None
+            
+            # Convert time_base to float if available
+            if hasattr(frame, 'time_base') and frame.time_base is not None:
+                try:
+                    # time_base is typically a fractions.Fraction, convert to float
+                    time_base = float(frame.time_base)
+                except (TypeError, ValueError):
+                    logger.warning(f"Could not convert time_base to float: {frame.time_base}")
+                    time_base = None
 
             self._on_audio_frame(
-                PcmData(sample_rate=48_000, samples=pcm_ndarray, format="s16")
+                PcmData(
+                    sample_rate=48_000, 
+                    samples=pcm_ndarray, 
+                    format="s16",
+                    pts=pts,
+                    dts=dts,
+                    time_base=time_base
+                )
             )

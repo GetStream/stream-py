@@ -1,9 +1,8 @@
 import json
 import uuid
-
 import asyncio
 import logging
-from typing import Optional
+from typing import Optional, Dict, Set, List
 
 import aioice
 import aiortc
@@ -26,6 +25,7 @@ from getstream.video.rtc.pb.stream.video.sfu.event import events_pb2
 from twirp import context
 
 from getstream.video.rtc.coordinator import join_call_coordinator_request
+from getstream.video.rtc.recording import AudioRecorder, RecordingType
 
 from getstream.video.rtc.track_util import (
     BufferedMediaTrack,
@@ -126,6 +126,9 @@ class ConnectionManager(AsyncIOEventEmitter):
 
         self.participants_state = ParticipantsState()
 
+        # Audio recording functionality
+        self.audio_recorder = AudioRecorder()
+
     async def _full_connect(self):
         """Perform location discovery and join call via coordinator.
 
@@ -209,7 +212,22 @@ class ConnectionManager(AsyncIOEventEmitter):
 
             @self.subscriber_pc.on("audio")
             async def on_audio(pcm_data, user):
+                # Get user ID from the user parameter (assuming it's a Participant object)
+                user_id = None
+                if user and hasattr(user, 'user_id'):
+                    user_id = user.user_id
+                elif user and hasattr(user, 'id'):
+                    user_id = user.id
+                elif isinstance(user, str):
+                    user_id = user
+                else:
+                    user_id = "unknown_user"
+
+                # Emit the audio event for external listeners
                 self.emit("audio", pcm_data, user)
+
+                # Record audio data if recording is enabled
+                self._record_audio_data(pcm_data, user_id)
 
             self.twirp_signaling_client = SignalClient(
                 address=self.join_response.data.credentials.server.url
@@ -260,6 +278,9 @@ class ConnectionManager(AsyncIOEventEmitter):
         logger.info("Leaving the call")
         self.running = False
         self._stop_event.set()  # Signal the iterator to stop
+
+        # Stop recording if active
+        self.audio_recorder.cleanup()
 
         if self.ws_client:
             self.ws_client.close()
@@ -705,3 +726,54 @@ class ConnectionManager(AsyncIOEventEmitter):
             raise ValueError("Expected a video track")
 
         await self.add_tracks(video=track)
+
+    # Recording functionality methods
+    
+    def start_recording(
+        self, 
+        recording_types: List[RecordingType],
+        user_ids: Optional[List[str]] = None,
+        output_dir: str = "recordings"
+    ):
+        """
+        Start recording audio tracks.
+        
+        Args:
+            recording_types: List of recording types to start (INDIVIDUAL, COMPOSITE)
+            user_ids: Optional list of specific user IDs to record (None = all users)
+            output_dir: Directory to save recording files
+        """
+        self.audio_recorder.start_recording(recording_types, user_ids, output_dir)
+
+    def stop_recording(
+        self, 
+        recording_types: Optional[List[RecordingType]] = None,
+        user_ids: Optional[List[str]] = None
+    ):
+        """
+        Stop recording.
+        
+        Args:
+            recording_types: Optional list of recording types to stop (None = stop all)
+            user_ids: Optional specific user IDs to stop recording (None = stop all users)
+        """
+        self.audio_recorder.stop_recording(recording_types, user_ids)
+
+    def _record_audio_data(self, pcm_data, user_id: str):
+        """
+        Record audio data for a specific user and/or composite.
+        
+        Args:
+            pcm_data: PCM audio data (can be bytes, PcmData object, or numpy array)
+            user_id: ID of the user whose audio this is
+        """
+        self.audio_recorder.record_audio_data(pcm_data, user_id)
+
+    @property
+    def is_recording(self) -> bool:
+        """Check if recording is currently active."""
+        return self.audio_recorder.is_recording
+
+    def get_recording_status(self) -> dict:
+        """Get current recording status and information."""
+        return self.audio_recorder.get_recording_status()
