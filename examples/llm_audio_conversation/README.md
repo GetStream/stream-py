@@ -53,7 +53,7 @@ This example demonstrates how to build a real-time AI conversation bot using Str
    ```env
    STREAM_API_KEY=your_actual_stream_api_key
    STREAM_API_SECRET=your_actual_stream_api_secret
-   STREAM_BASE_URL=https://chat.stream-io-api.com/
+   STREAM_BASE_URL=the_stream_base_url
    DEEPGRAM_API_KEY=your_actual_deepgram_api_key
    ELEVENLABS_API_KEY=your_actual_elevenlabs_api_key
    OPENAI_API_KEY=your_actual_openai_api_key

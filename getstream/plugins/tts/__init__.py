@@ -121,7 +121,6 @@ class TTS(AsyncIOEventEmitter, abc.ABC):
                 audio_data, (str, bytes, bytearray)
             ):
                 for chunk in audio_data:
-                    print(len(chunk))
                     total_audio_bytes += len(chunk)
                     audio_chunks += 1
                     await self._track.write(chunk)

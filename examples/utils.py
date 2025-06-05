@@ -5,11 +5,14 @@ Shared utility functions for Stream examples.
 This module contains common functions that can be reused across different examples.
 """
 
+import os
 import webbrowser
 from urllib.parse import urlencode
 from getstream.models import UserRequest
 from getstream.stream import Stream
+from dotenv import load_dotenv
 
+load_dotenv()
 
 def create_user(client: Stream, id: str, name: str) -> None:
     """
@@ -36,7 +39,7 @@ def open_browser(api_key: str, token: str, call_id: str) -> str:
     Returns:
         The URL that was opened
     """
-    base_url = "https://pronto.getstream.io/bare/join/"
+    base_url = f"{os.getenv('EXAMPLE_BASE_URL')}/join/"
     params = {"api_key": api_key, "token": token, "skip_lobby": "true"}
 
     url = f"{base_url}{call_id}?{urlencode(params)}"

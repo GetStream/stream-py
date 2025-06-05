@@ -95,6 +95,15 @@ call.get_or_create(
 )
 ```
 
+### Getting Response Data
+
+Many calls return a `StreamResponse` object, with the specific dataclass for the method call nested inside. You can access this via:
+
+```python
+response: StreamResponse[StartClosedCaptionsResponse] = call.start_closed_captions()
+response.data  # Gives the StartClosedCaptionsResponse model
+```
+
 ### App configuration
 
 ```python

@@ -5,7 +5,10 @@ from uuid import uuid4
 from dotenv import load_dotenv
 from examples.utils import create_user, open_browser
 from getstream import Stream
+from getstream.models import StartClosedCaptionsResponse
 from getstream.plugins.sts.openai_realtime import OpenAIRealtime
+from dataclasses import asdict
+import json
 
 
 logging.basicConfig(
@@ -54,33 +57,6 @@ async def main():
         voice="alloy",
     )
 
-    @sts_bot.on("connected")
-    async def _on_connected():
-        print("✅ CONNECTED EVENT RECEIVED")
-        logging.info("✅ Bot connected successfully")
-
-    @sts_bot.on("disconnected")
-    async def _on_disconnected():
-        print("❌ DISCONNECTED EVENT RECEIVED")
-        logging.info("❌ Bot disconnected")
-
-    @sts_bot.on("error")
-    async def _on_error(error):
-        print(f"💥 ERROR EVENT RECEIVED: {error}")
-        logging.error("💥 Bot error: %s", error)
-
-    @sts_bot.on("session.created")
-    @sts_bot.on("session.updated")
-    @sts_bot.on("conversation.item.created")
-    @sts_bot.on("response.created")
-    @sts_bot.on("response.done")
-    @sts_bot.on("call.session_participant_joined")
-    @sts_bot.on("call.session_participant_left")
-    async def _on_openai_event(event):
-        print(f"🔔 Event received: {event.type}")
-        print(f"   Event data: {event}")
-        logging.info("🔔 Event: %s", event.type)
-
     try:
         logging.info("Connecting to OpenAI Realtime...")
         
@@ -89,12 +65,59 @@ async def main():
             logging.error("❌ OPENAI_API_KEY not found in environment")
             return
         
-        await sts_bot.connect(call, agent_user_id=bot_user_id)
-        logging.info("🎧 Listening for responses... (Press Ctrl+C to stop)")
-        logging.info("💡 Try speaking in the browser to generate audio events!")
+        async with await sts_bot.connect(call, agent_user_id=bot_user_id) as connection:
+            tools = [
+                {
+                    "type": "function",
+                    "name": "start_closed_captions",
+                    "description": "start closed captions for the call",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {},
+                        "required": [],
+                    },
+                }
+            ]
 
-        while sts_bot.is_connected:
-            await asyncio.sleep(1)
+            await sts_bot.update_session(
+                turn_detection={
+                    "type": "semantic_vad",
+                    "eagerness": "low",
+                    "create_response": True,
+                    "interrupt_response": True,
+                },
+                tools=tools,
+            )
+
+            logging.info("🎧 Listening for responses... (Press Ctrl+C to stop)")
+            logging.info("💡 Try speaking in the browser – ask it something like 'start closed captions' to trigger the function call.")
+
+            async def start_closed_captions() -> StartClosedCaptionsResponse:
+                """Helper that starts closed captions for the call."""
+                return call.start_closed_captions().data
+
+            async for event in connection:
+                logging.info("🔔 Event received: %s", event.type)
+
+                if (
+                    event.type == "response.done"
+                    and event.response.output is not None
+                    and len(event.response.output) > 0
+                    and event.response.output[0].type == "function_call"
+                ):
+                    tool_call_id = event.response.output[0].call_id
+                    
+                    if event.response.output[0].name == "start_closed_captions":
+                        logging.info("🛠  Assistant requested start_closed_captions()")
+
+                        result = await start_closed_captions()
+
+                        # Send the tool result back to the assistant
+                        await sts_bot.send_function_call_output(tool_call_id, result.to_json())
+
+                        logging.info("🛠  Replied to tool call with result: %s", result)
+
+            
 
     except KeyboardInterrupt:  # noqa: WPS420
         logging.info("\n⏹️  Stopping OpenAI Realtime Speech to Speech bot…")
@@ -102,7 +125,6 @@ async def main():
         logging.exception("❌ Error: %s", e)
     finally:
         logging.info("Cleaning up...")
-        await sts_bot.close()
         client.delete_users([user_id, bot_user_id])
         logging.info("Cleanup complete")
 

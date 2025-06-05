@@ -1,13 +1,15 @@
-"""OpenAI Realtime Speech-to-Speech wrapper that follows the generic STS interface.
+"""OpenAI Realtime Speech-to-Speech implementation.
 
-This plugin is a thin abstraction around `Call.connect_openai` so that higher-level
-examples (or end-users) can treat the AI agent the same way they treat STT/TTS/VAD
-plugins.  It:
+This module provides a wrapper around OpenAI's Realtime API that implements the STS
+interface. It enables real-time, full-duplex speech-to-speech communication with
+OpenAI's models through Stream's video call infrastructure.
 
-1. Opens the realtime websocket via the existing SDK helper
-2. Applies the initial session presets (instructions, voice, …)
-3. Emits every event that flows through so you can subscribe with
-   ``on(<event_name>, handler)`` just like the other plugins.
+Key Features:
+- Real-time audio streaming and processing
+- Full-duplex communication with OpenAI models
+- Event-driven architecture for handling all OpenAI/Stream events
+- Support for custom instructions and voice selection
+- Session management and updates
 
 Example
 -------
@@ -16,30 +18,49 @@ Example
 from getstream.stream import Stream
 from getstream.plugins.sts.openai_realtime import OpenAIRealtime
 
+# Initialize Stream client and create/join a call
 client = Stream.from_env()
 call = client.video.call("default", "demo-call")
 call.get_or_create()
 
-sts_bot = OpenAIRealtime()
+# Create and configure the STS bot
+sts_bot = OpenAIRealtime(
+    model="gpt-4o-realtime-preview",
+    voice="alloy",  # Optional: specify voice
+    instructions="You are a helpful assistant."  # Optional: system instructions
+)
 
-# Attach simple logger for every event
-@sts_bot.on("*")
-async def _(event):
-    print("AI event", event)
-
-await sts_bot.connect(call, agent_user_id="assistant")
+# Connect to the call and handle events
+async with await sts_bot.connect(call, agent_user_id="assistant") as connection:
+    # Optionally update session parameters
+    await sts_bot.update_session(voice="nova")
+    
+    # Send a text message if needed
+    await sts_bot.send_user_message("Hello, how are you?")
+    
+    # Listen for events
+    async for event in connection:
+        print(f"Event: {event.type}")
+        print(f"Data: {event}")
 ```
+
+The class handles all the complexity of:
+1. Establishing and managing the WebSocket connection
+2. Applying session configurations (instructions, voice, etc.)
+3. Forwarding all events from OpenAI/Stream
+4. Managing the connection lifecycle
+5. Providing helper methods for common operations
 """
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import os
 from typing import Any, Dict, Optional
 
 from getstream.plugins.sts import STS
 from getstream.video.call import Call
+from getstream.video.openai import ConnectionManagerWrapper
 
 
 logger = logging.getLogger(__name__)
@@ -73,20 +94,14 @@ class OpenAIRealtime(STS):
         self.model = model
         self.voice = voice
         self.instructions = instructions
+        self._connection: Optional[ConnectionManagerWrapper] = None
 
-        self._connection_cm = None  # type: ignore
-        self._connection = None  # type: ignore
-        self._listener_task: Optional[asyncio.Task] = None
-
-    # ------------------------------------------------------------------
-    # Public helpers
-    # ------------------------------------------------------------------
     async def connect(
         self,
         call: Call,
         agent_user_id: str = "assistant",
         extra_session: Optional[Dict[str, Any]] = None,
-    ):
+    ) -> ConnectionManagerWrapper:
         """Connect an AI agent to *call*.
 
         Emits:
@@ -115,56 +130,38 @@ class OpenAIRealtime(STS):
             self.model,
         )
 
-        self._connection_cm = call.connect_openai(
+        self._connection = call.connect_openai(
             self.api_key,
             agent_user_id,
             model=self.model,
         )
-
-        # Enter the async context manually – we want to keep it around and
-        # close it ourselves in .close()
-        self._connection = await self._connection_cm.__aenter__()
-
-        # Apply session overrides if any
-        if session_payload:
-            await self._connection.session.update(session=session_payload)
-
         self._is_connected = True
         self.emit("connected")
 
-        # 3. Start background listener that forwards every event
-        self._listener_task = asyncio.create_task(self._listen_events())
+        logger.info(
+            f"Connected OpenAI agent to call {call.call_type}/{call.id} using model {self.model}"
+        )
+        return self._connection
 
-    async def close(self):
-        """Gracefully close the realtime connection."""
-
-        if not self._is_connected:
-            return
-
-        logger.info("Closing OpenAI realtime agent")
-
-        if self._listener_task and not self._listener_task.done():
-            self._listener_task.cancel()
-            try:
-                await self._listener_task
-            except asyncio.CancelledError:
-                pass
-
-        if self._connection_cm:
-            await self._connection_cm.__aexit__(None, None, None)
-
-        self._is_connected = False
-        self.emit("disconnected")
-
-    # ------------------------------------------------------------------
-    # Convenience helpers
-    # ------------------------------------------------------------------
     async def update_session(self, **session_fields):
         """Wrapper around ``connection.session.update()``."""
         if not self._is_connected or not self._connection:
             raise RuntimeError("Not connected")
 
         await self._connection.session.update(session=session_fields)
+    
+    async def send_function_call_output(self, tool_call_id: str, output: str):
+        """Send a tool call output to the conversation."""
+        if not self._is_connected or not self._connection:
+            raise RuntimeError("Not connected")
+
+        await self._connection.conversation.item.create(
+            item={
+                "type": "function_call_output",
+                "call_id": tool_call_id,
+                "output": output,
+            }
+        )
 
     async def send_user_message(self, text: str):
         """Send a text message from the *human* side to the conversation."""
@@ -184,32 +181,6 @@ class OpenAIRealtime(STS):
             }
         )
         await self._connection.response.create()
-
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
-    async def _listen_events(self):
-        """Background task: forward every event to plugin listeners."""
-
-        assert self._connection is not None  # for type checker
-        
-        logger.info("🔍 Starting event listener task...")
-
-        try:
-            logger.info("🔍 Beginning async iteration over OpenAI connection...")
-            async for event in self._connection:
-                logger.info("🔍 Received event from OpenAI: %s", event.type)
-                # Forward verbatim – user can filter by type
-                self.emit(event.type, event)
-        except Exception as e:
-            logger.exception("Error in realtime listener: %s", e)
-            self.emit("error", e)
-        finally:
-            logger.info("🔍 Event listener task ending...")
-            # Ensure we mark ourselves disconnected if the server closes first
-            if self._is_connected:
-                self._is_connected = False
-                self.emit("disconnected")
 
 
 # Re-export for ``from getstream.plugins.sts.openai_realtime import OpenAIRealtime``
