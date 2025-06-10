@@ -39,9 +39,9 @@ class TrackType(Enum):
 class RecordingConfig:
     """Configuration for recording."""
     output_dir: str = "recordings"
-    max_queue_size: int = 1000
+    max_queue_size: int = 10000
     frame_duration: float = 0.02  # 20ms
-    max_gap: float = 1.0  # 1 second
+    max_gap: float = 2.0  # 2 second
     # Audio-specific config
     audio_sample_rate: int = 48000
     audio_channels: int = 1
@@ -462,7 +462,7 @@ class CompositeAudioRecorder(TrackRecorder):
             cutoff = quantized_current - self.config.max_gap
             old_timestamps = [ts for ts in self._frame_map.keys() if ts < cutoff]
             for ts in old_timestamps:
-                logger.warning(f"Removing stale timestamp {ts:.3f}")
+                # logger.warning(f"Removing stale timestamp {ts:.3f}")
                 del self._frame_map[ts]
             
             return mixed_audio

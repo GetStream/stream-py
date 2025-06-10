@@ -30,9 +30,6 @@ def _check_response_for_error(response, method_name):
     # Check HasField first before accessing attributes of response.error
     if hasattr(response, "HasField") and response.HasField("error"):
         if response.error.code != models_pb2.ERROR_CODE_UNSPECIFIED:
-            logger.error(
-                f"SFU RPC call {method_name} failed with error code {response.error.code}: {response.error.message}"
-            )
             raise SfuRpcError(
                 code=response.error.code,
                 message=response.error.message,

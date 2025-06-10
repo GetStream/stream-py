@@ -340,9 +340,9 @@ class ConnectionManager(AsyncIOEventEmitter):
                 )
                 logger.info("Subscriber answer sent successfully.")
             except SfuRpcError as e:
-                logger.error(f"Failed to send subscriber answer: {e}")
-                # Decide how to handle: maybe close connection, notify user, etc.
-                # For now, just log the error.
+                # TODO Hack to ignore Participant not found which is expected when leaving the call
+                if e.message != "participant not found":
+                    logger.error(f"Failed to send subscriber answer: {e}")
             except Exception as e:
                 logger.error(f"Unexpected error sending subscriber answer: {e}")
         finally:
@@ -377,7 +377,7 @@ class ConnectionManager(AsyncIOEventEmitter):
                     logger.warning("Publisher peer connection not initialized")
 
         except Exception as e:
-            logger.error(f"Error handling ICE trickle: {e}", exc_info=e)
+            logger.debug(f"Error handling ICE trickle: {e}")
 
     def _create_join_request(self) -> events_pb2.JoinRequest:
         """Create a JoinRequest protobuf message for the WebSocket connection.

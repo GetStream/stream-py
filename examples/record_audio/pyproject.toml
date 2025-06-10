@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "record-audio"
+version = "0.1.0"
+description = "Recording Audio with Stream"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "getstream[webrtc]",
+    "python-dotenv",
+    "aiortc",
+    "numpy",
+]
+
+[project.scripts]
+record-audio = "main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["main.py"] 

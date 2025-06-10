@@ -354,8 +354,11 @@ class AudioTrackHandler:
             except asyncio.CancelledError:
                 # Task was cancelled, safe to exit
                 break
+            except MediaStreamError as e:
+                # Error with the media stream, possibly EOF
+                break
             except Exception as e:
-                print("Error receiving audio frame:", e)
+                logger.error(f"Error receiving audio frame: {e}")
                 break
 
             if not isinstance(frame, av.AudioFrame):

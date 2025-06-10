@@ -228,6 +228,8 @@ class WebSocketClient:
             def log_exception(f):
                 try:
                     f.result()  # Raise exception if any occurred
+                except asyncio.CancelledError:
+                    logger.debug("Event handler cancelled")
                 except Exception as e:
                     logger.error(
                         f"Error in event handler {handler}: {e}", exc_info=True
@@ -279,7 +281,8 @@ class WebSocketClient:
             logger.debug("Joining ping thread")
             self.ping_thread.join(timeout=2.0)
             if self.ping_thread.is_alive():
-                logger.warning("Ping thread did not exit cleanly")
+                # TODO: Ping interval is much higher than the timeout here, so reducing this to debug
+                logger.debug("Ping thread did not exit cleanly")
             self.ping_thread = None
 
         # Clear handlers
