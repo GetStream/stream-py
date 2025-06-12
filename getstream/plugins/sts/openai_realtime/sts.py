@@ -180,6 +180,13 @@ class OpenAIRealtime(STS):
                 ],
             }
         )
+        await self.request_assistant_response()
+    
+    async def request_assistant_response(self):
+        """Ask OpenAI to generate the next assistant turn."""
+        if not self._is_connected or not self._connection:
+            raise RuntimeError("Not connected")
+        
         await self._connection.response.create()
 
 

@@ -98,6 +98,17 @@ async def test_send_function_call_output(mock_call, mock_connection):
 
 
 @pytest.mark.asyncio
+async def test_request_assistant_response(mock_call, mock_connection):
+    mock_call.connect_openai.return_value = mock_connection  # type: ignore[attr-defined]
+    sts = OpenAIRealtime(api_key="abc")
+    await sts.connect(mock_call)
+
+    await sts.request_assistant_response()
+
+    mock_connection.response.create.assert_awaited_once()
+
+
+@pytest.mark.asyncio
 async def test_methods_raise_if_not_connected():
     sts = OpenAIRealtime(api_key="abc")
     with pytest.raises(RuntimeError):
@@ -105,4 +116,6 @@ async def test_methods_raise_if_not_connected():
     with pytest.raises(RuntimeError):
         await sts.send_user_message("hi")
     with pytest.raises(RuntimeError):
-        await sts.send_function_call_output("id", "out") 
+        await sts.send_function_call_output("id", "out")
+    with pytest.raises(RuntimeError):
+        await sts.request_assistant_response() 

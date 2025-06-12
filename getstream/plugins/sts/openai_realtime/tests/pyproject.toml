@@ -1,9 +1,0 @@
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
-[tool.pytest.ini_options]
-python_files = "test_*.py"
-python_functions = "test_*"
-python_classes = "Test*"
-addopts = "--no-cov" 

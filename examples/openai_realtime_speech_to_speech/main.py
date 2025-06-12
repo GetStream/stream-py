@@ -7,8 +7,6 @@ from examples.utils import create_user, open_browser
 from getstream import Stream
 from getstream.models import StartClosedCaptionsResponse
 from getstream.plugins.sts.openai_realtime import OpenAIRealtime
-from dataclasses import asdict
-import json
 
 
 logging.basicConfig(
@@ -26,7 +24,6 @@ async def main():
 
     load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 
-    # Initialize Stream client from env vars (STREAM_API_KEY / SECRET / BASE_URL)
     client = Stream.from_env()
 
     user_id = f"user-{uuid4()}"
@@ -52,7 +49,7 @@ async def main():
 
     sts_bot = OpenAIRealtime(
         api_key=os.getenv("OPENAI_API_KEY"),
-        model="gpt-4o-realtime-preview",
+        model=os.getenv("OPENAI_REALTIME_MODEL"),
         instructions="You are a friendly assistant; reply verbally in a short sentence.",
         voice="alloy",
     )
@@ -60,7 +57,6 @@ async def main():
     try:
         logging.info("Connecting to OpenAI Realtime...")
         
-        # Check if API key is set
         if not os.getenv("OPENAI_API_KEY"):
             logging.error("❌ OPENAI_API_KEY not found in environment")
             return
@@ -88,6 +84,8 @@ async def main():
                 },
                 tools=tools,
             )
+        
+            await sts_bot.send_user_message("Give a short greeting to the user.")
 
             logging.info("🎧 Listening for responses... (Press Ctrl+C to stop)")
             logging.info("💡 Try speaking in the browser – ask it something like 'start closed captions' to trigger the function call.")
@@ -111,13 +109,9 @@ async def main():
                         logging.info("🛠  Assistant requested start_closed_captions()")
 
                         result = await start_closed_captions()
-
-                        # Send the tool result back to the assistant
                         await sts_bot.send_function_call_output(tool_call_id, result.to_json())
-
+                        await sts_bot.request_assistant_response()
                         logging.info("🛠  Replied to tool call with result: %s", result)
-
-            
 
     except KeyboardInterrupt:  # noqa: WPS420
         logging.info("\n⏹️  Stopping OpenAI Realtime Speech to Speech bot…")

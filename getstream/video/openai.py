@@ -171,12 +171,12 @@ def patch_realtime_connect(client):
     try:
         # First, try to import the AsyncRealtimeConnection class
         try:
-            from openai.resources.beta.realtime.connection import (
+            from openai.resources.beta.realtime.connection import ( # type: ignore
                 AsyncRealtimeConnection,
             )
         except ImportError:
             # If that fails, try another possible location
-            from openai.types.beta.realtime.connection import AsyncRealtimeConnection
+            from openai.types.beta.realtime.connection import AsyncRealtimeConnection # type: ignore
 
         # Store the original recv method and replace it with our patched version
         if not hasattr(AsyncRealtimeConnection, "recv"):
@@ -202,7 +202,7 @@ def patch_realtime_connect(client):
             )
         except ImportError:
             # If that fails, try another possible location
-            from openai.types.beta.realtime.realtime import (
+            from openai.types.beta.realtime.realtime import ( # type: ignore
                 AsyncRealtimeConnectionManager,
             )
 
@@ -251,7 +251,7 @@ def patch_realtime_connect(client):
             )
         except ImportError:
             # If that fails, try another possible location
-            from openai.types.beta.realtime.realtime import (
+            from openai.types.beta.realtime.realtime import ( # type: ignore
                 AsyncRealtimeConnectionManager,
             )
 
