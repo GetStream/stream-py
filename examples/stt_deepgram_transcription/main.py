@@ -27,6 +27,8 @@ from getstream.video.rtc.track_util import PcmData
 from getstream.plugins.stt.deepgram import Deepgram
 from examples.utils import create_user, open_browser
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+
 
 async def main():
     """Main example function."""
