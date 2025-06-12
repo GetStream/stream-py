@@ -113,7 +113,7 @@ async def main():
                         await sts_bot.request_assistant_response()
                         logging.info("🛠  Replied to tool call with result: %s", result)
 
-    except KeyboardInterrupt:  # noqa: WPS420
+    except asyncio.CancelledError:  # noqa: WPS420
         logging.info("\n⏹️  Stopping OpenAI Realtime Speech to Speech bot…")
     except Exception as e:  # noqa: BLE001
         logging.exception("❌ Error: %s", e)

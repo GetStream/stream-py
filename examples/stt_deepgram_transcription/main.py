@@ -16,44 +16,16 @@ Requirements:
 """
 
 import asyncio
+import logging
 import time
 import uuid
-import webbrowser
 from dotenv import load_dotenv
-from urllib.parse import urlencode
 
 from getstream.stream import Stream
 from getstream.video import rtc
 from getstream.video.rtc.track_util import PcmData
 from getstream.plugins.stt.deepgram import Deepgram
-
-
-def open_browser(api_key: str, token: str, call_id: str) -> str:
-    """
-    Helper function to open browser with Stream call link.
-
-    Args:
-        api_key: Stream API key
-        token: JWT token for the user
-        call_id: ID of the call
-
-    Returns:
-        The URL that was opened
-    """
-    base_url = "https://pronto.getstream.io/bare/join/"
-    params = {"api_key": api_key, "token": token, "skip_lobby": "true"}
-
-    url = f"{base_url}{call_id}?{urlencode(params)}"
-    print(f"Opening browser to: {url}")
-
-    try:
-        webbrowser.open(url)
-        print("Browser opened successfully!")
-    except Exception as e:
-        print(f"Failed to open browser: {e}")
-        print(f"Please manually open this URL: {url}")
-
-    return url
+from examples.utils import create_user, open_browser
 
 
 async def main():
@@ -71,14 +43,16 @@ async def main():
     call_id = str(uuid.uuid4())
     print(f"📞 Call ID: {call_id}")
 
-    # Create a token for a user to join the call from browser
-    user_id = "browser-user"
-    user_token = client.create_token(user_id=user_id)
-    print(f"🔑 Created token for browser user: {user_id}")
+    user_id = f"user-{uuid.uuid4()}"
+    create_user(client, user_id, "My User")
+    logging.info("👤 Created user: %s", user_id)
 
-    # Create a token for the transcription bot
-    bot_user_id = "transcription-bot"
-    print(f"🤖 Created token for bot user: {bot_user_id}")
+    user_token = client.create_token(user_id, expiration=3600)
+    logging.info("🔑 Created token for user: %s", user_id)
+
+    bot_user_id = f"transcription-bot-{uuid.uuid4()}"
+    create_user(client, bot_user_id, "Transcription Bot")
+    logging.info("🤖 Created bot user: %s", bot_user_id)
 
     # Create the call
     call = client.video.call("default", call_id)
@@ -96,49 +70,49 @@ async def main():
     # Initialize Deepgram STT (api_key comes from .env)
     stt = Deepgram()
 
-    async with await rtc.join(call, bot_user_id) as connection:
-        print(f"✅ Bot joined call: {call_id}")
-
-        # Set up transcription handlers
-        @connection.on("audio")
-        async def on_audio(pcm: PcmData, user):
-            # Process audio through Deepgram STT
-            await stt.process_audio(pcm, user)
-
-        @stt.on("transcript")
-        async def on_transcript(text: str, user: any, metadata: dict):
-            timestamp = time.strftime("%H:%M:%S")
-            user_info = user if user else "unknown"
-            print(f"[{timestamp}] {user_info}: {text}")
-            if metadata.get("confidence"):
-                print(f"    └─ confidence: {metadata['confidence']:.2%}")
-
-        @stt.on("partial_transcript")
-        async def on_partial_transcript(text: str, user: any, metadata: dict):
-            if text.strip():  # Only show non-empty partial transcripts
-                user_info = user if user else "unknown"
-                print(f"    {user_info} (partial): {text}", end="\r")  # Overwrite line
-
-        @stt.on("error")
-        async def on_stt_error(error):
-            print(f"\n❌ STT Error: {error}")
-
-        # Keep the connection alive and wait for audio
-        print("🎧 Listening for audio... (Press Ctrl+C to stop)")
-        await connection.wait()
-
-    # Clean up STT service
-    await stt.close()
-    print("🧹 Cleanup completed")
-
-
-if __name__ == "__main__":
     try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
+        async with await rtc.join(call, bot_user_id) as connection:
+            print(f"✅ Bot joined call: {call_id}")
+
+            # Set up transcription handlers
+            @connection.on("audio")
+            async def on_audio(pcm: PcmData, user):
+                # Process audio through Deepgram STT
+                await stt.process_audio(pcm, user)
+
+            @stt.on("transcript")
+            async def on_transcript(text: str, user: any, metadata: dict):
+                timestamp = time.strftime("%H:%M:%S")
+                user_info = user if user else "unknown"
+                print(f"[{timestamp}] {user_info}: {text}")
+                if metadata.get("confidence"):
+                    print(f"    └─ confidence: {metadata['confidence']:.2%}")
+
+            @stt.on("partial_transcript")
+            async def on_partial_transcript(text: str, user: any, metadata: dict):
+                if text.strip():  # Only show non-empty partial transcripts
+                    user_info = user if user else "unknown"
+                    print(f"    {user_info} (partial): {text}", end="\r")  # Overwrite line
+
+            @stt.on("error")
+            async def on_stt_error(error):
+                print(f"\n❌ STT Error: {error}")
+
+            # Keep the connection alive and wait for audio
+            print("🎧 Listening for audio... (Press Ctrl+C to stop)")
+            await connection.wait()
+
+    except asyncio.CancelledError:
         print("\n⏹️  Stopping transcription bot...")
     except Exception as e:
         print(f"❌ Error: {e}")
         import traceback
-
         traceback.print_exc()
+    finally:
+        await stt.close()
+        client.delete_users([user_id, bot_user_id])
+        print("🧹 Cleanup completed")
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
