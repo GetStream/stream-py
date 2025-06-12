@@ -13,7 +13,7 @@ from getstream.video.rtc.models import (
     ServerCredentials,
     Credentials,
 )
-from getstream.video.rtc.coordinator import join_call_coordinator_request
+from getstream.video.rtc.coordinator_api import join_call_coordinator_request
 from getstream.video.rtc.connection_manager import ConnectionManager
 
 logger = logging.getLogger(__name__)

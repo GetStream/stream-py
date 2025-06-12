@@ -24,7 +24,7 @@ from getstream.video.rtc.pb.stream.video.sfu.event import events_pb2
 
 from twirp import context
 
-from getstream.video.rtc.coordinator import join_call_coordinator_request
+from getstream.video.rtc.coordinator_api import join_call_coordinator_request
 from getstream.video.rtc.recording import RecordingManager, RecordingType
 
 
@@ -214,9 +214,9 @@ class ConnectionManager(AsyncIOEventEmitter):
             async def on_audio(pcm_data, user):
                 # Get user ID from the user parameter (assuming it's a Participant object)
                 user_id = None
-                if user and hasattr(user, 'user_id'):
+                if user and hasattr(user, "user_id"):
                     user_id = user.user_id
-                elif user and hasattr(user, 'id'):
+                elif user and hasattr(user, "id"):
                     user_id = user.id
                 elif isinstance(user, str):
                     user_id = user
@@ -258,7 +258,7 @@ class ConnectionManager(AsyncIOEventEmitter):
         self.ws_client.on_event("ice_trickle", self._on_ice_trickle)
         self.ws_client.on_event("subscriber_offer", self._on_subscriber_offer)
         self.ws_client.on_event("participant_left", self._on_participant_left)
-        
+
         # Mark as running and clear stop event
         self.running = True
         self._stop_event.clear()
@@ -728,32 +728,33 @@ class ConnectionManager(AsyncIOEventEmitter):
 
         await self.add_tracks(video=track)
 
-
     async def start_recording(
-        self, 
+        self,
         recording_types: List[RecordingType],
         user_ids: Optional[List[str]] = None,
-        output_dir: str = "recordings"
+        output_dir: str = "recordings",
     ):
         """
         Start recording audio tracks.
-        
+
         Args:
             recording_types: List of recording types to start (TRACK, COMPOSITE)
             user_ids: Optional list of specific user IDs to record (None = all users)
             output_dir: Directory to save recording files
         """
         logger.info("Starting recording")
-        await self.recording_manager.start_recording(recording_types, user_ids, output_dir)
+        await self.recording_manager.start_recording(
+            recording_types, user_ids, output_dir
+        )
 
     async def stop_recording(
-        self, 
+        self,
         recording_types: Optional[List[RecordingType]] = None,
-        user_ids: Optional[List[str]] = None
+        user_ids: Optional[List[str]] = None,
     ):
         """
         Stop recording.
-        
+
         Args:
             recording_types: Optional list of recording types to stop (None = stop all)
             user_ids: Optional specific user IDs to stop recording (None = stop all users)
@@ -763,7 +764,7 @@ class ConnectionManager(AsyncIOEventEmitter):
     def _record_audio_data(self, pcm_data, user_id: str):
         """
         Record audio data for a specific user
-        
+
         Args:
             pcm_data: PCM audio data (can be bytes, PcmData object, or numpy array)
             user_id: ID of the user whose audio this is
@@ -783,11 +784,11 @@ class ConnectionManager(AsyncIOEventEmitter):
         """Handle participant leaving - cleanup their recording if active."""
         try:
             await self.participants_state._on_participant_left(event)
-            
+
             # Stop recording for the user who left
-            if hasattr(event, 'participant') and hasattr(event.participant, 'user_id'):
+            if hasattr(event, "participant") and hasattr(event.participant, "user_id"):
                 user_id = event.participant.user_id
                 await self.recording_manager.on_user_left(user_id)
-                
+
         except Exception as e:
             logger.error(f"Error handling participant left event: {e}")
