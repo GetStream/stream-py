@@ -38,7 +38,7 @@ class StreamAPIWS(AsyncIOEventEmitter):
         self,
         api_key: str,
         token: str,
-        user_id: str,
+        user_details: Optional[dict] = None,
         *,
         uri: str = DEFAULT_WS_URI,
         healthcheck_interval: float = 25.0,
@@ -54,7 +54,7 @@ class StreamAPIWS(AsyncIOEventEmitter):
         Args:
             api_key: Stream API key
             token: JWT token for authentication
-            user_id: User ID for the connection
+            user_details: Optional user details dict for the connection
             uri: WebSocket URI to connect to
             healthcheck_interval: Interval in seconds between heartbeat messages
             healthcheck_timeout: Timeout in seconds to wait for server messages
@@ -67,7 +67,7 @@ class StreamAPIWS(AsyncIOEventEmitter):
 
         self.api_key = api_key
         self.token = token
-        self.user_id = user_id
+        self.user_details = user_details
         self.uri = f"{uri}?api_key={api_key}&stream-auth-type=jwt"
         self.healthcheck_interval = healthcheck_interval
         self.healthcheck_timeout = healthcheck_timeout
@@ -88,19 +88,28 @@ class StreamAPIWS(AsyncIOEventEmitter):
         # Heartbeat tracking
         self._last_received = 0.0
         self._reconnect_in_progress = False
+        self._initial_connection = True  # Track if this is the first connection
 
     def _build_auth_payload(self) -> dict:
         """
         Build the authentication payload to send after connection.
 
+        For initial connections, includes user_details if provided.
+        For reconnections, user_details are excluded.
+
         Returns:
             Authentication payload as a dictionary
         """
-        return {
+        payload = {
             "token": self.token,
             "products": ["video"],
-            "user_details": {"id": self.user_id},
         }
+
+        # Only include user_details on initial connection, not on reconnects
+        if self._initial_connection and self.user_details:
+            payload["user_details"] = self.user_details
+
+        return payload
 
     async def _open_socket(self) -> dict:
         """
@@ -333,6 +342,9 @@ class StreamAPIWS(AsyncIOEventEmitter):
         """
         self._logger.info("Starting reconnection process")
 
+        # Ensure this is not treated as initial connection
+        self._initial_connection = False
+
         # Cancel existing tasks
         await self._cancel_background_tasks()
 
@@ -446,12 +458,18 @@ class StreamAPIWS(AsyncIOEventEmitter):
             self._logger.warning("Already connected, disconnecting first")
             await self.disconnect()
 
+        # Mark this as initial connection
+        self._initial_connection = True
+
         try:
             first_message = await self._open_socket()
 
             # Mark as connected and start background tasks
             self._connected = True
             await self._start_background_tasks()
+
+            # After successful initial connection, subsequent connections are reconnections
+            self._initial_connection = False
 
             # Return the authentication response
             return first_message
@@ -487,6 +505,7 @@ class StreamAPIWS(AsyncIOEventEmitter):
         self._connected = False
         self._reconnect_in_progress = False
         self._client_id = None
+        self._initial_connection = True  # Reset for next connection
 
         # Cancel background tasks
         await self._cancel_background_tasks()

@@ -49,7 +49,7 @@ async def test_heartbeat_sent_periodically():
         client = StreamAPIWS(
             api_key="test_key",
             token="test_token",
-            user_id="test_user",
+            user_details={"id": "test_user"},
             uri=server_uri,
             healthcheck_interval=0.1,  # 100ms for fast testing
         )
@@ -113,7 +113,7 @@ async def test_reconnect_on_heartbeat_timeout():
         client = StreamAPIWS(
             api_key="test_key",
             token="test_token",
-            user_id="test_user",
+            user_details={"id": "test_user"},
             uri=server_uri,
             healthcheck_interval=0.1,  # 100ms heartbeat interval
             healthcheck_timeout=0.2,  # 200ms timeout
@@ -172,7 +172,7 @@ async def test_reconnect_on_connection_closed():
         client = StreamAPIWS(
             api_key="test_key",
             token="test_token",
-            user_id="test_user",
+            user_details={"id": "test_user"},
             uri=server_uri,
             backoff_base=0.1,  # Fast reconnection for testing
             max_retries=3,
@@ -211,7 +211,7 @@ async def test_max_retries_exceeded():
             client = StreamAPIWS(
                 api_key="test_key",
                 token="test_token",
-                user_id="test_user",
+                user_details={"id": "test_user"},
                 uri=server_uri,
                 healthcheck_interval=0.1,
                 healthcheck_timeout=0.2,
@@ -268,7 +268,7 @@ async def test_message_reception_updates_last_received():
         client = StreamAPIWS(
             api_key="test_key",
             token="test_token",
-            user_id="test_user",
+            user_details={"id": "test_user"},
             uri=server_uri,
             healthcheck_interval=1.0,  # Long interval so heartbeats don't interfere
             healthcheck_timeout=2.0,
@@ -322,7 +322,10 @@ async def test_background_tasks_cancelled_on_disconnect():
 
     try:
         client = StreamAPIWS(
-            api_key="test_key", token="test_token", user_id="test_user", uri=server_uri
+            api_key="test_key",
+            token="test_token",
+            user_details={"id": "test_user"},
+            uri=server_uri,
         )
 
         # Connect
@@ -388,7 +391,7 @@ async def test_heartbeat_includes_client_id():
         client = StreamAPIWS(
             api_key="test_key",
             token="test_token",
-            user_id="test_user",
+            user_details={"id": "test_user"},
             uri=server_uri,
             healthcheck_interval=0.1,  # 100ms
         )
@@ -455,7 +458,7 @@ async def test_heartbeat_without_client_id():
         client = StreamAPIWS(
             api_key="test_key",
             token="test_token",
-            user_id="test_user",
+            user_details={"id": "test_user"},
             uri=server_uri,
             healthcheck_interval=0.1,  # 100ms
         )

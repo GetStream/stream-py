@@ -79,7 +79,10 @@ async def test_successful_connection():
     try:
         # Create client and connect
         client = StreamAPIWS(
-            api_key="test_key", token="test_token", user_id="test_user", uri=server_uri
+            api_key="test_key",
+            token="test_token",
+            user_details={"id": "test_user"},
+            uri=server_uri,
         )
 
         # Test connection
@@ -130,7 +133,7 @@ async def test_authentication_error():
         client = StreamAPIWS(
             api_key="test_key",
             token="invalid_token",
-            user_id="test_user",
+            user_details={"id": "test_user"},
             uri=server_uri,
         )
 
@@ -154,7 +157,7 @@ async def test_connection_error():
     client = StreamAPIWS(
         api_key="test_key",
         token="test_token",
-        user_id="test_user",
+        user_details={"id": "test_user"},
         uri="ws://localhost:99999",  # Invalid port
     )
 
@@ -189,7 +192,10 @@ async def test_invalid_json_response():
     try:
         # Create client
         client = StreamAPIWS(
-            api_key="test_key", token="test_token", user_id="test_user", uri=server_uri
+            api_key="test_key",
+            token="test_token",
+            user_details={"id": "test_user"},
+            uri=server_uri,
         )
 
         # Test that connection error is raised for invalid JSON
@@ -229,7 +235,10 @@ async def test_event_emission():
     try:
         # Create client
         client = StreamAPIWS(
-            api_key="test_key", token="test_token", user_id="test_user", uri=server_uri
+            api_key="test_key",
+            token="test_token",
+            user_details={"id": "test_user"},
+            uri=server_uri,
         )
 
         # Set up event listener
@@ -285,7 +294,7 @@ async def test_auth_payload_structure():
         client = StreamAPIWS(
             api_key="test_key",
             token="test_token_123",
-            user_id="user_456",
+            user_details={"id": "user_456", "name": "Test User"},
             uri=server_uri,
         )
 
@@ -297,6 +306,7 @@ async def test_auth_payload_structure():
         assert captured_auth["token"] == "test_token_123"
         assert captured_auth["products"] == ["video"]
         assert captured_auth["user_details"]["id"] == "user_456"
+        assert captured_auth["user_details"]["name"] == "Test User"
 
         await client.disconnect()
 
@@ -308,7 +318,9 @@ async def test_auth_payload_structure():
 @pytest.mark.asyncio
 async def test_disconnect_without_connect():
     """Test that disconnect works even if never connected."""
-    client = StreamAPIWS(api_key="test_key", token="test_token", user_id="test_user")
+    client = StreamAPIWS(
+        api_key="test_key", token="test_token", user_details={"id": "test_user"}
+    )
 
     # Should not raise an exception
     await client.disconnect()
@@ -318,7 +330,9 @@ async def test_disconnect_without_connect():
 @pytest.mark.asyncio
 async def test_integration_test_simple(client: Stream):
     token = client.create_token("user_id")
-    ws_client = StreamAPIWS(api_key=client.api_key, token=token, user_id="user_id")
+    ws_client = StreamAPIWS(
+        api_key=client.api_key, token=token, user_details={"id": "user_id"}
+    )
     response = await ws_client.connect()
     assert response["type"] == "connection.ok"
     await ws_client.disconnect()
@@ -326,7 +340,9 @@ async def test_integration_test_simple(client: Stream):
 
 @pytest.mark.asyncio
 async def test_integration_test_bad_auth_raises(client: Stream):
-    ws_client = StreamAPIWS(api_key=client.api_key, token="tok", user_id="xxx")
+    ws_client = StreamAPIWS(
+        api_key=client.api_key, token="tok", user_details={"id": "xxx"}
+    )
 
     # Test that authentication error is raised with invalid token
     with pytest.raises(StreamWSAuthError) as exc_info:
@@ -344,7 +360,7 @@ async def test_integration_test_simple_healthcheck(client: Stream):
     ws_client = StreamAPIWS(
         api_key=client.api_key,
         token=token,
-        user_id="xx",
+        user_details={"id": "xx"},
         healthcheck_interval=2.0,
     )
     response = await ws_client.connect()
@@ -364,5 +380,41 @@ async def test_integration_test_simple_healthcheck(client: Stream):
         pytest.fail(
             "Expected healthcheck callback within 5 seconds, but it was not called"
         )
+
+    await ws_client.disconnect()
+
+
+@pytest.mark.asyncio
+async def test_integration_test_user_details_in_response(client: Stream):
+    """Test that user details are returned in the 'me' field of the connection response."""
+    token = client.create_token("test_user_123")
+    user_details = {
+        "id": "test_user_123",
+        "name": "Test User yo",
+    }
+
+    ws_client = StreamAPIWS(
+        api_key=client.api_key,
+        token=token,
+        user_details=user_details,
+        healthcheck_interval=30.0,  # Long interval to avoid interference
+    )
+
+    response = await ws_client.connect()
+    assert response["type"] == "connection.ok"
+
+    # Verify that user information is returned in the "me" field
+    assert "me" in response, "Expected 'me' field in connection response"
+    me_field = response["me"]
+
+    # Verify user details are present in the me field
+    assert me_field["id"] == "test_user_123"
+    assert me_field["name"] == "Test User yo"
+
+    # Verify that server added additional fields
+    assert "created_at" in me_field
+    assert "updated_at" in me_field
+    assert "online" in me_field
+    assert me_field["online"] is True  # Should be online since we just connected
 
     await ws_client.disconnect()
