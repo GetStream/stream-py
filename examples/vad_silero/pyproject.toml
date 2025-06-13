@@ -1,0 +1,28 @@
+[project]
+name = "vad-silero-example"
+version = "0.1.0"
+description = "Stream Video + Silero VAD demo."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+
+dependencies = [
+    "python-dotenv>=1.0.0",
+    "torch>=1.11.0",
+    "numpy>=1.20.0",
+    "aiortc>=1.10.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.uv.sources]
+getstream = { workspace = true }
+getstream-plugins-vad-silero = { workspace = true } 
