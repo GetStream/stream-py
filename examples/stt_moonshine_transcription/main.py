@@ -43,7 +43,7 @@ async def main() -> None:  # noqa: D401
     client = Stream.from_env()
 
     call_id = str(uuid.uuid4())
-    print(f"📞 Call ID: {call_id}")
+    print(f"📞 Call ID: {call_id}") 
 
     user_id = f"user-{uuid.uuid4()}"
     create_user(client, user_id, "My User")

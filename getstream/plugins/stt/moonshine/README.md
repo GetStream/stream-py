@@ -13,12 +13,34 @@ This plugin provides Speech-to-Text functionality using [Moonshine](https://gith
 - **WebRTC Optimized**: Seamless integration with Stream video calling infrastructure
 - **Efficient Model Loading**: ONNX version loads models on-demand for optimal memory usage
 
-## Installation
+## Installation (uv)
 
-The plugin requires the Moonshine ONNX library:
+If your project already uses **uv**, add the plugin to your `pyproject.toml`
+and let uv resolve everything:
+
+```toml
+[project]
+dependencies = [
+    # … other deps …
+    "getstream-plugins-stt-moonshine",
+]
+
+[tool.uv.sources]
+getstream-plugins-stt-moonshine = { path = "getstream/plugins/stt/moonshine" }  # or remove for PyPI
+```
+
+Then:
 
 ```bash
-pip install useful-moonshine-onnx@git+https://github.com/usefulsensors/moonshine.git#subdirectory=moonshine-onnx
+uv sync        # installs useful-moonshine-onnx, onnxruntime, etc.
+```
+
+### Classic pip (optional)
+
+If you prefer to install only the runtime libraries manually:
+
+```bash
+pip install "useful-moonshine-onnx @ git+https://github.com/usefulsensors/moonshine.git#subdirectory=moonshine-onnx"
 pip install onnxruntime
 ```
 
