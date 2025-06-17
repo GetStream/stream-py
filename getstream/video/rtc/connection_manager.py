@@ -656,12 +656,10 @@ class ConnectionManager(AsyncIOEventEmitter):
         if original_audio:
             # Store original track info with its MediaRelay for reconnection
             self._reconnection_info.add_published_track(original_audio.id, original_audio, track_infos[track_info_index], audio_relay)
-            logger.info(f"Added original track {original_audio.id} with MediaRelay to reconnection state - Total tracks: {self._reconnection_info.get_published_track_count()}")
             track_info_index += 1
         if original_video:
             # Store original track info with its MediaRelay for reconnection
             self._reconnection_info.add_published_track(original_video.id, original_video, track_infos[track_info_index], video_relay)
-            logger.info(f"Added original track {original_video.id} with MediaRelay to reconnection state - Total tracks: {self._reconnection_info.get_published_track_count()}")
 
     async def addTrack(self, track: aiortc.mediastreams.MediaStreamTrack, track_info: Optional[TrackInfo] = None):
         """Add a single track (backward compatibility)."""
