@@ -4,7 +4,7 @@ import asyncio
 from aiortc.contrib.media import MediaPlayer
 from getstream.stream import Stream
 from getstream.video import rtc
-from getstream.video.rtc.connection_manager import (
+from getstream.video.rtc.track_util import (
     detect_video_properties,
     BufferedMediaTrack,
 )

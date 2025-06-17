@@ -85,6 +85,18 @@ class PublisherPeerConnection(aiortc.RTCPeerConnection):
             logger.error(f"Publisher connection timed out after {timeout}s")
             raise TimeoutError(f"Connection timed out after {timeout} seconds")
 
+    async def restartIce(self):
+        """Restart ICE connection for reconnection scenarios."""
+        logger.info("Restarting ICE connection for publisher")
+        try:
+            # Create new offer to restart ICE
+            offer = await self.createOffer()
+            await self.setLocalDescription(offer)
+            logger.debug("Publisher ICE restart initiated")
+        except Exception as e:
+            logger.error("Failed to restart publisher ICE", exc_info=e)
+            raise
+
 
 class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
     def __init__(
@@ -124,3 +136,14 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
 
     def handle_track_ended(self, track: aiortc.mediastreams.MediaStreamTrack) -> None:
         logger.info(f"track ended: f{track.id}")
+
+    async def restartIce(self):
+        """Restart ICE connection for reconnection scenarios."""
+        logger.info("Restarting ICE connection for subscriber")
+        try:
+            # For subscriber, we typically wait for new offer from SFU
+            # This method serves as a placeholder for ICE restart coordination
+            logger.debug("Subscriber ICE restart initiated")
+        except Exception as e:
+            logger.error("Failed to restart subscriber ICE", exc_info=e)
+            raise

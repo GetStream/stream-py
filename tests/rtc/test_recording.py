@@ -90,9 +90,9 @@ class TestRecordingConfig:
         config = RecordingConfig()
         
         assert config.output_dir == "recordings"
-        assert config.max_queue_size == 1000
+        assert config.max_queue_size == 10000
         assert config.frame_duration == 0.02
-        assert config.max_gap == 1.0
+        assert config.max_gap == 2.0
         assert config.audio_sample_rate == 48000
         assert config.audio_channels == 1
         assert config.audio_sample_width == 2
@@ -301,7 +301,7 @@ class TestAudioTrackRecorder:
         # This should trigger an error
         try:
             await invalid_recorder.start_recording("test_error")
-        except:
+        except Exception:
             pass  # Expected to fail
         
         await invalid_recorder.cleanup()

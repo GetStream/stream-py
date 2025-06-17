@@ -354,7 +354,7 @@ class AudioTrackHandler:
             except asyncio.CancelledError:
                 # Task was cancelled, safe to exit
                 break
-            except MediaStreamError as e:
+            except MediaStreamError:
                 # Error with the media stream, possibly EOF
                 break
             except Exception as e:
@@ -362,7 +362,7 @@ class AudioTrackHandler:
                 break
 
             if not isinstance(frame, av.AudioFrame):
-                raise TypeError(f"Audio frame not received")
+                raise TypeError("Audio frame not received")
 
             if frame.sample_rate != 48000:
                 raise TypeError("only 48000 sample rate supported")

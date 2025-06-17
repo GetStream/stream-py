@@ -841,11 +841,13 @@ dependencies = [
     { name = "httpx" },
     { name = "marshmallow" },
     { name = "openai" },
+    { name = "ping3" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "pyjwt" },
     { name = "pytest-timeout" },
     { name = "python-dateutil" },
+    { name = "tenacity" },
 ]
 
 [package.optional-dependencies]
@@ -901,6 +903,7 @@ requires-dist = [
     { name = "onnxruntime", marker = "extra == 'webrtc'", specifier = ">=1.20.1" },
     { name = "openai", specifier = ">=1.65.4" },
     { name = "openai", extras = ["realtime"], marker = "extra == 'openai-realtime'", specifier = ">=1.82.0" },
+    { name = "ping3", specifier = ">=4.0.8" },
     { name = "protobuf", marker = "extra == 'webrtc'", specifier = ">=4.25.1" },
     { name = "pydantic", specifier = ">=2.10.6" },
     { name = "pydantic-settings", specifier = ">=2.9.1" },
@@ -911,6 +914,7 @@ requires-dist = [
     { name = "scipy", marker = "extra == 'webrtc'", specifier = ">=1.13.1" },
     { name = "silero", marker = "extra == 'webrtc'", specifier = ">=0.4.1" },
     { name = "soundfile", marker = "extra == 'webrtc'", specifier = ">=0.13.1" },
+    { name = "tenacity", specifier = ">=9.1.2" },
     { name = "torch", marker = "extra == 'webrtc'", specifier = ">=2.6.0" },
     { name = "torchaudio", marker = "extra == 'webrtc'", specifier = ">=2.6.0" },
     { name = "trio", marker = "extra == 'openai-realtime'", specifier = ">=0.22.2" },
@@ -2229,6 +2233,15 @@ wheels = [
 ]
 
 [[package]]
+name = "ping3"
+version = "4.0.8"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/20/75/31ad8e1e466caeed891c39275be21d585b1490af1f4e5d747d4e45b54e9d/ping3-4.0.8.tar.gz", hash = "sha256:9ab460eb57f006b71f977a693d157215aabd6bbcbc6cd6428b6951eaae0c2875", size = 17826, upload-time = "2024-04-10T16:54:54.983Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e6/f4/4070daca3da5bbc3ef5e622d68f979e034e5bf678416817918e51a1b2907/ping3-4.0.8-py3-none-any.whl", hash = "sha256:b5c294851968b4229e9af69d252778241cb84221594b436a8677419c31925594", size = 14007, upload-time = "2024-04-10T16:54:53.014Z" },
+]
+
+[[package]]
 name = "platformdirs"
 version = "4.3.8"
 source = { registry = "https://pypi.org/simple" }
@@ -3083,6 +3096,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/83/d3/803453b36afefb7c2bb238361cd4ae6125a569b4db67cd9e79846ba2d68c/sympy-1.14.0.tar.gz", hash = "sha256:d3d3fe8df1e5a0b42f0e7bdf50541697dbe7d23746e894990c030e2b05e72517", size = 7793921, upload-time = "2025-04-27T18:05:01.611Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a2/09/77d55d46fd61b4a135c444fc97158ef34a095e5681d0a6c10b75bf356191/sympy-1.14.0-py3-none-any.whl", hash = "sha256:e091cc3e99d2141a0ba2847328f5479b05d94a6635cb96148ccb3f34671bd8f5", size = 6299353, upload-time = "2025-04-27T18:04:59.103Z" },
+]
+
+[[package]]
+name = "tenacity"
+version = "9.1.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/0a/d4/2b0cd0fe285e14b36db076e78c93766ff1d529d70408bd1d2a5a84f1d929/tenacity-9.1.2.tar.gz", hash = "sha256:1169d376c297e7de388d18b4481760d478b0e99a777cad3a9c86e556f4b697cb", size = 48036, upload-time = "2025-04-02T08:25:09.966Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e5/30/643397144bfbfec6f6ef821f36f33e57d35946c44a2352d3c9f0ae847619/tenacity-9.1.2-py3-none-any.whl", hash = "sha256:f77bf36710d8b73a50b2dd155c97b870017ad21afe6ab300326b0371b3b05138", size = 28248, upload-time = "2025-04-02T08:25:07.678Z" },
 ]
 
 [[package]]

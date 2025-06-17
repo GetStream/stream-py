@@ -55,7 +55,7 @@ async def create_bot_with_audio(client, bot_name: str, audio_file: str):
 async def print_recording_status(connection):
     """Print the current recording status."""
     status = connection.get_recording_status()
-    print(f"Recording Status:")
+    print("Recording Status:")
     print(f"   • Recording Active: {status['recording_enabled']}")
     print(f"   • Recording Types: {status['recording_types']}")
     print(f"   • Output Directory: {status['output_directory']}")
@@ -80,16 +80,16 @@ async def record(connection, recording_type, output_dir, user_id_filter=None):
     await print_recording_status(connection)
     
     # Record for 20 seconds
-    print(f"\nRecording for 20 seconds...")
+    print("\nRecording for 20 seconds...")
     await asyncio.sleep(20)
     
     # Stop recording
-    print(f"\nStopping recording...")
+    print("\nStopping recording...")
     await connection.stop_recording()
     
     # Show final results
     final_status = connection.get_recording_status()
-    print(f"\nRecording Complete!")
+    print("\nRecording Complete!")
     print(f"   • Output Directory: {final_status['output_directory']}")
 
 async def record_composite(call, recorder_connection, bot_connections, players):
@@ -203,7 +203,7 @@ async def main():
         try:
             # Delete bot users
             client.delete_users(bot_user_ids + [recorder_user_id])
-            print(f"Deleted bot users")
+            print("Deleted bot users")
         except Exception as e:
             print(f"Error during user cleanup: {e}")
         

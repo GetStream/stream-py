@@ -256,7 +256,7 @@ async def test_join_two_users(client: Stream):
 @pytest.mark.asyncio
 async def test_detect_video_properties(client: Stream):
     from aiortc.contrib.media import MediaPlayer
-    from getstream.video.rtc.connection_manager import (
+    from getstream.video.rtc.track_util import (
         detect_video_properties,
         BufferedMediaTrack,
     )

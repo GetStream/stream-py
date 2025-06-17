@@ -1,54 +1,107 @@
-import json
-import uuid
 import asyncio
+import json
 import logging
-from typing import Optional, List
+import time
+import uuid
+from collections import OrderedDict
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
 
 import aioice
 import aiortc
-
-from getstream.video.call import Call
-from getstream.video.rtc.location_discovery import HTTPHintLocationDiscovery
-from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
-from getstream.video.rtc.pb.stream.video.sfu.models.models_pb2 import (
-    TrackInfo,
-    TRACK_TYPE_VIDEO,
-    TRACK_TYPE_AUDIO,
-    VideoLayer,
-    VideoDimension,
-)
-from getstream.video.rtc.pb.stream.video.sfu.signal_rpc import signal_pb2
-from getstream.video.rtc.twirp_client_wrapper import SignalClient, SfuRpcError
-from getstream.video.rtc.signaling import WebSocketClient, SignalingError
-from getstream.video.rtc.pb.stream.video.sfu.event import events_pb2
-
+from aiortc.contrib.media import MediaRelay
+from pyee.asyncio import AsyncIOEventEmitter
+from tenacity import before_sleep_log, retry, stop_after_attempt, wait_random_exponential
 from twirp import context
 
+from getstream.video.call import Call
+from getstream.video.rtc.connection_utils import (
+    ConnectionState,
+    SfuConnectionError, 
+    create_audio_track_info,
+    is_retryable,
+    prepare_video_track_info, 
+)
 from getstream.video.rtc.coordinator import join_call_coordinator_request
+from getstream.video.rtc.location_discovery import HTTPHintLocationDiscovery
+from getstream.video.rtc.network_monitor import NetworkMonitor
+from getstream.video.rtc.pb.stream.video.sfu.event import events_pb2
+from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
+from getstream.video.rtc.pb.stream.video.sfu.models.models_pb2 import TrackInfo
+from getstream.video.rtc.pb.stream.video.sfu.signal_rpc import signal_pb2
+from getstream.video.rtc.pc import PublisherPeerConnection, SubscriberPeerConnection
 from getstream.video.rtc.recording import RecordingManager, RecordingType
-
-
-from getstream.video.rtc.track_util import (
-    BufferedMediaTrack,
-    detect_video_properties,
-    fix_sdp_msid_semantic,
-    parse_track_stream_mapping,
-)
-
-from getstream.video.rtc.pc import (
-    PublisherPeerConnection,
-    SubscriberPeerConnection,
-)
-
-from pyee.asyncio import AsyncIOEventEmitter
+from getstream.video.rtc.signaling import SignalingError, WebSocketClient
+from getstream.video.rtc.track_util import fix_sdp_msid_semantic, parse_track_stream_mapping
+from getstream.video.rtc.twirp_client_wrapper import SignalClient, SfuRpcError
 
 logger = logging.getLogger(__name__)
 
 
-class ConnectionError(Exception):
-    """Exception raised when connection to the call fails."""
+@dataclass
+class _ReconnectionStrategy:
+    """Reconnection strategy configuration."""
+    
+    UNSPECIFIED = "unspecified"
+    DISCONNECT = "disconnect"
+    FAST = "fast"
+    REJOIN = "rejoin"
+    MIGRATE = "migrate"
 
-    pass
+
+# Internal retry configuration - not exposed to users
+_DEFAULT_MAX_ATTEMPTS = 5
+_DEFAULT_MIN_WAIT = 1.0
+_DEFAULT_MAX_WAIT = 30.0
+_DISCONNECTION_TIMEOUT_SECONDS = 60
+
+
+@dataclass
+class _ConnectionOptions:
+    """Options for the connection process."""
+    join_response: Optional[Any] = None
+    region: Optional[str] = None
+    fast_reconnect: bool = False
+    migrating_from: Optional[str] = None
+    previous_session_id: Optional[str] = None
+
+
+@dataclass
+class _ReconnectionInfo:
+    """Manages reconnection-related information and state."""
+    published_tracks: OrderedDict[str, Dict[str, Any]] = None
+    strategy: str = _ReconnectionStrategy.UNSPECIFIED
+    reason: str = ""
+    attempts: int = 0
+    last_offline_timestamp: float = 0.0
+    
+    def __post_init__(self):
+        if self.published_tracks is None:
+            self.published_tracks = OrderedDict()
+    
+    def reset_state(self):
+        """Reset reconnection state after successful connection."""
+        self.strategy = _ReconnectionStrategy.UNSPECIFIED
+        self.reason = ""
+        self.attempts = 0
+    
+    def add_published_track(self, track_id: str, track: Any, track_info: Any, media_relay: MediaRelay = None):
+        """Add a published track maintaining order."""
+        self.published_tracks[track_id] = {
+            'track': track,
+            'info': track_info,
+            'track_type': track.kind,
+            'media_relay': media_relay
+        }
+    
+    def remove_published_track(self, track_id: str):
+        """Remove a published track."""
+        if track_id in self.published_tracks:
+            del self.published_tracks[track_id]
+    
+    def get_published_track_count(self) -> int:
+        """Get total number of published tracks."""
+        return len(self.published_tracks)
 
 
 class ParticipantsState(AsyncIOEventEmitter):
@@ -61,25 +114,20 @@ class ParticipantsState(AsyncIOEventEmitter):
         stream_id = self._track_stream_mapping.get(track_id)
         if stream_id:
             prefix = stream_id.split(":")[0]
-            participant = self._participant_by_prefix.get(prefix)
-            return participant
+            return self._participant_by_prefix.get(prefix)
         return None
 
     def get_stream_id_from_track_id(self, track_id: str) -> Optional[str]:
-        """Get the stream ID associated with a track ID."""
         return self._track_stream_mapping.get(track_id)
 
     def set_track_stream_mapping(self, mapping: dict):
-        """Set the track_id to stream_id mapping."""
-        logger.info(f"Setting track stream mapping: {mapping}")
+        logger.debug(f"Setting track stream mapping: {mapping}")
         self._track_stream_mapping = mapping
 
     def add_participant(self, participant: models_pb2.Participant):
-        """Add a participant to the internal state along with their track lookup prefix."""
         self._participant_by_prefix[participant.track_lookup_prefix] = participant
 
     def remove_participant(self, participant: models_pb2.Participant):
-        """Remove a participant based on their track lookup prefix."""
         if participant.track_lookup_prefix in self._participant_by_prefix:
             del self._participant_by_prefix[participant.track_lookup_prefix]
 
@@ -93,7 +141,13 @@ class ParticipantsState(AsyncIOEventEmitter):
 
 
 class ConnectionManager(AsyncIOEventEmitter):
-    def __init__(self, call: Call, user_id: str = None, create: bool = True, **kwargs):
+    def __init__(
+        self,
+        call: Call,
+        user_id: str = None,
+        create: bool = True,
+        **kwargs,
+    ):
         super().__init__()
 
         self.call = call
@@ -101,157 +155,322 @@ class ConnectionManager(AsyncIOEventEmitter):
         self.create = create
         self.kwargs = kwargs
         self.running = False
-        self.join_response = None
-        self.connection_task = None
-
-        # Add a stop event to signal when to stop iteration
-        self._stop_event = asyncio.Event()
-
-        # WebSocket client for SFU communication
-        self.ws_client = None
+        
         self.session_id = str(uuid.uuid4())
+        self._connection_state = ConnectionState.IDLE
+        self._stop_event = asyncio.Event()
+        
+        self._connection_options = _ConnectionOptions()
+        self.join_response = None
+        self.ws_client = None
+        self.twirp_signaling_client = None
+        self.twirp_context = None
         self.subscriber_pc: Optional[SubscriberPeerConnection] = None
-        self.twirp_signaling_client: SignalClient
-        self.twirp_context: context.Context
-
-        # Add publisher peer connection attribute
         self.publisher_pc: Optional[PublisherPeerConnection] = None
-
-        # this is used to associate participants to the track prefix that is used on webrtc track SSRCs
-        self._track_user_prefixes = {}
-
-        # set to true if you want to connect to a local SFU
-        self.local_sfu = False
+        
+        self.participants_state = ParticipantsState()
+        self.recording_manager = RecordingManager()
+        self._network_monitor = NetworkMonitor()
         self.publisher_negotiation_lock = asyncio.Lock()
         self.subscriber_negotiation_lock = asyncio.Lock()
+        self._reconnection_info = _ReconnectionInfo()
+        self._reconnect_lock = asyncio.Lock()
+        self._network_available_event: Optional[asyncio.Event] = None
 
-        self.participants_state = ParticipantsState()
+        self._fast_reconnect_deadline_seconds = 10
+        
+        # Local SFU flag for development
+        self.local_sfu = False
 
-        self.recording_manager = RecordingManager()
+    @property
+    def connection_state(self) -> ConnectionState:
+        """Get the current connection state."""
+        return self._connection_state
+    
+    @connection_state.setter
+    def connection_state(self, value: ConnectionState):
+        """Set the connection state."""
+        if value != self._connection_state:
+            logger.debug(f"Connection state changed from {self._connection_state.value} to {value.value}")
+            self._connection_state = value
 
-    async def _full_connect(self):
-        """Perform location discovery and join call via coordinator.
-
-        This method handles the full connection process:
-        1. Discovering the optimal location
-        2. Joining the call via the coordinator API
-        3. Establishing WebSocket connection to the SFU
-
-        Raises:
-            ConnectionError: If there's an issue joining the call or connecting to the SFU
-        """
-        # Discover location
-        logger.info("Discovering location")
+    @staticmethod
+    def _discover_location() -> str:
+        """Discover the optimal location for connection."""
         try:
             discovery = HTTPHintLocationDiscovery(logger=logger)
             location = discovery.discover()
             logger.info(f"Discovered location: {location}")
+            return location
         except Exception as e:
-            logger.error(f"Failed to discover location: {e}")
-            # Default to a reasonable location if discovery fails
-            location = "FRA"
-            logger.info(f"Using default location: {location}")
+            logger.warning(f"Failed to discover location: {e}, using default FRA")
+            return "FRA"
 
-        # Join call via coordinator
-        logger.info("Performing join call request on coordinator API")
+    @staticmethod
+    async def _join_call_coordinator(
+        call,
+        user_id: str,
+        location: str,
+        create: bool,
+        local_sfu: bool,
+        **kwargs,
+    ):
+        """Join call via coordinator API."""
         try:
-            self.join_response = await join_call_coordinator_request(
-                self.call,
-                self.user_id,
-                create=self.create,
-                location=location,
-                **self.kwargs,
+            join_response = await join_call_coordinator_request(
+                call, user_id, location=location, 
+                create=create, **kwargs
             )
-            logger.info(
-                f"Received credentials to connect to SFU {self.join_response.data.credentials.server.url}"
-            )
-            if self.local_sfu:
-                self.join_response.data.credentials.server.url = (
-                    "http://127.0.0.1:3031/twirp"
-                )
-                logger.info(
-                    f"adjusted sfu url to {self.join_response.data.credentials.server.url}"
-                )
+            if local_sfu:
+                join_response.data.credentials.server.url = "http://127.0.0.1:3031/twirp"
 
+            logger.debug(f"Received SFU credentials: {join_response.data.credentials.server.url}")
+                
+            return join_response
+            
         except Exception as e:
-            logger.error(f"Failed to join call: {e}")
-            raise ConnectionError(f"Failed to join call: {e}")
+            logger.error(f"Failed to join call via coordinator: {e}")
+            raise SfuConnectionError(f"Failed to join call: {e}")
 
-        # Connect to SFU via WebSocket
-        logger.info("Connecting to SFU via WebSocket")
-
+    @staticmethod
+    async def _connect_websocket(
+        token: str,
+        ws_url: str,
+        session_id: str,
+        connection_options: Optional[_ConnectionOptions] = None,
+    ):
+        """Connect to SFU via WebSocket."""
         try:
             # Create JoinRequest for WebSocket connection
-            join_request = self._create_join_request()
-
-            # Get WebSocket URL from the coordinator response
-            ws_url = self.join_response.data.credentials.server.ws_endpoint
-            if self.local_sfu:
-                ws_url = "ws://127.0.0.1:3031/ws"
-                logger.info(f"adjusted sfu ws url to {ws_url}")
+            join_request = events_pb2.JoinRequest()
+            join_request.token = token
+            join_request.session_id = session_id
+            
+            # Apply reconnect options if provided
+            if connection_options:
+                if connection_options.fast_reconnect:
+                    join_request.fast_reconnect = True
+                if connection_options.migrating_from:
+                    join_request.reconnect_details.migrating_from = connection_options.migrating_from
+                if connection_options.previous_session_id:
+                    join_request.reconnect_details.previous_session_id = connection_options.previous_session_id
 
             # Create WebSocket client
-            self.ws_client = WebSocketClient(
-                ws_url, join_request, asyncio.get_running_loop()
-            )
+            ws_client = WebSocketClient(ws_url, join_request, asyncio.get_running_loop())
 
             # Connect to the WebSocket server and wait for the first message
             logger.info(f"Establishing WebSocket connection to {ws_url}")
-            sfu_event = await self.ws_client.connect()
-
-            # Populate participants state with existing participants in the call
-            if hasattr(sfu_event, "join_response") and hasattr(
-                sfu_event.join_response, "call_state"
-            ):
-                [
-                    self.participants_state.add_participant(p)
-                    for p in sfu_event.join_response.call_state.participants
-                ]
-
-            self.subscriber_pc = SubscriberPeerConnection(connection=self)
-
-            @self.subscriber_pc.on("audio")
-            async def on_audio(pcm_data, user):
-                # Get user ID from the user parameter (assuming it's a Participant object)
-                user_id = None
-                if user and hasattr(user, 'user_id'):
-                    user_id = user.user_id
-                elif user and hasattr(user, 'id'):
-                    user_id = user.id
-                elif isinstance(user, str):
-                    user_id = user
-                else:
-                    user_id = "unknown_user"
-
-                # Emit the audio event for external listeners
-                self.emit("audio", pcm_data, user)
-
-                # Record audio data if recording is enabled
-                self._record_audio_data(pcm_data, user_id)
-
-            self.twirp_signaling_client = SignalClient(
-                address=self.join_response.data.credentials.server.url
-            )
-            self.twirp_context = context.Context(
-                headers={"authorization": join_request.token}
-            )
-            logger.info("WebSocket connection established successfully")
-            logger.debug(f"Received join response: {sfu_event.join_response}")
+            sfu_event = await ws_client.connect()
+            
+            logger.debug("WebSocket connection established successfully")
+            return ws_client, sfu_event
+            
         except SignalingError as e:
-            logger.error(f"Failed to connect to SFU: {e}")
-            # Close the WebSocket if it was created
-            if self.ws_client:
-                self.ws_client.close()
-                self.ws_client = None
-            raise ConnectionError(f"Failed to connect to SFU: {e}")
+            logger.error(f"Failed to connect to SFU WebSocket: {e}")
+            # Clean up websocket client on error (if it exists)
+            if 'ws_client' in locals():
+                ws_client.close()
+            raise  # Re-raise SignalingError for retry logic
         except Exception as e:
             logger.error(f"Unexpected error connecting to SFU: {e}")
-            # Close the WebSocket if it was created
-            if self.ws_client:
-                self.ws_client.close()
-                self.ws_client = None
-            raise ConnectionError(f"Unexpected error connecting to SFU: {e}")
+            # Clean up websocket client on error (if it exists)
+            if 'ws_client' in locals():
+                ws_client.close()
+            raise SfuConnectionError(f"Unexpected error connecting to SFU: {e}")
 
+    @staticmethod
+    def _setup_signaling_client(token: str, server_url: str):
+        """Setup signaling client for SFU communication."""
+        try:
+            # Setup signaling client
+            twirp_client = SignalClient(address=server_url)
+            # Prepare context headers with authentication
+            headers = {"authorization": token}
+            twirp_context = context.Context(headers=headers)
+            
+            logger.info("Signaling client setup completed")
+            return twirp_client, twirp_context
+            
+        except Exception as e:
+            logger.error(f"Failed to setup signaling client: {e}")
+            raise SfuConnectionError(f"Failed to setup signaling client: {e}")
+
+    async def _connect_internal(
+        self,
+        region: Optional[str] = None,
+        ws_url: Optional[str] = None,
+        token: Optional[str] = None,
+        ws_client: Optional[WebSocketClient] = None,
+        session_id: Optional[str] = None,
+        signaling_client: Optional[SignalClient] = None,
+        signaling_context: Optional[context.Context] = None,
+    ) -> None:
+        """
+        Internal connection method that handles the core connection logic.
+        
+        Args:
+            region: Optional region to connect to
+            ws_url: Optional WebSocket URL to connect to
+            token: Optional authentication token
+            ws_client: Optional existing WebSocket client
+            session_id: Optional session ID
+            signaling_client: Optional existing signaling client
+            signaling_context: Optional existing signaling context
+            
+        Raises:
+            SfuConnectionError: If connection fails
+        """        
+        # Validate that signaling_client and signaling_context are provided together
+        if (signaling_client is None) != (signaling_context is None):
+            raise ValueError("signaling_client and signaling_context must be provided together or both be None")
+        
+        self.connection_state = ConnectionState.JOINING
+        
+        # Step 1: Determine region
+        location = region
+        if not location:
+            if self._connection_options.region:
+                location = self._connection_options.region
+                logger.info(f"Using provided region: {location}")
+            else:
+                location = self._discover_location()
+        
+        # Step 2: Get join response
+        if self._connection_options.join_response:
+            join_response = self._connection_options.join_response
+            logger.info("Using provided join_response, skipping coordinator call")
+        else:
+            join_response = await self._join_call_coordinator(
+                self.call, self.user_id, location, self.create, self.local_sfu, **self.kwargs
+            )
+
+        # Step 3: Setup WebSocket connection
+        if not token:
+            token = join_response.data.credentials.token
+        if not ws_url:
+            if self.local_sfu:
+                ws_url = "ws://127.0.0.1:3031/ws"
+                logger.info(f"Adjusted SFU ws url to {ws_url}")
+                join_response.data.credentials.server.ws_endpoint = ws_url
+            else:
+                ws_url = join_response.data.credentials.server.ws_endpoint
+        
+        # Use provided session_id or current one
+        current_session_id = session_id or self.session_id
+        
+        # Connect to WebSocket if not provided
+        if not ws_client:
+            try:
+                self.ws_client, sfu_event = await self._connect_websocket(token, ws_url, current_session_id, self._connection_options)
+                
+                # Populate participants state with existing participants
+                if hasattr(sfu_event, "join_response"):
+                    if hasattr(sfu_event.join_response, "call_state"):
+                        for participant in sfu_event.join_response.call_state.participants:
+                            self.participants_state.add_participant(participant)
+                    if hasattr(sfu_event.join_response, "fast_reconnect_deadline_seconds"):
+                        self._fast_reconnect_deadline_seconds = sfu_event.join_response.fast_reconnect_deadline_seconds
+                        
+                logger.debug(f"WebSocket connected successfully to {ws_url}")
+            except Exception as e:
+                logger.error(f"Failed to connect WebSocket to {ws_url}: {e}")
+                raise SfuConnectionError(f"WebSocket connection failed: {e}")
+        else:
+            self.ws_client = ws_client
+            logger.debug("Using provided WebSocket client")
+        
+        # Register event handlers (only if not already registered)
+        if not hasattr(self.ws_client, '_handlers_registered'):
+            self._register_websocket_event_handlers()
+            self.ws_client._handlers_registered = True
+        
+        # Set the join_response for use by other components
+        self.join_response = join_response
+        # Update connection options for future use
+        self._connection_options.join_response = join_response
+        self._connection_options.region = location
+        self._connection_options.previous_session_id = current_session_id
+        
+        # Step 4: Setup signaling client
+        if not signaling_client or not signaling_context:
+            server_url = join_response.data.credentials.server.url
+            self.twirp_signaling_client, self.twirp_context = self._setup_signaling_client(token, server_url)
+        else:
+            self.twirp_signaling_client = signaling_client
+            self.twirp_context = signaling_context
+        
+        # Setup subscriber peer connection (only if not already exists or is closed)
+        if not self.subscriber_pc or self.subscriber_pc.connectionState in ["closed", "failed"]:
+            self.subscriber_pc = SubscriberPeerConnection(connection=self)
+            
+            @self.subscriber_pc.on("audio")
+            async def on_audio(pcm_data, user):
+                user_id = getattr(user, 'user_id', getattr(user, 'id', str(user) if user else "unknown_user"))
+                self.emit("audio", pcm_data, user)
+                self.recording_manager.record_audio_data(pcm_data, user_id)
+            
+            logger.debug("Created new subscriber peer connection")
+        else:
+            logger.debug("Reusing existing subscriber peer connection")
+        
+        # Mark as connected
+        self.running = True
+        self.connection_state = ConnectionState.JOINED
+        self._stop_event.clear()
+        
+        logger.info("Successfully connected to SFU")
+
+    async def _cleanup_connections(
+        self,
+        ws_client: WebSocketClient,
+        publisher_pc: PublisherPeerConnection,
+        subscriber_pc: SubscriberPeerConnection,
+    ):
+        cleanup_tasks = []
+        
+        # Close WebSocket client (synchronous)
+        if ws_client:
+            try:
+                ws_client.close()
+            except Exception as e:
+                logger.debug(f"Error closing WebSocket client: {e}")
+        
+        # Close peer connections (asynchronous)
+        if publisher_pc:
+            cleanup_tasks.append(publisher_pc.close())
+        if subscriber_pc:
+            cleanup_tasks.append(subscriber_pc.close())
+        
+        # Run peer connection cleanup concurrently
+        if cleanup_tasks:
+            try:
+                await asyncio.gather(*cleanup_tasks, return_exceptions=True)
+            except Exception as e:
+                logger.debug(f"Error during peer connection cleanup: {e}")
+
+    @retry(
+        stop=stop_after_attempt(_DEFAULT_MAX_ATTEMPTS),
+        wait=wait_random_exponential(multiplier=_DEFAULT_MIN_WAIT, max=_DEFAULT_MAX_WAIT),
+        retry=is_retryable,
+        before_sleep=before_sleep_log(logger, logging.INFO),
+        reraise=True
+    )
+    async def connect(self):
+        """
+        Connect to SFU.
+        
+        This method automatically handles retry logic for transient errors
+        like "server is full" and network issues.
+        """
+        logger.info("Connecting to SFU")
+        await self._connect_internal()
+
+    def _register_websocket_event_handlers(self):
+        """Register all WebSocket event handlers on the WebSocket client."""
+        if not self.ws_client:
+            logger.warning("Cannot register event handlers: WebSocket client is None")
+            return
+            
         self.ws_client.on_event(
             "participant_joined", self.participants_state._on_participant_joined
         )
@@ -259,9 +478,29 @@ class ConnectionManager(AsyncIOEventEmitter):
         self.ws_client.on_event("subscriber_offer", self._on_subscriber_offer)
         self.ws_client.on_event("participant_left", self._on_participant_left)
         
-        # Mark as running and clear stop event
-        self.running = True
-        self._stop_event.clear()
+        # Convert lambda functions to async functions
+        async def handle_error_event(event):
+            logger.warning(f"Received SFU error event: {event}")
+            self.emit('sfu_error', {
+                'reconnect_strategy': getattr(event, 'reconnect_strategy', _ReconnectionStrategy.UNSPECIFIED),
+                'message': getattr(event, 'message', 'SFU Error'),
+                'event': event
+            })
+        
+        async def handle_go_away_event(event):
+            logger.info(f"Received go away event: {event}")
+            self.emit('go_away', {'event': event})
+        
+        async def handle_wildcard_debug_event(event):
+            logger.debug(
+                f"WebSocket event - Type: {getattr(event, 'type', type(event).__name__)}, Event: {event}"
+            )
+        
+        self.ws_client.on_event("error", handle_error_event)
+        self.ws_client.on_event("go_away", handle_go_away_event)
+        self.ws_client.on_event("*", handle_wildcard_debug_event)
+        
+        logger.debug("WebSocket event handlers registered")
 
     async def wait(self):
         """
@@ -279,270 +518,120 @@ class ConnectionManager(AsyncIOEventEmitter):
         """Gracefully leave the call and close connections."""
         logger.info("Leaving the call")
         self.running = False
-        self._stop_event.set()  # Signal the iterator to stop
+        self._stop_event.set()
 
         await self.recording_manager.cleanup()
 
+        # Close all connections
+        cleanup_tasks = []
+        
         if self.ws_client:
             self.ws_client.close()
             self.ws_client = None
-        if self.subscriber_pc is not None:
-            await self.subscriber_pc.close()
+            
+        if self.subscriber_pc:
+            cleanup_tasks.append(self.subscriber_pc.close())
             self.subscriber_pc = None
         if self.publisher_pc:
-            await self.publisher_pc.close()
+            cleanup_tasks.append(self.publisher_pc.close())
             self.publisher_pc = None
+            
+        # Run peer connection cleanup concurrently
+        if cleanup_tasks:
+            await asyncio.gather(*cleanup_tasks, return_exceptions=True)
 
-        # Add any other cleanup needed
+        await self._network_monitor.stop_monitoring()
+        self.connection_state = ConnectionState.LEFT
+        
         logger.info("Call left and connections closed")
 
-    async def _on_subscriber_offer(self, event: events_pb2.SubscriberOffer):
-        logger.info("Subscriber offer received")
-
-        await self.subscriber_negotiation_lock.acquire()
-
-        try:
-            # Fix any invalid msid-semantic format in the SDP
-            fixed_sdp = fix_sdp_msid_semantic(event.sdp)
-            # Parse SDP to create track_id to stream_id mapping
-            self.participants_state.set_track_stream_mapping(
-                parse_track_stream_mapping(fixed_sdp)
-            )
-            # The SDP offer from the SFU might already contain candidates (trickled)
-            # or have a different structure. We set it as the remote description.
-            # The aiortc library handles merging and interpretation.
-            remote_description = aiortc.RTCSessionDescription(
-                type="offer", sdp=fixed_sdp
-            )
-            logger.debug(f"""Setting remote description with SDP:
-            {remote_description.sdp}""")
-            await self.subscriber_pc.setRemoteDescription(remote_description)
-
-            # Create the answer based on the remote offer (which includes our candidates)
-            answer = await self.subscriber_pc.createAnswer()
-            # Set the local description. aiortc will manage the SDP content.
-            await self.subscriber_pc.setLocalDescription(answer)
-
-            logger.info(
-                f"""Sending answer with local description:
-            {self.subscriber_pc.localDescription.sdp}"""
-            )
-
-            try:
-                await self.twirp_signaling_client.SendAnswer(
-                    ctx=self.twirp_context,
-                    request=signal_pb2.SendAnswerRequest(
-                        peer_type=models_pb2.PEER_TYPE_SUBSCRIBER,
-                        sdp=self.subscriber_pc.localDescription.sdp,
-                        session_id=self.session_id,
-                    ),
-                    server_path_prefix="",  # Note: Our wrapper doesn't need this, underlying client handles prefix
-                )
-                logger.info("Subscriber answer sent successfully.")
-            except SfuRpcError as e:
-                # TODO Hack to ignore Participant not found which is expected when leaving the call
-                if e.message != "participant not found":
-                    logger.error(f"Failed to send subscriber answer: {e}")
-            except Exception as e:
-                logger.error(f"Unexpected error sending subscriber answer: {e}")
-        finally:
-            self.subscriber_negotiation_lock.release()
-
-    async def _on_ice_trickle(self, event: events_pb2.ICETrickle):
-        logger.info(f"Received ICE trickle for peer type {event.peer_type}")
-        try:
-            # Parse candidate and create RTCIceCandidate
-            ice_candidate = json.loads(event.ice_candidate)
-            candidate_sdp = ice_candidate.get("candidate")
-            if not candidate_sdp:
-                logger.error("Missing 'candidate' field in ICE trickle")
-                return
-
-            candidate = aiortc.rtcicetransport.candidate_from_aioice(
-                aioice.Candidate.from_sdp(candidate_sdp)
-            )
-            candidate.sdpMid = ice_candidate.get("sdpMid")
-            candidate.sdpMLineIndex = ice_candidate.get("sdpMLineIndex")
-
-            # Add candidate to appropriate peer connection
-            if event.peer_type == models_pb2.PEER_TYPE_SUBSCRIBER:
-                if self.subscriber_pc:
-                    await self.subscriber_pc.addIceCandidate(candidate)
-                else:
-                    logger.warning("Subscriber peer connection not initialized")
-            else:
-                if self.publisher_pc:
-                    await self.publisher_pc.addIceCandidate(candidate)
-                else:
-                    logger.warning("Publisher peer connection not initialized")
-
-        except Exception as e:
-            logger.debug(f"Error handling ICE trickle: {e}")
-
-    def _create_join_request(self) -> events_pb2.JoinRequest:
-        """Create a JoinRequest protobuf message for the WebSocket connection.
-
-        Returns:
-            A JoinRequest protobuf message configured with data from the coordinator response
-        """
-        # Get credentials from the coordinator response
-        credentials = self.join_response.data.credentials
-
-        # Create a JoinRequest
-        join_request = events_pb2.JoinRequest()
-        join_request.token = credentials.token
-        join_request.session_id = self.session_id
-        return join_request
-
     async def __aenter__(self):
-        """Async context manager entry that performs location discovery and joins call."""
-        await self._full_connect()
-
-        # Return self to be used as an async iterator
+        """Async context manager entry."""
+        # Register reconnection handlers directly
+        self._register_reconnection_handlers()
+        
+        # Register network change handlers from NetworkMonitor
+        @self._network_monitor.on('network_changed')
+        def on_network_changed(event_data):
+            self._on_network_changed(event_data)
+        
+        @self._network_monitor.on('network_online') 
+        def on_network_online(event_data):
+            logger.debug("Network came online")
+            
+        @self._network_monitor.on('network_offline')
+        def on_network_offline(event_data): 
+            logger.debug("Network went offline")
+        
+        # Connect with retry
+        await self.connect()
+        
+        # Start network monitoring
+        await self._network_monitor.start_monitoring()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """Async context manager exit that leaves the call."""
+        """Async context manager exit."""
         await self.leave()
 
-    async def prepare_video_track_info(
-        self, video: aiortc.mediastreams.MediaStreamTrack
-    ) -> tuple[TrackInfo, aiortc.mediastreams.MediaStreamTrack]:
-        """
-        Prepare video track info by detecting its properties.
+    def _on_network_changed(self, event_data: dict):
+        """Handle network change events with debug logging."""
+        online = event_data.get('online', True)
+        status = "online" if online else "offline"
+        logger.debug(f"Network status changed to {status}")
+        
+        # Emit the event for other components that might be listening
+        self.emit('network_changed', event_data)
 
-        Args:
-            video: A video MediaStreamTrack
-
-        Returns:
-            A tuple of (TrackInfo, buffered_video_track)
-        """
-        buffered_video = None
-
-        try:
-            # Wrap the video track to buffer peeked frames
-            buffered_video = BufferedMediaTrack(video)
-
-            # Detect video properties - with timeout to avoid hanging
-            video_props = await asyncio.wait_for(
-                detect_video_properties(buffered_video), timeout=3.0
-            )
-
-            video_info = TrackInfo(
-                track_id=buffered_video.id,
-                track_type=TRACK_TYPE_VIDEO,
-                layers=[
-                    VideoLayer(
-                        rid="f",
-                        video_dimension=VideoDimension(
-                            width=video_props["width"],
-                            height=video_props["height"],
-                        ),
-                        bitrate=video_props["bitrate"],
-                        fps=video_props["fps"],
-                    ),
-                ],
-            )
-
-            # Return both the track info and the buffered track
-            return video_info, buffered_video
-
-        except asyncio.TimeoutError:
-            logger.error("Timeout detecting video properties")
-            # Fall back to default properties
-            if buffered_video:
-                video_info = TrackInfo(
-                    track_id=buffered_video.id,
-                    track_type=TRACK_TYPE_VIDEO,
-                    layers=[
-                        VideoLayer(
-                            rid="f",
-                            video_dimension=VideoDimension(
-                                width=1280,
-                                height=720,
-                            ),
-                            bitrate=1500,
-                            fps=30,
-                        ),
-                    ],
-                )
-                return video_info, buffered_video
-            raise
-        except Exception as e:
-            logger.error(f"Error preparing video track: {e}")
-            # Clean up on error
-            if buffered_video:
-                try:
-                    buffered_video.stop()
-                except Exception as e:
-                    logger.error(f"Error stopping buffered video: {e}")
-            # Re-raise the exception
-            raise
-
-    async def add_tracks(
-        self,
-        audio: Optional[aiortc.mediastreams.MediaStreamTrack] = None,
-        video: Optional[aiortc.mediastreams.MediaStreamTrack] = None,
-    ):
-        """
-        Add multiple audio and video tracks in a single negotiation.
-
-        Args:
-            audio: An optional audio MediaStreamTrack to publish
-            video: An optional video MediaStreamTrack to publish
-
-        This method is more efficient than adding tracks individually as it
-        performs a single offer/answer negotiation for all tracks.
-        """
+    # Track Management Methods
+    async def add_tracks(self, audio: Optional[aiortc.mediastreams.MediaStreamTrack] = None,
+                        video: Optional[aiortc.mediastreams.MediaStreamTrack] = None):
+        """Add multiple audio and video tracks in a single negotiation."""
         if not self.running:
-            logger.error("Connection manager not running. Call join() first.")
+            logger.error("Connection manager not running. Call connect() first.")
             return
 
         if not audio and not video:
-            logger.warning("No tracks provided to addTracks")
+            logger.warning("No tracks provided to add_tracks")
             return
 
+        # Store original tracks for reconnection
+        original_audio = audio
+        original_video = video
+
         track_infos = []
-
-        # Prepare audio track info if provided
+        relayed_audio = None
+        relayed_video = None
+        audio_relay = None
+        video_relay = None
+        
         if audio:
-            audio_info = TrackInfo(
-                track_id=audio.id,
-                track_type=TRACK_TYPE_AUDIO,
-            )
-            track_infos.append(audio_info)
-
-        # Prepare video track info if provided
+            # Create individual MediaRelay for this audio track
+            audio_relay = MediaRelay()
+            relayed_audio = audio_relay.subscribe(audio)
+            track_infos.append(create_audio_track_info(relayed_audio))
         if video:
-            video_info, buffered_video = await self.prepare_video_track_info(video)
+            # Create individual MediaRelay for this video track
+            video_relay = MediaRelay()
+            relayed_video = video_relay.subscribe(video)
+            video_info, relayed_video = await prepare_video_track_info(relayed_video)
             track_infos.append(video_info)
-            video = buffered_video
 
-        try:
-            await self.publisher_negotiation_lock.acquire()
-
+        async with self.publisher_negotiation_lock:
             logger.info(f"Adding tracks: {len(track_infos)} tracks")
 
             if self.publisher_pc is None:
                 self.publisher_pc = PublisherPeerConnection(manager=self)
 
-            # Add all tracks to the peer connection
-            if audio:
-                self.publisher_pc.addTrack(audio)
-                logger.info(f"Added audio track {audio.id}")
+            if relayed_audio:
+                self.publisher_pc.addTrack(relayed_audio)
+                logger.info(f"Added relayed audio track {relayed_audio.id}")
+            if relayed_video:
+                self.publisher_pc.addTrack(relayed_video)
+                logger.info(f"Added relayed video track {relayed_video.id}")
 
-            if video:
-                self.publisher_pc.addTrack(video)
-                logger.info(f"Added video track {video.id}")
-
-            # Create and set local description
-            logger.info("Creating publisher offer for multiple tracks")
             offer = await self.publisher_pc.createOffer()
             await self.publisher_pc.setLocalDescription(offer)
-
-            logger.info(
-                f"Sending publisher offer to SFU with {len(track_infos)} tracks"
-            )
 
             try:
                 response = await self.twirp_signaling_client.SetPublisher(
@@ -554,240 +643,433 @@ class ConnectionManager(AsyncIOEventEmitter):
                     ),
                     server_path_prefix="",
                 )
-                logger.info("Publisher offer sent successfully.")
                 await self.publisher_pc.handle_answer(response)
                 await self.publisher_pc.wait_for_connected()
             except SfuRpcError as e:
                 logger.error(f"Failed to set publisher: {e}")
-                if self.publisher_pc:
-                    await self.publisher_pc.close()
-                    self.publisher_pc = None
-                raise ConnectionError(f"Failed to set publisher: {e}") from e
-            except Exception as e:
-                logger.error(f"Failed during publisher setup: {e}")
-                if self.publisher_pc:
-                    await self.publisher_pc.close()
-                    self.publisher_pc = None
-                raise ConnectionError(
-                    f"Unexpected error during publisher setup: {e}"
-                ) from e
-        finally:
-            logger.info("Released publisher negotiation lock")
-            self.publisher_negotiation_lock.release()
+                # await self.publisher_pc.close()
+                # self.publisher_pc = None
+                raise SfuConnectionError(f"Failed to set publisher: {e}")
 
-    # Keep addTrack for backward compatibility
-    async def addTrack(
-        self,
-        track: aiortc.mediastreams.MediaStreamTrack,
-        track_info: Optional[TrackInfo] = None,
-    ):
-        """
-        Add a single track to the publisher peer connection.
+        # Register ORIGINAL tracks and their MediaRelay instances for reconnection
+        track_info_index = 0
+        if original_audio:
+            # Store original track info with its MediaRelay for reconnection
+            self._reconnection_info.add_published_track(original_audio.id, original_audio, track_infos[track_info_index], audio_relay)
+            logger.info(f"Added original track {original_audio.id} with MediaRelay to reconnection state - Total tracks: {self._reconnection_info.get_published_track_count()}")
+            track_info_index += 1
+        if original_video:
+            # Store original track info with its MediaRelay for reconnection
+            self._reconnection_info.add_published_track(original_video.id, original_video, track_infos[track_info_index], video_relay)
+            logger.info(f"Added original track {original_video.id} with MediaRelay to reconnection state - Total tracks: {self._reconnection_info.get_published_track_count()}")
 
-        Note: This method is kept for backward compatibility.
-        For better performance, use addTracks to add multiple tracks at once.
+    async def addTrack(self, track: aiortc.mediastreams.MediaStreamTrack, track_info: Optional[TrackInfo] = None):
+        """Add a single track (backward compatibility)."""
+        if track.kind == "video":
+            await self.add_tracks(video=track)
+        else:
+            await self.add_tracks(audio=track)
 
-        Args:
-            track: The MediaStreamTrack to add
-            track_info: Optional TrackInfo object. If not provided, it will be generated
-                       automatically for video tracks.
-        """
-        if not self.running:
-            logger.error("Connection manager not running. Call join() first.")
-            return
-
-        logger.info(f"adding track {track.id}")
-
-        # If track is video and no track_info provided, generate it
-        if track.kind == "video" and track_info is None:
-            try:
-                track_info, track = await self.prepare_video_track_info(track)
-            except Exception as e:
-                logger.error(f"Failed to automatically detect video properties: {e}")
-                # Create a default track info if auto-detection fails
-                track_info = TrackInfo(
-                    track_id=track.id,
-                    track_type=TRACK_TYPE_VIDEO,
-                    layers=[
-                        VideoLayer(
-                            rid="f",
-                            video_dimension=VideoDimension(
-                                width=1280,
-                                height=720,
-                            ),
-                            bitrate=1500,
-                            fps=30,
-                        ),
-                    ],
-                )
-        # For audio tracks with no track_info, create a default one
-        elif track.kind == "audio" and track_info is None:
-            track_info = TrackInfo(
-                track_id=track.id,
-                track_type=TRACK_TYPE_AUDIO,
-            )
-
-        # Ensure we have a track_info at this point
-        if track_info is None:
-            logger.error("No track_info provided and couldn't create one automatically")
-            return
-
-        await self.publisher_negotiation_lock.acquire()
-
-        try:
-            logger.info(f"track {track.id} enter exclusive lock")
-            if self.publisher_pc is None:
-                self.publisher_pc = PublisherPeerConnection(manager=self)
-
-            self.publisher_pc.addTrack(track)
-            logger.info("Creating publisher offer")
-
-            offer = await self.publisher_pc.createOffer()
-            await self.publisher_pc.setLocalDescription(offer)
-
-            logger.info(
-                f"Sending publisher offer to SFU {self.publisher_pc.localDescription.sdp}"
-            )
-
-            try:
-                response = await self.twirp_signaling_client.SetPublisher(
-                    ctx=self.twirp_context,
-                    request=signal_pb2.SetPublisherRequest(
-                        session_id=self.session_id,
-                        sdp=self.publisher_pc.localDescription.sdp,
-                        tracks=[track_info],
-                    ),
-                    server_path_prefix="",  # Note: Our wrapper doesn't need this, underlying client handles prefix
-                )
-                logger.info("Publisher offer sent successfully.")
-                await self.publisher_pc.handle_answer(response)
-            except SfuRpcError as e:
-                logger.error(f"Failed to set publisher: {e}")
-                # Decide how to handle: maybe close connection, notify user, etc.
-                # Raising ConnectionError might be appropriate here
-                if self.publisher_pc:
-                    await self.publisher_pc.close()
-                    self.publisher_pc = None
-                raise ConnectionError(f"Failed to set publisher: {e}") from e
-            except Exception as e:
-                logger.error(f"Failed during publisher setup or file playback: {e}")
-                # Ensure cleanup
-                if self.publisher_pc:
-                    await self.publisher_pc.close()
-                    self.publisher_pc = None
-                # Re-raise as ConnectionError or a more specific error if appropriate
-                raise ConnectionError(
-                    f"Unexpected error during publisher setup/playback: {e}"
-                ) from e
-        finally:
-            logger.info(f"track {track.id} release exclusive lock")
-            self.publisher_negotiation_lock.release()
-
-        # Wait for the connection to establish and media playing to finish
-        # This is a simplified wait; real-world might need more robust handling
-        # of player state or connection state changes.
-        await asyncio.sleep(1)  # Initial wait for answer/ICE
-        while self.publisher_pc and self.publisher_pc.connectionState != "failed":
-            # Keep running while player is active or connection is ok
-            # MediaPlayer doesn't have an explicit 'done' event we can easily await
-            # We rely on the tracks ending or connection failing
-            await asyncio.sleep(1)
-            # Add checks here if player has specific state to monitor
-            if track.readyState == "ended":
-                logger.info("Media player tracks have ended.")
-                break
-
-    # Add convenience methods for backward compatibility that use the new addTracks method
-    async def add_audio_track(self, track: aiortc.mediastreams.MediaStreamTrack):
-        """
-        Add an audio track to the publisher peer connection.
-
-        Args:
-            track: An audio MediaStreamTrack to publish
-
-        Note: This method is kept for backward compatibility.
-        For better performance, use addTracks to add multiple tracks at once.
-        """
-        if track.kind != "audio":
-            raise ValueError("Expected an audio track")
-
-        await self.add_tracks(audio=track)
-
-    async def add_video_track(self, track: aiortc.mediastreams.MediaStreamTrack):
-        """
-        Add a video track to the publisher peer connection.
-
-        Args:
-            track: A video MediaStreamTrack to publish
-
-        Note: This method is kept for backward compatibility.
-        For better performance, use addTracks to add multiple tracks at once.
-        """
-        if track.kind != "video":
-            raise ValueError("Expected a video track")
-
-        await self.add_tracks(video=track)
-
-
-    async def start_recording(
-        self, 
-        recording_types: List[RecordingType],
-        user_ids: Optional[List[str]] = None,
-        output_dir: str = "recordings"
-    ):
-        """
-        Start recording audio tracks.
-        
-        Args:
-            recording_types: List of recording types to start (TRACK, COMPOSITE)
-            user_ids: Optional list of specific user IDs to record (None = all users)
-            output_dir: Directory to save recording files
-        """
+    async def start_recording(self, recording_types: List[RecordingType], 
+                            user_ids: Optional[List[str]] = None, output_dir: str = "recordings"):
         logger.info("Starting recording")
         await self.recording_manager.start_recording(recording_types, user_ids, output_dir)
 
-    async def stop_recording(
-        self, 
-        recording_types: Optional[List[RecordingType]] = None,
-        user_ids: Optional[List[str]] = None
-    ):
-        """
-        Stop recording.
-        
-        Args:
-            recording_types: Optional list of recording types to stop (None = stop all)
-            user_ids: Optional specific user IDs to stop recording (None = stop all users)
-        """
+    async def stop_recording(self, recording_types: Optional[List[RecordingType]] = None,
+                           user_ids: Optional[List[str]] = None):
+        logger.info("Stopping recording")
         await self.recording_manager.stop_recording(recording_types, user_ids)
-
-    def _record_audio_data(self, pcm_data, user_id: str):
-        """
-        Record audio data for a specific user
-        
-        Args:
-            pcm_data: PCM audio data (can be bytes, PcmData object, or numpy array)
-            user_id: ID of the user whose audio this is
-        """
-        self.recording_manager.record_audio_data(pcm_data, user_id)
 
     @property
     def is_recording(self) -> bool:
-        """Check if recording is currently active."""
         return self.recording_manager.is_recording
 
     def get_recording_status(self) -> dict:
-        """Get current recording status and information."""
         return self.recording_manager.get_recording_status()
+    
+    async def _reconnect(self, strategy: str, reason: str):
+        """
+        Main reconnection orchestrator.
+        
+        Args:
+            strategy: The reconnection strategy to use
+            reason: Human-readable reason for the reconnection
+        """
+        async with self._reconnect_lock:
+            # Check if already in a reconnection state
+            if self.connection_state in [
+                ConnectionState.RECONNECTING,
+                ConnectionState.MIGRATING,
+                ConnectionState.RECONNECTING_FAILED
+            ]:
+                logger.debug(
+                    "Reconnection already in progress", 
+                    extra={"current_state": self.connection_state.value}
+                )
+                return
+
+            reconnect_start_time = time.time()
+            self._reconnection_info.strategy = strategy
+            self._reconnection_info.reason = reason
+            
+            logger.info(
+                "Starting reconnection", 
+                extra={"strategy": strategy, "reason": reason}
+            )
+
+            try:
+                await self._execute_reconnection_loop(reconnect_start_time)
+            except Exception as e:
+                logger.error("Reconnection orchestrator failed", exc_info=e)
+                self.connection_state = ConnectionState.RECONNECTING_FAILED
+                self.emit('reconnection_failed', {'reason': str(e)})
+
+    async def _execute_reconnection_loop(self, reconnect_start_time: float):
+        """Execute the main reconnection retry loop."""
+        while True:
+            # Check disconnection timeout
+            timeout = _DISCONNECTION_TIMEOUT_SECONDS
+            if 0 < timeout < (time.time() - reconnect_start_time):
+                logger.warning("Stopping reconnection attempts after reaching disconnection timeout")
+                self.connection_state = ConnectionState.RECONNECTING_FAILED
+                self.emit('reconnection_failed', {'reason': "Disconnection timeout exceeded"})
+                return
+
+            # Increment attempts (except for FAST strategy)
+            if self._reconnection_info.strategy != _ReconnectionStrategy.FAST:
+                self._reconnection_info.attempts += 1
+
+            try:
+                # Wait for network availability
+                if self._network_available_event:
+                    logger.debug("Waiting for network availability")
+                    await self._network_available_event.wait()
+
+                logger.info(f"Executing reconnection with strategy {self._reconnection_info.strategy}")
+
+                # Execute strategy-specific reconnection
+                await self._execute_reconnection_strategy()
+                
+                # If we reach here, reconnection was successful
+                duration = time.time() - reconnect_start_time
+                self.emit('reconnection_success', {
+                    'strategy': self._reconnection_info.strategy,
+                    'duration': duration
+                })
+                # Reset reconnection state after successful connection
+                self._reconnection_info.reset_state()
+                self._network_available_event = None
+                logger.debug("Reconnection state reset")
+                break
+
+            except Exception as error:
+                if self.connection_state == ConnectionState.OFFLINE:
+                    logger.debug("Can't reconnect while offline, stopping attempts")
+                    break
+
+                logger.warning(
+                    f"Reconnection failed, attempting with REJOIN: {error}",
+                    exc_info=error
+                )
+                await asyncio.sleep(0.5)  # Brief delay before retry
+                self._reconnection_info.strategy = _ReconnectionStrategy.REJOIN
+
+            # Check if we should exit the loop
+            if self.connection_state in [
+                ConnectionState.JOINED,
+                ConnectionState.RECONNECTING_FAILED,
+                ConnectionState.LEFT
+            ]:
+                break
+
+        logger.info("Reconnection flow finished")
+
+    async def _execute_reconnection_strategy(self):
+        """Execute the strategy-specific reconnection logic."""
+        strategy = self._reconnection_info.strategy
+        
+        if strategy == _ReconnectionStrategy.FAST:
+            await self._reconnect_fast()
+        elif strategy == _ReconnectionStrategy.REJOIN:
+            await self._reconnect_rejoin()
+        elif strategy == _ReconnectionStrategy.MIGRATE:
+            await self._reconnect_migrate()
+        elif strategy == _ReconnectionStrategy.DISCONNECT:
+            await self.leave()
+            return
+        else:
+            logger.debug(f"No-op strategy {strategy}")
+
+    async def _reconnect_fast(self):
+        """Fast reconnection strategy - minimal disruption."""
+        logger.info("Executing FAST reconnection strategy")
+        self.connection_state = ConnectionState.RECONNECTING
+        
+        try:
+            if self.ws_client and self.ws_client.running:
+                # Simple ICE restart if WebSocket is healthy
+                if self.publisher_pc:
+                    await self.publisher_pc.restartIce()
+                logger.info("ICE restart completed for healthy WebSocket")
+            else:
+                # Full reconnection needed
+                self._connection_options.fast_reconnect = True
+                previous_ws_client = self.ws_client
+                
+                # Use _connect_internal with existing connection info
+                await self._connect_internal(
+                    region=self._connection_options.region,
+                    token=self.join_response.data.credentials.token if self.join_response else None,
+                    session_id=self.session_id
+                )
+                
+                # Clean up old WebSocket after successful connection
+                if previous_ws_client:
+                    previous_ws_client.close()
+                
+                # Restore published tracks with stored MediaRelay instances
+                await self._restore_published_tracks()
+            
+            self.connection_state = ConnectionState.JOINED
+            logger.info("FAST reconnection completed successfully")
+        except Exception as e:
+            logger.error("FAST reconnection failed", exc_info=e)
+            self.connection_state = ConnectionState.RECONNECTING_FAILED
+            raise
+
+    async def _reconnect_rejoin(self):
+        """Rejoin reconnection strategy - full reconnection."""
+        logger.info("Executing REJOIN reconnection strategy")
+        self.connection_state = ConnectionState.RECONNECTING
+        
+        # Store references to old connections for cleanup
+        old_publisher = self.publisher_pc
+        old_subscriber = self.subscriber_pc
+        old_ws_client = self.ws_client
+        
+        # Clear the old connections so new ones can be created
+        self.publisher_pc = None
+        self.subscriber_pc = None
+        self.ws_client = None
+        
+        try:
+            # Close old connections efficiently
+            await self._cleanup_connections(old_ws_client, old_publisher, old_subscriber)
+            
+            # Use _connect_internal for fresh connection
+            await self._connect_internal()
+            
+            # Restore published tracks after successful reconnection
+            await self._restore_published_tracks()
+            
+            logger.info("REJOIN reconnection completed successfully")
+        except Exception as error:
+            logger.error("REJOIN reconnection failed", exc_info=error)
+            # Ensure connection state is properly set on failure
+            self.connection_state = ConnectionState.RECONNECTING_FAILED
+            raise
+
+    async def _reconnect_migrate(self):
+        """Migration reconnection strategy - server-coordinated."""
+        logger.info("Executing MIGRATE reconnection strategy")
+        
+        current_ws_client = self.ws_client
+        current_publisher = self.publisher_pc
+        current_subscriber = self.subscriber_pc
+
+        self.connection_state = ConnectionState.MIGRATING
+
+        if current_publisher and hasattr(current_publisher, 'removeListener'):
+            current_publisher.removeListener('connectionstatechange')
+        if current_subscriber and hasattr(current_subscriber, 'removeListener'):
+            current_subscriber.removeListener('connectionstatechange')
+
+        try:
+            migrating_from = getattr(current_ws_client, 'edge_name', None)
+            
+            # Set migration options for connection
+            if hasattr(self, '_connection_options'):
+                self._connection_options.fast_reconnect = False
+                self._connection_options.migrating_from = migrating_from
+                self._connection_options.previous_session_id = self.session_id if migrating_from else None
+
+            # Use _connect_internal for migration
+            await self._connect_internal(
+                region=self._connection_options.region,
+                session_id=self.session_id
+            )
+            
+            await self._restore_published_tracks()
+
+            self.connection_state = ConnectionState.JOINED
+            logger.info("MIGRATE reconnection completed successfully")
+
+        finally:
+            # Clean up old connections
+            await self._cleanup_connections(current_ws_client, current_publisher, current_subscriber)
+
+    async def _restore_published_tracks(self):
+        """Restore published tracks using their stored MediaRelay instances."""
+        track_ids = list(self._reconnection_info.published_tracks.keys())
+        logger.info(f"Restoring {len(track_ids)} published tracks with MediaRelay - Track IDs: {track_ids}")
+        
+        # Collect all tracks to restore
+        audio_tracks = []
+        video_tracks = []
+        
+        for track_id, track_info in self._reconnection_info.published_tracks.items():
+            original_track = track_info['track']  # Original track
+            
+            # Group tracks by type
+            if original_track.kind == 'audio':
+                audio_tracks.append(original_track)
+            elif original_track.kind == 'video':
+                video_tracks.append(original_track)
+        
+        # Restore tracks using the add_tracks method
+        # This ensures proper MediaRelay usage and peer connection management
+        try:
+            # Restore first audio and video track together if available
+            if audio_tracks or video_tracks:
+                await self.add_tracks(
+                    audio=audio_tracks[0] if audio_tracks else None,
+                    video=video_tracks[0] if video_tracks else None
+                )
+                logger.info("Restored primary audio/video tracks")
+            
+            # Restore additional audio tracks individually
+            for i, track in enumerate(audio_tracks[1:], 1):
+                await self.add_tracks(audio=track)
+                logger.info(f"Restored additional audio track {i}: {track.id}")
+            
+            # Restore additional video tracks individually  
+            for i, track in enumerate(video_tracks[1:], 1):
+                await self.add_tracks(video=track)
+                logger.info(f"Restored additional video track {i}: {track.id}")
+                
+            logger.info(f"Successfully restored all {len(track_ids)} tracks using stored MediaRelay instances")
+            
+        except Exception as e:
+            logger.error("Failed to restore published tracks", exc_info=e)
+            raise
+
+    def _register_reconnection_handlers(self):
+        """Register event handlers for reconnection triggers."""
+        
+        @self.on('network_changed')
+        async def handle_network_change(event_data):
+            logger.info(f"Received network change: {event_data}")
+            online = event_data.get('online', True)
+
+            if not online:
+                logger.debug("Going offline")
+                if self.connection_state not in [ConnectionState.JOINED]:
+                    return
+
+                self._reconnection_info.last_offline_timestamp = time.time()
+                network_event = asyncio.Event()
+                self._network_available_event = network_event
+                self.connection_state = ConnectionState.OFFLINE
+            else:
+                logger.debug("Going online")
+
+                if self._reconnection_info.last_offline_timestamp:
+                    offline_duration = time.time() - self._reconnection_info.last_offline_timestamp
+                    strategy = (_ReconnectionStrategy.FAST
+                              if offline_duration <= self._fast_reconnect_deadline_seconds
+                              else _ReconnectionStrategy.REJOIN)
+                else:
+                    strategy = _ReconnectionStrategy.REJOIN
+
+                if self._network_available_event:
+                    self._network_available_event.set()
+                    self._network_available_event = None
+
+                asyncio.create_task(
+                    self._reconnect(strategy, "Going online")
+                )
+        
+        @self.on('go_away')
+        async def handle_go_away(event_data):
+            asyncio.create_task(
+                self._reconnect(_ReconnectionStrategy.MIGRATE, "Server requested migration")
+            )
+            
+        @self.on('sfu_error')
+        async def handle_sfu_error(event_data):
+            strategy = event_data.get('reconnect_strategy', _ReconnectionStrategy.UNSPECIFIED)
+            if strategy == _ReconnectionStrategy.UNSPECIFIED:
+                return
+            elif strategy == _ReconnectionStrategy.DISCONNECT:
+                await self.leave()
+            else:
+                asyncio.create_task(
+                    self._reconnect(strategy, event_data.get('message', 'SFU Error'))
+                )
+        
+        logger.debug("Reconnection event handlers registered")
+
+    async def _on_subscriber_offer(self, event):
+        """Handle subscriber offer from SFU."""
+        logger.debug("Subscriber offer received")
+
+        async with self.subscriber_negotiation_lock:
+            try:
+                fixed_sdp = fix_sdp_msid_semantic(event.sdp)
+                self.participants_state.set_track_stream_mapping(parse_track_stream_mapping(fixed_sdp))
+                
+                remote_description = aiortc.RTCSessionDescription(type="offer", sdp=fixed_sdp)
+                await self.subscriber_pc.setRemoteDescription(remote_description)
+                
+                answer = await self.subscriber_pc.createAnswer()
+                await self.subscriber_pc.setLocalDescription(answer)
+                
+                try:
+                    await self.twirp_signaling_client.SendAnswer(
+                        ctx=self.twirp_context,
+                        request=signal_pb2.SendAnswerRequest(
+                            peer_type=models_pb2.PEER_TYPE_SUBSCRIBER,
+                            sdp=self.subscriber_pc.localDescription.sdp,
+                            session_id=self.session_id,
+                        ),
+                        server_path_prefix="",
+                    )
+                    logger.debug("Subscriber answer sent successfully")
+                except SfuRpcError as e:
+                    if e.message != "participant not found":
+                        logger.error(f"Failed to send subscriber answer: {e}")
+            except Exception as e:
+                logger.error(f"Error handling subscriber offer: {e}")
+
+    async def _on_ice_trickle(self, event):
+        """Handle ICE trickle from SFU."""
+        logger.debug(f"Received ICE trickle for peer type {event.peer_type}")
+        
+        try:
+            ice_candidate = json.loads(event.ice_candidate)
+            candidate_sdp = ice_candidate.get("candidate")
+            if not candidate_sdp:
+                return
+
+            candidate = aiortc.rtcicetransport.candidate_from_aioice(
+                aioice.Candidate.from_sdp(candidate_sdp)
+            )
+            candidate.sdpMid = ice_candidate.get("sdpMid")
+            candidate.sdpMLineIndex = ice_candidate.get("sdpMLineIndex")
+
+            if event.peer_type == models_pb2.PEER_TYPE_SUBSCRIBER and self.subscriber_pc:
+                await self.subscriber_pc.addIceCandidate(candidate)
+            elif self.publisher_pc:
+                await self.publisher_pc.addIceCandidate(candidate)
+        except Exception as e:
+            logger.debug(f"Error handling ICE trickle: {e}")
 
     async def _on_participant_left(self, event):
-        """Handle participant leaving - cleanup their recording if active."""
+        """Handle participant leaving."""
         try:
             await self.participants_state._on_participant_left(event)
-            
-            # Stop recording for the user who left
             if hasattr(event, 'participant') and hasattr(event.participant, 'user_id'):
-                user_id = event.participant.user_id
-                await self.recording_manager.on_user_left(user_id)
-                
+                await self.recording_manager.on_user_left(event.participant.user_id)
         except Exception as e:
-            logger.error(f"Error handling participant left event: {e}")
+            logger.error(f"Error handling participant left: {e}")
+
