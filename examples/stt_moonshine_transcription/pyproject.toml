@@ -15,15 +15,7 @@ dependencies = [
     "python-dotenv>=1.0.0",
 ]
 
-[project.optional-dependencies]
-test = [
-    "pytest>=7.0.0",
-    "pytest-asyncio>=0.18.0",
-]
-
 [tool.uv.sources]
 getstream = { workspace = true }
-getstream-plugins-stt-deepgram = { workspace = true }
 getstream-plugins-stt-moonshine = { workspace = true }
-getstream-plugins-tts-elevenlabs = { workspace = true }
 getstream-plugins-vad-silero = { workspace = true }

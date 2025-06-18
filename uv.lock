@@ -14,6 +14,7 @@ members = [
     "getstream-plugins-sts-openai-realtime",
     "getstream-plugins-stt-deepgram",
     "getstream-plugins-stt-moonshine",
+    "getstream-plugins-tts-cartesia",
     "getstream-plugins-tts-elevenlabs",
     "getstream-plugins-vad-silero",
 ]
@@ -339,6 +340,27 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/e0/dc/7eb0d4215d9705db8b04a944ff68bf1f791ce8c03fbc07962da430847122/av-14.4.0-cp39-cp39-musllinux_1_2_i686.whl", hash = "sha256:5d1d89842efe913448482573a253bd6955ce30a77f8a4cd04a1a3537cc919896", size = 34248073, upload-time = "2025-05-16T19:13:27.356Z" },
     { url = "https://files.pythonhosted.org/packages/19/fa/8ea77a6f14858e556b822be34d718d0fa2a5b0bfb2ab4bdbe65b2fe70734/av-14.4.0-cp39-cp39-musllinux_1_2_x86_64.whl", hash = "sha256:c3048e333da1367a2bca47e69593e10bc70f027d876adee9d1582c8cb818f36a", size = 36891181, upload-time = "2025-05-16T19:13:30.669Z" },
     { url = "https://files.pythonhosted.org/packages/52/cb/fc8f8bbae8f999336fe4db04133e8774f686a0e45ec9046c000eb2c77e53/av-14.4.0-cp39-cp39-win_amd64.whl", hash = "sha256:5d6f25570d0782dd05640c7e1f71cb29857d94d915b5521a1e757ecae78a5a50", size = 27959674, upload-time = "2025-05-16T19:13:33.346Z" },
+]
+
+[[package]]
+name = "cartesia"
+version = "2.0.5"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "aiohttp" },
+    { name = "audioop-lts", marker = "python_full_version >= '3.13'" },
+    { name = "httpx" },
+    { name = "httpx-sse" },
+    { name = "iterators" },
+    { name = "pydantic" },
+    { name = "pydantic-core" },
+    { name = "pydub" },
+    { name = "typing-extensions" },
+    { name = "websockets" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b0/33/00b77447109225b833c936c3eeabfd7bf43f93415670b6f3972a9082ee17/cartesia-2.0.5.tar.gz", hash = "sha256:7fd4651ed8ac38ef30bc54bbee53192695f24f866bb14558afb4d0fb08f011e5", size = 67257, upload-time = "2025-06-10T04:35:25.037Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4c/47/65ab4ecb0a3af05ea6089d5b04b033827421a9f2471250d00a5f2cbc18cb/cartesia-2.0.5-py3-none-any.whl", hash = "sha256:9ad0fd40fc451f323e561683e7cc7fae7278a9db81a7881421c4fe1df57fc178", size = 136073, upload-time = "2025-06-10T04:35:23.841Z" },
 ]
 
 [[package]]
@@ -1023,6 +1045,30 @@ requires-dist = [
 provides-extras = ["test"]
 
 [[package]]
+name = "getstream-plugins-tts-cartesia"
+version = "0.1.0"
+source = { editable = "getstream/plugins/tts/cartesia" }
+dependencies = [
+    { name = "cartesia" },
+    { name = "getstream", extra = ["webrtc"] },
+]
+
+[package.optional-dependencies]
+test = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "cartesia", specifier = ">=2.0.5" },
+    { name = "getstream", extras = ["webrtc"], editable = "." },
+    { name = "pytest", marker = "extra == 'test'", specifier = ">=7.0.0" },
+    { name = "pytest-asyncio", marker = "extra == 'test'", specifier = ">=0.18.0" },
+]
+provides-extras = ["test"]
+
+[[package]]
 name = "getstream-plugins-tts-elevenlabs"
 version = "0.1.0"
 source = { editable = "getstream/plugins/tts/elevenlabs" }
@@ -1175,6 +1221,15 @@ wheels = [
 ]
 
 [[package]]
+name = "httpx-sse"
+version = "0.4.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/4c/60/8f4281fa9bbf3c8034fd54c0e7412e66edbab6bc74c4996bd616f8d0406e/httpx-sse-0.4.0.tar.gz", hash = "sha256:1e81a3a3070ce322add1d3529ed42eb5f70817f45ed6ec915ab753f961139721", size = 12624, upload-time = "2023-12-22T08:01:21.083Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e1/9b/a181f281f65d776426002f330c31849b86b31fc9d848db62e16f03ff739f/httpx_sse-0.4.0-py3-none-any.whl", hash = "sha256:f329af6eae57eaa2bdfd962b42524764af68075ea87370a2de920af5341e318f", size = 7819, upload-time = "2023-12-22T08:01:19.89Z" },
+]
+
+[[package]]
 name = "huggingface-hub"
 version = "0.32.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1239,6 +1294,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f2/97/ebf4da567aa6827c909642694d71c9fcf53e5b504f2d96afea02718862f3/iniconfig-2.1.0.tar.gz", hash = "sha256:3abbd2e30b36733fee78f9c7f7308f2d0050e88f0087fd25c2645f63c773e1c7", size = 4793, upload-time = "2025-03-19T20:09:59.721Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/2c/e1/e6716421ea10d38022b952c159d5161ca1193197fb744506875fbb87ea7b/iniconfig-2.1.0-py3-none-any.whl", hash = "sha256:9deba5723312380e77435581c6bf4935c94cbfab9b1ed33ef8d238ea168eb760", size = 6050, upload-time = "2025-03-19T20:10:01.071Z" },
+]
+
+[[package]]
+name = "iterators"
+version = "0.2.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/02/c4/135b5bdb9f14f728fe1274361b336f77c5f1606af9a5622a765fe75f5fa0/iterators-0.2.0.tar.gz", hash = "sha256:e9927a1ea1ef081830fd1512f3916857c36bd4b37272819a6cd29d0f44431b97", size = 4284, upload-time = "2023-01-23T16:07:02.46Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/bd/a1/9c29772ac9f3bdf9837c92ba5c1fc93f75da14c2e0c3fc41e10485f68feb/iterators-0.2.0-py3-none-any.whl", hash = "sha256:1d7ff03f576c9de0e01bac66209556c066d6b1fc45583a99cfc9f4645be7900e", size = 5022, upload-time = "2023-01-23T16:07:00.352Z" },
 ]
 
 [[package]]
@@ -2564,6 +2628,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/67/1d/42628a2c33e93f8e9acbde0d5d735fa0850f3e6a2f8cb1eb6c40b9a732ac/pydantic_settings-2.9.1.tar.gz", hash = "sha256:c509bf79d27563add44e8446233359004ed85066cd096d8b510f715e6ef5d268", size = 163234, upload-time = "2025-04-18T16:44:48.265Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b6/5f/d6d641b490fd3ec2c4c13b4244d68deea3a1b970a97be64f34fb5504ff72/pydantic_settings-2.9.1-py3-none-any.whl", hash = "sha256:59b4f431b1defb26fe620c71a7d3968a710d719f5f4cdbbdb7926edeb770f6ef", size = 44356, upload-time = "2025-04-18T16:44:46.617Z" },
+]
+
+[[package]]
+name = "pydub"
+version = "0.25.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/fe/9a/e6bca0eed82db26562c73b5076539a4a08d3cffd19c3cc5913a3e61145fd/pydub-0.25.1.tar.gz", hash = "sha256:980a33ce9949cab2a569606b65674d748ecbca4f0796887fd6f46173a7b0d30f", size = 38326, upload-time = "2021-03-10T02:09:54.659Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a6/53/d78dc063216e62fc55f6b2eebb447f6a4b0a59f55c8406376f76bf959b08/pydub-0.25.1-py2.py3-none-any.whl", hash = "sha256:65617e33033874b59d87db603aa1ed450633288aefead953b30bded59cb599a6", size = 32327, upload-time = "2021-03-10T02:09:53.503Z" },
 ]
 
 [[package]]

@@ -50,7 +50,7 @@ async def main():
     sts_bot = OpenAIRealtime(
         api_key=os.getenv("OPENAI_API_KEY"),
         model=os.getenv("OPENAI_REALTIME_MODEL"),
-        instructions="You are a friendly assistant; reply verbally in a short sentence.",
+        instructions="You are a friendly assistant; reply verbally in a short sentence of maximum 5 words.",
         voice="alloy",
     )
 
@@ -85,7 +85,7 @@ async def main():
                 tools=tools,
             )
         
-            await sts_bot.send_user_message("Give a short greeting to the user.")
+            await sts_bot.send_user_message("Give a very short greeting to the user.")
 
             logging.info("🎧 Listening for responses... (Press Ctrl+C to stop)")
             logging.info("💡 Try speaking in the browser – ask it something like 'start closed captions' to trigger the function call.")

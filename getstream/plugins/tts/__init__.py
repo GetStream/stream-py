@@ -113,10 +113,16 @@ class TTS(AsyncIOEventEmitter, abc.ABC):
                 self.emit("audio", audio_data, user)
             elif inspect.isasyncgen(audio_data):
                 async for chunk in audio_data:
-                    total_audio_bytes += len(chunk)
-                    audio_chunks += 1
-                    await self._track.write(chunk)
-                    self.emit("audio", chunk, user)
+                    if isinstance(chunk, bytes):
+                        total_audio_bytes += len(chunk)
+                        audio_chunks += 1
+                        await self._track.write(chunk)
+                        self.emit("audio", chunk, user)
+                    else:  # assume it's a Cartesia TTS chunk object
+                        total_audio_bytes += len(chunk.data)
+                        audio_chunks += 1
+                        await self._track.write(chunk.data)
+                        self.emit("audio", chunk.data, user)
             elif hasattr(audio_data, "__iter__") and not isinstance(
                 audio_data, (str, bytes, bytearray)
             ):
