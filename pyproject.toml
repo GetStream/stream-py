@@ -57,6 +57,7 @@ getstream-plugins-stt-moonshine = { workspace = true }
 getstream-plugins-stt-deepgram = { workspace = true }
 getstream-plugins-tts-elevenlabs = { workspace = true }
 getstream-plugins-vad-silero = { workspace = true }
+getstream-plugins-tts-cartesia = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]
@@ -90,4 +91,7 @@ webrtc = [
     "protobuf>=4.25.1",
     "websocket-client>=1.8.0",
     "pyee>=13.0.0",
+]
+mcp = [
+    "fastmcp>=2.1,<2.4 ; python_version >= '3.10'",
 ]

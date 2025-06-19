@@ -28,7 +28,7 @@ You'll see the bot join, say a greeting, then wait. Add extra `await tts.send(".
 
 ---
 
-## How it works (60 sec)
+## How it works
 
 1. Creates two temporary Stream users (human + "tts-bot").
 2. Opens a browser URL so you can join the call instantly.
@@ -36,8 +36,6 @@ You'll see the bot join, say a greeting, then wait. Add extra `await tts.send(".
 4. Joins the call and sends a greeting via `tts.send()`.
 5. `await connection.wait()` keeps the bot alive until **Ctrl-C**.
 6. On shutdown the script deletes the temporary users.
-
-Under 120 lines of code 😀
 
 ---
 
