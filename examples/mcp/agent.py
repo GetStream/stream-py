@@ -9,6 +9,7 @@ SYSTEM = """
 You are a friendly AI assistant.  When the user asks for real-world data, look through the
 available MCP tools and call the one that matches.  Reply with plain text.
 If you call a tool, use  "tool_name"["argument_key": "argument_value"]  on its own line.
+You can make up to 3 tool calls in a row.
 """
 
 def call_llm(messages):
@@ -33,6 +34,7 @@ async def chat_with_tools(prompt: str, client: fastmcp.Client) -> str:
     ]
 
     while True:
+        tool_calls = 0
         reply = call_llm(history)
         m = re.match(r"^(\w[\w\.]+)\[(.*)\]$", reply.strip())
 
@@ -45,6 +47,12 @@ async def chat_with_tools(prompt: str, client: fastmcp.Client) -> str:
             for result in results:
                 history.append({"role": "assistant",
                                 "content": f"(result) {result.text}"})
+            tool_calls += 1
+            if tool_calls == 2:
+                history.append({"role": "assistant",
+                                "content": "You can make up to 3 tool calls in a row.  You have already made 2 tool calls.  Please answer the user's question directly."})
+            if tool_calls >= 3:
+                return reply
             continue
         else:
             return reply

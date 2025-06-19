@@ -3,9 +3,6 @@ import httpx
 
 mcp = FastMCP("Stream MCP Server")
 
-@mcp.tool()
-def greet(name: str) -> str:
-    return f"Hello, {name}!"
 
 @mcp.tool()
 def get_forecast(city: str) -> str:

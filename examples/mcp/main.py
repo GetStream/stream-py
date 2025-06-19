@@ -1,5 +1,4 @@
 import logging
-import time
 
 from dotenv import load_dotenv
 from getstream.stream import Stream
