@@ -55,6 +55,7 @@ class CommonRestClient(BaseClient):
         sqs_url: Optional[str] = None,
         webhook_url: Optional[str] = None,
         allowed_flag_reasons: Optional[List[str]] = None,
+        event_hooks: Optional[List[EventHook]] = None,
         image_moderation_block_labels: Optional[List[str]] = None,
         image_moderation_labels: Optional[List[str]] = None,
         user_search_disallowed_roles: Optional[List[str]] = None,
@@ -103,6 +104,7 @@ class CommonRestClient(BaseClient):
             sqs_url=sqs_url,
             webhook_url=webhook_url,
             allowed_flag_reasons=allowed_flag_reasons,
+            event_hooks=event_hooks,
             image_moderation_block_labels=image_moderation_block_labels,
             image_moderation_labels=image_moderation_labels,
             user_search_disallowed_roles=user_search_disallowed_roles,
@@ -190,6 +192,7 @@ class CommonRestClient(BaseClient):
     def check_push(
         self,
         apn_template: Optional[str] = None,
+        event_type: Optional[str] = None,
         firebase_data_template: Optional[str] = None,
         firebase_template: Optional[str] = None,
         message_id: Optional[str] = None,
@@ -201,6 +204,7 @@ class CommonRestClient(BaseClient):
     ) -> StreamResponse[CheckPushResponse]:
         json = build_body_dict(
             apn_template=apn_template,
+            event_type=event_type,
             firebase_data_template=firebase_data_template,
             firebase_template=firebase_template,
             message_id=message_id,
@@ -471,6 +475,33 @@ class CommonRestClient(BaseClient):
         }
 
         return self.get("/api/v2/tasks/{id}", GetTaskResponse, path_params=path_params)
+
+    def delete_file(self, url: Optional[str] = None) -> StreamResponse[Response]:
+        query_params = build_query_param(url=url)
+
+        return self.delete("/api/v2/uploads/file", Response, query_params=query_params)
+
+    def upload_file(
+        self, file: Optional[str] = None, user: Optional[OnlyUserID] = None
+    ) -> StreamResponse[FileUploadResponse]:
+        json = build_body_dict(file=file, user=user)
+
+        return self.post("/api/v2/uploads/file", FileUploadResponse, json=json)
+
+    def delete_image(self, url: Optional[str] = None) -> StreamResponse[Response]:
+        query_params = build_query_param(url=url)
+
+        return self.delete("/api/v2/uploads/image", Response, query_params=query_params)
+
+    def upload_image(
+        self,
+        file: Optional[str] = None,
+        upload_sizes: Optional[List[ImageSize]] = None,
+        user: Optional[OnlyUserID] = None,
+    ) -> StreamResponse[ImageUploadResponse]:
+        json = build_body_dict(file=file, upload_sizes=upload_sizes, user=user)
+
+        return self.post("/api/v2/uploads/image", ImageUploadResponse, json=json)
 
     def query_users(
         self, payload: Optional[QueryUsersPayload] = None

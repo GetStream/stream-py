@@ -645,6 +645,7 @@ class ChatRestClient(BaseClient):
         typing_events: Optional[bool] = None,
         uploads: Optional[bool] = None,
         url_enrichment: Optional[bool] = None,
+        user_message_reminders: Optional[bool] = None,
         blocklists: Optional[List[BlockListOptions]] = None,
         commands: Optional[List[str]] = None,
         permissions: Optional[List[PolicyRequest]] = None,
@@ -674,6 +675,7 @@ class ChatRestClient(BaseClient):
             typing_events=typing_events,
             uploads=uploads,
             url_enrichment=url_enrichment,
+            user_message_reminders=user_message_reminders,
             blocklists=blocklists,
             commands=commands,
             permissions=permissions,
@@ -730,6 +732,7 @@ class ChatRestClient(BaseClient):
         typing_events: Optional[bool] = None,
         uploads: Optional[bool] = None,
         url_enrichment: Optional[bool] = None,
+        user_message_reminders: Optional[bool] = None,
         allowed_flag_reasons: Optional[List[str]] = None,
         blocklists: Optional[List[BlockListOptions]] = None,
         commands: Optional[List[str]] = None,
@@ -764,6 +767,7 @@ class ChatRestClient(BaseClient):
             typing_events=typing_events,
             uploads=uploads,
             url_enrichment=url_enrichment,
+            user_message_reminders=user_message_reminders,
             allowed_flag_reasons=allowed_flag_reasons,
             blocklists=blocklists,
             commands=commands,
@@ -1171,6 +1175,59 @@ class ChatRestClient(BaseClient):
             path_params=path_params,
         )
 
+    def delete_reminder(
+        self, message_id: str, user_id: Optional[str] = None
+    ) -> StreamResponse[DeleteReminderResponse]:
+        query_params = build_query_param(user_id=user_id)
+        path_params = {
+            "message_id": message_id,
+        }
+
+        return self.delete(
+            "/api/v2/chat/messages/{message_id}/reminders",
+            DeleteReminderResponse,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
+    def update_reminder(
+        self,
+        message_id: str,
+        remind_at: Optional[datetime] = None,
+        user_id: Optional[str] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[UpdateReminderResponse]:
+        path_params = {
+            "message_id": message_id,
+        }
+        json = build_body_dict(remind_at=remind_at, user_id=user_id, user=user)
+
+        return self.patch(
+            "/api/v2/chat/messages/{message_id}/reminders",
+            UpdateReminderResponse,
+            path_params=path_params,
+            json=json,
+        )
+
+    def create_reminder(
+        self,
+        message_id: str,
+        remind_at: Optional[datetime] = None,
+        user_id: Optional[str] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[ReminderResponseData]:
+        path_params = {
+            "message_id": message_id,
+        }
+        json = build_body_dict(remind_at=remind_at, user_id=user_id, user=user)
+
+        return self.post(
+            "/api/v2/chat/messages/{message_id}/reminders",
+            ReminderResponseData,
+            path_params=path_params,
+            json=json,
+        )
+
     def get_replies(
         self,
         parent_id: str,
@@ -1549,6 +1606,30 @@ class ChatRestClient(BaseClient):
             "/api/v2/chat/query_banned_users",
             QueryBannedUsersResponse,
             query_params=query_params,
+        )
+
+    def query_reminders(
+        self,
+        limit: Optional[int] = None,
+        next: Optional[str] = None,
+        prev: Optional[str] = None,
+        user_id: Optional[str] = None,
+        sort: Optional[List[SortParamRequest]] = None,
+        filter: Optional[Dict[str, object]] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[QueryRemindersResponse]:
+        json = build_body_dict(
+            limit=limit,
+            next=next,
+            prev=prev,
+            user_id=user_id,
+            sort=sort,
+            filter=filter,
+            user=user,
+        )
+
+        return self.post(
+            "/api/v2/chat/reminders/query", QueryRemindersResponse, json=json
         )
 
     def search(
