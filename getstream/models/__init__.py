@@ -213,6 +213,17 @@ class ActionLogResponse(DataClassJsonMixin):
 
 
 @dataclass
+class ActionSequence(DataClassJsonMixin):
+    action: str = dc_field(metadata=dc_config(field_name="action"))
+    blur: bool = dc_field(metadata=dc_config(field_name="blur"))
+    cooldown_period: int = dc_field(metadata=dc_config(field_name="cooldown_period"))
+    threshold: int = dc_field(metadata=dc_config(field_name="threshold"))
+    time_window: int = dc_field(metadata=dc_config(field_name="time_window"))
+    warning: bool = dc_field(metadata=dc_config(field_name="warning"))
+    warning_text: str = dc_field(metadata=dc_config(field_name="warning_text"))
+
+
+@dataclass
 class AnyEvent(DataClassJsonMixin):
     created_at: datetime = dc_field(
         metadata=dc_config(
@@ -285,7 +296,11 @@ class AppResponseFields(DataClassJsonMixin):
     suspended_explanation: str = dc_field(
         metadata=dc_config(field_name="suspended_explanation")
     )
+    use_hook_v2: bool = dc_field(metadata=dc_config(field_name="use_hook_v2"))
     webhook_url: str = dc_field(metadata=dc_config(field_name="webhook_url"))
+    event_hooks: "List[EventHook]" = dc_field(
+        metadata=dc_config(field_name="event_hooks")
+    )
     user_search_disallowed_roles: List[str] = dc_field(
         metadata=dc_config(field_name="user_search_disallowed_roles")
     )
@@ -295,7 +310,7 @@ class AppResponseFields(DataClassJsonMixin):
     call_types: "Dict[str, Optional[CallType]]" = dc_field(
         metadata=dc_config(field_name="call_types")
     )
-    channel_configs: "Dict[str, Optional[ChannelConfig]]" = dc_field(
+    channel_configs: "Dict[str, ChannelConfig]" = dc_field(
         metadata=dc_config(field_name="channel_configs")
     )
     file_upload_config: "FileUploadConfig" = dc_field(
@@ -1714,6 +1729,43 @@ class CallMissedEvent(DataClassJsonMixin):
 
 
 @dataclass
+class CallModerationBlurEvent(DataClassJsonMixin):
+    call_cid: str = dc_field(metadata=dc_config(field_name="call_cid"))
+    created_at: datetime = dc_field(
+        metadata=dc_config(
+            field_name="created_at",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        )
+    )
+    user_id: str = dc_field(metadata=dc_config(field_name="user_id"))
+    custom: Dict[str, object] = dc_field(metadata=dc_config(field_name="custom"))
+    type: str = dc_field(
+        default="call.moderation_blur", metadata=dc_config(field_name="type")
+    )
+
+
+@dataclass
+class CallModerationWarningEvent(DataClassJsonMixin):
+    call_cid: str = dc_field(metadata=dc_config(field_name="call_cid"))
+    created_at: datetime = dc_field(
+        metadata=dc_config(
+            field_name="created_at",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        )
+    )
+    message: str = dc_field(metadata=dc_config(field_name="message"))
+    user_id: str = dc_field(metadata=dc_config(field_name="user_id"))
+    custom: Dict[str, object] = dc_field(metadata=dc_config(field_name="custom"))
+    type: str = dc_field(
+        default="call.moderation_warning", metadata=dc_config(field_name="type")
+    )
+
+
+@dataclass
 class CallNotificationEvent(DataClassJsonMixin):
     call_cid: str = dc_field(metadata=dc_config(field_name="call_cid"))
     created_at: datetime = dc_field(
@@ -2692,6 +2744,9 @@ class CallTranscriptionFailedEvent(DataClassJsonMixin):
     type: str = dc_field(
         default="call.transcription_failed", metadata=dc_config(field_name="type")
     )
+    error: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="error")
+    )
 
 
 @dataclass
@@ -2758,9 +2813,6 @@ class CallType(DataClassJsonMixin):
             decoder=datetime_from_unix_ns,
             mm_field=fields.DateTime(format="iso"),
         )
-    )
-    enable_live_insights: bool = dc_field(
-        metadata=dc_config(field_name="EnableLiveInsights")
     )
     external_storage: str = dc_field(metadata=dc_config(field_name="ExternalStorage"))
     name: str = dc_field(metadata=dc_config(field_name="Name"))
@@ -3196,6 +3248,9 @@ class ChannelConfig(DataClassJsonMixin):
     )
     uploads: bool = dc_field(metadata=dc_config(field_name="uploads"))
     url_enrichment: bool = dc_field(metadata=dc_config(field_name="url_enrichment"))
+    user_message_reminders: bool = dc_field(
+        metadata=dc_config(field_name="user_message_reminders")
+    )
     commands: List[str] = dc_field(metadata=dc_config(field_name="commands"))
     blocklist: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="blocklist")
@@ -3206,7 +3261,7 @@ class ChannelConfig(DataClassJsonMixin):
     partition_size: Optional[int] = dc_field(
         default=None, metadata=dc_config(field_name="partition_size")
     )
-    partition_ttl: Optional[str] = dc_field(
+    partition_ttl: Optional[int] = dc_field(
         default=None, metadata=dc_config(field_name="partition_ttl")
     )
     allowed_flag_reasons: Optional[List[str]] = dc_field(
@@ -3266,6 +3321,9 @@ class ChannelConfigWithInfo(DataClassJsonMixin):
     )
     uploads: bool = dc_field(metadata=dc_config(field_name="uploads"))
     url_enrichment: bool = dc_field(metadata=dc_config(field_name="url_enrichment"))
+    user_message_reminders: bool = dc_field(
+        metadata=dc_config(field_name="user_message_reminders")
+    )
     commands: "List[Command]" = dc_field(metadata=dc_config(field_name="commands"))
     blocklist: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="blocklist")
@@ -4055,6 +4113,9 @@ class ChannelTypeConfig(DataClassJsonMixin):
     )
     uploads: bool = dc_field(metadata=dc_config(field_name="uploads"))
     url_enrichment: bool = dc_field(metadata=dc_config(field_name="url_enrichment"))
+    user_message_reminders: bool = dc_field(
+        metadata=dc_config(field_name="user_message_reminders")
+    )
     commands: "List[Command]" = dc_field(metadata=dc_config(field_name="commands"))
     permissions: "List[PolicyRequest]" = dc_field(
         metadata=dc_config(field_name="permissions")
@@ -4186,6 +4247,9 @@ class CheckPushRequest(DataClassJsonMixin):
     apn_template: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="apn_template")
     )
+    event_type: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="event_type")
+    )
     firebase_data_template: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="firebase_data_template")
     )
@@ -4215,6 +4279,9 @@ class CheckPushRequest(DataClassJsonMixin):
 @dataclass
 class CheckPushResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    event_type: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="event_type")
+    )
     rendered_apn_template: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="rendered_apn_template")
     )
@@ -4449,6 +4516,9 @@ class ConfigOverrides(DataClassJsonMixin):
     url_enrichment: Optional[bool] = dc_field(
         default=None, metadata=dc_config(field_name="url_enrichment")
     )
+    user_message_reminders: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="user_message_reminders")
+    )
 
 
 @dataclass
@@ -4499,6 +4569,9 @@ class ConfigResponse(DataClassJsonMixin):
     )
     velocity_filter_config: "Optional[VelocityFilterConfig]" = dc_field(
         default=None, metadata=dc_config(field_name="velocity_filter_config")
+    )
+    video_call_rule_config: "Optional[VideoCallRuleConfig]" = dc_field(
+        default=None, metadata=dc_config(field_name="video_call_rule_config")
     )
 
 
@@ -4646,6 +4719,9 @@ class CreateChannelTypeRequest(DataClassJsonMixin):
     url_enrichment: Optional[bool] = dc_field(
         default=None, metadata=dc_config(field_name="url_enrichment")
     )
+    user_message_reminders: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="user_message_reminders")
+    )
     blocklists: "Optional[List[BlockListOptions]]" = dc_field(
         default=None, metadata=dc_config(field_name="blocklists")
     )
@@ -4707,6 +4783,9 @@ class CreateChannelTypeResponse(DataClassJsonMixin):
     )
     uploads: bool = dc_field(metadata=dc_config(field_name="uploads"))
     url_enrichment: bool = dc_field(metadata=dc_config(field_name="url_enrichment"))
+    user_message_reminders: bool = dc_field(
+        metadata=dc_config(field_name="user_message_reminders")
+    )
     commands: List[str] = dc_field(metadata=dc_config(field_name="commands"))
     permissions: "List[PolicyRequest]" = dc_field(
         metadata=dc_config(field_name="permissions")
@@ -4881,6 +4960,25 @@ class CreatePollRequest(DataClassJsonMixin):
     )
     custom: Optional[Dict[str, object]] = dc_field(
         default=None, metadata=dc_config(field_name="Custom")
+    )
+    user: "Optional[UserRequest]" = dc_field(
+        default=None, metadata=dc_config(field_name="user")
+    )
+
+
+@dataclass
+class CreateReminderRequest(DataClassJsonMixin):
+    remind_at: Optional[datetime] = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="remind_at",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+    )
+    user_id: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="user_id")
     )
     user: "Optional[UserRequest]" = dc_field(
         default=None, metadata=dc_config(field_name="user")
@@ -5163,6 +5261,11 @@ class DeleteReactionResponse(DataClassJsonMixin):
 
 @dataclass
 class DeleteRecordingResponse(DataClassJsonMixin):
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
+
+
+@dataclass
+class DeleteReminderResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
 
 
@@ -5708,6 +5811,83 @@ class ErrorResult(DataClassJsonMixin):
     )
     version: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="version")
+    )
+
+
+@dataclass
+class EventHook(DataClassJsonMixin):
+    created_at: Optional[datetime] = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="created_at",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+    )
+    enabled: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="enabled")
+    )
+    hook_type: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="hook_type")
+    )
+    id: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="id"))
+    sns_auth_type: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="sns_auth_type")
+    )
+    sns_key: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="sns_key")
+    )
+    sns_region: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="sns_region")
+    )
+    sns_role_arn: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="sns_role_arn")
+    )
+    sns_secret: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="sns_secret")
+    )
+    sns_topic_arn: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="sns_topic_arn")
+    )
+    sqs_auth_type: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="sqs_auth_type")
+    )
+    sqs_key: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="sqs_key")
+    )
+    sqs_queue_url: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="sqs_queue_url")
+    )
+    sqs_region: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="sqs_region")
+    )
+    sqs_role_arn: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="sqs_role_arn")
+    )
+    sqs_secret: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="sqs_secret")
+    )
+    timeout_ms: Optional[int] = dc_field(
+        default=None, metadata=dc_config(field_name="timeout_ms")
+    )
+    updated_at: Optional[datetime] = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="updated_at",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+    )
+    webhook_url: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="webhook_url")
+    )
+    event_types: Optional[List[str]] = dc_field(
+        default=None, metadata=dc_config(field_name="event_types")
+    )
+    callback: "Optional[AsyncModerationCallbackConfig]" = dc_field(
+        default=None, metadata=dc_config(field_name="callback")
     )
 
 
@@ -6307,6 +6487,9 @@ class GetCallReportResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
     session_id: str = dc_field(metadata=dc_config(field_name="session_id"))
     report: "ReportResponse" = dc_field(metadata=dc_config(field_name="report"))
+    video_reactions: "Optional[List[VideoReactionsResponse]]" = dc_field(
+        default=None, metadata=dc_config(field_name="video_reactions")
+    )
     chat_activity: "Optional[ChatActivityStatsResponse]" = dc_field(
         default=None, metadata=dc_config(field_name="chat_activity")
     )
@@ -6412,6 +6595,9 @@ class GetChannelTypeResponse(DataClassJsonMixin):
     )
     uploads: bool = dc_field(metadata=dc_config(field_name="uploads"))
     url_enrichment: bool = dc_field(metadata=dc_config(field_name="url_enrichment"))
+    user_message_reminders: bool = dc_field(
+        metadata=dc_config(field_name="user_message_reminders")
+    )
     commands: "List[Command]" = dc_field(metadata=dc_config(field_name="commands"))
     permissions: "List[PolicyRequest]" = dc_field(
         metadata=dc_config(field_name="permissions")
@@ -6805,6 +6991,14 @@ class HLSSettingsResponse(DataClassJsonMixin):
         metadata=dc_config(field_name="quality_tracks")
     )
     layout: "LayoutSettingsResponse" = dc_field(metadata=dc_config(field_name="layout"))
+
+
+@dataclass
+class HarmConfig(DataClassJsonMixin):
+    severity: int = dc_field(metadata=dc_config(field_name="severity"))
+    action_sequences: "List[ActionSequence]" = dc_field(
+        metadata=dc_config(field_name="action_sequences")
+    )
 
 
 @dataclass
@@ -7463,6 +7657,9 @@ class Message(DataClassJsonMixin):
     quoted_message: "Optional[Message]" = dc_field(
         default=None, metadata=dc_config(field_name="quoted_message")
     )
+    reminder: "Optional[MessageReminder]" = dc_field(
+        default=None, metadata=dc_config(field_name="reminder")
+    )
     user: "Optional[User]" = dc_field(
         default=None, metadata=dc_config(field_name="user")
     )
@@ -7765,6 +7962,48 @@ class MessageReadEvent(DataClassJsonMixin):
 
 
 @dataclass
+class MessageReminder(DataClassJsonMixin):
+    channel_cid: str = dc_field(metadata=dc_config(field_name="channel_cid"))
+    created_at: datetime = dc_field(
+        metadata=dc_config(
+            field_name="created_at",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        )
+    )
+    message_id: str = dc_field(metadata=dc_config(field_name="message_id"))
+    task_id: str = dc_field(metadata=dc_config(field_name="task_id"))
+    updated_at: datetime = dc_field(
+        metadata=dc_config(
+            field_name="updated_at",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        )
+    )
+    user_id: str = dc_field(metadata=dc_config(field_name="user_id"))
+    remind_at: Optional[datetime] = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="remind_at",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+    )
+    channel: "Optional[Channel]" = dc_field(
+        default=None, metadata=dc_config(field_name="channel")
+    )
+    message: "Optional[Message]" = dc_field(
+        default=None, metadata=dc_config(field_name="message")
+    )
+    user: "Optional[User]" = dc_field(
+        default=None, metadata=dc_config(field_name="user")
+    )
+
+
+@dataclass
 class MessageRequest(DataClassJsonMixin):
     html: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="html"))
     id: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="id"))
@@ -7958,6 +8197,9 @@ class MessageResponse(DataClassJsonMixin):
     )
     reaction_groups: "Optional[Dict[str, Optional[ReactionGroupResponse]]]" = dc_field(
         default=None, metadata=dc_config(field_name="reaction_groups")
+    )
+    reminder: "Optional[ReminderResponseData]" = dc_field(
+        default=None, metadata=dc_config(field_name="reminder")
     )
 
 
@@ -8191,6 +8433,9 @@ class MessageWithChannelResponse(DataClassJsonMixin):
     )
     reaction_groups: "Optional[Dict[str, Optional[ReactionGroupResponse]]]" = dc_field(
         default=None, metadata=dc_config(field_name="reaction_groups")
+    )
+    reminder: "Optional[ReminderResponseData]" = dc_field(
+        default=None, metadata=dc_config(field_name="reminder")
     )
 
 
@@ -10148,6 +10393,37 @@ class QueryReactionsResponse(DataClassJsonMixin):
 
 
 @dataclass
+class QueryRemindersRequest(DataClassJsonMixin):
+    limit: Optional[int] = dc_field(
+        default=None, metadata=dc_config(field_name="limit")
+    )
+    next: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="next"))
+    prev: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="prev"))
+    user_id: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="user_id")
+    )
+    sort: "Optional[List[SortParamRequest]]" = dc_field(
+        default=None, metadata=dc_config(field_name="sort")
+    )
+    filter: Optional[Dict[str, object]] = dc_field(
+        default=None, metadata=dc_config(field_name="filter")
+    )
+    user: "Optional[UserRequest]" = dc_field(
+        default=None, metadata=dc_config(field_name="user")
+    )
+
+
+@dataclass
+class QueryRemindersResponse(DataClassJsonMixin):
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    reminders: "List[ReminderResponseData]" = dc_field(
+        metadata=dc_config(field_name="reminders")
+    )
+    next: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="next"))
+    prev: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="prev"))
+
+
+@dataclass
 class QueryReviewQueueRequest(DataClassJsonMixin):
     limit: Optional[int] = dc_field(
         default=None, metadata=dc_config(field_name="limit")
@@ -10735,6 +11011,47 @@ class RecordingEgressConfig(DataClassJsonMixin):
     )
     video_orientation_hint: "Optional[VideoOrientation]" = dc_field(
         default=None, metadata=dc_config(field_name="video_orientation_hint")
+    )
+
+
+@dataclass
+class ReminderResponseData(DataClassJsonMixin):
+    channel_cid: str = dc_field(metadata=dc_config(field_name="channel_cid"))
+    created_at: datetime = dc_field(
+        metadata=dc_config(
+            field_name="created_at",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        )
+    )
+    message_id: str = dc_field(metadata=dc_config(field_name="message_id"))
+    updated_at: datetime = dc_field(
+        metadata=dc_config(
+            field_name="updated_at",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        )
+    )
+    user_id: str = dc_field(metadata=dc_config(field_name="user_id"))
+    remind_at: Optional[datetime] = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="remind_at",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+    )
+    channel: "Optional[ChannelResponse]" = dc_field(
+        default=None, metadata=dc_config(field_name="channel")
+    )
+    message: "Optional[Message]" = dc_field(
+        default=None, metadata=dc_config(field_name="message")
+    )
+    user: "Optional[User]" = dc_field(
+        default=None, metadata=dc_config(field_name="user")
     )
 
 
@@ -11419,6 +11736,9 @@ class SearchResultMessage(DataClassJsonMixin):
     )
     reaction_groups: "Optional[Dict[str, Optional[ReactionGroupResponse]]]" = dc_field(
         default=None, metadata=dc_config(field_name="reaction_groups")
+    )
+    reminder: "Optional[ReminderResponseData]" = dc_field(
+        default=None, metadata=dc_config(field_name="reminder")
     )
 
 
@@ -12588,6 +12908,9 @@ class UpdateAppRequest(DataClassJsonMixin):
     allowed_flag_reasons: Optional[List[str]] = dc_field(
         default=None, metadata=dc_config(field_name="allowed_flag_reasons")
     )
+    event_hooks: "Optional[List[EventHook]]" = dc_field(
+        default=None, metadata=dc_config(field_name="event_hooks")
+    )
     image_moderation_block_labels: Optional[List[str]] = dc_field(
         default=None, metadata=dc_config(field_name="image_moderation_block_labels")
     )
@@ -12903,6 +13226,9 @@ class UpdateChannelTypeRequest(DataClassJsonMixin):
     url_enrichment: Optional[bool] = dc_field(
         default=None, metadata=dc_config(field_name="url_enrichment")
     )
+    user_message_reminders: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="user_message_reminders")
+    )
     allowed_flag_reasons: Optional[List[str]] = dc_field(
         default=None, metadata=dc_config(field_name="allowed_flag_reasons")
     )
@@ -12970,6 +13296,9 @@ class UpdateChannelTypeResponse(DataClassJsonMixin):
     )
     uploads: bool = dc_field(metadata=dc_config(field_name="uploads"))
     url_enrichment: bool = dc_field(metadata=dc_config(field_name="url_enrichment"))
+    user_message_reminders: bool = dc_field(
+        metadata=dc_config(field_name="user_message_reminders")
+    )
     commands: List[str] = dc_field(metadata=dc_config(field_name="commands"))
     permissions: "List[PolicyRequest]" = dc_field(
         metadata=dc_config(field_name="permissions")
@@ -13177,6 +13506,33 @@ class UpdatePollRequest(DataClassJsonMixin):
 
 
 @dataclass
+class UpdateReminderRequest(DataClassJsonMixin):
+    remind_at: Optional[datetime] = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="remind_at",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+    )
+    user_id: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="user_id")
+    )
+    user: "Optional[UserRequest]" = dc_field(
+        default=None, metadata=dc_config(field_name="user")
+    )
+
+
+@dataclass
+class UpdateReminderResponse(DataClassJsonMixin):
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    reminder: "ReminderResponseData" = dc_field(
+        metadata=dc_config(field_name="reminder")
+    )
+
+
+@dataclass
 class UpdateThreadPartialRequest(DataClassJsonMixin):
     user_id: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="user_id")
@@ -13320,6 +13676,9 @@ class UpsertConfigRequest(DataClassJsonMixin):
     )
     velocity_filter_config: "Optional[VelocityFilterConfig]" = dc_field(
         default=None, metadata=dc_config(field_name="velocity_filter_config")
+    )
+    video_call_rule_config: "Optional[VideoCallRuleConfig]" = dc_field(
+        default=None, metadata=dc_config(field_name="video_call_rule_config")
     )
 
 
@@ -14179,6 +14538,11 @@ class VelocityFilterConfigRule(DataClassJsonMixin):
 
 
 @dataclass
+class VideoCallRuleConfig(DataClassJsonMixin):
+    rules: "Dict[str, HarmConfig]" = dc_field(metadata=dc_config(field_name="rules"))
+
+
+@dataclass
 class VideoEndCallRequest(DataClassJsonMixin):
     pass
 
@@ -14192,6 +14556,21 @@ class VideoKickUserRequest(DataClassJsonMixin):
 class VideoOrientation(DataClassJsonMixin):
     orientation: Optional[int] = dc_field(
         default=None, metadata=dc_config(field_name="orientation")
+    )
+
+
+@dataclass
+class VideoReactionOverTimeResponse(DataClassJsonMixin):
+    by_minute: "Optional[List[CountByMinuteResponse]]" = dc_field(
+        default=None, metadata=dc_config(field_name="by_minute")
+    )
+
+
+@dataclass
+class VideoReactionsResponse(DataClassJsonMixin):
+    reaction: str = dc_field(metadata=dc_config(field_name="reaction"))
+    count_over_time: "Optional[VideoReactionOverTimeResponse]" = dc_field(
+        default=None, metadata=dc_config(field_name="count_over_time")
     )
 
 

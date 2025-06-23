@@ -70,7 +70,7 @@ class Stream(CommonClient):
             timeout=self.timeout,
             stream=self,
         )
-    
+
     @cached_property
     def moderation(self):
         """
