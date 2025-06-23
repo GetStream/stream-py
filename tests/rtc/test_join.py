@@ -370,6 +370,8 @@ async def test_full_echo(client: Stream):
 
         await tts_instance.send("welcome my friend, how's it going?")
 
+        @connection.on("*")
+        @connection.on("call.*")
         @connection.on("audio")
         async def on_audio(pcm: PcmData, user):
             await vad.process_audio(pcm, user)

@@ -15,7 +15,7 @@ async def test_audio_track_empty_queue(audio_track):
     """Test that the track returns silence when the queue is empty."""
     # When queue is empty, should return silence
     frame = await audio_track.recv()
-    
+
     # Check that all planes contain silence (zeros)
     for plane in frame.planes:
         # Convert buffer to numpy array to check values
@@ -31,19 +31,19 @@ async def test_audio_track_exact_20ms(audio_track):
     samples_for_20ms = int(0.02 * 8000)  # 20ms at 8000Hz = 160 samples
     bytes_per_sample = 2  # s16 format = 2 bytes per sample
     required_bytes = samples_for_20ms * bytes_per_sample  # 320 bytes
-    
+
     # Create test data (all 1s)
     test_data = bytes([1] * required_bytes)
-    
+
     # Add data to queue
     await audio_track.write(test_data)
-    
+
     # Get frame from track
     frame = await audio_track.recv()
-    
+
     # Verify frame has correct number of samples
     assert frame.samples == samples_for_20ms
-    
+
     # Verify data in frame is our test data
     for plane in frame.planes:
         buffer_view = memoryview(plane)
@@ -58,28 +58,28 @@ async def test_audio_track_less_than_20ms(audio_track):
     samples_for_10ms = int(0.01 * 8000)  # 10ms at 8000Hz = 80 samples
     bytes_per_sample = 2  # s16 format = 2 bytes per sample
     data_bytes = samples_for_10ms * bytes_per_sample  # 160 bytes
-    
+
     # Create test data (all 1s)
     test_data = bytes([1] * data_bytes)
-    
+
     # Add data to queue
     await audio_track.write(test_data)
-    
+
     # Get frame from track
     frame = await audio_track.recv()
-    
+
     # Full 20ms samples expected (padded)
     samples_for_20ms = int(0.02 * 8000)
     assert frame.samples == samples_for_20ms
-    
+
     # Verify first half of data is our test data and rest is silence
     for plane in frame.planes:
         buffer_view = memoryview(plane)
         buffer_bytes = bytes(buffer_view)
-        
+
         # First part should match our test data
         assert buffer_bytes[:data_bytes] == test_data
-        
+
         # Rest should be zeros (silence)
         assert all(b == 0 for b in buffer_bytes[data_bytes:])
 
@@ -91,19 +91,19 @@ async def test_audio_track_more_than_20ms(audio_track):
     samples_for_30ms = int(0.03 * 8000)  # 30ms at 8000Hz = 240 samples
     bytes_per_sample = 2  # s16 format = 2 bytes per sample
     data_bytes = samples_for_30ms * bytes_per_sample  # 480 bytes
-    
+
     # Create test data (all 1s)
     test_data = bytes([1] * data_bytes)
-    
+
     # Add data to queue
     await audio_track.write(test_data)
-    
+
     # Get frame from track
     frame = await audio_track.recv()
-    
+
     # Should return all samples, not just 20ms worth
     assert frame.samples == samples_for_30ms
-    
+
     # Verify data in frame is our test data
     for plane in frame.planes:
         buffer_view = memoryview(plane)
@@ -117,22 +117,22 @@ async def test_audio_track_multiple_chunks(audio_track):
     samples_for_10ms = int(0.01 * 8000)  # 10ms at 8000Hz = 80 samples
     bytes_per_sample = 2  # s16 format = 2 bytes per sample
     chunk_bytes = samples_for_10ms * bytes_per_sample  # 160 bytes
-    
+
     # Create two different test chunks (10ms each)
     chunk1 = bytes([1] * chunk_bytes)
     chunk2 = bytes([2] * chunk_bytes)
-    
+
     # Add chunks to queue
     await audio_track.write(chunk1)
     await audio_track.write(chunk2)
-    
+
     # Get frame from track
     frame = await audio_track.recv()
-    
+
     # Full 20ms samples expected
     samples_for_20ms = int(0.02 * 8000)
     assert frame.samples == samples_for_20ms
-    
+
     # Verify data in frame contains both chunks in order
     expected_data = chunk1 + chunk2
     for plane in frame.planes:
@@ -145,25 +145,27 @@ async def test_audio_track_stereo(monkeypatch):
     """Test that the track correctly handles stereo audio."""
     # Create a stereo track
     stereo_track = AudioStreamTrack(framerate=8000, stereo=True, format="s16")
-    
+
     # Calculate bytes for 20ms of stereo audio
     samples_for_20ms = int(0.02 * 8000)  # 20ms at 8000Hz = 160 samples
-    bytes_per_sample = 2 * 2  # s16 stereo format = 4 bytes per sample (2 channels * 2 bytes)
+    bytes_per_sample = (
+        2 * 2
+    )  # s16 stereo format = 4 bytes per sample (2 channels * 2 bytes)
     required_bytes = samples_for_20ms * bytes_per_sample  # 640 bytes
-    
+
     # Create test data
     test_data = bytes([1] * required_bytes)
-    
+
     # Add data to queue
     await stereo_track.write(test_data)
-    
+
     # Get frame from track
     frame = await stereo_track.recv()
-    
+
     # Verify frame has correct number of samples
     assert frame.samples == samples_for_20ms
-    
+
     # Verify data in frame is our test data
     for plane in frame.planes:
         buffer_view = memoryview(plane)
-        assert bytes(buffer_view) == test_data 
+        assert bytes(buffer_view) == test_data
