@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from examples.utils import create_user, open_browser
 from getstream import Stream
 from getstream.models import StartClosedCaptionsResponse
-from getstream.plugins.sts.openai_realtime import OpenAIRealtime
+from getstream.plugins.openai import OpenAIRealtime
 
 
 logging.basicConfig(

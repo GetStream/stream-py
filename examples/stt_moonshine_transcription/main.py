@@ -23,11 +23,11 @@ import time
 import uuid
 from dotenv import load_dotenv
 
-from getstream.plugins.vad.silero.vad import Silero
+from getstream.plugins.silero import SileroVAD
 from getstream.stream import Stream
 from getstream.video import rtc
 from getstream.video.rtc.track_util import PcmData
-from getstream.plugins.stt.moonshine import Moonshine
+from getstream.plugins.moonshine import MoonshineSTT
 from examples.utils import create_user, open_browser
 
 
@@ -64,11 +64,11 @@ async def main() -> None:  # noqa: D401
     print("\n🤖 Starting transcription bot…")
     print("Speak in the browser and see transcripts below. Press Ctrl+C to stop.\n")
 
-    stt = Moonshine()
+    stt = MoonshineSTT()
 
     # Initialize Silero VAD for speech detection
     print("🔊 Initializing Silero VAD...")
-    vad = Silero()
+    vad = SileroVAD()
     print("✅ Audio processing pipeline ready: VAD → Moonshine STT")
 
     try:

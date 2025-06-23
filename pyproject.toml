@@ -53,14 +53,19 @@ members = [
 ]
 exclude = [
     "**/__pycache__",
+    "**/tests",
+    "**/*.egg-info",
+    "**/common/tests",
 ]
 
 [tool.uv.sources]
-getstream-plugins-stt-moonshine = { workspace = true }
-getstream-plugins-stt-deepgram = { workspace = true }
-getstream-plugins-tts-elevenlabs = { workspace = true }
-getstream-plugins-vad-silero = { workspace = true }
-getstream-plugins-tts-cartesia = { workspace = true }
+getstream-plugins-deepgram = { workspace = true }
+getstream-plugins-moonshine = { workspace = true }
+getstream-plugins-elevenlabs = { workspace = true }
+getstream-plugins-cartesia = { workspace = true }
+getstream-plugins-openai = { workspace = true }
+getstream-plugins-ten = { workspace = true }
+getstream-plugins-silero = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]

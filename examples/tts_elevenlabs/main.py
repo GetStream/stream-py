@@ -29,7 +29,7 @@ from examples.utils import create_user, open_browser
 from getstream.stream import Stream
 from getstream.video import rtc
 from getstream.video.rtc import audio_track
-from getstream.plugins.tts.elevenlabs import ElevenLabs
+from getstream.plugins.elevenlabs import ElevenLabsTTS
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -60,7 +60,7 @@ async def main() -> None:
     open_browser(client.api_key, token, call_id)
 
     track = audio_track.AudioStreamTrack(framerate=16000)
-    tts = ElevenLabs()  # API key picked from ELEVENLABS_API_KEY
+    tts = ElevenLabsTTS()  # API key picked from ELEVENLABS_API_KEY
     tts.set_output_track(track)
 
     greeting = "Hello there! I'm an ElevenLabs T T S bot speaking inside this call. As this is a minimal example, I'll stop speaking now."

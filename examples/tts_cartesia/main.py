@@ -29,8 +29,7 @@ from examples.utils import create_user, open_browser
 from getstream.stream import Stream
 from getstream.video import rtc
 from getstream.video.rtc import audio_track
-from getstream.plugins.tts.cartesia import CartesiaTTS
-from getstream.video.rtc.pb.stream.video.sfu.models.models_pb2 import Participant
+from getstream.plugins.cartesia import CartesiaTTS
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -86,7 +85,7 @@ async def main() -> None:
 
             await someone_joined.wait()  # blocks here until a listener is present
 
-            # Now it’s safe to speak – nothing will be lost
+            # Now it's safe to speak – nothing will be lost
             await tts.send(greeting)
             logging.info("Sent greeting via TTS")
 

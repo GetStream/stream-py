@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "getstream-plugins-cartesia"
+version = "0.1.0"
+description = "Cartesia plugin for Stream"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+dependencies = [
+    "getstream[webrtc]",
+    "cartesia>=2.0.5",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.18.0",
+]
+
+[tool.uv.sources]
+getstream = { workspace = true }

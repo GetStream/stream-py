@@ -24,7 +24,7 @@ from dotenv import load_dotenv
 from getstream.stream import Stream
 from getstream.video import rtc
 from getstream.video.rtc.track_util import PcmData
-from getstream.plugins.stt.deepgram import Deepgram
+from getstream.plugins.deepgram import DeepgramSTT
 from examples.utils import create_user, open_browser
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -70,7 +70,7 @@ async def main():
     print("\nPress Ctrl+C to stop the transcription bot.\n")
 
     # Initialize Deepgram STT (api_key comes from .env)
-    stt = Deepgram()
+    stt = DeepgramSTT()
 
     try:
         async with await rtc.join(call, bot_user_id) as connection:

@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "getstream-plugins-deepgram"
+version = "0.1.0"
+description = "Deepgram STT plugin for GetStream"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+dependencies = [
+    "getstream[webrtc]",
+    "deepgram-sdk>=2.4.0",
+    "numpy>=1.20.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.18.0",
+]
+
+[tool.uv.sources]
+getstream = { workspace = true }

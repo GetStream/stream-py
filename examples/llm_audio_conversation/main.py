@@ -28,9 +28,9 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 from examples.utils import create_user, open_browser
-from getstream.plugins.stt.deepgram import Deepgram
-from getstream.plugins.tts.elevenlabs import ElevenLabs
-from getstream.plugins.vad.silero import Silero
+from getstream.plugins.deepgram import DeepgramSTT
+from getstream.plugins.elevenlabs import ElevenLabsTTS
+from getstream.plugins.silero import SileroVAD
 from getstream.stream import Stream
 from getstream.video import rtc
 from getstream.video.rtc import audio_track
@@ -73,11 +73,11 @@ async def main():
 
     # Initialize components
     audio = audio_track.AudioStreamTrack(framerate=16000)
-    vad = Silero()
-    stt = Deepgram()
+    vad = SileroVAD()
+    stt = DeepgramSTT()
 
     # Use "Arnold" voice - a default ElevenLabs voice available to all users
-    tts_instance = ElevenLabs(voice_id="VR6AewLTigWG4xSOukaG")  # ID of default voice
+    tts_instance = ElevenLabsTTS(voice_id="VR6AewLTigWG4xSOukaG")  # ID of default voice
     openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     tts_instance.set_output_track(audio)
 
