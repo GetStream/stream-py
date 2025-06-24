@@ -28,9 +28,9 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 from examples.utils import create_user, open_browser
-from getstream.plugins.deepgram import DeepgramSTT
-from getstream.plugins.elevenlabs import ElevenLabsTTS
-from getstream.plugins.silero import SileroVAD
+from getstream_deepgram import DeepgramSTT
+from getstream_elevenlabs import ElevenLabsTTS
+from getstream_silero import SileroVAD
 from getstream.stream import Stream
 from getstream.video import rtc
 from getstream.video.rtc import audio_track

@@ -29,7 +29,7 @@ from examples.utils import create_user, open_browser
 from getstream.stream import Stream
 from getstream.video import rtc
 from getstream.video.rtc import audio_track
-from getstream.plugins.cartesia import CartesiaTTS
+from getstream_cartesia import CartesiaTTS
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")

@@ -23,11 +23,11 @@ import time
 import uuid
 from dotenv import load_dotenv
 
-from getstream.plugins.silero import SileroVAD
+from getstream_silero import SileroVAD
 from getstream.stream import Stream
 from getstream.video import rtc
 from getstream.video.rtc.track_util import PcmData
-from getstream.plugins.moonshine import MoonshineSTT
+from getstream_moonshine import MoonshineSTT
 from examples.utils import create_user, open_browser
 
 

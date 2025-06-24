@@ -3,7 +3,7 @@ from typing import List
 
 import pytest
 
-from getstream.plugins.common.sts import STS
+from getstream_common import STS
 
 
 class DummySTS(STS):

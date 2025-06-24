@@ -1,4 +1,4 @@
-from getstream.plugins.common.tts import TTS
+from getstream_common.tts import TTS
 from getstream.video.rtc.audio_track import AudioStreamTrack
 from typing import Iterator, Optional
 import os

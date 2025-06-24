@@ -58,7 +58,7 @@ import logging
 import os
 from typing import Any, Dict, Optional
 
-from getstream.plugins.common.sts import STS
+from getstream_common.sts import STS
 from getstream.video.call import Call
 from getstream.video.openai import ConnectionManagerWrapper
 

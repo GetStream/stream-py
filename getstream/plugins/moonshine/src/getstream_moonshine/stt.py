@@ -5,7 +5,7 @@ from typing import Dict, Any, Optional, Tuple, List
 import numpy as np
 import soundfile as sf
 
-from getstream.plugins.common.stt import STT
+from getstream_common.stt import STT
 from getstream.video.rtc.track_util import PcmData
 from getstream.audio.utils import resample_audio
 from getstream.audio.pcm_utils import (
@@ -13,9 +13,16 @@ from getstream.audio.pcm_utils import (
     validate_sample_rate_compatibility,
     log_audio_processing_info,
 )
-import moonshine_onnx as moonshine
 
 logger = logging.getLogger(__name__)
+
+# Conditional import of moonshine_onnx
+try:
+    import moonshine_onnx as moonshine
+    MOONSHINE_AVAILABLE = True
+except ImportError:
+    moonshine = None
+    MOONSHINE_AVAILABLE = False
 
 # Supported Moonshine models with canonical mapping
 _SUPPORTED_MODELS = {
@@ -64,6 +71,13 @@ class MoonshineSTT(STT):
             target_dbfs: Target RMS level in dBFS for audio normalization (default: -26.0, Moonshine's optimal level)
         """
         super().__init__(sample_rate=sample_rate, language=language)
+
+        # Check if moonshine_onnx is available
+        if not MOONSHINE_AVAILABLE:
+            raise ImportError(
+                "moonshine_onnx is not installed. "
+                "Please install it with: pip install moonshine-onnx"
+            )
 
         # Validate and normalize model name
         if model_name not in _SUPPORTED_MODELS:

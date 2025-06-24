@@ -49,13 +49,12 @@ default-groups = [
 
 [tool.uv.workspace]
 members = [
-    "getstream/plugins/*/*",
+    "getstream/plugins/*",
 ]
 exclude = [
     "**/__pycache__",
     "**/tests",
     "**/*.egg-info",
-    "**/common/tests",
 ]
 
 [tool.uv.sources]

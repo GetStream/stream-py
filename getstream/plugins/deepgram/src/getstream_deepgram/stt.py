@@ -6,8 +6,17 @@ import numpy as np
 import os
 import time
 
-from deepgram import DeepgramClient, LiveTranscriptionEvents, LiveOptions
-from getstream.plugins.common.stt import STT
+# Conditional imports with error handling
+try:
+    from deepgram import DeepgramClient, LiveTranscriptionEvents, LiveOptions
+    _deepgram_available = True
+except ImportError:
+    DeepgramClient = None  # type: ignore
+    LiveTranscriptionEvents = None  # type: ignore
+    LiveOptions = None  # type: ignore
+    _deepgram_available = False
+
+from getstream_common.stt import STT
 from getstream.video.rtc.track_util import PcmData
 
 logger = logging.getLogger(__name__)
@@ -51,6 +60,12 @@ class DeepgramSTT(STT):
                                 Default is 5.0 seconds (recommended value by Deepgram)
         """
         super().__init__(sample_rate=sample_rate, language=language)
+
+        # Check if deepgram is available
+        if not _deepgram_available:
+            raise ImportError(
+                "deepgram package not installed."
+            )
 
         # If no API key was provided, check for DEEPGRAM_API_KEY in environment
         if api_key is None:

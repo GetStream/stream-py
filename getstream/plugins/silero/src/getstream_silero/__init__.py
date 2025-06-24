@@ -16,6 +16,6 @@ The implementation is designed for streaming audio, handling partial frames
 and emitting events when speech is detected.
 """
 
-from getstream.plugins.silero.vad import SileroVAD
+from .vad import SileroVAD
 
 __all__ = ["SileroVAD"]

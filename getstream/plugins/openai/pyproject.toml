@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=42", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "getstream-plugins-openai"
@@ -8,10 +8,11 @@ version = "0.1.0"
 description = "OpenAI plugin for GetStream"
 readme = "README.md"
 requires-python = ">=3.9"
-license = {text = "MIT"}
+license = "MIT"
 dependencies = [
     "getstream[webrtc]",
-
+    "openai[realtime]>=1.82.0",
+    "trio >=0.22.2",
 ]
 
 [project.optional-dependencies]
@@ -19,6 +20,9 @@ test = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.18.0",
 ]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/getstream_openai"]
 
 [tool.uv.sources]
 getstream = { workspace = true }

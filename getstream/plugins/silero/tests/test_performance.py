@@ -11,7 +11,7 @@ import numpy as np
 
 import pytest
 
-from getstream.plugins.silero import SileroVAD
+from getstream_silero import SileroVAD
 from getstream.video.rtc.track_util import PcmData
 
 

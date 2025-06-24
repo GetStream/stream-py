@@ -6,7 +6,7 @@ from typing import Optional
 from cartesia import AsyncCartesia
 from cartesia.tts import OutputFormat_Raw
 
-from getstream.plugins.common.tts import TTS
+from getstream_common.tts import TTS
 from getstream.video.rtc.audio_track import AudioStreamTrack
 
 

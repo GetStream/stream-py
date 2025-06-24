@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=42", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "getstream-plugins-silero"
@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Silero plugin for GetStream"
 readme = "README.md"
 requires-python = ">=3.8"
-license = {text = "MIT"}
+license = "MIT"
 dependencies = [
     "getstream[webrtc]",
     "torch>=1.11.0",
@@ -23,6 +23,9 @@ test = [
     "torchaudio>=0.11.0",
     "scipy>=1.8.0",
 ]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/getstream_silero"]
 
 [tool.uv.sources]
 getstream = { workspace = true }

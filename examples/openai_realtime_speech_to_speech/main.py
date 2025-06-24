@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from examples.utils import create_user, open_browser
 from getstream import Stream
 from getstream.models import StartClosedCaptionsResponse
-from getstream.plugins.openai import OpenAIRealtime
+from getstream_openai import OpenAIRealtime
 
 
 logging.basicConfig(
@@ -16,7 +16,7 @@ logging.basicConfig(
 )
 
 # Enable verbose logging for the OpenAI Realtime plugin
-logging.getLogger("getstream.plugins.sts.openai_realtime.sts").setLevel(logging.INFO)
+logging.getLogger("getstream_openai.sts").setLevel(logging.INFO)
 
 
 async def main():

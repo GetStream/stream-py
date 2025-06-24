@@ -3,7 +3,7 @@
 Example: Voice-Activity-Detection bot (Silero VAD)
 
 The script joins a Stream video call with a bot that detects when anyone
-speaks, using the Silero VAD plugin (`getstream.plugins.vad.silero`).
+speaks, using the Silero VAD plugin (`getstream_silero`).
 Each complete speech turn is logged with a timestamp and duration.
 
 Run:
@@ -28,11 +28,9 @@ from examples.utils import create_user, open_browser
 from getstream.stream import Stream
 from getstream.video import rtc
 from getstream.video.rtc.track_util import PcmData
-from getstream.plugins.silero import SileroVAD
+from getstream_silero import SileroVAD
 
-# ---------------------------------------------------------------------------
 # Logging setup – INFO level so we see joins / leaves, etc.
-# ---------------------------------------------------------------------------
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s  %(levelname)s  %(message)s",

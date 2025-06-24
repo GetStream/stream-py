@@ -3,7 +3,7 @@ import pytest
 import asyncio
 from unittest.mock import patch, MagicMock
 
-from getstream.plugins.elevenlabs.tts import ElevenLabsTTS
+from getstream_elevenlabs import ElevenLabsTTS
 from getstream.video.rtc.audio_track import AudioStreamTrack
 
 
@@ -53,7 +53,7 @@ async def test_elevenlabs_tts_initialization_with_env_var(mock_env_get):
 
 @pytest.mark.asyncio
 @patch("elevenlabs.client.ElevenLabs", MockElevenLabsClient)
-async def test_elevenlabs_synthesize():
+async def test_elevenlabs_tts_synthesize():
     """Test that synthesize returns an audio stream."""
     tts = ElevenLabsTTS(api_key="test-api-key")
 
@@ -72,7 +72,7 @@ async def test_elevenlabs_synthesize():
 
 @pytest.mark.asyncio
 @patch("elevenlabs.client.ElevenLabs", MockElevenLabsClient)
-async def test_elevenlabs_send():
+async def test_elevenlabs_tts_send():
     """Test that send writes audio to the track and emits events."""
     tts = ElevenLabsTTS(api_key="test-api-key")
 
@@ -101,7 +101,18 @@ async def test_elevenlabs_send():
 
 @pytest.mark.asyncio
 @patch("elevenlabs.client.ElevenLabs", MockElevenLabsClient)
-async def test_elevenlabs_invalid_framerate():
+async def test_elevenlabs_tts_send_without_track():
+    """Test that sending without setting a track raises an error."""
+    tts = ElevenLabsTTS(api_key="test-api-key")
+
+    # Sending without setting a track should raise ValueError
+    with pytest.raises(ValueError, match="No output track set"):
+        await tts.send("Hello, world!")
+
+
+@pytest.mark.asyncio
+@patch("elevenlabs.client.ElevenLabs", MockElevenLabsClient)
+async def test_elevenlabs_tts_invalid_framerate():
     """Test that setting a track with invalid framerate raises an error."""
     tts = ElevenLabsTTS(api_key="test-api-key")
 
@@ -112,17 +123,6 @@ async def test_elevenlabs_invalid_framerate():
     # Setting the invalid track should raise TypeError
     with pytest.raises(TypeError, match="Invalid framerate"):
         tts.set_output_track(invalid_track)
-
-
-@pytest.mark.asyncio
-@patch("elevenlabs.client.ElevenLabs", MockElevenLabsClient)
-async def test_elevenlabs_no_track():
-    """Test that sending without setting a track raises an error."""
-    tts = ElevenLabsTTS(api_key="test-api-key")
-
-    # Sending without setting a track should raise ValueError
-    with pytest.raises(ValueError, match="No output track set"):
-        await tts.send("Hello, world!")
 
 
 @pytest.mark.asyncio
