@@ -377,3 +377,349 @@ def test_sip_inbound_routing_rule_requires_trunk(client):
 
     assert created_rule.name == rule_name
     assert created_rule.trunk_ids == [trunk.id]
+
+
+@cleanup_sip_trunks
+def test_sip_inbound_routing_rule_validation(client):
+    """Test input validation for SIP inbound routing rule create and update operations"""
+
+    # First create a trunk to use for valid tests
+    trunk_name = f"test-trunk-{uuid.uuid4()}"
+    trunk_numbers = ["+1234567890"]
+
+    trunk_response = client.video.create_sip_trunk(
+        name=trunk_name, numbers=trunk_numbers
+    )
+    trunk = trunk_response.data.sip_trunk
+
+    # Test 1: Create with valid data first (baseline)
+    rule_name = f"test-rule-{uuid.uuid4()}"
+    caller_configs = SIPCallerConfigsRequest(
+        id="test-caller-id", role="user", custom_data={"test": "data"}
+    )
+    called_numbers = ["+1234567890"]
+    direct_routing_configs = SIPDirectRoutingRuleCallConfigsRequest(
+        call_id="test-call-id", call_type="default"
+    )
+
+    create_response = client.video.create_sip_inbound_routing_rule(
+        name=rule_name,
+        trunk_ids=[trunk.id],
+        caller_configs=caller_configs,
+        called_numbers=called_numbers,
+        direct_routing_configs=direct_routing_configs,
+    )
+    created_rule = create_response.data
+
+    # Test 2: Create with empty name (should fail - required, min=1)
+    with pytest.raises(StreamAPIException) as exc_info:
+        client.video.create_sip_inbound_routing_rule(
+            name="",
+            trunk_ids=[trunk.id],
+            caller_configs=caller_configs,
+            called_numbers=called_numbers,
+            direct_routing_configs=direct_routing_configs,
+        )
+    assert exc_info.value.status_code == 400
+    assert "name is a required field" in exc_info.value.api_error.message
+    assert "name" in exc_info.value.api_error.exception_fields
+
+    # Test 3: Create with name too long (should fail - max=100)
+    long_name = "a" * 101
+    with pytest.raises(StreamAPIException) as exc_info:
+        client.video.create_sip_inbound_routing_rule(
+            name=long_name,
+            trunk_ids=[trunk.id],
+            caller_configs=caller_configs,
+            called_numbers=called_numbers,
+            direct_routing_configs=direct_routing_configs,
+        )
+    assert exc_info.value.status_code == 400
+
+    # Test 4: Create with empty trunk_ids list (should fail - required, min=1)
+    with pytest.raises(StreamAPIException) as exc_info:
+        client.video.create_sip_inbound_routing_rule(
+            name=rule_name,
+            trunk_ids=[],
+            caller_configs=caller_configs,
+            called_numbers=called_numbers,
+            direct_routing_configs=direct_routing_configs,
+        )
+    assert exc_info.value.status_code == 400
+    assert "trunk_ids is a required field" in exc_info.value.api_error.message
+    assert "trunk_ids" in exc_info.value.api_error.exception_fields
+
+    # Test 5: Create with too many trunk_ids (should fail - max=50)
+    too_many_trunks = [f"trunk-{i}" for i in range(51)]
+    with pytest.raises(StreamAPIException) as exc_info:
+        client.video.create_sip_inbound_routing_rule(
+            name=rule_name,
+            trunk_ids=too_many_trunks,
+            caller_configs=caller_configs,
+            called_numbers=called_numbers,
+            direct_routing_configs=direct_routing_configs,
+        )
+    assert exc_info.value.status_code == 400
+
+    # Test 6: Create with empty string in trunk_ids (should fail - dive,required)
+    with pytest.raises(StreamAPIException) as exc_info:
+        client.video.create_sip_inbound_routing_rule(
+            name=rule_name,
+            trunk_ids=[trunk.id, ""],
+            caller_configs=caller_configs,
+            called_numbers=called_numbers,
+            direct_routing_configs=direct_routing_configs,
+        )
+    assert exc_info.value.status_code == 400
+
+    # Test 7: Create with empty caller_configs.id (should fail - required)
+    invalid_caller_configs = SIPCallerConfigsRequest(id="", role="user")
+    with pytest.raises(StreamAPIException) as exc_info:
+        client.video.create_sip_inbound_routing_rule(
+            name=rule_name,
+            trunk_ids=[trunk.id],
+            caller_configs=invalid_caller_configs,
+            called_numbers=called_numbers,
+            direct_routing_configs=direct_routing_configs,
+        )
+    assert exc_info.value.status_code == 400
+    assert "id is a required field" in exc_info.value.api_error.message
+    assert "caller_configs.id" in exc_info.value.api_error.exception_fields
+
+    # Test 8: Create with caller_configs.id too long (should fail - max=255)
+    long_id = "a" * 256
+    invalid_caller_configs = SIPCallerConfigsRequest(id=long_id, role="user")
+    with pytest.raises(StreamAPIException) as exc_info:
+        client.video.create_sip_inbound_routing_rule(
+            name=rule_name,
+            trunk_ids=[trunk.id],
+            caller_configs=invalid_caller_configs,
+            called_numbers=called_numbers,
+            direct_routing_configs=direct_routing_configs,
+        )
+    assert exc_info.value.status_code == 400
+
+    # Test 9: Create with caller_configs.role too long (should fail - max=100)
+    long_role = "a" * 101
+    invalid_caller_configs = SIPCallerConfigsRequest(id="test-id", role=long_role)
+    with pytest.raises(StreamAPIException) as exc_info:
+        client.video.create_sip_inbound_routing_rule(
+            name=rule_name,
+            trunk_ids=[trunk.id],
+            caller_configs=invalid_caller_configs,
+            called_numbers=called_numbers,
+            direct_routing_configs=direct_routing_configs,
+        )
+    assert exc_info.value.status_code == 400
+
+    # Test 10: Create with empty direct_routing_configs.call_type (should fail - required)
+    invalid_direct_configs = SIPDirectRoutingRuleCallConfigsRequest(
+        call_id="test-call-id", call_type=""
+    )
+    with pytest.raises(StreamAPIException) as exc_info:
+        client.video.create_sip_inbound_routing_rule(
+            name=rule_name,
+            trunk_ids=[trunk.id],
+            caller_configs=caller_configs,
+            called_numbers=called_numbers,
+            direct_routing_configs=invalid_direct_configs,
+        )
+    assert exc_info.value.status_code == 400
+    assert "call_type is a required field" in exc_info.value.api_error.message
+    assert (
+        "direct_routing_configs.call_type" in exc_info.value.api_error.exception_fields
+    )
+
+    # Test 11: Create with direct_routing_configs.call_type too long (should fail - max=100)
+    long_call_type = "a" * 101
+    invalid_direct_configs = SIPDirectRoutingRuleCallConfigsRequest(
+        call_id="test-call-id", call_type=long_call_type
+    )
+    with pytest.raises(StreamAPIException) as exc_info:
+        client.video.create_sip_inbound_routing_rule(
+            name=rule_name,
+            trunk_ids=[trunk.id],
+            caller_configs=caller_configs,
+            called_numbers=called_numbers,
+            direct_routing_configs=invalid_direct_configs,
+        )
+    assert exc_info.value.status_code == 400
+
+    # Test 12: Create with empty direct_routing_configs.call_id (should fail - required)
+    invalid_direct_configs = SIPDirectRoutingRuleCallConfigsRequest(
+        call_id="", call_type="default"
+    )
+    with pytest.raises(StreamAPIException) as exc_info:
+        client.video.create_sip_inbound_routing_rule(
+            name=rule_name,
+            trunk_ids=[trunk.id],
+            caller_configs=caller_configs,
+            called_numbers=called_numbers,
+            direct_routing_configs=invalid_direct_configs,
+        )
+    assert exc_info.value.status_code == 400
+    assert "call_id is a required field" in exc_info.value.api_error.message
+    assert "direct_routing_configs.call_id" in exc_info.value.api_error.exception_fields
+
+    # Test 13: Create with direct_routing_configs.call_id too long (should fail - max=255)
+    long_call_id = "a" * 256
+    invalid_direct_configs = SIPDirectRoutingRuleCallConfigsRequest(
+        call_id=long_call_id, call_type="default"
+    )
+    with pytest.raises(StreamAPIException) as exc_info:
+        client.video.create_sip_inbound_routing_rule(
+            name=rule_name,
+            trunk_ids=[trunk.id],
+            caller_configs=caller_configs,
+            called_numbers=called_numbers,
+            direct_routing_configs=invalid_direct_configs,
+        )
+    assert exc_info.value.status_code == 400
+
+    # Test 14: Create with too many called_numbers (should fail - max=50)
+    too_many_called = [f"+{i:010d}" for i in range(51)]
+    with pytest.raises(StreamAPIException) as exc_info:
+        client.video.create_sip_inbound_routing_rule(
+            name=rule_name,
+            trunk_ids=[trunk.id],
+            caller_configs=caller_configs,
+            called_numbers=too_many_called,
+            direct_routing_configs=direct_routing_configs,
+        )
+    assert exc_info.value.status_code == 400
+
+    # Test 15: Create with empty string in called_numbers (should fail - dive,required)
+    with pytest.raises(StreamAPIException) as exc_info:
+        client.video.create_sip_inbound_routing_rule(
+            name=rule_name,
+            trunk_ids=[trunk.id],
+            caller_configs=caller_configs,
+            called_numbers=["+1234567890", ""],
+            direct_routing_configs=direct_routing_configs,
+        )
+    assert exc_info.value.status_code == 400
+
+    # Test 16: Create with too many caller_numbers (should fail - max=50)
+    too_many_caller = [f"+{i:010d}" for i in range(51)]
+    with pytest.raises(StreamAPIException) as exc_info:
+        client.video.create_sip_inbound_routing_rule(
+            name=rule_name,
+            trunk_ids=[trunk.id],
+            caller_configs=caller_configs,
+            called_numbers=called_numbers,
+            caller_numbers=too_many_caller,
+            direct_routing_configs=direct_routing_configs,
+        )
+    assert exc_info.value.status_code == 400
+
+    # Test 17: Create with empty string in caller_numbers (should fail - dive,required)
+    with pytest.raises(StreamAPIException) as exc_info:
+        client.video.create_sip_inbound_routing_rule(
+            name=rule_name,
+            trunk_ids=[trunk.id],
+            caller_configs=caller_configs,
+            called_numbers=called_numbers,
+            caller_numbers=["+1234567890", ""],
+            direct_routing_configs=direct_routing_configs,
+        )
+    assert exc_info.value.status_code == 400
+
+    # Test 18: Create with both direct_routing_configs and pin_routing_configs (should fail)
+    from getstream.models import SIPInboundRoutingRulePinConfigsRequest
+
+    pin_routing_configs = SIPInboundRoutingRulePinConfigsRequest(pin_prompt="Enter PIN")
+    with pytest.raises(StreamAPIException) as exc_info:
+        client.video.create_sip_inbound_routing_rule(
+            name=rule_name,
+            trunk_ids=[trunk.id],
+            caller_configs=caller_configs,
+            called_numbers=called_numbers,
+            direct_routing_configs=direct_routing_configs,
+            pin_routing_configs=pin_routing_configs,
+        )
+    assert exc_info.value.status_code == 400
+    assert (
+        "only one of direct_routing_configs or pin_routing_configs can be set"
+        in exc_info.value.api_error.message
+    )
+
+    # Test 19: Create with neither direct_routing_configs nor pin_routing_configs (should fail)
+    with pytest.raises(StreamAPIException) as exc_info:
+        client.video.create_sip_inbound_routing_rule(
+            name=rule_name,
+            trunk_ids=[trunk.id],
+            caller_configs=caller_configs,
+            called_numbers=called_numbers,
+        )
+    assert exc_info.value.status_code == 400
+    assert (
+        "either direct_routing_configs or pin_routing_configs must be set"
+        in exc_info.value.api_error.message
+    )
+
+    # Test 20: Update with valid data (should succeed)
+    updated_name = f"updated-{rule_name}"
+    updated_called_numbers = ["+9876543210"]
+    updated_caller_configs = SIPCallerConfigsRequest(
+        id="updated-caller-id", role="admin", custom_data={"updated": "data"}
+    )
+    updated_direct_routing_configs = SIPDirectRoutingRuleCallConfigsRequest(
+        call_id="updated-call-id", call_type="default"
+    )
+
+    update_response = client.video.update_sip_inbound_routing_rule(
+        id=created_rule.id,
+        name=updated_name,
+        called_numbers=updated_called_numbers,
+        trunk_ids=[trunk.id],
+        caller_configs=updated_caller_configs,
+        direct_routing_configs=updated_direct_routing_configs,
+    )
+    updated_rule = update_response.data.sip_inbound_routing_rule
+
+    assert updated_rule.name == updated_name
+    assert updated_rule.called_numbers == updated_called_numbers
+    assert updated_rule.caller_configs.id == "updated-caller-id"
+    assert updated_rule.caller_configs.role == "admin"
+
+    # Test 21: Update with empty name (should fail - required, min=1)
+    with pytest.raises(StreamAPIException) as exc_info:
+        client.video.update_sip_inbound_routing_rule(
+            id=created_rule.id,
+            name="",
+            called_numbers=updated_called_numbers,
+            trunk_ids=[trunk.id],
+            caller_configs=updated_caller_configs,
+            direct_routing_configs=updated_direct_routing_configs,
+        )
+    assert exc_info.value.status_code == 400
+    assert "name is a required field" in exc_info.value.api_error.message
+    assert "name" in exc_info.value.api_error.exception_fields
+
+    # Test 22: Update with empty called_numbers (should fail - required, min=1)
+    with pytest.raises(StreamAPIException) as exc_info:
+        client.video.update_sip_inbound_routing_rule(
+            id=created_rule.id,
+            name=updated_name,
+            called_numbers=[],
+            trunk_ids=[trunk.id],
+            caller_configs=updated_caller_configs,
+            direct_routing_configs=updated_direct_routing_configs,
+        )
+    assert exc_info.value.status_code == 400
+    assert "called_numbers is a required field" in exc_info.value.api_error.message
+    assert "called_numbers" in exc_info.value.api_error.exception_fields
+
+    # Test 23: Update with empty trunk_ids (should fail - required, min=1)
+    with pytest.raises(StreamAPIException) as exc_info:
+        client.video.update_sip_inbound_routing_rule(
+            id=created_rule.id,
+            name=updated_name,
+            called_numbers=updated_called_numbers,
+            trunk_ids=[],
+            caller_configs=updated_caller_configs,
+            direct_routing_configs=updated_direct_routing_configs,
+        )
+    assert exc_info.value.status_code == 400
+    assert "trunk_ids is a required field" in exc_info.value.api_error.message
+    assert "trunk_ids" in exc_info.value.api_error.exception_fields
