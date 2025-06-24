@@ -4997,6 +4997,20 @@ class CreateRoleResponse(DataClassJsonMixin):
 
 
 @dataclass
+class CreateSIPTrunkRequest(DataClassJsonMixin):
+    name: str = dc_field(metadata=dc_config(field_name="name"))
+    numbers: List[str] = dc_field(metadata=dc_config(field_name="numbers"))
+
+
+@dataclass
+class CreateSIPTrunkResponse(DataClassJsonMixin):
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    sip_trunk: "Optional[SIPTrunkResponse]" = dc_field(
+        default=None, metadata=dc_config(field_name="sip_trunk")
+    )
+
+
+@dataclass
 class CustomActionRequest(DataClassJsonMixin):
     id: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="id"))
     options: Optional[Dict[str, object]] = dc_field(
@@ -5266,6 +5280,16 @@ class DeleteRecordingResponse(DataClassJsonMixin):
 
 @dataclass
 class DeleteReminderResponse(DataClassJsonMixin):
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
+
+
+@dataclass
+class DeleteSIPInboundRoutingRuleResponse(DataClassJsonMixin):
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
+
+
+@dataclass
+class DeleteSIPTrunkResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
 
 
@@ -7327,6 +7351,22 @@ class ListRecordingsResponse(DataClassJsonMixin):
 class ListRolesResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
     roles: "List[Role]" = dc_field(metadata=dc_config(field_name="roles"))
+
+
+@dataclass
+class ListSIPInboundRoutingRuleResponse(DataClassJsonMixin):
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    sip_inbound_routing_rules: "List[SIPInboundRoutingRuleResponse]" = dc_field(
+        metadata=dc_config(field_name="sip_inbound_routing_rules")
+    )
+
+
+@dataclass
+class ListSIPTrunksResponse(DataClassJsonMixin):
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    sip_trunks: "List[SIPTrunkResponse]" = dc_field(
+        metadata=dc_config(field_name="sip_trunks")
+    )
 
 
 @dataclass
@@ -11494,6 +11534,214 @@ class SFUIDLastSeen(DataClassJsonMixin):
 
 
 @dataclass
+class SIPCallConfigsRequest(DataClassJsonMixin):
+    custom_data: Optional[Dict[str, object]] = dc_field(
+        default=None, metadata=dc_config(field_name="custom_data")
+    )
+
+
+@dataclass
+class SIPCallConfigsResponse(DataClassJsonMixin):
+    custom_data: Dict[str, object] = dc_field(
+        metadata=dc_config(field_name="custom_data")
+    )
+
+
+@dataclass
+class SIPCallerConfigsRequest(DataClassJsonMixin):
+    id: str = dc_field(metadata=dc_config(field_name="id"))
+    role: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="role"))
+    custom_data: Optional[Dict[str, object]] = dc_field(
+        default=None, metadata=dc_config(field_name="custom_data")
+    )
+
+
+@dataclass
+class SIPCallerConfigsResponse(DataClassJsonMixin):
+    id: str = dc_field(metadata=dc_config(field_name="id"))
+    role: str = dc_field(metadata=dc_config(field_name="role"))
+    custom_data: Dict[str, object] = dc_field(
+        metadata=dc_config(field_name="custom_data")
+    )
+
+
+@dataclass
+class SIPDirectRoutingRuleCallConfigsRequest(DataClassJsonMixin):
+    call_id: str = dc_field(metadata=dc_config(field_name="call_id"))
+    call_type: str = dc_field(metadata=dc_config(field_name="call_type"))
+
+
+@dataclass
+class SIPDirectRoutingRuleCallConfigsResponse(DataClassJsonMixin):
+    call_id: str = dc_field(metadata=dc_config(field_name="call_id"))
+    call_type: str = dc_field(metadata=dc_config(field_name="call_type"))
+
+
+@dataclass
+class SIPInboundRoutingRulePinConfigsRequest(DataClassJsonMixin):
+    custom_webhook_url: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="custom_webhook_url")
+    )
+    pin_failed_attempt_prompt: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="pin_failed_attempt_prompt")
+    )
+    pin_hangup_prompt: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="pin_hangup_prompt")
+    )
+    pin_prompt: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="pin_prompt")
+    )
+    pin_success_prompt: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="pin_success_prompt")
+    )
+
+
+@dataclass
+class SIPInboundRoutingRulePinConfigsResponse(DataClassJsonMixin):
+    custom_webhook_url: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="custom_webhook_url")
+    )
+    pin_failed_attempt_prompt: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="pin_failed_attempt_prompt")
+    )
+    pin_hangup_prompt: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="pin_hangup_prompt")
+    )
+    pin_prompt: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="pin_prompt")
+    )
+    pin_success_prompt: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="pin_success_prompt")
+    )
+
+
+@dataclass
+class SIPInboundRoutingRuleRequest(DataClassJsonMixin):
+    name: str = dc_field(metadata=dc_config(field_name="name"))
+    trunk_ids: List[str] = dc_field(metadata=dc_config(field_name="trunk_ids"))
+    caller_configs: "SIPCallerConfigsRequest" = dc_field(
+        metadata=dc_config(field_name="caller_configs")
+    )
+    called_numbers: Optional[List[str]] = dc_field(
+        default=None, metadata=dc_config(field_name="called_numbers")
+    )
+    caller_numbers: Optional[List[str]] = dc_field(
+        default=None, metadata=dc_config(field_name="caller_numbers")
+    )
+    call_configs: "Optional[SIPCallConfigsRequest]" = dc_field(
+        default=None, metadata=dc_config(field_name="call_configs")
+    )
+    direct_routing_configs: "Optional[SIPDirectRoutingRuleCallConfigsRequest]" = (
+        dc_field(default=None, metadata=dc_config(field_name="direct_routing_configs"))
+    )
+    pin_protection_configs: "Optional[SIPPinProtectionConfigsRequest]" = dc_field(
+        default=None, metadata=dc_config(field_name="pin_protection_configs")
+    )
+    pin_routing_configs: "Optional[SIPInboundRoutingRulePinConfigsRequest]" = dc_field(
+        default=None, metadata=dc_config(field_name="pin_routing_configs")
+    )
+
+
+@dataclass
+class SIPInboundRoutingRuleResponse(DataClassJsonMixin):
+    created_at: datetime = dc_field(
+        metadata=dc_config(
+            field_name="created_at",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        )
+    )
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    id: str = dc_field(metadata=dc_config(field_name="id"))
+    name: str = dc_field(metadata=dc_config(field_name="name"))
+    updated_at: datetime = dc_field(
+        metadata=dc_config(
+            field_name="updated_at",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        )
+    )
+    called_numbers: List[str] = dc_field(
+        metadata=dc_config(field_name="called_numbers")
+    )
+    trunk_ids: List[str] = dc_field(metadata=dc_config(field_name="trunk_ids"))
+    caller_numbers: Optional[List[str]] = dc_field(
+        default=None, metadata=dc_config(field_name="caller_numbers")
+    )
+    call_configs: "Optional[SIPCallConfigsResponse]" = dc_field(
+        default=None, metadata=dc_config(field_name="call_configs")
+    )
+    caller_configs: "Optional[SIPCallerConfigsResponse]" = dc_field(
+        default=None, metadata=dc_config(field_name="caller_configs")
+    )
+    direct_routing_configs: "Optional[SIPDirectRoutingRuleCallConfigsResponse]" = (
+        dc_field(default=None, metadata=dc_config(field_name="direct_routing_configs"))
+    )
+    pin_protection_configs: "Optional[SIPPinProtectionConfigsResponse]" = dc_field(
+        default=None, metadata=dc_config(field_name="pin_protection_configs")
+    )
+    pin_routing_configs: "Optional[SIPInboundRoutingRulePinConfigsResponse]" = dc_field(
+        default=None, metadata=dc_config(field_name="pin_routing_configs")
+    )
+
+
+@dataclass
+class SIPPinProtectionConfigsRequest(DataClassJsonMixin):
+    default_pin: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="default_pin")
+    )
+    enabled: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="enabled")
+    )
+    max_attempts: Optional[int] = dc_field(
+        default=None, metadata=dc_config(field_name="max_attempts")
+    )
+    required_pin_digits: Optional[int] = dc_field(
+        default=None, metadata=dc_config(field_name="required_pin_digits")
+    )
+
+
+@dataclass
+class SIPPinProtectionConfigsResponse(DataClassJsonMixin):
+    enabled: bool = dc_field(metadata=dc_config(field_name="enabled"))
+    default_pin: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="default_pin")
+    )
+    max_attempts: Optional[int] = dc_field(
+        default=None, metadata=dc_config(field_name="max_attempts")
+    )
+    required_pin_digits: Optional[int] = dc_field(
+        default=None, metadata=dc_config(field_name="required_pin_digits")
+    )
+
+
+@dataclass
+class SIPTrunkResponse(DataClassJsonMixin):
+    created_at: datetime = dc_field(
+        metadata=dc_config(
+            field_name="created_at",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        )
+    )
+    id: str = dc_field(metadata=dc_config(field_name="id"))
+    name: str = dc_field(metadata=dc_config(field_name="name"))
+    password: str = dc_field(metadata=dc_config(field_name="password"))
+    updated_at: datetime = dc_field(
+        metadata=dc_config(
+            field_name="updated_at",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        )
+    )
+    numbers: List[str] = dc_field(metadata=dc_config(field_name="numbers"))
+
+
+@dataclass
 class STTEgressConfig(DataClassJsonMixin):
     closed_captions_enabled: Optional[bool] = dc_field(
         default=None, metadata=dc_config(field_name="closed_captions_enabled")
@@ -13529,6 +13777,55 @@ class UpdateReminderResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
     reminder: "ReminderResponseData" = dc_field(
         metadata=dc_config(field_name="reminder")
+    )
+
+
+@dataclass
+class UpdateSIPInboundRoutingRuleRequest(DataClassJsonMixin):
+    name: str = dc_field(metadata=dc_config(field_name="name"))
+    called_numbers: List[str] = dc_field(
+        metadata=dc_config(field_name="called_numbers")
+    )
+    trunk_ids: List[str] = dc_field(metadata=dc_config(field_name="trunk_ids"))
+    caller_configs: "SIPCallerConfigsRequest" = dc_field(
+        metadata=dc_config(field_name="caller_configs")
+    )
+    caller_numbers: Optional[List[str]] = dc_field(
+        default=None, metadata=dc_config(field_name="caller_numbers")
+    )
+    call_configs: "Optional[SIPCallConfigsRequest]" = dc_field(
+        default=None, metadata=dc_config(field_name="call_configs")
+    )
+    direct_routing_configs: "Optional[SIPDirectRoutingRuleCallConfigsRequest]" = (
+        dc_field(default=None, metadata=dc_config(field_name="direct_routing_configs"))
+    )
+    pin_protection_configs: "Optional[SIPPinProtectionConfigsRequest]" = dc_field(
+        default=None, metadata=dc_config(field_name="pin_protection_configs")
+    )
+    pin_routing_configs: "Optional[SIPInboundRoutingRulePinConfigsRequest]" = dc_field(
+        default=None, metadata=dc_config(field_name="pin_routing_configs")
+    )
+
+
+@dataclass
+class UpdateSIPInboundRoutingRuleResponse(DataClassJsonMixin):
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    sip_inbound_routing_rule: "Optional[SIPInboundRoutingRuleResponse]" = dc_field(
+        default=None, metadata=dc_config(field_name="sip_inbound_routing_rule")
+    )
+
+
+@dataclass
+class UpdateSIPTrunkRequest(DataClassJsonMixin):
+    name: str = dc_field(metadata=dc_config(field_name="name"))
+    numbers: List[str] = dc_field(metadata=dc_config(field_name="numbers"))
+
+
+@dataclass
+class UpdateSIPTrunkResponse(DataClassJsonMixin):
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    sip_trunk: "Optional[SIPTrunkResponse]" = dc_field(
+        default=None, metadata=dc_config(field_name="sip_trunk")
     )
 
 

@@ -855,6 +855,125 @@ class VideoRestClient(BaseClient):
     def get_edges(self) -> StreamResponse[GetEdgesResponse]:
         return self.get("/api/v2/video/edges", GetEdgesResponse)
 
+    def list_sip_inbound_routing_rule(
+        self,
+    ) -> StreamResponse[ListSIPInboundRoutingRuleResponse]:
+        return self.get(
+            "/api/v2/video/sip/routing_rules", ListSIPInboundRoutingRuleResponse
+        )
+
+    def create_sip_inbound_routing_rule(
+        self,
+        name: str,
+        trunk_ids: List[str],
+        caller_configs: SIPCallerConfigsRequest,
+        called_numbers: Optional[List[str]] = None,
+        caller_numbers: Optional[List[str]] = None,
+        call_configs: Optional[SIPCallConfigsRequest] = None,
+        direct_routing_configs: Optional[SIPDirectRoutingRuleCallConfigsRequest] = None,
+        pin_protection_configs: Optional[SIPPinProtectionConfigsRequest] = None,
+        pin_routing_configs: Optional[SIPInboundRoutingRulePinConfigsRequest] = None,
+    ) -> StreamResponse[SIPInboundRoutingRuleResponse]:
+        json = build_body_dict(
+            name=name,
+            trunk_ids=trunk_ids,
+            caller_configs=caller_configs,
+            called_numbers=called_numbers,
+            caller_numbers=caller_numbers,
+            call_configs=call_configs,
+            direct_routing_configs=direct_routing_configs,
+            pin_protection_configs=pin_protection_configs,
+            pin_routing_configs=pin_routing_configs,
+        )
+
+        return self.post(
+            "/api/v2/video/sip/routing_rules", SIPInboundRoutingRuleResponse, json=json
+        )
+
+    def delete_sip_inbound_routing_rule(
+        self, id: str
+    ) -> StreamResponse[DeleteSIPInboundRoutingRuleResponse]:
+        path_params = {
+            "id": id,
+        }
+
+        return self.delete(
+            "/api/v2/video/sip/routing_rules/{id}",
+            DeleteSIPInboundRoutingRuleResponse,
+            path_params=path_params,
+        )
+
+    def update_sip_inbound_routing_rule(
+        self,
+        id: str,
+        name: str,
+        called_numbers: List[str],
+        trunk_ids: List[str],
+        caller_configs: SIPCallerConfigsRequest,
+        caller_numbers: Optional[List[str]] = None,
+        call_configs: Optional[SIPCallConfigsRequest] = None,
+        direct_routing_configs: Optional[SIPDirectRoutingRuleCallConfigsRequest] = None,
+        pin_protection_configs: Optional[SIPPinProtectionConfigsRequest] = None,
+        pin_routing_configs: Optional[SIPInboundRoutingRulePinConfigsRequest] = None,
+    ) -> StreamResponse[UpdateSIPInboundRoutingRuleResponse]:
+        path_params = {
+            "id": id,
+        }
+        json = build_body_dict(
+            name=name,
+            called_numbers=called_numbers,
+            trunk_ids=trunk_ids,
+            caller_configs=caller_configs,
+            caller_numbers=caller_numbers,
+            call_configs=call_configs,
+            direct_routing_configs=direct_routing_configs,
+            pin_protection_configs=pin_protection_configs,
+            pin_routing_configs=pin_routing_configs,
+        )
+
+        return self.put(
+            "/api/v2/video/sip/routing_rules/{id}",
+            UpdateSIPInboundRoutingRuleResponse,
+            path_params=path_params,
+            json=json,
+        )
+
+    def list_sip_trunks(self) -> StreamResponse[ListSIPTrunksResponse]:
+        return self.get("/api/v2/video/sip/trunks", ListSIPTrunksResponse)
+
+    def create_sip_trunk(
+        self, name: str, numbers: List[str]
+    ) -> StreamResponse[CreateSIPTrunkResponse]:
+        json = build_body_dict(name=name, numbers=numbers)
+
+        return self.post("/api/v2/video/sip/trunks", CreateSIPTrunkResponse, json=json)
+
+    def delete_sip_trunk(self, id: str) -> StreamResponse[DeleteSIPTrunkResponse]:
+        path_params = {
+            "id": id,
+        }
+
+        return self.delete(
+            "/api/v2/video/sip/trunks/{id}",
+            DeleteSIPTrunkResponse,
+            path_params=path_params,
+        )
+
+    def update_sip_trunk(
+        self, id: str, name: str, numbers: List[str]
+    ) -> StreamResponse[UpdateSIPTrunkResponse]:
+        path_params = {
+            "id": id,
+        }
+        json = build_body_dict(name=name, numbers=numbers)
+
+        return self.put(
+            "/api/v2/video/sip/trunks/{id}",
+            UpdateSIPTrunkResponse,
+            path_params=path_params,
+            json=json,
+        )
+
     def query_aggregate_call_stats(
         self,
         _from: Optional[str] = None,
