@@ -2,21 +2,32 @@ import pytest
 import uuid
 import functools
 from getstream.base import StreamAPIException
+from getstream.models import (
+    SIPCallerConfigsRequest,
+    SIPDirectRoutingRuleCallConfigsRequest,
+)
 
 
 def cleanup_sip_trunks(func):
-    """Decorator that cleans up all test SIP trunks after the test"""
+    """Decorator that cleans up all test SIP trunks and routing rules after the test"""
 
     @functools.wraps(func)
     def wrapper(client, *args, **kwargs):
         try:
             return func(client, *args, **kwargs)
         finally:
+            # Clean up all test routing rules first
+            try:
+                rules = client.video.list_sip_inbound_routing_rule().data.sip_inbound_routing_rules
+                for rule in rules:
+                    client.video.delete_sip_inbound_routing_rule(id=rule.id)
+            except Exception:
+                pass  # Ignore errors during cleanup
+
             # Clean up all test trunks
             trunks = client.video.list_sip_trunks().data.sip_trunks
             for trunk in trunks:
-                if trunk.name.startswith("test-trunk"):
-                    client.video.delete_sip_trunk(id=trunk.id)
+                client.video.delete_sip_trunk(id=trunk.id)
 
     return wrapper
 
@@ -239,3 +250,130 @@ def test_sip_trunk_validation(client):
     )
     assert update_response.data.sip_trunk.name == updated_name
     assert update_response.data.sip_trunk.numbers == updated_numbers
+
+
+@cleanup_sip_trunks
+def test_sip_inbound_routing_rule_crud_operations(client):
+    """Test CRUD operations for SIP inbound routing rules"""
+
+    # First create a trunk to use for the routing rule
+    trunk_name = f"test-trunk-{uuid.uuid4()}"
+    trunk_numbers = ["+1234567890"]
+
+    trunk_response = client.video.create_sip_trunk(
+        name=trunk_name, numbers=trunk_numbers
+    )
+    trunk = trunk_response.data.sip_trunk
+
+    # Create routing rule
+    rule_name = f"test-rule-{uuid.uuid4()}"
+    caller_configs = SIPCallerConfigsRequest(
+        id="test-caller-id", role="user", custom_data={"test": "data"}
+    )
+    called_numbers = ["+1234567890"]
+    direct_routing_configs = SIPDirectRoutingRuleCallConfigsRequest(
+        call_id="test-call-id", call_type="default"
+    )
+
+    create_response = client.video.create_sip_inbound_routing_rule(
+        name=rule_name,
+        trunk_ids=[trunk.id],
+        caller_configs=caller_configs,
+        called_numbers=called_numbers,
+        direct_routing_configs=direct_routing_configs,
+    )
+    created_rule = create_response.data
+
+    assert created_rule.name == rule_name
+    assert created_rule.trunk_ids == [trunk.id]
+    assert created_rule.called_numbers == called_numbers
+    assert created_rule.caller_configs.id == "test-caller-id"
+    assert created_rule.caller_configs.role == "user"
+
+    # List and verify
+    rules = client.video.list_sip_inbound_routing_rule().data.sip_inbound_routing_rules
+    found = [r for r in rules if r.id == created_rule.id]
+    assert found and found[0].name == rule_name
+
+    # Update
+    updated_name = f"updated-{rule_name}"
+    updated_called_numbers = ["+9876543210"]
+    updated_caller_configs = SIPCallerConfigsRequest(
+        id="updated-caller-id", role="admin", custom_data={"updated": "data"}
+    )
+    updated_direct_routing_configs = SIPDirectRoutingRuleCallConfigsRequest(
+        call_id="updated-call-id", call_type="default"
+    )
+
+    update_response = client.video.update_sip_inbound_routing_rule(
+        id=created_rule.id,
+        name=updated_name,
+        called_numbers=updated_called_numbers,
+        trunk_ids=[trunk.id],
+        caller_configs=updated_caller_configs,
+        direct_routing_configs=updated_direct_routing_configs,
+    )
+    updated_rule = update_response.data.sip_inbound_routing_rule
+
+    assert updated_rule.name == updated_name
+    assert updated_rule.called_numbers == updated_called_numbers
+    assert updated_rule.caller_configs.id == "updated-caller-id"
+    assert updated_rule.caller_configs.role == "admin"
+
+    # List and verify update
+    rules = client.video.list_sip_inbound_routing_rule().data.sip_inbound_routing_rules
+    found = [r for r in rules if r.id == created_rule.id]
+    assert found and found[0].name == updated_name
+
+    # Delete
+    client.video.delete_sip_inbound_routing_rule(id=created_rule.id)
+
+    # List and verify deletion
+    rules = client.video.list_sip_inbound_routing_rule().data.sip_inbound_routing_rules
+    assert not any(r.id == created_rule.id for r in rules)
+
+
+@cleanup_sip_trunks
+def test_sip_inbound_routing_rule_requires_trunk(client):
+    """Test that SIP inbound routing rules can only be created if a trunk exists"""
+
+    # Try to create a routing rule without any trunks existing
+    rule_name = f"test-rule-{uuid.uuid4()}"
+    caller_configs = SIPCallerConfigsRequest(id="test-caller-id", role="user")
+    called_numbers = ["+1234567890"]
+    direct_routing_configs = SIPDirectRoutingRuleCallConfigsRequest(
+        call_id="test-call-id", call_type="default"
+    )
+
+    # This should fail because no trunks exist
+    with pytest.raises(StreamAPIException) as exc_info:
+        client.video.create_sip_inbound_routing_rule(
+            name=rule_name,
+            trunk_ids=["non-existent-trunk-id"],
+            caller_configs=caller_configs,
+            called_numbers=called_numbers,
+            direct_routing_configs=direct_routing_configs,
+        )
+    assert exc_info.value.status_code == 400
+
+    # Now create a trunk and try again
+    trunk_name = f"test-trunk-{uuid.uuid4()}"
+    trunk_numbers = ["+1234567890"]
+
+    trunk_response = client.video.create_sip_trunk(
+        name=trunk_name, numbers=trunk_numbers
+    )
+    trunk = trunk_response.data.sip_trunk
+
+    # This should succeed now
+    create_response = client.video.create_sip_inbound_routing_rule(
+        name=rule_name,
+        trunk_ids=[trunk.id],
+        caller_configs=caller_configs,
+        called_numbers=called_numbers,
+        direct_routing_configs=direct_routing_configs,
+    )
+    created_rule = create_response.data
+
+    assert created_rule.name == rule_name
+    assert created_rule.trunk_ids == [trunk.id]
