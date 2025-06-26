@@ -475,7 +475,8 @@ class AsyncExportErrorEvent(DataClassJsonMixin):
     task_id: str = dc_field(metadata=dc_config(field_name="task_id"))
     custom: Dict[str, object] = dc_field(metadata=dc_config(field_name="custom"))
     type: str = dc_field(
-        default="export.moderation_logs.error", metadata=dc_config(field_name="type")
+        default="export.bulk_image_moderation.error",
+        metadata=dc_config(field_name="type"),
     )
     received_at: Optional[datetime] = dc_field(
         default=None,
@@ -1798,8 +1799,8 @@ class CallParticipant(DataClassJsonMixin):
         )
     )
     online: bool = dc_field(metadata=dc_config(field_name="online"))
-    role: str = dc_field(metadata=dc_config(field_name="Role"))
     role: str = dc_field(metadata=dc_config(field_name="role"))
+    role: str = dc_field(metadata=dc_config(field_name="Role"))
     user_session_id: str = dc_field(metadata=dc_config(field_name="UserSessionID"))
     custom: Dict[str, object] = dc_field(metadata=dc_config(field_name="custom"))
     teams_role: "Dict[str, str]" = dc_field(metadata=dc_config(field_name="teams_role"))
@@ -11120,6 +11121,31 @@ class ReportResponse(DataClassJsonMixin):
 
 
 @dataclass
+class ResolveSipInboundRequest(DataClassJsonMixin):
+    sip_caller_number: str = dc_field(
+        metadata=dc_config(field_name="sip_caller_number")
+    )
+    sip_trunk_number: str = dc_field(metadata=dc_config(field_name="sip_trunk_number"))
+    sip_trunk_password: str = dc_field(
+        metadata=dc_config(field_name="sip_trunk_password")
+    )
+    sip_headers: "Optional[Dict[str, str]]" = dc_field(
+        default=None, metadata=dc_config(field_name="sip_headers")
+    )
+
+
+@dataclass
+class ResolveSipInboundResponse(DataClassJsonMixin):
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    credentials: "SipInboundCredentials" = dc_field(
+        metadata=dc_config(field_name="credentials")
+    )
+    sip_routing_rule: "Optional[SIPInboundRoutingRuleResponse]" = dc_field(
+        default=None, metadata=dc_config(field_name="sip_routing_rule")
+    )
+
+
+@dataclass
 class Response(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
 
@@ -11550,7 +11576,6 @@ class SIPCallConfigsResponse(DataClassJsonMixin):
 @dataclass
 class SIPCallerConfigsRequest(DataClassJsonMixin):
     id: str = dc_field(metadata=dc_config(field_name="id"))
-    role: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="role"))
     custom_data: Optional[Dict[str, object]] = dc_field(
         default=None, metadata=dc_config(field_name="custom_data")
     )
@@ -11559,7 +11584,6 @@ class SIPCallerConfigsRequest(DataClassJsonMixin):
 @dataclass
 class SIPCallerConfigsResponse(DataClassJsonMixin):
     id: str = dc_field(metadata=dc_config(field_name="id"))
-    role: str = dc_field(metadata=dc_config(field_name="role"))
     custom_data: Dict[str, object] = dc_field(
         metadata=dc_config(field_name="custom_data")
     )
@@ -12220,6 +12244,20 @@ class ShowChannelRequest(DataClassJsonMixin):
 @dataclass
 class ShowChannelResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
+
+
+@dataclass
+class SipInboundCredentials(DataClassJsonMixin):
+    call_id: str = dc_field(metadata=dc_config(field_name="call_id"))
+    call_type: str = dc_field(metadata=dc_config(field_name="call_type"))
+    token: str = dc_field(metadata=dc_config(field_name="token"))
+    user_id: str = dc_field(metadata=dc_config(field_name="user_id"))
+    call_custom_data: Dict[str, object] = dc_field(
+        metadata=dc_config(field_name="call_custom_data")
+    )
+    user_custom_data: Dict[str, object] = dc_field(
+        metadata=dc_config(field_name="user_custom_data")
+    )
 
 
 @dataclass

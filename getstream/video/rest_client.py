@@ -855,6 +855,24 @@ class VideoRestClient(BaseClient):
     def get_edges(self) -> StreamResponse[GetEdgesResponse]:
         return self.get("/api/v2/video/edges", GetEdgesResponse)
 
+    def resolve_sip_inbound(
+        self,
+        sip_caller_number: str,
+        sip_trunk_number: str,
+        sip_trunk_password: str,
+        sip_headers: Optional[Dict[str, str]] = None,
+    ) -> StreamResponse[ResolveSipInboundResponse]:
+        json = build_body_dict(
+            sip_caller_number=sip_caller_number,
+            sip_trunk_number=sip_trunk_number,
+            sip_trunk_password=sip_trunk_password,
+            sip_headers=sip_headers,
+        )
+
+        return self.post(
+            "/api/v2/video/sip/resolve", ResolveSipInboundResponse, json=json
+        )
+
     def list_sip_inbound_routing_rule(
         self,
     ) -> StreamResponse[ListSIPInboundRoutingRuleResponse]:
