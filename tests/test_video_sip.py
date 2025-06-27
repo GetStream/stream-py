@@ -823,3 +823,337 @@ def test_resolve_sip_inbound_validation(client):
         )
     assert exc_info.value.status_code == 400
     assert "sip_trunk_password" in exc_info.value.api_error.exception_fields
+
+
+@cleanup_sip_trunks
+def test_list_sip_inbound_routing_rules_returns_default_when_no_rules(client):
+    """Test that list_sip_inbound_routing_rule returns the default rule when no rules exist"""
+
+    # List rules when no rules exist
+    response = client.video.list_sip_inbound_routing_rule()
+    rules = response.data.sip_inbound_routing_rules
+
+    # Should return exactly one rule - the default rule
+    assert len(rules) == 1
+    default_rule = rules[0]
+
+    # Verify default rule properties
+    assert default_rule.id == "default"
+    assert default_rule.name == "default"
+    assert default_rule.trunk_ids == []
+    assert default_rule.called_numbers == []
+    assert default_rule.caller_numbers is None  # Can be None for default rule
+
+    # Verify default rule has correct direct routing configs
+    assert default_rule.direct_routing_configs is not None
+    assert default_rule.direct_routing_configs.call_type == "default"
+    assert default_rule.direct_routing_configs.call_id == "sip-{{uuid}}"
+
+    # Verify default rule has correct caller configs
+    assert default_rule.caller_configs is not None
+    assert default_rule.caller_configs.id == "sip-{{caller_number}}"
+    assert default_rule.caller_configs.custom_data == {"name": "{{caller_number}}"}
+
+    # Verify default rule has empty call configs
+    assert default_rule.call_configs is not None
+    assert default_rule.call_configs.custom_data == {}
+
+
+@cleanup_sip_trunks
+def test_list_sip_inbound_routing_rules_with_existing_rules(client):
+    """Test that list_sip_inbound_routing_rule returns existing rules without default when rules exist"""
+
+    # Create a trunk first
+    trunk_name = f"test-trunk-{uuid.uuid4()}"
+    trunk_numbers = ["+1234567890"]
+
+    trunk_response = client.video.create_sip_trunk(
+        name=trunk_name, numbers=trunk_numbers
+    )
+    trunk = trunk_response.data.sip_trunk
+
+    # Create a routing rule
+    rule_name = f"test-rule-{uuid.uuid4()}"
+    caller_configs = SIPCallerConfigsRequest(
+        id="test-caller-id", custom_data={"test": "data"}
+    )
+    called_numbers = ["+1234567890"]
+    direct_routing_configs = SIPDirectRoutingRuleCallConfigsRequest(
+        call_id="test-call-id", call_type="default"
+    )
+
+    create_response = client.video.create_sip_inbound_routing_rule(
+        name=rule_name,
+        trunk_ids=[trunk.id],
+        caller_configs=caller_configs,
+        called_numbers=called_numbers,
+        direct_routing_configs=direct_routing_configs,
+    )
+    created_rule = create_response.data
+
+    # List rules
+    response = client.video.list_sip_inbound_routing_rule()
+    rules = response.data.sip_inbound_routing_rules
+
+    # Should return exactly one rule - the created rule (not the default)
+    assert len(rules) == 1
+    rule = rules[0]
+
+    # Verify it's the created rule, not the default
+    assert rule.id == created_rule.id
+    assert rule.name == rule_name
+    assert rule.id != "default"
+
+
+@cleanup_sip_trunks
+def test_resolve_sip_inbound_uses_default_rule_when_no_matching_rules(client):
+    """Test that resolve_sip_inbound uses the default rule when no matching rules exist"""
+
+    # Create a trunk
+    trunk_name = f"test-trunk-{uuid.uuid4()}"
+    trunk_numbers = ["+1234567890"]
+
+    trunk_response = client.video.create_sip_trunk(
+        name=trunk_name, numbers=trunk_numbers
+    )
+    trunk = trunk_response.data.sip_trunk
+
+    # Create a routing rule that won't match the request
+    rule_name = f"test-rule-{uuid.uuid4()}"
+    caller_configs = SIPCallerConfigsRequest(
+        id="test-caller-id", custom_data={"test": "data"}
+    )
+    called_numbers = ["+9876543210"]  # Different number
+    direct_routing_configs = SIPDirectRoutingRuleCallConfigsRequest(
+        call_id="test-call-id", call_type="default"
+    )
+
+    client.video.create_sip_inbound_routing_rule(
+        name=rule_name,
+        trunk_ids=[trunk.id],
+        caller_configs=caller_configs,
+        called_numbers=called_numbers,
+        direct_routing_configs=direct_routing_configs,
+    )
+
+    # Resolve SIP inbound with numbers that don't match any rule
+    response = client.video.resolve_sip_inbound(
+        sip_caller_number="+1111111111",
+        sip_trunk_number="+1234567890",
+        sip_trunk_password=trunk.password,
+    )
+
+    # Should return the default rule
+    assert response.data.sip_routing_rule.id == "default"
+    assert response.data.sip_routing_rule.name == "default"
+    assert response.data.sip_routing_rule.trunk_ids == []
+
+    # Verify credentials are generated correctly
+    credentials = response.data.credentials
+    assert credentials.call_type == "default"
+    assert credentials.call_id.startswith("sip-")
+    assert credentials.user_id == "sip-001111111111"  # sanitized caller number
+    assert credentials.user_custom_data == {"name": "001111111111"}
+
+
+@cleanup_sip_trunks
+def test_resolve_sip_inbound_uses_default_rule_when_no_trunks_exist(client):
+    """Test that resolve_sip_inbound returns an error when no trunks exist"""
+
+    # Try to resolve SIP inbound without any trunks
+    with pytest.raises(StreamAPIException) as exc_info:
+        client.video.resolve_sip_inbound(
+            sip_caller_number="+1111111111",
+            sip_trunk_number="+1234567890",
+            sip_trunk_password="some-password",
+        )
+
+    # Should return an error about trunk not found
+    assert exc_info.value.status_code == 404
+    assert "SIP trunk not found" in exc_info.value.api_error.message
+
+
+@cleanup_sip_trunks
+def test_cannot_create_rule_with_default_id(client):
+    """Test that creating a rule with ID 'default' is prevented"""
+
+    # Create a trunk first
+    trunk_name = f"test-trunk-{uuid.uuid4()}"
+    trunk_numbers = ["+1234567890"]
+
+    trunk_response = client.video.create_sip_trunk(
+        name=trunk_name, numbers=trunk_numbers
+    )
+    trunk = trunk_response.data.sip_trunk
+
+    # Try to create a rule with name 'default'
+    caller_configs = SIPCallerConfigsRequest(
+        id="test-caller-id", custom_data={"test": "data"}
+    )
+    called_numbers = ["+1234567890"]
+    direct_routing_configs = SIPDirectRoutingRuleCallConfigsRequest(
+        call_id="test-call-id", call_type="default"
+    )
+
+    with pytest.raises(StreamAPIException) as exc_info:
+        client.video.create_sip_inbound_routing_rule(
+            name="default",  # This should be rejected
+            trunk_ids=[trunk.id],
+            caller_configs=caller_configs,
+            called_numbers=called_numbers,
+            direct_routing_configs=direct_routing_configs,
+        )
+
+    # Should return an error about reserved name
+    assert exc_info.value.status_code == 400
+    assert "default" in exc_info.value.api_error.message.lower()
+    assert "reserved" in exc_info.value.api_error.message.lower()
+
+
+@cleanup_sip_trunks
+def test_cannot_update_default_rule(client):
+    """Test that updating the default rule is prevented"""
+
+    # Create a trunk first so we have a valid trunk_id
+    trunk_name = f"test-trunk-{uuid.uuid4()}"
+    trunk_numbers = ["+1234567890"]
+
+    trunk_response = client.video.create_sip_trunk(
+        name=trunk_name, numbers=trunk_numbers
+    )
+    trunk = trunk_response.data.sip_trunk
+
+    # Try to update the default rule
+    caller_configs = SIPCallerConfigsRequest(
+        id="test-caller-id", custom_data={"test": "data"}
+    )
+    called_numbers = ["+1234567890"]
+    direct_routing_configs = SIPDirectRoutingRuleCallConfigsRequest(
+        call_id="test-call-id", call_type="default"
+    )
+
+    with pytest.raises(StreamAPIException) as exc_info:
+        client.video.update_sip_inbound_routing_rule(
+            id="default",  # This should be rejected
+            name="updated-default",
+            called_numbers=called_numbers,
+            trunk_ids=[trunk.id],  # Use valid trunk_id
+            caller_configs=caller_configs,
+            direct_routing_configs=direct_routing_configs,
+        )
+
+    # Should return an error about system-managed rule
+    assert exc_info.value.status_code == 400
+    assert "default" in exc_info.value.api_error.message.lower()
+    assert "system-managed" in exc_info.value.api_error.message.lower()
+
+
+@cleanup_sip_trunks
+def test_cannot_delete_default_rule(client):
+    """Test that deleting the default rule is prevented"""
+
+    # Try to delete the default rule
+    with pytest.raises(StreamAPIException) as exc_info:
+        client.video.delete_sip_inbound_routing_rule(id="default")
+
+    # Should return an error about system-managed rule
+    assert exc_info.value.status_code == 400
+    assert "default" in exc_info.value.api_error.message.lower()
+    assert "system-managed" in exc_info.value.api_error.message.lower()
+
+
+@cleanup_sip_trunks
+def test_default_rule_behavior_with_multiple_rules(client):
+    """Test default rule behavior when multiple rules exist but none match"""
+
+    # Create a trunk
+    trunk_name = f"test-trunk-{uuid.uuid4()}"
+    trunk_numbers = ["+1234567890"]
+
+    trunk_response = client.video.create_sip_trunk(
+        name=trunk_name, numbers=trunk_numbers
+    )
+    trunk = trunk_response.data.sip_trunk
+
+    # Create multiple routing rules that won't match our request
+    for i in range(3):
+        rule_name = f"test-rule-{i}-{uuid.uuid4()}"
+        caller_configs = SIPCallerConfigsRequest(
+            id=f"test-caller-id-{i}", custom_data={"test": f"data-{i}"}
+        )
+        called_numbers = [f"+987654321{i}"]  # Different numbers
+        direct_routing_configs = SIPDirectRoutingRuleCallConfigsRequest(
+            call_id=f"test-call-id-{i}", call_type="default"
+        )
+
+        client.video.create_sip_inbound_routing_rule(
+            name=rule_name,
+            trunk_ids=[trunk.id],
+            caller_configs=caller_configs,
+            called_numbers=called_numbers,
+            direct_routing_configs=direct_routing_configs,
+        )
+
+    # List rules - should return the 3 created rules (not the default)
+    response = client.video.list_sip_inbound_routing_rule()
+    rules = response.data.sip_inbound_routing_rules
+
+    assert len(rules) == 3
+    for rule in rules:
+        assert rule.id != "default"
+
+    # Resolve SIP inbound with numbers that don't match any rule
+    response = client.video.resolve_sip_inbound(
+        sip_caller_number="+1111111111",
+        sip_trunk_number="+1234567890",
+        sip_trunk_password=trunk.password,
+    )
+
+    # Should return the default rule
+    assert response.data.sip_routing_rule.id == "default"
+    assert response.data.sip_routing_rule.name == "default"
+
+
+@cleanup_sip_trunks
+def test_default_rule_priority_over_existing_rules(client):
+    """Test that when no rules match, the default rule is used even if other rules exist"""
+
+    # Create a trunk
+    trunk_name = f"test-trunk-{uuid.uuid4()}"
+    trunk_numbers = ["+1234567890"]
+
+    trunk_response = client.video.create_sip_trunk(
+        name=trunk_name, numbers=trunk_numbers
+    )
+    trunk = trunk_response.data.sip_trunk
+
+    # Create a routing rule that matches the trunk but not the caller
+    rule_name = f"test-rule-{uuid.uuid4()}"
+    caller_configs = SIPCallerConfigsRequest(
+        id="test-caller-id", custom_data={"test": "data"}
+    )
+    called_numbers = ["+1234567890"]  # Matches trunk
+    caller_numbers = ["+9876543210"]  # Different caller
+    direct_routing_configs = SIPDirectRoutingRuleCallConfigsRequest(
+        call_id="test-call-id", call_type="default"
+    )
+
+    client.video.create_sip_inbound_routing_rule(
+        name=rule_name,
+        trunk_ids=[trunk.id],
+        caller_configs=caller_configs,
+        called_numbers=called_numbers,
+        caller_numbers=caller_numbers,
+        direct_routing_configs=direct_routing_configs,
+    )
+
+    # Resolve SIP inbound with caller that doesn't match the rule
+    response = client.video.resolve_sip_inbound(
+        sip_caller_number="+1111111111",  # Different caller
+        sip_trunk_number="+1234567890",
+        sip_trunk_password=trunk.password,
+    )
+
+    # Should return the default rule, not the existing rule
+    assert response.data.sip_routing_rule.id == "default"
+    assert response.data.sip_routing_rule.name == "default"
