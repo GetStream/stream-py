@@ -42,7 +42,7 @@ class DeepgramSTT(STT):
     def __init__(
         self,
         api_key: Optional[str] = None,
-        options: Optional[LiveOptions] = None,
+        options: Optional[LiveOptions] = None, # type: ignore
         sample_rate: int = 48000,
         language: str = "en-US",
         keep_alive_interval: float = 3.0,
