@@ -1006,8 +1006,10 @@ def test_cannot_create_rule_with_default_id(client):
 
     # Should return an error about reserved name
     assert exc_info.value.status_code == 400
-    assert "default" in exc_info.value.api_error.message.lower()
-    assert "reserved" in exc_info.value.api_error.message.lower()
+    assert (
+        "cannot create a SIP inbound routing rule with name"
+        in exc_info.value.api_error.message
+    )
 
 
 @cleanup_sip_trunks
@@ -1044,8 +1046,10 @@ def test_cannot_update_default_rule(client):
 
     # Should return an error about system-managed rule
     assert exc_info.value.status_code == 400
-    assert "default" in exc_info.value.api_error.message.lower()
-    assert "system-managed" in exc_info.value.api_error.message.lower()
+    assert (
+        "cannot update the default SIP inbound routing rule"
+        in exc_info.value.api_error.message
+    )
 
 
 @cleanup_sip_trunks
@@ -1058,8 +1062,10 @@ def test_cannot_delete_default_rule(client):
 
     # Should return an error about system-managed rule
     assert exc_info.value.status_code == 400
-    assert "default" in exc_info.value.api_error.message.lower()
-    assert "system-managed" in exc_info.value.api_error.message.lower()
+    assert (
+        "cannot delete the default SIP inbound routing rule"
+        in exc_info.value.api_error.message
+    )
 
 
 @cleanup_sip_trunks
