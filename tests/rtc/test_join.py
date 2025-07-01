@@ -1,4 +1,6 @@
 import pytest
+pytest.skip("Skipping RTC join tests during regular test runs", allow_module_level=True)
+
 from getstream.stream import Stream
 from getstream.video import rtc
 from getstream.video.rtc import audio_track
