@@ -46,6 +46,7 @@ class DeepgramSTT(STT):
         sample_rate: int = 48000,
         language: str = "en-US",
         keep_alive_interval: float = 3.0,
+        interim_results: bool = False,
     ):
         """
         Initialize the Deepgram STT service.
@@ -58,6 +59,7 @@ class DeepgramSTT(STT):
             language: Language code for transcription
             keep_alive_interval: Interval in seconds to send keep-alive messages.
                                 Default is 5.0 seconds (recommended value by Deepgram)
+            interim_results: Whether to emit interim results (partial transcripts with the partial_transcript event).
         """
         super().__init__(sample_rate=sample_rate, language=language)
 
@@ -85,6 +87,7 @@ class DeepgramSTT(STT):
             encoding="linear16",
             sample_rate=sample_rate,
             channels=1,
+            interim_results=interim_results,
         )
 
         # Keep-alive mechanism

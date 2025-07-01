@@ -162,7 +162,7 @@ def audio_data_48k():
 @pytest.mark.asyncio
 async def test_moonshine_model_validation():
     """Test that Moonshine validates model names correctly."""
-    with patch("getstream.plugins.moonshine.getstream.plugins.moonshine.stt.moonshine"):
+    with patch("getstream.plugins.moonshine.stt.moonshine"):
         # Test invalid model name
         with pytest.raises(ValueError, match="Unknown Moonshine model"):
             MoonshineSTT(model_name="invalid_model")
@@ -180,7 +180,7 @@ async def test_moonshine_model_validation():
 @pytest.mark.asyncio
 async def test_moonshine_initialization():
     """Test that Moonshine initializes correctly with mocked library."""
-    with patch("getstream.plugins.moonshine.getstream.plugins.moonshine.stt.moonshine"):
+    with patch("getstream.plugins.moonshine.stt.moonshine"):
         stt = MoonshineSTT()
         assert stt is not None
         assert stt.model_name == "moonshine/base"  # Canonical value after validation
@@ -191,7 +191,7 @@ async def test_moonshine_initialization():
 @pytest.mark.asyncio
 async def test_moonshine_custom_initialization():
     """Test Moonshine initialization with custom parameters."""
-    with patch("getstream.plugins.moonshine.getstream.plugins.moonshine.stt.moonshine"):
+    with patch("getstream.plugins.moonshine.stt.moonshine"):
         stt = MoonshineSTT(
             model_name="moonshine/base",
             sample_rate=16000,
@@ -209,7 +209,7 @@ async def test_moonshine_audio_resampling():
     """Test that audio resampling works correctly."""
     from getstream.audio.utils import resample_audio
 
-    with patch("getstream.plugins.moonshine.getstream.plugins.moonshine.stt.moonshine"):
+    with patch("getstream.plugins.moonshine.stt.moonshine"):
         stt = MoonshineSTT(sample_rate=16000)
 
         # Test resampling from 48kHz to 16kHz using the shared utility
@@ -228,7 +228,7 @@ async def test_moonshine_audio_resampling():
 @pytest.mark.asyncio
 async def test_moonshine_audio_normalization():
     """Test that audio normalization works correctly."""
-    with patch("getstream.plugins.moonshine.getstream.plugins.moonshine.stt.moonshine"):
+    with patch("getstream.plugins.moonshine.stt.moonshine"):
         stt = MoonshineSTT()
 
         # Test normalization
@@ -244,7 +244,7 @@ async def test_moonshine_audio_normalization():
 @pytest.mark.asyncio
 async def test_moonshine_immediate_processing():
     """Test that audio is processed immediately without buffering."""
-    with patch("getstream.plugins.moonshine.getstream.plugins.moonshine.stt.moonshine"):
+    with patch("getstream.plugins.moonshine.stt.moonshine"):
         stt = MoonshineSTT(sample_rate=16000)
 
         # Mock the _transcribe_audio method to track calls
@@ -275,7 +275,7 @@ async def test_moonshine_immediate_processing():
 @pytest.mark.asyncio
 async def test_moonshine_process_audio_short_chunk(audio_data_16k):
     """Test processing audio that's too short to trigger transcription."""
-    with patch("getstream.plugins.moonshine.getstream.plugins.moonshine.stt.moonshine"):
+    with patch("getstream.plugins.moonshine.stt.moonshine"):
         stt = MoonshineSTT(min_audio_length_ms=1000)  # Require 1s minimum
 
         # Track events
@@ -310,7 +310,7 @@ async def test_moonshine_process_audio_short_chunk(audio_data_16k):
 @pytest.mark.asyncio
 async def test_moonshine_process_audio_sufficient_chunk(audio_data_16k):
     """Test processing audio that's long enough to trigger transcription."""
-    with patch("getstream.plugins.moonshine.getstream.plugins.moonshine.stt.moonshine"):
+    with patch("getstream.plugins.moonshine.stt.moonshine"):
         # Mock the _transcribe_audio method directly instead of moonshine.transcribe
         stt = MoonshineSTT(min_audio_length_ms=500)
 
@@ -355,7 +355,7 @@ async def test_moonshine_process_audio_sufficient_chunk(audio_data_16k):
 @pytest.mark.asyncio
 async def test_moonshine_process_audio_with_resampling(audio_data_48k):
     """Test processing audio that requires resampling."""
-    with patch("getstream.plugins.moonshine.getstream.plugins.moonshine.stt.moonshine"):
+    with patch("getstream.plugins.moonshine.stt.moonshine"):
         stt = MoonshineSTT(sample_rate=16000)
 
         # Track events
@@ -386,7 +386,7 @@ async def test_moonshine_process_audio_with_resampling(audio_data_48k):
 @pytest.mark.asyncio
 async def test_moonshine_flush_functionality(audio_data_16k):
     """Test that flush is a no-op since we no longer buffer."""
-    with patch("getstream.plugins.moonshine.getstream.plugins.moonshine.stt.moonshine"):
+    with patch("getstream.plugins.moonshine.stt.moonshine"):
         stt = MoonshineSTT(min_audio_length_ms=500)
 
         # Track events
@@ -428,7 +428,7 @@ async def test_moonshine_flush_functionality(audio_data_16k):
 @pytest.mark.asyncio
 async def test_moonshine_bytes_input():
     """Test processing audio data provided as bytes."""
-    with patch("getstream.plugins.moonshine.getstream.plugins.moonshine.stt.moonshine"):
+    with patch("getstream.plugins.moonshine.stt.moonshine"):
         stt = MoonshineSTT()
 
         # Track events
@@ -463,7 +463,7 @@ async def test_moonshine_bytes_input():
 @pytest.mark.asyncio
 async def test_moonshine_error_handling():
     """Test error handling during transcription."""
-    with patch("getstream.plugins.moonshine.getstream.plugins.moonshine.stt.moonshine"):
+    with patch("getstream.plugins.moonshine.stt.moonshine"):
         stt = MoonshineSTT()
 
         # Track events
@@ -497,7 +497,7 @@ async def test_moonshine_error_handling():
 @pytest.mark.asyncio
 async def test_moonshine_closed_state():
     """Test that processing is ignored when STT is closed."""
-    with patch("getstream.plugins.moonshine.getstream.plugins.moonshine.stt.moonshine"):
+    with patch("getstream.plugins.moonshine.stt.moonshine"):
         stt = MoonshineSTT()
 
         # Close the STT
@@ -516,7 +516,7 @@ async def test_moonshine_closed_state():
 @pytest.mark.asyncio
 async def test_moonshine_model_selection():
     """Test that different models produce different results."""
-    with patch("getstream.plugins.moonshine.getstream.plugins.moonshine.stt.moonshine"):
+    with patch("getstream.plugins.moonshine.stt.moonshine"):
         # Test tiny model
         stt_tiny = MoonshineSTT(model_name="moonshine/tiny")
 
@@ -538,7 +538,7 @@ async def test_moonshine_model_selection():
 @pytest.mark.asyncio
 async def test_moonshine_with_mia_audio_mocked(mia_audio_data, mia_metadata):
     """Test Moonshine STT with mia.mp3 audio using mocked transcription."""
-    with patch("getstream.plugins.moonshine.getstream.plugins.moonshine.stt.moonshine") as mock_moonshine:
+    with patch("getstream.plugins.moonshine.stt.moonshine") as mock_moonshine:
         # Extract expected text from mia.json metadata
         expected_segments = mia_metadata.get("segments", [])
         expected_full_text = " ".join(

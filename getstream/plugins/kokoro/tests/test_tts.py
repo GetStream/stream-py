@@ -41,14 +41,14 @@ class _MockKPipeline:  # noqa: D401
 
 
 @pytest.mark.asyncio
-@patch("getstream.plugins.kokoro.getstream.plugins.kokoro.tts.KPipeline", _MockKPipeline)
+@patch("getstream.plugins.kokoro.tts.KPipeline", _MockKPipeline)
 async def test_kokoro_tts_initialization():
     tts = KokoroTTS()
     assert tts is not None
 
 
 @pytest.mark.asyncio
-@patch("getstream.plugins.kokoro.getstream.plugins.kokoro.tts.KPipeline", _MockKPipeline)
+@patch("getstream.plugins.kokoro.tts.KPipeline", _MockKPipeline)
 async def test_kokoro_synthesize_returns_iterator():
     tts = KokoroTTS()
     stream = await tts.synthesize("Hello")
@@ -60,7 +60,7 @@ async def test_kokoro_synthesize_returns_iterator():
 
 
 @pytest.mark.asyncio
-@patch("getstream.plugins.kokoro.getstream.plugins.kokoro.tts.KPipeline", _MockKPipeline)
+@patch("getstream.plugins.kokoro.tts.KPipeline", _MockKPipeline)
 async def test_kokoro_send_writes_and_emits():
     tts = KokoroTTS()
     track = MockAudioTrack()
@@ -79,7 +79,7 @@ async def test_kokoro_send_writes_and_emits():
 
 
 @pytest.mark.asyncio
-@patch("getstream.plugins.kokoro.getstream.plugins.kokoro.tts.KPipeline", _MockKPipeline)
+@patch("getstream.plugins.kokoro.tts.KPipeline", _MockKPipeline)
 async def test_kokoro_invalid_framerate():
     tts = KokoroTTS()
     bad_track = MockAudioTrack(framerate=16_000)
@@ -89,7 +89,7 @@ async def test_kokoro_invalid_framerate():
 
 
 @pytest.mark.asyncio
-@patch("getstream.plugins.kokoro.getstream.plugins.kokoro.tts.KPipeline", _MockKPipeline)
+@patch("getstream.plugins.kokoro.tts.KPipeline", _MockKPipeline)
 async def test_kokoro_send_without_track():
     tts = KokoroTTS()
     with pytest.raises(ValueError):

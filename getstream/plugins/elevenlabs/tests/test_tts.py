@@ -40,15 +40,13 @@ async def test_elevenlabs_tts_initialization():
 
 @pytest.mark.asyncio
 @patch("elevenlabs.client.ElevenLabs", MockElevenLabsClient)
-@patch("os.environ.get")
-async def test_elevenlabs_tts_initialization_with_env_var(mock_env_get):
-    """Test that the ElevenLabs TTS initializes correctly using environment variable."""
-    # Mock the environment variable check
-    mock_env_get.return_value = "env-var-api-key"
+@patch.dict(os.environ, {"ELEVENLABS_API_KEY": "env-var-api-key"})
+async def test_elevenlabs_tts_initialization_with_env_var():
+    """ElevenLabsTTS should use ELEVENLABS_API_KEY when no key argument is given."""
 
-    # Initialize without providing an API key
-    tts = ElevenLabsTTS()
+    tts = ElevenLabsTTS()  # no explicit key provided
     assert tts is not None
+    assert tts.client.api_key == "env-var-api-key"
 
 
 @pytest.mark.asyncio

@@ -15,19 +15,11 @@ dependencies = [
     "useful-moonshine-onnx@git+https://github.com/usefulsensors/moonshine.git#subdirectory=moonshine-onnx",
     "onnxruntime",
     "numpy>=1.20.0",
-    "scipy>=1.7.0",
     "soundfile>=0.12.0",
-    "numba>=0.61.2",
-]
-
-[project.optional-dependencies]
-test = [
-    "pytest>=7.0.0",
-    "pytest-asyncio>=0.18.0",
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["getstream"]
+packages = ["."]
 
 [tool.hatch.metadata]
 allow-direct-references = true
@@ -35,3 +27,9 @@ allow-direct-references = true
 [tool.uv.sources]
 getstream = { workspace = true }
 getstream-plugins-common = { workspace = true }
+
+[tool.uv.dependency-groups] 
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.18.0",
+]

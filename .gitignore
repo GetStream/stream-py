@@ -12,7 +12,6 @@ lib/*
 shell.nix
 pyrightconfig.json
 .DS_Store
-<<<<<<< HEAD
 
 # Python package build artifacts
 *.egg-info/

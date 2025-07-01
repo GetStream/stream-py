@@ -1,3 +1,3 @@
-from .getstream.plugins.moonshine.stt import MoonshineSTT
+from .stt import MoonshineSTT
 
 __all__ = ["MoonshineSTT"]

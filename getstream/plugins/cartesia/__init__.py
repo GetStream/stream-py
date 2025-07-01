@@ -1,3 +1,3 @@
-from .getstream.plugins.cartesia.tts import CartesiaTTS
+from .tts import CartesiaTTS
  
 __all__ = ["CartesiaTTS"] 

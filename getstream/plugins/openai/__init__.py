@@ -1,3 +1,3 @@
-from .getstream.plugins.openai.realtime import OpenAIRealtime
+from .realtime import OpenAIRealtime
  
 __all__ = ["OpenAIRealtime"] 

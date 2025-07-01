@@ -1,3 +1,3 @@
-from .getstream.plugins.elevenlabs.tts import ElevenLabsTTS
+from .tts import ElevenLabsTTS
  
 __all__ = ["ElevenLabsTTS"] 

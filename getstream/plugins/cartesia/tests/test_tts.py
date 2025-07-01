@@ -59,7 +59,7 @@ class MockAudioTrack(AudioStreamTrack):
 
 
 @pytest.mark.asyncio
-@patch("getstream.plugins.cartesia.getstream.plugins.cartesia.tts.AsyncCartesia", MockAsyncCartesia)
+@patch("getstream.plugins.cartesia.tts.AsyncCartesia", MockAsyncCartesia)
 async def test_cartesia_tts_initialization():
     """CartesiaTTS should instantiate and store the provided api_key."""
     tts = CartesiaTTS(api_key="test-api-key")
@@ -68,17 +68,16 @@ async def test_cartesia_tts_initialization():
 
 
 @pytest.mark.asyncio
-@patch("getstream.plugins.cartesia.getstream.plugins.cartesia.tts.AsyncCartesia", MockAsyncCartesia)
-@patch("os.getenv")
-async def test_cartesia_tts_initialization_with_env_var(mock_getenv):
+@patch("getstream.plugins.cartesia.tts.AsyncCartesia", MockAsyncCartesia)
+@patch.dict(os.environ, {"CARTESIA_API_KEY": "env-var-api-key"})
+async def test_cartesia_tts_initialization_with_env_var():
     """When no api_key arg is supplied CartesiaTTS should read CARTESIA_API_KEY."""
-    mock_getenv.return_value = "env-var-api-key"
     tts = CartesiaTTS()  # no explicit key
     assert tts.client.api_key == "env-var-api-key"
 
 
 @pytest.mark.asyncio
-@patch("getstream.plugins.cartesia.getstream.plugins.cartesia.tts.AsyncCartesia", MockAsyncCartesia)
+@patch("getstream.plugins.cartesia.tts.AsyncCartesia", MockAsyncCartesia)
 async def test_cartesia_synthesize_returns_async_iterator():
     """synthesize() should yield an async iterator of PCM byte chunks."""
     tts = CartesiaTTS(api_key="test")
@@ -96,7 +95,7 @@ async def test_cartesia_synthesize_returns_async_iterator():
 
 
 @pytest.mark.asyncio
-@patch("getstream.plugins.cartesia.getstream.plugins.cartesia.tts.AsyncCartesia", MockAsyncCartesia)
+@patch("getstream.plugins.cartesia.tts.AsyncCartesia", MockAsyncCartesia)
 async def test_cartesia_send_writes_to_track_and_emits_event():
     tts = CartesiaTTS(api_key="test")
     track = MockAudioTrack()
@@ -116,7 +115,7 @@ async def test_cartesia_send_writes_to_track_and_emits_event():
 
 
 @pytest.mark.asyncio
-@patch("getstream.plugins.cartesia.getstream.plugins.cartesia.tts.AsyncCartesia", MockAsyncCartesia)
+@patch("getstream.plugins.cartesia.tts.AsyncCartesia", MockAsyncCartesia)
 async def test_cartesia_invalid_framerate_raises():
     tts = CartesiaTTS(api_key="test")
     bad_track = MockAudioTrack(framerate=44100)
@@ -126,7 +125,7 @@ async def test_cartesia_invalid_framerate_raises():
 
 
 @pytest.mark.asyncio
-@patch("getstream.plugins.cartesia.getstream.plugins.cartesia.tts.AsyncCartesia", MockAsyncCartesia)
+@patch("getstream.plugins.cartesia.tts.AsyncCartesia", MockAsyncCartesia)
 async def test_cartesia_send_without_track_raises():
     tts = CartesiaTTS(api_key="test")
 
