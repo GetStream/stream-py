@@ -98,7 +98,7 @@ async def receiver_task(
     file_path: str,
     test_timeout: int,
     logger: logging.Logger,
-    received_flag: Value,
+    received_flag: Value,  # type: ignore
 ):
     """Task function for the receiver process."""
     call = client.video.call("default", call_id)
@@ -330,7 +330,7 @@ async def test_play_file(client: Stream):
 
 @pytest.mark.asyncio
 async def test_play_audio_track_from_text(client: Stream):
-    from getstream_elevenlabs import ElevenLabsTTS
+    from getstream.plugins.elevenlabs import ElevenLabsTTS
 
     audio = audio_track.AudioStreamTrack(framerate=16000)
     tts_instance = ElevenLabsTTS(voice_id="JBFqnCBsd6RMkjVDRZzb")
@@ -352,9 +352,9 @@ async def test_play_audio_track_from_text(client: Stream):
 
 @pytest.mark.asyncio
 async def test_full_echo(client: Stream):
-    from getstream_silero import SileroVAD
-    from getstream_deepgram import DeepgramSTT
-    from getstream_elevenlabs import ElevenLabsTTS
+    from getstream.plugins.silero import SileroVAD
+    from getstream.plugins.deepgram import DeepgramSTT
+    from getstream.plugins.elevenlabs import ElevenLabsTTS
 
     audio = audio_track.AudioStreamTrack(framerate=16000)
     vad = SileroVAD()

@@ -3,24 +3,15 @@ name = "tts-kokoro-example"
 version = "0.1.0"
 description = "Stream Video + Kokoro TTS demo."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = { text = "MIT" }
 
 dependencies = [
+    "getstream[webrtc]",
+    "getstream-plugins-kokoro",
     "python-dotenv>=1.0.0",
-    "kokoro>=0.9.4",
-    "misaki[en]>=0.1.0",
-    "soundfile>=0.13.0",
-    "aiortc>=1.10.1",
-    "numpy>=2.0.0"
 ]
 
-[project.optional-dependencies]
-dev = ["pytest>=7.0", "pytest-asyncio>=0.21"]
-
-[build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
-
 [tool.uv.sources]
-getstream = { workspace = true } 
+getstream = { workspace = true }
+getstream-plugins-kokoro = { workspace = true }

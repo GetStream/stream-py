@@ -4,8 +4,8 @@ from dotenv import load_dotenv
 from getstream.stream import Stream
 from getstream.video import rtc
 from getstream.video.call import Call
-from getstream_deepgram import DeepgramSTT
-from getstream_elevenlabs import ElevenLabsTTS
+from getstream.plugins.deepgram import DeepgramSTT
+from getstream.plugins.elevenlabs import ElevenLabsTTS
 from getstream.video.rtc import audio_track
 from getstream.video.rtc.track_util import PcmData
 from examples.mcp.agent import chat_with_tools

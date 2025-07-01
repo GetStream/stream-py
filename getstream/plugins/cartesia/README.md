@@ -9,19 +9,19 @@ process speak PCM audio into a Stream call.
 Install from PyPI (installs both `getstream` and the Cartesia SDK):
 
 ```bash
-pip install "getstream-plugins-tts-cartesia[webrtc]"
+pip install "getstream-plugins-cartesia[webrtc]"
 ```
 
 If you already have the Stream SDK in your project just add the Cartesia plugin:
 
 ```bash
-pip install cartesia getstream-plugins-tts-cartesia
+pip install cartesia getstream-plugins-cartesia
 ```
 
 ## Usage
 
 ```python
-from getstream.plugins.tts.cartesia import CartesiaTTS
+from getstream.plugins.cartesia import CartesiaTTS
 from getstream.video.rtc.audio_track import AudioStreamTrack
 
 async def speak():
@@ -62,7 +62,7 @@ Events emitted:
 
 ## Requirements
 
-- Python 3.8+
+- Python 3.10+
 - `cartesia>=2.0.5` (automatically installed)
 
 ## Testing
@@ -70,7 +70,7 @@ Events emitted:
 Run the offline unit-tests:
 
 ```bash
-pytest -q getstream/plugins/tts/cartesia/tests
+pytest -q getstream/plugins/cartesia/tests
 ```
 
 To additionally exercise the live Cartesia API set `CARTESIA_API_KEY` in your

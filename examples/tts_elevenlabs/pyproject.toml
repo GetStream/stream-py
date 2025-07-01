@@ -3,23 +3,18 @@ name = "tts-elevenlabs-example"
 version = "0.1.0"
 description = "Stream Video + ElevenLabs TTS demo."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = { text = "MIT" }
 
 dependencies = [
+    "getstream[webrtc]",
+    "getstream-plugins-elevenlabs",
     "python-dotenv>=1.0.0",
     "elevenlabs>=0.2.27",
     "aiortc>=1.10.1",
     "numpy>=2.0.0"
 ]
 
-[project.optional-dependencies]
-dev = ["pytest>=7.0", "pytest-asyncio>=0.21"]
-
-[build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
-
-# Tell uv to satisfy the local 'getstream' import from the repo workspace
 [tool.uv.sources]
 getstream = { workspace = true }
+getstream-plugins-elevenlabs = { workspace = true }

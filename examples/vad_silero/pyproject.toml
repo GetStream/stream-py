@@ -3,20 +3,15 @@ name = "vad-silero-example"
 version = "0.1.0"
 description = "Stream Video + Silero VAD demo."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = { text = "MIT" }
 
 dependencies = [
+    "getstream[webrtc],
+    "getstream-plugins-silero",
     "python-dotenv>=1.0.0",
-    "torch>=1.11.0",
-    "numpy>=1.20.0",
-    "aiortc>=1.10.1",
 ]
-
-[build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
 
 [tool.uv.sources]
 getstream = { workspace = true }
-getstream-plugins-vad-silero = { workspace = true } 
+getstream-plugins-silero = { workspace = true } 

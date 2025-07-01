@@ -5,18 +5,11 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "getstream[webrtc]",
-    "fastmcp>=2.1,<2.4 ; python_version >= '3.10'"
-    "getstream-plugins-stt-deepgram",
+    "fastmcp>=2.1,<2.4 ; python_version >= '3.10'",
+    "getstream-plugins-deepgram",
     "python-dotenv>=1.0.0",
-    "aiortc>=1.10.1",
-    "numpy>=2.0.0",
-    
 ]
-
-[build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
 
 [tool.uv.sources]
 getstream = { workspace = true }
-getstream-plugins-stt-deepgram = { workspace = true }
+getstream-plugins-deepgram = { workspace = true }

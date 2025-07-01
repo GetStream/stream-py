@@ -22,11 +22,11 @@ and let uv resolve everything:
 [project]
 dependencies = [
     # … other deps …
-    "getstream-plugins-stt-moonshine",
+    "getstream-plugins-moonshine",
 ]
 
 [tool.uv.sources]
-getstream-plugins-stt-moonshine = { path = "getstream/plugins/stt/moonshine" }  # or remove for PyPI
+getstream-plugins-moonshine = { path = "getstream/plugins/moonshine" }  # or remove for PyPI
 ```
 
 Then:
@@ -47,20 +47,18 @@ pip install onnxruntime
 ## Usage
 
 ```python
-from getstream.plugins.stt.moonshine import Moonshine
+from getstream.plugins.moonshine import MoonshineSTT
 from getstream.video.rtc.track_util import PcmData
 
 # Initialize with default settings (base model, 16kHz)
-stt = Moonshine()
+stt = MoonshineSTT()
 
 # Or customize the configuration
-stt = Moonshine(
+stt = MoonshineSTT(
     model_name="moonshine/tiny",  # Use the smaller, faster model
     sample_rate=16000,            # Moonshine's native sample rate
-    chunk_duration_ms=1000,       # Process 1-second chunks
     min_audio_length_ms=500,      # Minimum audio length for transcription
     # ONNX runtime will automatically select the best execution provider
-    target_dbfs=-26.0             # RMS normalization target (optimal for Moonshine)
 )
 
 # Set up event handlers
@@ -106,52 +104,6 @@ Moonshine offers two model variants with different trade-offs:
 ## Sample Rate Handling
 
 The Moonshine plugin automatically handles sample rate conversion for optimal transcription quality:
-
-- **Native Rate**: Moonshine models are optimized for 16kHz audio
-- **WebRTC Compatibility**: Automatically detects and converts 48kHz WebRTC audio to 16kHz
-- **High-Quality Resampling**: Uses scipy's resample_poly for superior audio quality
-- **Automatic Detection**: Logs sample rate conversions for debugging and monitoring
-- **Metadata Tracking**: Includes resampling information in transcription metadata
-
-**Common Scenarios**:
-- WebRTC calls (48kHz) → Automatically resampled to 16kHz
-- Native 16kHz audio → No resampling needed (optimal performance)
-- Other sample rates → Automatically resampled with quality preservation
-
-**Audio Format Optimization**:
-- Saves audio as 16-bit PCM WAV format (Moonshine's training format)
-- Avoids float32 WAV files which reduce dynamic range and accuracy
-- Maintains optimal signal-to-noise ratio for transcription quality
-
-**RMS Normalization**:
-- Automatically normalizes audio to optimal -26 dBFS level (Moonshine's training standard)
-- Boosts quiet WebRTC audio (typically -35 dBFS) for better recognition accuracy
-- Provides 1.5-3 dB SNR improvement without introducing clipping
-- Configurable target level via `target_dbfs` parameter
-
-## Configuration Options
-
-- **model_name**: Choose between `"moonshine/tiny"` (faster, smaller) or `"moonshine/base"` (more accurate, larger, **default**)
-- **sample_rate**: Audio sample rate in Hz (default: 16000, Moonshine's native rate)
-- **chunk_duration_ms**: Duration of audio chunks to process (default: 1000ms)
-- **min_audio_length_ms**: Minimum audio length required for transcription (default: 500ms)
-
-- **language**: Language code (currently only "en-US" supported by Moonshine)
-- **target_dbfs**: Target RMS level in dBFS for audio normalization (default: -26.0, Moonshine's optimal level)
-
-## Performance Characteristics
-
-- **Real-time Factor**: Typically 0.1-0.3x (processes audio 3-10x faster than real-time)
-- **Latency**: ~100-300ms processing time for 1-second audio chunks
-- **Memory Usage**: ~200MB for tiny model, ~400MB for base model
-- **Accuracy**: Comparable to or better than Whisper tiny/base models
-
-## Limitations
-
-- Currently supports English only
-- No streaming/partial transcripts (processes complete audio chunks)
-- Requires temporary file creation for Moonshine API compatibility
-- No confidence scores (Moonshine doesn't provide them)
 
 ## Events
 

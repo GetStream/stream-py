@@ -3,20 +3,17 @@ name = "tts-cartesia-example"
 version = "0.1.0"
 description = "Stream Video + Cartesia TTS demo."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = { text = "MIT" }
 
 dependencies = [
+    "gestream[webrtc]",
+    "getstream-plugins-cartesia",
     "python-dotenv>=1.0.0",
     "cartesia>=2.0.5",
     "aiortc>=1.10.1",
     "numpy>=2.0.0"
 ]
 
-[build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
-
-# Tell uv to satisfy the local 'getstream' import from the repo workspace
 [tool.uv.sources]
 getstream = { workspace = true }

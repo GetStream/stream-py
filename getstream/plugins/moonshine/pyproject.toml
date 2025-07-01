@@ -27,11 +27,11 @@ test = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/getstream_moonshine"]
+packages = ["getstream"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.uv.sources]
 getstream = { workspace = true }
 getstream-plugins-common = { workspace = true }
-
-[tool.hatch.metadata]
-allow-direct-references = true

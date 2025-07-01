@@ -5,20 +5,20 @@ A fast and accurate Voice Activity Detection (VAD) plugin for GetStream that use
 ## Installation
 
 ```bash
-pip install getstream-plugins-vad-silero
+pip install getstream-plugins-silero
 ```
 
 ## Usage
 
 ```python
-from getstream.plugins.vad.silero import Silero
+from getstream.plugins.silero import SileroVAD
 from getstream.video.rtc.track_util import PcmData
 
 # Initialize with default settings
-vad = Silero()
+vad = SileroVAD()
 
 # Or customize parameters
-vad = Silero(
+vad = SileroVAD(
     sample_rate=16000,
     frame_size=512,
     silence_threshold=0.3,
@@ -50,15 +50,3 @@ await vad.reset()
 - `speech_pad_ms`: Number of milliseconds to pad before/after speech (default: 300)
 - `min_speech_ms`: Minimum milliseconds of speech to emit (default: 250)
 - `max_speech_ms`: Maximum milliseconds of speech before forced flush (default: 30000)
-
-## Requirements
-
-- Python 3.8+
-- torch
-- numpy
-
-## Testing
-
-```bash
-pytest -xvs getstream/plugins/vad/silero/tests/
-```

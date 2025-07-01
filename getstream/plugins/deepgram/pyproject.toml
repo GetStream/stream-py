@@ -7,10 +7,11 @@ name = "getstream-plugins-deepgram"
 version = "0.1.0"
 description = "Deepgram plugin for GetStream"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 license = "MIT"
 dependencies = [
     "getstream[webrtc]",
+    "getstream-plugins-common",
     "deepgram-sdk>=2.4.0",
     "numpy>=1.20.0",
 ]
@@ -22,7 +23,8 @@ test = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/getstream_deepgram"]
+packages = ["getstream"]
 
 [tool.uv.sources]
 getstream = { workspace = true }
+getstream-plugins-common = { workspace = true }

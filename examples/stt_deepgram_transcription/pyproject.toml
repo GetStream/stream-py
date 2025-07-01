@@ -3,21 +3,17 @@ name = "getstream-stt-deepgram-transcription-example"
 version = "0.1.0"
 description = "Example project showing how to transcribe a call using STT with Deepgram"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = {text = "MIT"}
 
 dependencies = [
     "getstream[webrtc]",
-    "getstream-plugins-stt-deepgram",
+    "getstream-plugins-deepgram",
     "python-dotenv>=1.0.0",
     "aiortc>=1.10.1",
     "numpy>=2.0.0",
 ]
 
-[build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
-
 [tool.uv.sources]
 getstream = { workspace = true }
-getstream-plugins-stt-deepgram = { workspace = true }
+getstream-plugins-deepgram = { workspace = true }

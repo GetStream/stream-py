@@ -10,7 +10,7 @@ import numpy as np
 import logging
 import pytest
 import soundfile as sf
-from getstream_silero import SileroVAD
+from getstream.plugins.silero import SileroVAD
 from getstream.video.rtc.track_util import PcmData
 from getstream.plugins.test_utils import get_audio_asset
 

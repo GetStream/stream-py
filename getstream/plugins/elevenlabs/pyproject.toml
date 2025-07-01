@@ -11,6 +11,7 @@ requires-python = ">=3.10"
 license = "MIT"
 dependencies = [
     "getstream[webrtc]",
+    "getstream-plugins-common",
     "elevenlabs>=0.2.0",
 ]
 
@@ -21,7 +22,8 @@ test = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/getstream_elevenlabs"]
+packages = ["getstream"]
 
 [tool.uv.sources]
 getstream = { workspace = true }
+getstream-plugins-common = { workspace = true }

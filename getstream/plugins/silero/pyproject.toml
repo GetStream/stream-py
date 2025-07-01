@@ -7,25 +7,28 @@ name = "getstream-plugins-silero"
 version = "0.1.0"
 description = "Silero plugin for GetStream"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 license = "MIT"
 dependencies = [
     "getstream[webrtc]",
+    "getstream-plugins-common",
     "torch>=1.11.0",
     "numpy>=1.20.0",
+    "soundfile>=0.10.0",
+    "torchaudio>=0.11.0",
+    "scipy>=1.8.0",
 ]
 
 [project.optional-dependencies]
 test = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.18.0",
-    "soundfile>=0.10.0",
-    "torchaudio>=0.11.0",
-    "scipy>=1.8.0",
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/getstream_silero"]
+packages = ["getstream"]
 
 [tool.uv.sources]
 getstream = { workspace = true }
+getstream-plugins-common = { workspace = true }
+

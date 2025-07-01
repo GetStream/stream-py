@@ -3,7 +3,7 @@ name = "getstream-stt-whisper-example"
 version = "0.1.0"
 description = "Example project showing how to use Whisper STT with GetStream"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = {text = "MIT"}
 
 dependencies = [
@@ -13,18 +13,8 @@ dependencies = [
     "openai-whisper>=20231117",  # Temporary direct dependency until plugin exists
 ]
 
-[project.optional-dependencies]
-dev = [
-    "pytest>=7.0.0",
-    "pytest-asyncio>=0.21.0",
-]
-
-[build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
-
 [tool.uv.sources]
 getstream = { workspace = true }
-getstream-plugins-stt-deepgram = { workspace = true }
-getstream-plugins-tts-elevenlabs = { workspace = true }
-getstream-plugins-vad-silero = { workspace = true }
+getstream-plugins-deepgram = { workspace = true }
+getstream-plugins-elevenlabs = { workspace = true }
+getstream-plugins-silero = { workspace = true }

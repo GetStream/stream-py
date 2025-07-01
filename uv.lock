@@ -19,7 +19,6 @@ members = [
     "getstream-plugins-moonshine",
     "getstream-plugins-openai",
     "getstream-plugins-silero",
-    "getstream-plugins-ten",
 ]
 
 [[package]]
@@ -1186,6 +1185,7 @@ source = { editable = "getstream/plugins/cartesia" }
 dependencies = [
     { name = "cartesia" },
     { name = "getstream", extra = ["webrtc"] },
+    { name = "getstream-plugins-common" },
 ]
 
 [package.optional-dependencies]
@@ -1198,6 +1198,7 @@ test = [
 requires-dist = [
     { name = "cartesia", specifier = ">=2.0.5" },
     { name = "getstream", extras = ["webrtc"], editable = "." },
+    { name = "getstream-plugins-common", editable = "getstream/plugins/common" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=7.0.0" },
     { name = "pytest-asyncio", marker = "extra == 'test'", specifier = ">=0.18.0" },
 ]
@@ -1232,6 +1233,7 @@ source = { editable = "getstream/plugins/deepgram" }
 dependencies = [
     { name = "deepgram-sdk" },
     { name = "getstream", extra = ["webrtc"] },
+    { name = "getstream-plugins-common" },
     { name = "numpy" },
 ]
 
@@ -1245,6 +1247,7 @@ test = [
 requires-dist = [
     { name = "deepgram-sdk", specifier = ">=2.4.0" },
     { name = "getstream", extras = ["webrtc"], editable = "." },
+    { name = "getstream-plugins-common", editable = "getstream/plugins/common" },
     { name = "numpy", specifier = ">=1.20.0" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=7.0.0" },
     { name = "pytest-asyncio", marker = "extra == 'test'", specifier = ">=0.18.0" },
@@ -1258,6 +1261,7 @@ source = { editable = "getstream/plugins/elevenlabs" }
 dependencies = [
     { name = "elevenlabs" },
     { name = "getstream", extra = ["webrtc"] },
+    { name = "getstream-plugins-common" },
 ]
 
 [package.optional-dependencies]
@@ -1270,6 +1274,7 @@ test = [
 requires-dist = [
     { name = "elevenlabs", specifier = ">=0.2.0" },
     { name = "getstream", extras = ["webrtc"], editable = "." },
+    { name = "getstream-plugins-common", editable = "getstream/plugins/common" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=7.0.0" },
     { name = "pytest-asyncio", marker = "extra == 'test'", specifier = ">=0.18.0" },
 ]
@@ -1281,7 +1286,9 @@ version = "0.1.0"
 source = { editable = "getstream/plugins/kokoro" }
 dependencies = [
     { name = "getstream", extra = ["webrtc"] },
+    { name = "getstream-plugins-common" },
     { name = "kokoro" },
+    { name = "misaki", extra = ["en"] },
     { name = "soundfile" },
 ]
 
@@ -1294,7 +1301,9 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "getstream", extras = ["webrtc"], editable = "." },
+    { name = "getstream-plugins-common", editable = "getstream/plugins/common" },
     { name = "kokoro", specifier = ">=0.9.4" },
+    { name = "misaki", extras = ["en"], specifier = ">=0.1.0" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=7.0.0" },
     { name = "pytest-asyncio", marker = "extra == 'test'", specifier = ">=0.18.0" },
     { name = "soundfile", specifier = ">=0.13.0" },
@@ -1344,6 +1353,7 @@ version = "0.1.0"
 source = { editable = "getstream/plugins/openai" }
 dependencies = [
     { name = "getstream", extra = ["webrtc"] },
+    { name = "getstream-plugins-common" },
     { name = "openai", extra = ["realtime"] },
     { name = "trio" },
 ]
@@ -1357,6 +1367,7 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "getstream", extras = ["webrtc"], editable = "." },
+    { name = "getstream-plugins-common", editable = "getstream/plugins/common" },
     { name = "openai", extras = ["realtime"], specifier = ">=1.82.0" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=7.0.0" },
     { name = "pytest-asyncio", marker = "extra == 'test'", specifier = ">=0.18.0" },
@@ -1370,40 +1381,13 @@ version = "0.1.0"
 source = { editable = "getstream/plugins/silero" }
 dependencies = [
     { name = "getstream", extra = ["webrtc"] },
+    { name = "getstream-plugins-common" },
     { name = "numpy" },
-    { name = "torch" },
-]
-
-[package.optional-dependencies]
-test = [
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
     { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "scipy", version = "1.16.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "soundfile" },
+    { name = "torch" },
     { name = "torchaudio" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "getstream", extras = ["webrtc"], editable = "." },
-    { name = "numpy", specifier = ">=1.20.0" },
-    { name = "pytest", marker = "extra == 'test'", specifier = ">=7.0.0" },
-    { name = "pytest-asyncio", marker = "extra == 'test'", specifier = ">=0.18.0" },
-    { name = "scipy", marker = "extra == 'test'", specifier = ">=1.8.0" },
-    { name = "soundfile", marker = "extra == 'test'", specifier = ">=0.10.0" },
-    { name = "torch", specifier = ">=1.11.0" },
-    { name = "torchaudio", marker = "extra == 'test'", specifier = ">=0.11.0" },
-]
-provides-extras = ["test"]
-
-[[package]]
-name = "getstream-plugins-ten"
-version = "0.1.0"
-source = { editable = "getstream/plugins/ten" }
-dependencies = [
-    { name = "getstream", extra = ["webrtc"] },
-    { name = "transformers" },
 ]
 
 [package.optional-dependencies]
@@ -1415,9 +1399,14 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "getstream", extras = ["webrtc"], editable = "." },
+    { name = "getstream-plugins-common", editable = "getstream/plugins/common" },
+    { name = "numpy", specifier = ">=1.20.0" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=7.0.0" },
     { name = "pytest-asyncio", marker = "extra == 'test'", specifier = ">=0.18.0" },
-    { name = "transformers", specifier = ">=4.0.0" },
+    { name = "scipy", specifier = ">=1.8.0" },
+    { name = "soundfile", specifier = ">=0.10.0" },
+    { name = "torch", specifier = ">=1.11.0" },
+    { name = "torchaudio", specifier = ">=0.11.0" },
 ]
 provides-extras = ["test"]
 

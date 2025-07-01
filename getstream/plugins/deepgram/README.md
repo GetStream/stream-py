@@ -5,19 +5,19 @@ A high-quality Speech-to-Text (STT) plugin for GetStream that uses the Deepgram 
 ## Installation
 
 ```bash
-pip install getstream-plugins-stt-deepgram
+pip install getstream-plugins-deepgram
 ```
 
 ## Usage
 
 ```python
-from getstream.plugins.stt.deepgram import Deepgram
+from getstream.plugins.deepgram import DeepgramSTT
 
 # Initialize with API key from environment variable
-stt = Deepgram()
+stt = DeepgramSTT()
 
 # Or specify API key directly
-stt = Deepgram(api_key="your_deepgram_api_key")
+stt = DeepgramSTT(api_key="your_deepgram_api_key")
 
 # Register event handlers
 @stt.on("transcript")
@@ -45,12 +45,6 @@ await stt.close()
 
 ## Requirements
 
-- Python 3.8+
-- deepgram-sdk
-- numpy
-
-## Testing
-
-```bash
-pytest -xvs getstream/plugins/stt/deepgram/tests/
-```
+- Python 3.10+
+- deepgram-sdk>=2.4.0
+- numpy>=1.20.0
