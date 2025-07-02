@@ -22,8 +22,8 @@ packages = ["."]
 getstream = { workspace = true }
 getstream-plugins-common = { workspace = true }
 
-[tool.uv.dependency-groups]
+[dependency-groups]
 dev = [
-    "pytest >= 7.0.0",
-    "pytest-asyncio >= 0.18.0",
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.18.0",
 ]
