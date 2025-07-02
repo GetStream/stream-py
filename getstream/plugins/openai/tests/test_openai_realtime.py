@@ -50,7 +50,9 @@ async def test_connect_updates_state_and_emits_event(mock_call, mock_connection)
     assert "connected" in events
 
     # Ensure call.connect_openai invoked with the right params
-    mock_call.connect_openai.assert_called_once_with("key123", "assistant", model="gpt-4o-realtime-preview")
+    mock_call.connect_openai.assert_called_once_with(
+        "key123", "assistant", model="gpt-4o-realtime-preview"
+    )
 
 
 @pytest.mark.asyncio
@@ -60,7 +62,9 @@ async def test_update_session_calls_underlying_client(mock_call, mock_connection
     await sts.connect(mock_call)
 
     await sts.update_session(voice="nova", temperature=0.5)
-    mock_connection.session.update.assert_awaited_once_with(session={"voice": "nova", "temperature": 0.5})
+    mock_connection.session.update.assert_awaited_once_with(
+        session={"voice": "nova", "temperature": 0.5}
+    )
 
 
 @pytest.mark.asyncio
@@ -86,13 +90,13 @@ async def test_send_function_call_output(mock_call, mock_connection):
     sts = OpenAIRealtime(api_key="xyz")
     await sts.connect(mock_call)
 
-    await sts.send_function_call_output("tool-123", "{\"ok\": true}")
+    await sts.send_function_call_output("tool-123", '{"ok": true}')
 
     mock_connection.conversation.item.create.assert_awaited_once_with(
         item={
             "type": "function_call_output",
             "call_id": "tool-123",
-            "output": "{\"ok\": true}",
+            "output": '{"ok": true}',
         }
     )
 
@@ -118,4 +122,4 @@ async def test_methods_raise_if_not_connected():
     with pytest.raises(RuntimeError):
         await sts.send_function_call_output("id", "out")
     with pytest.raises(RuntimeError):
-        await sts.request_assistant_response() 
+        await sts.request_assistant_response()

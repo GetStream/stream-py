@@ -18,19 +18,19 @@ logger = logging.getLogger(__name__)
 
 # Public API - only these functions should be used outside this module
 __all__ = [
-    'ConnectionState',
-    'SfuConnectionError',
-    'is_retryable',
-    'create_join_request', 
-    'prepare_video_track_info',
-    'create_audio_track_info', 
-    'get_websocket_url',
+    "ConnectionState",
+    "SfuConnectionError",
+    "is_retryable",
+    "create_join_request",
+    "prepare_video_track_info",
+    "create_audio_track_info",
+    "get_websocket_url",
 ]
 
 # Error patterns that indicate retryable conditions
 RETRYABLE_ERROR_PATTERNS = [
     "server is full",
-    "server overloaded", 
+    "server overloaded",
     "capacity exceeded",
     "try again later",
     "service unavailable",
@@ -38,13 +38,13 @@ RETRYABLE_ERROR_PATTERNS = [
     "network error",
     "temporary failure",
     "connection refused",
-    "connection reset"
+    "connection reset",
 ]
 
 
 class ConnectionState(Enum):
     """Enumeration of possible connection states."""
-    
+
     IDLE = "idle"
     JOINING = "joining"
     JOINED = "joined"
@@ -58,30 +58,31 @@ class ConnectionState(Enum):
 
 class SfuConnectionError(Exception):
     """Exception raised when SFU connection fails."""
+
     pass
 
 
 def is_retryable(retry_state: Any) -> bool:
     """Check if an error should be retried.
-    
+
     Args:
         retry_state: The retry state object from tenacity
-        
+
     Returns:
         True if the error should be retried, False otherwise
     """
     # Extract the actual exception from the retry state
-    if hasattr(retry_state, 'outcome') and retry_state.outcome.failed:
+    if hasattr(retry_state, "outcome") and retry_state.outcome.failed:
         error = retry_state.outcome.exception()
     else:
         return False
-    
+
     # Import here to avoid circular imports
     from getstream.video.rtc.signaling import SignalingError
-    
+
     if not isinstance(error, (SignalingError, SfuConnectionError)):
         return False
-    
+
     error_message = str(error).lower()
     return any(pattern in error_message for pattern in RETRYABLE_ERROR_PATTERNS)
 
@@ -105,8 +106,9 @@ def create_join_request(join_response, session_id: str) -> events_pb2.JoinReques
     join_request.session_id = session_id
     return join_request
 
+
 async def prepare_video_track_info(
-    video: aiortc.mediastreams.MediaStreamTrack
+    video: aiortc.mediastreams.MediaStreamTrack,
 ) -> Tuple[TrackInfo, aiortc.mediastreams.MediaStreamTrack]:
     """
     Prepare video track info by detecting its properties.
@@ -116,7 +118,7 @@ async def prepare_video_track_info(
 
     Returns:
         A tuple of (TrackInfo, buffered_video_track)
-    
+
     Raises:
         Exception: If video property detection fails
     """
@@ -197,6 +199,7 @@ def create_audio_track_info(audio: aiortc.mediastreams.MediaStreamTrack) -> Trac
         track_id=audio.id,
         track_type=TRACK_TYPE_AUDIO,
     )
+
 
 def get_websocket_url(join_response, local_sfu: bool = False) -> str:
     """

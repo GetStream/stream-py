@@ -10,5 +10,6 @@ def get_forecast(city: str) -> str:
     data = httpx.get(f"https://wttr.in/{city}?format=%C+%t").text
     return data.strip()
 
+
 if __name__ == "__main__":
-    mcp.run()        # default transport = stdio
+    mcp.run()  # default transport = stdio

@@ -9,7 +9,8 @@ from getstream.plugins.elevenlabs import ElevenLabsTTS
 from getstream.video.rtc import audio_track
 from getstream.video.rtc.track_util import PcmData
 from examples.mcp.agent import chat_with_tools
-import asyncio, fastmcp
+import asyncio
+import fastmcp
 from examples.utils import create_user, open_browser
 import uuid
 
@@ -63,6 +64,7 @@ async def run_bot(call: Call, bot_user_id: str):
     except Exception as e:
         print(f"❌ Error: {e}")
         import traceback
+
         traceback.print_exc()
     finally:
         await stt.close()

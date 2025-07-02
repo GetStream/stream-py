@@ -39,4 +39,4 @@ You'll see the bot join, say a greeting, then wait. Add extra `await tts.send(".
 
 ---
 
-Need help? → [Stream Video docs](https://getstream.io/video/docs/) · [Cartesia docs](https://docs.cartesia.ai) 
+Need help? → [Stream Video docs](https://getstream.io/video/docs/) · [Cartesia docs](https://docs.cartesia.ai)

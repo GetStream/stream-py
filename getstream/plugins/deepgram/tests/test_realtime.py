@@ -87,7 +87,6 @@ class MockDeepgramClient:
         self.listen.websocket.v = MagicMock(return_value=MockDeepgramConnection())
 
 
-
 @pytest.mark.asyncio
 @patch("getstream.plugins.deepgram.stt.DeepgramClient", MockDeepgramClient)
 async def test_real_time_transcript_emission():

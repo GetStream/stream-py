@@ -28,7 +28,7 @@ Update the `AUDIO_FILES` list in `main.py` with paths to your actual audio files
 ```python
 AUDIO_FILES = [
     "/path/to/your/audio1.wav",  # Bot Alice will play this
-    "/path/to/your/audio2.wav",  # Bot Bob will play this  
+    "/path/to/your/audio2.wav",  # Bot Bob will play this
     "/path/to/your/audio3.wav",  # Bot Charlie will play this
 ]
 ```
@@ -99,4 +99,3 @@ The `MediaPlayer` handles:
 - Continuous playback (with `loop=True`)
 - Converting audio to the correct format for WebRTC
 - Providing the audio track that can be added to the call
-

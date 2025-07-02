@@ -34,10 +34,10 @@ sts_bot = OpenAIRealtime(
 async with await sts_bot.connect(call, agent_user_id="assistant") as connection:
     # Optionally update session parameters
     await sts_bot.update_session(voice="nova")
-    
+
     # Send a text message if needed
     await sts_bot.send_user_message("Hello, how are you?")
-    
+
     # Listen for events
     async for event in connection:
         print(f"Event: {event.type}")
@@ -149,7 +149,7 @@ class OpenAIRealtime(STS):
             raise RuntimeError("Not connected")
 
         await self._connection.session.update(session=session_fields)
-    
+
     async def send_function_call_output(self, tool_call_id: str, output: str):
         """Send a tool call output to the conversation."""
         if not self._is_connected or not self._connection:
@@ -181,12 +181,12 @@ class OpenAIRealtime(STS):
             }
         )
         await self.request_assistant_response()
-    
+
     async def request_assistant_response(self):
         """Ask OpenAI to generate the next assistant turn."""
         if not self._is_connected or not self._connection:
             raise RuntimeError("Not connected")
-        
+
         await self._connection.response.create()
 
 

@@ -94,7 +94,9 @@ async def main():
             async def on_partial_transcript(text: str, user: any, metadata: dict):
                 if text.strip():  # Only show non-empty partial transcripts
                     user_info = user if user else "unknown"
-                    print(f"    {user_info} (partial): {text}", end="\r")  # Overwrite line
+                    print(
+                        f"    {user_info} (partial): {text}", end="\r"
+                    )  # Overwrite line
 
             @stt.on("error")
             async def on_stt_error(error):
@@ -109,12 +111,13 @@ async def main():
     except Exception as e:
         print(f"❌ Error: {e}")
         import traceback
+
         traceback.print_exc()
     finally:
         await stt.close()
         client.delete_users([user_id, bot_user_id])
         print("🧹 Cleanup completed")
 
+
 if __name__ == "__main__":
     asyncio.run(main())
-

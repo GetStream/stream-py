@@ -41,4 +41,4 @@ Under 120 lines of code 😀
 
 ---
 
-Need help? → [Stream Video docs](https://getstream.io/video/docs/) · [ElevenLabs docs](https://docs.elevenlabs.io) 
+Need help? → [Stream Video docs](https://getstream.io/video/docs/) · [ElevenLabs docs](https://docs.elevenlabs.io)

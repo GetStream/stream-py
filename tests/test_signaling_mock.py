@@ -187,7 +187,9 @@ class TestWebSocketClient:
             Handles WebSocket connection, message serialization/deserialization, and event handling.
             """
 
-            def __init__(self, url: str, join_request, main_loop: asyncio.AbstractEventLoop):
+            def __init__(
+                self, url: str, join_request, main_loop: asyncio.AbstractEventLoop
+            ):
                 """
                 Initialize a new WebSocket client.
 
@@ -271,7 +273,10 @@ class TestWebSocketClient:
 
                 # Serialize and send JoinRequest
                 import sys
-                events_pb2 = sys.modules["getstream.video.rtc.pb.stream.video.sfu.event.events_pb2"]
+
+                events_pb2 = sys.modules[
+                    "getstream.video.rtc.pb.stream.video.sfu.event.events_pb2"
+                ]
 
                 request = events_pb2.SfuRequest(join_request=self.join_request)
                 ws.send(request.SerializeToString())
@@ -282,7 +287,10 @@ class TestWebSocketClient:
                     # Deserialize the message
                     # Use the mocked events_pb2 from sys.modules
                     import sys
-                    events_pb2 = sys.modules["getstream.video.rtc.pb.stream.video.sfu.event.events_pb2"]
+
+                    events_pb2 = sys.modules[
+                        "getstream.video.rtc.pb.stream.video.sfu.event.events_pb2"
+                    ]
 
                     event = events_pb2.SfuEvent()
                     event.ParseFromString(message)
@@ -307,7 +315,10 @@ class TestWebSocketClient:
                     # Create an error event
                     # Use the mocked events_pb2 from sys.modules
                     import sys
-                    events_pb2 = sys.modules["getstream.video.rtc.pb.stream.video.sfu.event.events_pb2"]
+
+                    events_pb2 = sys.modules[
+                        "getstream.video.rtc.pb.stream.video.sfu.event.events_pb2"
+                    ]
 
                     error_event = events_pb2.SfuEvent()
                     error_event._which_oneof = "error"
@@ -421,7 +432,9 @@ class TestWebSocketClient:
     @pytest.mark.asyncio
     async def test_connect_success(self, join_request):
         """Test successful connection flow."""
-        client = WebSocketClient("wss://test.url", join_request, asyncio.get_running_loop())
+        client = WebSocketClient(
+            "wss://test.url", join_request, asyncio.get_running_loop()
+        )
 
         try:
             # Start connection task but don't await it yet
@@ -429,7 +442,7 @@ class TestWebSocketClient:
 
             # Wait a bit for the WebSocket to be created
             await asyncio.sleep(0.1)
-            
+
             # Check if mock_ws_app was set
             assert self.mock_ws_app is not None, "WebSocketApp was not created"
 
@@ -456,7 +469,9 @@ class TestWebSocketClient:
     @pytest.mark.asyncio
     async def test_connect_error(self, join_request):
         """Test connection with error response."""
-        client = WebSocketClient("wss://test.url", join_request, asyncio.get_running_loop())
+        client = WebSocketClient(
+            "wss://test.url", join_request, asyncio.get_running_loop()
+        )
 
         try:
             # Start connection task
@@ -464,7 +479,7 @@ class TestWebSocketClient:
 
             # Wait a bit for the WebSocket to be created
             await asyncio.sleep(0.1)
-            
+
             # Check if mock_ws_app was set
             assert self.mock_ws_app is not None, "WebSocketApp was not created"
 
@@ -486,7 +501,9 @@ class TestWebSocketClient:
     @pytest.mark.asyncio
     async def test_websocket_error_during_connect(self, join_request):
         """Test WebSocket error during connection."""
-        client = WebSocketClient("wss://test.url", join_request, asyncio.get_running_loop())
+        client = WebSocketClient(
+            "wss://test.url", join_request, asyncio.get_running_loop()
+        )
 
         try:
             # Start connection task
@@ -494,7 +511,7 @@ class TestWebSocketClient:
 
             # Wait a bit for the WebSocket to be created
             await asyncio.sleep(0.1)
-            
+
             # Check if mock_ws_app was set
             assert self.mock_ws_app is not None, "WebSocketApp was not created"
 
@@ -511,7 +528,9 @@ class TestWebSocketClient:
     @pytest.mark.asyncio
     async def test_event_callbacks(self, join_request):
         """Test event callbacks are executed correctly."""
-        client = WebSocketClient("wss://test.url", join_request, asyncio.get_running_loop())
+        client = WebSocketClient(
+            "wss://test.url", join_request, asyncio.get_running_loop()
+        )
 
         # Create a callback tracking variable
         callback_results = {"participant_joined": 0, "wildcard": 0}
@@ -535,7 +554,7 @@ class TestWebSocketClient:
 
             # Wait a bit for the WebSocket to be created
             await asyncio.sleep(0.1)
-            
+
             # Check if mock_ws_app was set
             assert self.mock_ws_app is not None, "WebSocketApp was not created"
 
@@ -548,13 +567,15 @@ class TestWebSocketClient:
 
             # Simulate receiving participant joined event
             self.mock_ws_app.on_message(self.mock_ws_app, b"participant_joined")
-            
+
             # Give some time for the callbacks to execute
             await asyncio.sleep(0.2)
 
             # Verify callbacks were called
             assert callback_results["participant_joined"] == 1
-            assert callback_results["wildcard"] == 2  # Called for join_response and participant_joined
+            assert (
+                callback_results["wildcard"] == 2
+            )  # Called for join_response and participant_joined
         finally:
             # Clean up
             client.close()
@@ -562,7 +583,9 @@ class TestWebSocketClient:
     @pytest.mark.asyncio
     async def test_thread_usage(self, join_request):
         """Test that thread is properly used and managed."""
-        client = WebSocketClient("wss://test.url", join_request, asyncio.get_running_loop())
+        client = WebSocketClient(
+            "wss://test.url", join_request, asyncio.get_running_loop()
+        )
 
         try:
             # Start connection
@@ -570,7 +593,7 @@ class TestWebSocketClient:
 
             # Wait a bit for the WebSocket to be created
             await asyncio.sleep(0.1)
-            
+
             # Check if mock_ws_app was set
             assert self.mock_ws_app is not None, "WebSocketApp was not created"
 

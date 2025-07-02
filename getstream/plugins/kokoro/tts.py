@@ -61,4 +61,4 @@ class KokoroTTS(TTS):
             if not isinstance(audio, np.ndarray):
                 audio = np.asarray(audio)
             pcm16 = (np.clip(audio, -1.0, 1.0) * 32767.0).astype("<i2")
-            yield pcm16.tobytes() 
+            yield pcm16.tobytes()

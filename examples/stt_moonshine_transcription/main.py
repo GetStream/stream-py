@@ -43,7 +43,7 @@ async def main() -> None:  # noqa: D401
     client = Stream.from_env()
 
     call_id = str(uuid.uuid4())
-    print(f"📞 Call ID: {call_id}") 
+    print(f"📞 Call ID: {call_id}")
 
     user_id = f"user-{uuid.uuid4()}"
     create_user(client, user_id, "My User")
@@ -81,7 +81,9 @@ async def main() -> None:  # noqa: D401
 
             @vad.on("audio")
             async def _on_speech_detected(pcm: PcmData, user):
-                print(f"🎤 Speech detected from user: {user.name}, duration: {pcm.duration:.2f}s")
+                print(
+                    f"🎤 Speech detected from user: {user.name}, duration: {pcm.duration:.2f}s"
+                )
                 await stt.process_audio(pcm, user)
 
             @stt.on("transcript")

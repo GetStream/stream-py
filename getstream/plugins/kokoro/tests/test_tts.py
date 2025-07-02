@@ -93,4 +93,4 @@ async def test_kokoro_invalid_framerate():
 async def test_kokoro_send_without_track():
     tts = KokoroTTS()
     with pytest.raises(ValueError):
-        await tts.send("Hi") 
+        await tts.send("Hi")

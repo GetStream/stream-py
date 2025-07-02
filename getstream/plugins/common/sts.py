@@ -35,5 +35,6 @@ class STS(AsyncIOEventEmitter, abc.ABC):
         """Return True if the realtime session is currently active."""
         return self._is_connected
 
+
 # Public re-export
 __all__ = ["STS"]

@@ -12,9 +12,9 @@ Run it, talk, and the bot will answer – possibly after calling a tool.
 
 ## 1 — Prerequisites
 
-• Python ≥ 3.10 (⁠we use `pyproject.toml` to pin the packages)  
-• A Stream account with API key/secret  
-• An OpenAI API key  
+• Python ≥ 3.10 (⁠we use `pyproject.toml` to pin the packages)
+• A Stream account with API key/secret
+• An OpenAI API key
 • Deepgram + ElevenLabs keys if you want speech-to-text **and** text-to-speech
 
 Create an `.env` file in this directory (or export the variables any other way):

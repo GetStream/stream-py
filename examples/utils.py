@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
 def create_user(client: Stream, id: str, name: str) -> None:
     """
     Create a user with a unique Stream ID.

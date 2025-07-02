@@ -40,4 +40,4 @@ Speak in the browser tab – you'll see logs like:
 4. The plugin emits `partial` (in-progress) and `audio` (end-of-turn) events.
 5. On **Ctrl-C** the bot leaves the call and temporary users are deleted.
 
-< 120 lines of Python 🐍 
+< 120 lines of Python 🐍

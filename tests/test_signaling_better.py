@@ -15,7 +15,7 @@ class MockSfuRequest:
         # Handle join_request parameter specifically
         if join_request is not None:
             self.join_request = join_request
-        
+
         # Handle other keyword arguments
         for key, value in kwargs.items():
             setattr(self, key, value)
@@ -77,13 +77,13 @@ async def test_websocket_client_initialization():
     # Create aiortc mock for this test only
     mock_aiortc = MagicMock()
     mock_aiortc.__version__ = "1.0.0"
-    
+
     # Patch the dependencies
     with patch.dict(
         "sys.modules",
         {
             "aiortc": mock_aiortc,
-            "getstream.video.rtc.pb.stream.video.sfu.event.events_pb2": mock_events_pb2
+            "getstream.video.rtc.pb.stream.video.sfu.event.events_pb2": mock_events_pb2,
         },
     ):
         # Import the client after patching
@@ -91,7 +91,9 @@ async def test_websocket_client_initialization():
 
         # Create a client
         join_request = MockJoinRequest()
-        client = WebSocketClient("wss://test.url", join_request, asyncio.get_running_loop())
+        client = WebSocketClient(
+            "wss://test.url", join_request, asyncio.get_running_loop()
+        )
 
         # Verify initial state
         assert client.url == "wss://test.url"
@@ -110,13 +112,13 @@ async def test_websocket_client_event_registration():
     # Create aiortc mock for this test only
     mock_aiortc = MagicMock()
     mock_aiortc.__version__ = "1.0.0"
-    
+
     # Patch the dependencies
     with patch.dict(
         "sys.modules",
         {
             "aiortc": mock_aiortc,
-            "getstream.video.rtc.pb.stream.video.sfu.event.events_pb2": mock_events_pb2
+            "getstream.video.rtc.pb.stream.video.sfu.event.events_pb2": mock_events_pb2,
         },
     ):
         # Import the client after patching
@@ -124,7 +126,9 @@ async def test_websocket_client_event_registration():
 
         # Create a client
         join_request = MockJoinRequest()
-        client = WebSocketClient("wss://test.url", join_request, asyncio.get_running_loop())
+        client = WebSocketClient(
+            "wss://test.url", join_request, asyncio.get_running_loop()
+        )
 
         # Register event handlers
         async def handler1(event):
@@ -151,21 +155,26 @@ async def test_websocket_client_direct_methods():
     # Create aiortc mock for this test only
     mock_aiortc = MagicMock()
     mock_aiortc.__version__ = "1.0.0"
-    
+
     # Patch the dependencies with the correct path
-    with patch.dict(
-        "sys.modules",
-        {
-            "aiortc": mock_aiortc,
-            "getstream.video.rtc.pb.stream.video.sfu.event.events_pb2": mock_events_pb2
-        },
-    ), patch("getstream.video.rtc.signaling.events_pb2", mock_events_pb2):
+    with (
+        patch.dict(
+            "sys.modules",
+            {
+                "aiortc": mock_aiortc,
+                "getstream.video.rtc.pb.stream.video.sfu.event.events_pb2": mock_events_pb2,
+            },
+        ),
+        patch("getstream.video.rtc.signaling.events_pb2", mock_events_pb2),
+    ):
         # Import the client after patching
         from getstream.video.rtc.signaling import WebSocketClient
 
         # Create a client with mocked dependencies
         join_request = MockJoinRequest()
-        client = WebSocketClient("wss://test.url", join_request, asyncio.get_running_loop())
+        client = WebSocketClient(
+            "wss://test.url", join_request, asyncio.get_running_loop()
+        )
 
         # Create mocks for testing callbacks
         mock_ws = MagicMock()
@@ -207,13 +216,13 @@ async def test_websocket_client_close():
     # Create aiortc mock for this test only
     mock_aiortc = MagicMock()
     mock_aiortc.__version__ = "1.0.0"
-    
+
     # Patch the dependencies
     with patch.dict(
         "sys.modules",
         {
             "aiortc": mock_aiortc,
-            "getstream.video.rtc.pb.stream.video.sfu.event.events_pb2": mock_events_pb2
+            "getstream.video.rtc.pb.stream.video.sfu.event.events_pb2": mock_events_pb2,
         },
     ):
         # Import the client after patching
@@ -221,7 +230,9 @@ async def test_websocket_client_close():
 
         # Create a client
         join_request = MockJoinRequest()
-        client = WebSocketClient("wss://test.url", join_request, asyncio.get_running_loop())
+        client = WebSocketClient(
+            "wss://test.url", join_request, asyncio.get_running_loop()
+        )
 
         # Create mocks for the resources
         mock_ws = MagicMock()

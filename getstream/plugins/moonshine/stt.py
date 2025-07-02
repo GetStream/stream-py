@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 # Conditional import of moonshine_onnx
 try:
     import moonshine_onnx as moonshine
+
     MOONSHINE_AVAILABLE = True
 except ImportError:
     moonshine = None

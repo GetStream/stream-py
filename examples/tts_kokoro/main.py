@@ -25,7 +25,8 @@ import asyncio
 import logging
 import os
 from uuid import uuid4
-import importlib, sys
+import importlib
+import sys
 
 from dotenv import load_dotenv
 
@@ -37,21 +38,24 @@ from getstream.plugins.kokoro import KokoroTTS
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
-os.environ["KOKORO_NO_AUTO_INSTALL"] = "1" # Disable auto-install of kokoro dependencies
+os.environ["KOKORO_NO_AUTO_INSTALL"] = (
+    "1"  # Disable auto-install of kokoro dependencies
+)
 
 # ---------------------------------------------------------------------------
-# Ensure `pip` is present – uv-created virtual-envs omit it for speed and     
-# Kokoro relies on `python -m pip` for optional installs (voices, extras).    
-# Run this *before* we import Kokoro.                                         
+# Ensure `pip` is present – uv-created virtual-envs omit it for speed and
+# Kokoro relies on `python -m pip` for optional installs (voices, extras).
+# Run this *before* we import Kokoro.
 # ---------------------------------------------------------------------------
 try:
     importlib.import_module("pip")
 except ModuleNotFoundError:  # pragma: no cover – only triggers in uv venvs
-    import ensurepip, subprocess  # noqa: WPS433
+    import ensurepip, subprocess  # noqa
 
     print("Boot-strapping pip (uv venv detected – pip missing)…", file=sys.stderr)
     ensurepip.bootstrap()
     subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "pip"])
+
 
 async def main() -> None:
     """Create a video call and let a Kokoro TTS bot greet participants."""
@@ -103,7 +107,7 @@ async def main() -> None:
             logging.info("🎧 Bot is idle – press Ctrl+C to stop")
             await connection.wait()
 
-    except (asyncio.CancelledError):
+    except asyncio.CancelledError:
         logging.info("Stopping TTS bot…")
     finally:
         client.delete_users([human_id, bot_id])
@@ -111,4 +115,4 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(main()) 
+    asyncio.run(main())

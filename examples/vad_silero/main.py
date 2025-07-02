@@ -82,11 +82,13 @@ async def main() -> None:
                 duration = pcm.duration
                 ts = time.strftime("%H:%M:%S")
                 print(f"[{ts}] Speech from {user} — {duration:.2f}s")
-                speech_segments.append({
-                    "timestamp": ts,
-                    "duration": duration,
-                    "user": user,
-                })
+                speech_segments.append(
+                    {
+                        "timestamp": ts,
+                        "duration": duration,
+                        "user": user,
+                    }
+                )
 
             # Optional: in-progress indicator
             @vad.on("partial")  # type: ignore[arg-type]
@@ -110,4 +112,4 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(main()) 
+    asyncio.run(main())

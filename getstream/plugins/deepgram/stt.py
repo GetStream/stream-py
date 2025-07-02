@@ -9,6 +9,7 @@ import time
 # Conditional imports with error handling
 try:
     from deepgram import DeepgramClient, LiveTranscriptionEvents, LiveOptions
+
     _deepgram_available = True
 except ImportError:
     DeepgramClient = None  # type: ignore
@@ -42,7 +43,7 @@ class DeepgramSTT(STT):
     def __init__(
         self,
         api_key: Optional[str] = None,
-        options: Optional[LiveOptions] = None, # type: ignore
+        options: Optional[LiveOptions] = None,  # type: ignore
         sample_rate: int = 48000,
         language: str = "en-US",
         keep_alive_interval: float = 3.0,
@@ -65,9 +66,7 @@ class DeepgramSTT(STT):
 
         # Check if deepgram is available
         if not _deepgram_available:
-            raise ImportError(
-                "deepgram package not installed."
-            )
+            raise ImportError("deepgram package not installed.")
 
         # If no API key was provided, check for DEEPGRAM_API_KEY in environment
         if api_key is None:

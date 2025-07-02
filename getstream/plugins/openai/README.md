@@ -25,7 +25,7 @@ sts = OpenAIRealtime(api_key="your_openai_api_key", voice="alloy")
 async with await sts.connect(call, agent_user_id="assistant") as connection:
     # Send user message
     await sts.send_user_message("Hello, how can you help me?")
-    
+
     # Request assistant response
     await sts.request_assistant_response()
 ```
@@ -57,7 +57,7 @@ def send_email(to: str, subject: str, body: str) -> str:
 
 # Initialize with functions
 sts = OpenAIRealtime(
-    api_key="your_openai_api_key", 
+    api_key="your_openai_api_key",
     voice="alloy",
     functions=[
         {
@@ -90,7 +90,7 @@ sts = OpenAIRealtime(
 async with await sts.connect(call, agent_user_id="assistant") as connection:
     await sts.send_user_message("What's the weather like in San Francisco?")
     await sts.request_assistant_response()
-    
+
     # The assistant can now call your functions and you can respond with results
     # await sts.send_function_call_output("call_id", "function_result")
 ```
@@ -102,4 +102,4 @@ async with await sts.connect(call, agent_user_id="assistant") as connection:
 - GetStream SDK
 
 ## License
-MIT 
+MIT

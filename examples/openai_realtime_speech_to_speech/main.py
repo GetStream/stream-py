@@ -56,11 +56,11 @@ async def main():
 
     try:
         logging.info("Connecting to OpenAI Realtime...")
-        
+
         if not os.getenv("OPENAI_API_KEY"):
             logging.error("❌ OPENAI_API_KEY not found in environment")
             return
-        
+
         async with await sts_bot.connect(call, agent_user_id=bot_user_id) as connection:
             tools = [
                 {
@@ -84,11 +84,13 @@ async def main():
                 },
                 tools=tools,
             )
-        
+
             await sts_bot.send_user_message("Give a very short greeting to the user.")
 
             logging.info("🎧 Listening for responses... (Press Ctrl+C to stop)")
-            logging.info("💡 Try speaking in the browser – ask it something like 'start closed captions' to trigger the function call.")
+            logging.info(
+                "💡 Try speaking in the browser – ask it something like 'start closed captions' to trigger the function call."
+            )
 
             async def start_closed_captions() -> StartClosedCaptionsResponse:
                 """Helper that starts closed captions for the call."""
@@ -104,16 +106,18 @@ async def main():
                     and event.response.output[0].type == "function_call"
                 ):
                     tool_call_id = event.response.output[0].call_id
-                    
+
                     if event.response.output[0].name == "start_closed_captions":
                         logging.info("🛠  Assistant requested start_closed_captions()")
 
                         result = await start_closed_captions()
-                        await sts_bot.send_function_call_output(tool_call_id, result.to_json())
+                        await sts_bot.send_function_call_output(
+                            tool_call_id, result.to_json()
+                        )
                         await sts_bot.request_assistant_response()
                         logging.info("🛠  Replied to tool call with result: %s", result)
 
-    except asyncio.CancelledError:  # noqa: WPS420
+    except asyncio.CancelledError:  # noqa
         logging.info("\n⏹️  Stopping OpenAI Realtime Speech to Speech bot…")
     except Exception as e:  # noqa: BLE001
         logging.exception("❌ Error: %s", e)

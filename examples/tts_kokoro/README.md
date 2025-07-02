@@ -48,4 +48,4 @@ Under 120 lines of code 😀
 
 ---
 
-Need help? → [Stream Video docs](https://getstream.io/video/docs/) · [Kokoro README](https://github.com/hexgrad/kokoro/blob/main/README.md) 
+Need help? → [Stream Video docs](https://getstream.io/video/docs/) · [Kokoro README](https://github.com/hexgrad/kokoro/blob/main/README.md)

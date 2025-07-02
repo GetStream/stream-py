@@ -792,7 +792,9 @@ async def test_deepgram_real_integration():
     print(f"Expected transcript: {expected_full_text}")
     print(f"Expected word count: {len(expected_words)}")
 
-    stt = DeepgramSTT(api_key=api_key, sample_rate=target_sample_rate, interim_results=True)
+    stt = DeepgramSTT(
+        api_key=api_key, sample_rate=target_sample_rate, interim_results=True
+    )
 
     # Track events
     transcripts = []

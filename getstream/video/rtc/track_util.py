@@ -33,7 +33,7 @@ class PcmData(NamedTuple):
         # The samples field contains a numpy array of audio samples
         # For s16 format, each element in the array is one sample (int16)
         # For f32 format, each element in the array is one sample (float32)
-        
+
         if isinstance(self.samples, np.ndarray):
             # Direct count of samples in the numpy array
             num_samples = len(self.samples)
@@ -53,7 +53,9 @@ class PcmData(NamedTuple):
             try:
                 num_samples = len(self.samples)
             except TypeError:
-                logger.warning(f"Cannot determine sample count for type {type(self.samples)}")
+                logger.warning(
+                    f"Cannot determine sample count for type {type(self.samples)}"
+                )
                 return 0.0
 
         # Calculate duration based on sample rate
@@ -384,31 +386,35 @@ class AudioTrackHandler:
                     # Take the mean across channels to convert to mono
                     pcm_ndarray = audio_stereo.mean(axis=1).astype(np.int16)
                 except ValueError as e:
-                    logger.error(f"Error reshaping stereo audio: {e}. "
-                               f"Original shape: {pcm_ndarray.shape}, channels: {len(frame.layout.channels)}")
+                    logger.error(
+                        f"Error reshaping stereo audio: {e}. "
+                        f"Original shape: {pcm_ndarray.shape}, channels: {len(frame.layout.channels)}"
+                    )
                     break
 
             # Extract timestamp information from the frame
-            pts = getattr(frame, 'pts', None)
-            dts = getattr(frame, 'dts', None)
+            pts = getattr(frame, "pts", None)
+            dts = getattr(frame, "dts", None)
             time_base = None
-            
+
             # Convert time_base to float if available
-            if hasattr(frame, 'time_base') and frame.time_base is not None:
+            if hasattr(frame, "time_base") and frame.time_base is not None:
                 try:
                     # time_base is typically a fractions.Fraction, convert to float
                     time_base = float(frame.time_base)
                 except (TypeError, ValueError):
-                    logger.warning(f"Could not convert time_base to float: {frame.time_base}")
+                    logger.warning(
+                        f"Could not convert time_base to float: {frame.time_base}"
+                    )
                     time_base = None
 
             self._on_audio_frame(
                 PcmData(
-                    sample_rate=48_000, 
-                    samples=pcm_ndarray, 
+                    sample_rate=48_000,
+                    samples=pcm_ndarray,
                     format="s16",
                     pts=pts,
                     dts=dts,
-                    time_base=time_base
+                    time_base=time_base,
                 )
             )

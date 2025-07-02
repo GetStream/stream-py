@@ -7,7 +7,7 @@ This package provides shared abstract base classes and utilities for all GetStre
 The common plugin defines the standard interfaces that all GetStream AI plugins implement:
 
 - **STT** (Speech-to-Text): Base class for transcription plugins
-- **TTS** (Text-to-Speech): Base class for synthesis plugins  
+- **TTS** (Text-to-Speech): Base class for synthesis plugins
 - **VAD** (Voice Activity Detection): Base class for speech detection plugins
 - **STS** (Speech-to-Speech): Base class for direct speech transformation plugins
 

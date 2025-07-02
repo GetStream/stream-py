@@ -44,4 +44,4 @@ async def test_event_emission_and_state():
     await sts.fake_disconnect()
     await asyncio.sleep(0)
     assert sts.is_connected is False
-    assert received == ["connected", "disconnected"] 
+    assert received == ["connected", "disconnected"]

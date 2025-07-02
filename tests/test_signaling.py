@@ -19,20 +19,22 @@ class TestWebSocketClient:
         with patch("getstream.video.rtc.signaling.websocket.WebSocketApp") as mock_ws:
             # Configure the mock
             instance = mock_ws.return_value
+
             # Make run_forever block until the WebSocket is closed
             def run_forever_side_effect():
                 # Keep running until the WebSocket is closed
-                while hasattr(instance, '_keep_running') and instance._keep_running:
+                while hasattr(instance, "_keep_running") and instance._keep_running:
                     import time
+
                     time.sleep(0.01)
-            
+
             instance.run_forever.side_effect = run_forever_side_effect
             instance._keep_running = True
-            
+
             # Mock close to stop the run_forever loop
             def close_side_effect():
                 instance._keep_running = False
-                
+
             instance.close.side_effect = close_side_effect
             yield mock_ws
 
@@ -40,7 +42,9 @@ class TestWebSocketClient:
     async def test_connect_success(self, join_request, mock_websocket):
         """Test successful connection flow."""
         # Create client
-        client = WebSocketClient("wss://test.url", join_request, asyncio.get_running_loop())
+        client = WebSocketClient(
+            "wss://test.url", join_request, asyncio.get_running_loop()
+        )
 
         # Prepare a successful response
         success_response = events_pb2.SfuEvent()
@@ -94,7 +98,9 @@ class TestWebSocketClient:
     async def test_connect_error(self, join_request, mock_websocket):
         """Test connection with error response."""
         # Create client
-        client = WebSocketClient("wss://test.url", join_request, asyncio.get_running_loop())
+        client = WebSocketClient(
+            "wss://test.url", join_request, asyncio.get_running_loop()
+        )
 
         # Prepare an error response
         error_response = events_pb2.SfuEvent()
@@ -127,7 +133,9 @@ class TestWebSocketClient:
     async def test_websocket_error_during_connect(self, join_request, mock_websocket):
         """Test WebSocket error during connection."""
         # Create client
-        client = WebSocketClient("wss://test.url", join_request, asyncio.get_running_loop())
+        client = WebSocketClient(
+            "wss://test.url", join_request, asyncio.get_running_loop()
+        )
 
         # Start connection
         connect_task = asyncio.create_task(client.connect())
@@ -152,7 +160,9 @@ class TestWebSocketClient:
     async def test_event_callbacks(self, join_request, mock_websocket):
         """Test event callbacks are executed correctly."""
         # Create client
-        client = WebSocketClient("wss://test.url", join_request, asyncio.get_running_loop())
+        client = WebSocketClient(
+            "wss://test.url", join_request, asyncio.get_running_loop()
+        )
 
         # Prepare a successful join response first
         join_response = events_pb2.SfuEvent()
@@ -202,7 +212,9 @@ class TestWebSocketClient:
 
         # Verify callbacks were called
         assert callback_results["participant_joined"] == 1
-        assert callback_results["wildcard"] == 2  # Called for join_response and participant_joined
+        assert (
+            callback_results["wildcard"] == 2
+        )  # Called for join_response and participant_joined
 
         # Clean up
         client.close()
@@ -211,7 +223,9 @@ class TestWebSocketClient:
     async def test_thread_usage(self, join_request, mock_websocket):
         """Test that thread is properly used and managed."""
         # Create client
-        client = WebSocketClient("wss://test.url", join_request, asyncio.get_running_loop())
+        client = WebSocketClient(
+            "wss://test.url", join_request, asyncio.get_running_loop()
+        )
 
         # Mock threading.Thread to capture usage
         with patch("threading.Thread", wraps=threading.Thread) as mock_thread:
@@ -224,7 +238,8 @@ class TestWebSocketClient:
             # Verify thread was created with correct target
             # Check that at least one thread was created with the WebSocket target
             websocket_thread_calls = [
-                call for call in mock_thread.call_args_list
+                call
+                for call in mock_thread.call_args_list
                 if call[1].get("target") == client._run_websocket
             ]
             assert len(websocket_thread_calls) == 1

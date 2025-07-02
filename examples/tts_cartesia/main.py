@@ -34,6 +34,7 @@ from getstream.plugins.cartesia import CartesiaTTS
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
+
 async def main() -> None:
     """Create a video call and let a TTS bot greet participants."""
 
@@ -92,7 +93,7 @@ async def main() -> None:
             logging.info("🎧 Bot is idle - press Ctrl+C to stop")
             await connection.wait()
 
-    except (asyncio.CancelledError):
+    except asyncio.CancelledError:
         logging.info("Stopping TTS bot…")
     finally:
         client.delete_users([human_id, bot_id])
@@ -100,4 +101,4 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(main()) 
+    asyncio.run(main())

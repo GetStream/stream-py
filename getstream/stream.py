@@ -16,11 +16,9 @@ BASE_URL = "https://chat.stream-io-api.com/"
 
 class Settings(BaseSettings):
     model_config = ConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore"
+        env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )
-    
+
     STREAM_API_KEY: str
     STREAM_API_SECRET: str
     STREAM_BASE_URL: AnyHttpUrl = BASE_URL

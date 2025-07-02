@@ -1,3 +1,3 @@
 from .tts import CartesiaTTS
- 
-__all__ = ["CartesiaTTS"] 
+
+__all__ = ["CartesiaTTS"]

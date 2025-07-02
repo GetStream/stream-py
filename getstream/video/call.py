@@ -3,6 +3,7 @@ from getstream.models import *
 from getstream.stream_response import StreamResponse
 from getstream.video.openai import get_openai_realtime_client, ConnectionManagerWrapper
 
+
 class Call:
     def __init__(
         self, client, call_type: str, call_id: str = None, custom_data: Dict = None
@@ -19,7 +20,6 @@ class Call:
     def connect_openai(
         self, openai_api_key, agent_user_id, model="gpt-4o-realtime-preview"
     ):
-
         client = get_openai_realtime_client(openai_api_key, self.client.base_url)
         token = self.client.stream.create_token(agent_user_id)
         connection_manager = client.beta.realtime.connect(

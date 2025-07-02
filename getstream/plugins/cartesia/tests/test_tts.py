@@ -12,6 +12,7 @@ from getstream.video.rtc.audio_track import AudioStreamTrack
 # Test utilities & fixtures
 ############################
 
+
 # A simple async iterator yielding a predefined list of byte chunks
 class _AsyncBytesIterator:
     def __init__(self, chunks):

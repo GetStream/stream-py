@@ -19,4 +19,4 @@ dependencies = [
 record-audio = "main:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["main.py"] 
+packages = ["main.py"]
