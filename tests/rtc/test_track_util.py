@@ -5,6 +5,7 @@ from unittest.mock import Mock
 import logging
 
 from getstream.video.rtc.track_util import AudioTrackHandler, PcmData
+import getstream.video.rtc.track_util as track_util
 
 
 logger = logging.getLogger(__name__)
@@ -65,6 +66,36 @@ class MockAudioTrack:
         frame = self.frames[self.frame_index]
         self.frame_index += 1
         return frame
+
+
+@pytest.fixture(autouse=True)
+def _monkeypatch_audio_frame(monkeypatch):
+    """Monkey-patch `track_util.av.AudioFrame` so `isinstance(..., av.AudioFrame)`
+    succeeds for the real PyAV class *and* any duck-typed test double that
+    exposes the minimal interface we rely on (``sample_rate``, ``layout``,
+    and ``to_ndarray``).  This covers both ``MockAudioFrame`` and ad-hoc
+    classes like ``BrokenAudioFrame`` defined inside individual tests.
+    """
+
+    real_audio_frame_cls = track_util.av.AudioFrame
+
+    class _AudioFrameMeta(type):
+        def __instancecheck__(cls, instance):  # type: ignore[override]
+            # Real PyAV frames pass straight through.
+            if isinstance(instance, real_audio_frame_cls):
+                return True
+
+            # Duck-typed fallback used by tests.
+            return (
+                hasattr(instance, "sample_rate")
+                and hasattr(instance, "layout")
+                and callable(getattr(instance, "to_ndarray", None))
+            )
+
+    class _AudioFrame(metaclass=_AudioFrameMeta):
+        pass
+
+    monkeypatch.setattr(track_util.av, "AudioFrame", _AudioFrame, raising=True)
 
 
 @pytest.mark.asyncio

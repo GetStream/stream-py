@@ -1188,11 +1188,23 @@ dependencies = [
     { name = "getstream-plugins-common" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "cartesia", specifier = ">=2.0.5" },
     { name = "getstream", extras = ["webrtc"], editable = "." },
     { name = "getstream-plugins-common", editable = "getstream/plugins/common" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=7.0.0" },
+    { name = "pytest-asyncio", specifier = ">=0.18.0" },
 ]
 
 [[package]]
@@ -1203,8 +1215,20 @@ dependencies = [
     { name = "getstream", extra = ["webrtc"] },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+]
+
 [package.metadata]
 requires-dist = [{ name = "getstream", extras = ["webrtc"], editable = "." }]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=7.0.0" },
+    { name = "pytest-asyncio", specifier = ">=0.18.0" },
+]
 
 [[package]]
 name = "getstream-plugins-deepgram"
@@ -1217,12 +1241,31 @@ dependencies = [
     { name = "numpy" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "scipy", version = "1.16.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "soundfile" },
+    { name = "torchaudio" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "deepgram-sdk", specifier = ">=2.4.0" },
     { name = "getstream", extras = ["webrtc"], editable = "." },
     { name = "getstream-plugins-common", editable = "getstream/plugins/common" },
     { name = "numpy", specifier = ">=1.20.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=7.0.0" },
+    { name = "pytest-asyncio", specifier = ">=0.18.0" },
+    { name = "scipy", specifier = ">=1.8.0" },
+    { name = "soundfile", specifier = ">=0.10.0" },
+    { name = "torchaudio", specifier = ">=0.11.0" },
 ]
 
 [[package]]
@@ -1235,11 +1278,23 @@ dependencies = [
     { name = "getstream-plugins-common" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "elevenlabs", specifier = ">=0.2.0" },
     { name = "getstream", extras = ["webrtc"], editable = "." },
     { name = "getstream-plugins-common", editable = "getstream/plugins/common" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=7.0.0" },
+    { name = "pytest-asyncio", specifier = ">=0.18.0" },
 ]
 
 [[package]]
@@ -1254,6 +1309,12 @@ dependencies = [
     { name = "numpy" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "getstream", extras = ["webrtc"], editable = "." },
@@ -1261,6 +1322,12 @@ requires-dist = [
     { name = "kokoro", specifier = ">=0.9.4" },
     { name = "misaki", extras = ["en"], specifier = ">=0.1.0" },
     { name = "numpy", specifier = ">=1.20.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=7.0.0" },
+    { name = "pytest-asyncio", specifier = ">=0.18.0" },
 ]
 
 [[package]]
@@ -1276,6 +1343,12 @@ dependencies = [
     { name = "useful-moonshine-onnx" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "getstream", extras = ["webrtc"], editable = "." },
@@ -1284,6 +1357,12 @@ requires-dist = [
     { name = "onnxruntime" },
     { name = "soundfile", specifier = ">=0.12.0" },
     { name = "useful-moonshine-onnx", git = "https://github.com/usefulsensors/moonshine.git?subdirectory=moonshine-onnx" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=7.0.0" },
+    { name = "pytest-asyncio", specifier = ">=0.18.0" },
 ]
 
 [[package]]
@@ -1296,11 +1375,23 @@ dependencies = [
     { name = "openai", extra = ["realtime"] },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "getstream", extras = ["webrtc"], editable = "." },
     { name = "getstream-plugins-common", editable = "getstream/plugins/common" },
     { name = "openai", extras = ["realtime"], specifier = ">=1.82.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=7.0.0" },
+    { name = "pytest-asyncio", specifier = ">=0.18.0" },
 ]
 
 [[package]]
@@ -1314,12 +1405,31 @@ dependencies = [
     { name = "torch" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "scipy", version = "1.16.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "soundfile" },
+    { name = "torchaudio" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "getstream", extras = ["webrtc"], editable = "." },
     { name = "getstream-plugins-common", editable = "getstream/plugins/common" },
     { name = "numpy", specifier = ">=1.20.0" },
     { name = "torch", specifier = ">=1.11.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=7.0.0" },
+    { name = "pytest-asyncio", specifier = ">=0.18.0" },
+    { name = "scipy", specifier = ">=1.8.0" },
+    { name = "soundfile", specifier = ">=0.10.0" },
+    { name = "torchaudio", specifier = ">=0.11.0" },
 ]
 
 [[package]]
