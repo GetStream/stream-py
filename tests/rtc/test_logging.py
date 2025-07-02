@@ -1,7 +1,8 @@
 import logging
 import pytest
 import io
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
+from types import SimpleNamespace
 
 from getstream.utils import configure_logging
 from getstream.video.rtc import join, logger as rtc_logger
@@ -34,7 +35,31 @@ async def test_join_logging():
     mock_logger = MagicMock()
 
     # Patch the ConnectionManager to use our mock logger
-    with patch("getstream.video.rtc.connection_manager.logger", mock_logger):
+    dummy_join_response = SimpleNamespace(
+        data=SimpleNamespace(
+            credentials=SimpleNamespace(
+                token="fake_token",
+                server=SimpleNamespace(
+                    ws_endpoint="ws://fake-sfu/ws",
+                    url="http://fake-sfu/twirp",
+                ),
+            )
+        )
+    )
+
+    with (
+        patch("getstream.video.rtc.connection_manager.logger", mock_logger),
+        patch(
+            "getstream.video.rtc.connection_manager.ConnectionManager._join_call_coordinator",
+            new_callable=AsyncMock,
+            return_value=dummy_join_response,
+        ) as mock_join,
+        patch(
+            "getstream.video.rtc.connection_manager.ConnectionManager._connect_websocket",
+            new_callable=AsyncMock,
+            return_value=(MagicMock(), MagicMock()),
+        ),
+    ):
         # Create mock call
         mock_call = MagicMock()
 
@@ -45,5 +70,9 @@ async def test_join_logging():
             pass  # We only care about the logging during __aenter__
 
     # Verify that logger.info was called with the expected messages
-    mock_logger.info.assert_any_call("Discovering location")
-    mock_logger.info.assert_any_call("Performing join call request on coordinator API")
+    assert any(
+        "Discovered location" in call.args[0]
+        for call in mock_logger.info.call_args_list
+    )
+    # Confirm that the join coordinator helper was awaited exactly once
+    assert mock_join.await_count == 1
