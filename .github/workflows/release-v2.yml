@@ -36,7 +36,7 @@ jobs:
 
       - name: Sync environment & install dev extras
         run: |
-          uv sync --dev ## TODO Change to actual command with packages, groups etc
+          uv sync --dev --all-packages --all-groups --all-extras 
 
       - name: Build core distributions
         run: |
