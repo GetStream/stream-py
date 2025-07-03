@@ -22,7 +22,7 @@ dependencies = [
     "ping3>=4.0.8",
 ]
 
-[dependency-groups]
+[project.optional-dependencies]
 openai-realtime = [
   "openai[realtime]>=1.93.0",
 ]
@@ -36,13 +36,15 @@ webrtc = [
     "scipy>=1.15.3,<1.16",
     "twirp>=0.0.7",
     "protobuf>=6.31.1",
-    "websocket-client>=1.8.0",
     "pyee>=13.0.0",
     "websockets>=15.0.1,<16",
+    "websocket-client>=1.8.0",
 ]
 mcp = [
     "fastmcp>=2.10.1",
 ]
+
+[dependency-groups]
 dev = [
     "python-dateutil>=2.8.2,<3",
     "python-dotenv>=1.1.1,<2",
@@ -71,6 +73,7 @@ getstream-plugins-cartesia = { workspace = true }
 getstream-plugins-openai = { workspace = true }
 getstream-plugins-ten = { workspace = true }
 getstream-plugins-silero = { workspace = true }
+getstream-plugins-kokoro = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]

@@ -6,7 +6,7 @@ requires-python = ">=3.10"
 dependencies = [
     "getstream[webrtc]",
     "getstream-plugins-deepgram",
-    "fastmcp>=2.10.1,
+    "fastmcp>=2.10.1",
     "python-dotenv>=1.1.1",
 ]
 
