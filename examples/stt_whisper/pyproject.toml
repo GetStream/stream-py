@@ -8,9 +8,7 @@ license = {text = "MIT"}
 
 dependencies = [
     "getstream[webrtc]",
-    "python-dotenv>=1.0.0",
-    # "getstream-plugins-stt-whisper",  # Uncomment when whisper plugin is created
-    "openai-whisper>=20231117",  # Temporary direct dependency until plugin exists
+    "python-dotenv>=1.1.1",
 ]
 
 [tool.uv.sources]

@@ -46,5 +46,5 @@ await stt.close()
 ## Requirements
 
 - Python 3.10+
-- deepgram-sdk>=2.4.0
-- numpy>=1.20.0
+- deepgram-sdk>=4.5.0
+- numpy>=2.2.6,<2.3

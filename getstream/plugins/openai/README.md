@@ -97,8 +97,7 @@ async with await sts.connect(call, agent_user_id="assistant") as connection:
 
 ## Requirements
 - Python 3.10+
-- openai[realtime]>=1.82.0
-- trio>=0.22.2
+- openai[realtime] api
 - GetStream SDK
 
 ## License

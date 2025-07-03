@@ -8,7 +8,7 @@ license = {text = "MIT"}
 dependencies = [
     "getstream[webrtc]",
     "getstream-plugins-moonshine",
-    "python-dotenv>=1.0.0",
+    "python-dotenv>=1.1.1",
 ]
 
 [tool.uv.sources]

@@ -300,7 +300,7 @@ examples/
 dependencies = [
     "getstream[webrtc]",
     "getstream-plugins-stt-whisper",  # Use the plugin package, not openai-whisper directly
-    "python-dotenv>=1.0.0",
+    "python-dotenv>=1.1.1",
 ]
 ```
 

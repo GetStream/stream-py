@@ -21,6 +21,6 @@ getstream = { workspace = true }
 
 [dependency-groups]
 dev = [
-    "pytest>=7.0.0",
-    "pytest-asyncio>=0.18.0",
+    "pytest>=8.4.1",
+    "pytest-asyncio>=1.0.0",
 ]

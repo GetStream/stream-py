@@ -9,10 +9,7 @@ license = { text = "MIT" }
 dependencies = [
     "getstream[webrtc]",
     "getstream-plugins-elevenlabs",
-    "python-dotenv>=1.0.0",
-    "elevenlabs>=0.2.27",
-    "aiortc>=1.10.1",
-    "numpy>=2.0.0"
+    "python-dotenv>=1.1.1",
 ]
 
 [tool.uv.sources]

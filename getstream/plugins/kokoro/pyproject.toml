@@ -13,8 +13,8 @@ dependencies = [
     "getstream[webrtc]",
     "getstream-plugins-common",
     "kokoro>=0.9.4",
-    "misaki[en]>=0.1.0",
-    "numpy>=1.20.0",
+    "misaki[en]>=0.9.4",
+    "numpy>=2.2.6,<2.3",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -26,6 +26,6 @@ getstream-plugins-common = { workspace = true }
 
 [dependency-groups]
 dev = [
-    "pytest>=7.0.0",
-    "pytest-asyncio>=0.18.0",
+    "pytest>=8.4.1",
+    "pytest-asyncio>=1.0.0",
 ]
