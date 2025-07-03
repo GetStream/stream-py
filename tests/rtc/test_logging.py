@@ -1,11 +1,8 @@
 import logging
-import pytest
 import io
-from unittest.mock import patch, MagicMock, AsyncMock
-from types import SimpleNamespace
 
 from getstream.utils import configure_logging
-from getstream.video.rtc import join, logger as rtc_logger
+from getstream.video.rtc import logger as rtc_logger
 
 
 def test_logging_configuration():

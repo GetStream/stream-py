@@ -22,7 +22,6 @@ from getstream.video.rtc.connection_utils import (
     join_call,
 )
 from getstream.video.rtc.network_monitor import NetworkMonitor
-from getstream.video.rtc.pb.stream.video.sfu.event import events_pb2
 from getstream.video.rtc.recording import RecordingManager
 from getstream.video.rtc.participants import ParticipantsState
 from getstream.video.rtc.tracks import SubscriptionConfig, SubscriptionManager
@@ -124,75 +123,6 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                 await self.publisher_pc.addIceCandidate(candidate)
         except Exception as e:
             logger.debug(f"Error handling ICE trickle: {e}")
-
-    async def _handle_peer_connection_event(self, event_type: str, data: Any):
-        """Handle peer connection related events."""
-        match event_type:
-            case "subscriber_offer":
-                self._peer_manager.handle_subscriber_offer(data)
-            case "publisher_answer":
-                self._peer_manager.handle_publisher_answer(data)
-            case "ice_trickle":
-                self._on_ice_trickle(data)
-            case "ice_restart":
-                self.emit('ice_restart', data)
-
-    async def _handle_participant_event(self, event_type: str, data: Any):
-        """Handle participant related events."""
-        match event_type:
-            case "participant_joined":
-                self._participants_state.add_participant(data)
-            case "participant_left":
-                self._participants_state.remove_participant(data)
-            case "participant_updated":
-                self.emit('participant_updated', data)
-            case "participant_migration_complete":
-                self.emit('participant_migration_complete', data)
-
-    async def _handle_track_event(self, event_type: str, data: Any):
-        """Handle track related events."""
-        match event_type:
-            case "track_published":
-                await self._subscription_manager.handle_track_published(data)
-            case "track_unpublished":
-                await self._subscription_manager.handle_track_unpublished(data)
-
-    async def _handle_call_event(self, event_type: str, data: Any):
-        """Handle call related events."""
-        match event_type:
-            case "call_grants_updated":
-                self.emit('call_grants_updated', data)
-            case "call_ended":
-                self.emit('call_ended', data)
-            case "pins_updated":
-                self.emit('pins_updated', data)
-            case "go_away":
-                self.emit('go_away', data)
-
-    async def _handle_quality_event(self, event_type: str, data: Any):
-        """Handle quality related events."""
-        match event_type:
-            case "connection_quality_changed":
-                self.emit('connection_quality_changed', data)
-            case "audio_level_changed":
-                self.emit('audio_level_changed', data)
-            case "change_publish_quality":
-                self._peer_manager.handle_change_publish_quality(data)
-            case "change_publish_options":
-                self.emit('change_publish_options', data)
-
-    async def _handle_system_event(self, event_type: str, data: Any):
-        """Handle system related events."""
-        match event_type:
-            case "join_response":
-                self.emit('join_response', data)
-            case "health_check_response":
-                self.emit('health_check_response', data)
-            case "error":
-                self.emit('sfu_error', {
-                    'message': data.message,
-                    'event': data
-                })
 
     async def _connect_internal(
         self,

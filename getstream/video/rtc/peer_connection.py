@@ -4,7 +4,7 @@ Manages WebRTC peer connections for video streaming.
 
 import asyncio
 import logging
-from typing import Optional, Dict, List
+from typing import Optional
 
 import aiortc
 from aiortc.contrib.media import MediaRelay
@@ -14,7 +14,6 @@ from getstream.video.rtc.connection_utils import (
     prepare_video_track_info,
 )
 from getstream.video.rtc.pb.stream.video.sfu.signal_rpc import signal_pb2
-from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
 from getstream.video.rtc.twirp_client_wrapper import SfuRpcError
 from getstream.video.rtc.pc import PublisherPeerConnection, SubscriberPeerConnection
 
@@ -37,7 +36,6 @@ class PeerConnectionManager:
             
             @self.subscriber_pc.on("audio")
             async def on_audio(pcm_data, user):
-                user_id = getattr(user, 'user_id', getattr(user, 'id', str(user) if user else "unknown_user"))
                 self.connection_manager.emit("audio", pcm_data, user)
             
             @self.subscriber_pc.on("track_added")

@@ -3,7 +3,7 @@ import threading
 import websocket
 import logging
 import time
-from typing import Any, Callable, Dict, Awaitable, List
+from typing import Any, Callable, Awaitable
 
 from getstream.utils import StreamAsyncIOEventEmitter
 from .pb.stream.video.sfu.event import events_pb2
