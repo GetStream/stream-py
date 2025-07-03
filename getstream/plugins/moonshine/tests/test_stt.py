@@ -719,7 +719,7 @@ async def test_moonshine_real_integration(mia_audio_data, mia_metadata):
 
             # Content validation - check for key words from the expected transcript
             # We'll be lenient since STT accuracy can vary
-            key_words = ["mia", "village", "map", "treasure", "cat", "whiskers"]
+            key_words = ["mia", "village", "brushes", "map", "treasure", "fields", "hues", "discovered"]
             found_key_words = [
                 word for word in key_words if word in combined_text.lower()
             ]
