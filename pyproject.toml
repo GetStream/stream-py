@@ -27,7 +27,7 @@ openai-realtime = [
   "openai[realtime]>=1.93.0",
 ]
 webrtc = [
-    "aiortc==1.13.0",
+    "aiortc>=1.10.1",
     "numpy>=2.2.6,<2.3",
     "torch>=2.7.1",
     "torchaudio>=2.7.1",
@@ -35,10 +35,11 @@ webrtc = [
     "soundfile>=0.13.1",
     "scipy>=1.15.3,<1.16",
     "twirp>=0.0.7",
-    "protobuf>=6.31.1",
+    "protobuf>=4.25.1",
     "pyee>=13.0.0",
     "websockets>=15.0.1,<16",
     "websocket-client>=1.8.0",
+    "python-dateutil>=2.8.2",
 ]
 mcp = [
     "fastmcp>=2.10.1",
@@ -52,7 +53,9 @@ dev = [
     "pytest-timeout>=2.4.0",
     "ruff>=0.12.1",
     "pre-commit>=4.2.0",
-    "pytest-asyncio>=1.0.0"
+    "pytest-asyncio>=1.0.0",
+    "grpcio-tools>=1.73.1",
+    "mypy-protobuf==3.5.0",
 ]
 
 [tool.uv.workspace]

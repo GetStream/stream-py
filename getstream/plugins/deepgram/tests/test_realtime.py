@@ -3,7 +3,7 @@ import pytest
 import asyncio
 from unittest.mock import patch, MagicMock
 
-from getstream.plugins.deepgram import DeepgramSTT
+from getstream.plugins.deepgram.stt import DeepgramSTT
 from getstream.video.rtc.track_util import PcmData
 
 
@@ -88,7 +88,7 @@ class MockDeepgramClient:
 
 
 @pytest.mark.asyncio
-@patch("getstream.plugins.deepgram.stt.DeepgramClient", MockDeepgramClient)
+@patch("getstream.plugins.deepgram.stt.stt.DeepgramClient", MockDeepgramClient)
 async def test_real_time_transcript_emission():
     """
     Test that transcripts are emitted in real-time without needing a second audio chunk.
@@ -143,7 +143,7 @@ async def test_real_time_transcript_emission():
 
 
 @pytest.mark.asyncio
-@patch("getstream.plugins.deepgram.stt.DeepgramClient", MockDeepgramClient)
+@patch("getstream.plugins.deepgram.stt.stt.DeepgramClient", MockDeepgramClient)
 async def test_real_time_partial_transcript_emission():
     """
     Test that partial transcripts are emitted in real-time.
@@ -206,7 +206,7 @@ async def test_real_time_partial_transcript_emission():
 
 
 @pytest.mark.asyncio
-@patch("getstream.plugins.deepgram.stt.DeepgramClient", MockDeepgramClient)
+@patch("getstream.plugins.deepgram.stt.stt.DeepgramClient", MockDeepgramClient)
 async def test_real_time_error_emission():
     """
     Test that errors are emitted in real-time.
@@ -241,7 +241,7 @@ async def test_real_time_error_emission():
 
 
 @pytest.mark.asyncio
-@patch("getstream.plugins.deepgram.stt.DeepgramClient", MockDeepgramClient)
+@patch("getstream.plugins.deepgram.stt.stt.DeepgramClient", MockDeepgramClient)
 async def test_close_cleanup():
     """
     Test that the STT service is properly closed and cleaned up.
@@ -280,7 +280,7 @@ async def test_close_cleanup():
 
 
 @pytest.mark.asyncio
-@patch("getstream.plugins.deepgram.stt.DeepgramClient", MockDeepgramClient)
+@patch("getstream.plugins.deepgram.stt.stt.DeepgramClient", MockDeepgramClient)
 async def test_asynchronous_mode_behavior():
     """
     Test that Deepgram operates in asynchronous mode:

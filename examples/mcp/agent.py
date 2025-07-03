@@ -49,11 +49,8 @@ async def chat_with_tools(prompt: str, client: fastmcp.Client) -> str:
             tool_name, arg_json = m.groups()
             # Wrap the arguments in braces so they become valid JSON
             args = json.loads("{" + arg_json + "}")
-            results = await client.call_tool(tool_name, args)
-            for result in results:
-                history.append(
-                    {"role": "assistant", "content": f"(result) {result.text}"}
-                )
+            result = await client.call_tool(tool_name, args)
+            history.append({"role": "assistant", "content": f"(result) {result.data}"})
             tool_calls += 1
             if tool_calls == 2:
                 history.append(

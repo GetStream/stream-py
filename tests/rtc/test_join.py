@@ -332,7 +332,7 @@ async def test_play_file(client: Stream):
 
 @pytest.mark.asyncio
 async def test_play_audio_track_from_text(client: Stream):
-    from getstream.plugins.elevenlabs import ElevenLabsTTS
+    from getstream.plugins.gs_elevenlabs import ElevenLabsTTS
 
     audio = audio_track.AudioStreamTrack(framerate=16000)
     tts_instance = ElevenLabsTTS(voice_id="JBFqnCBsd6RMkjVDRZzb")
@@ -356,7 +356,7 @@ async def test_play_audio_track_from_text(client: Stream):
 async def test_full_echo(client: Stream):
     from getstream.plugins.silero import SileroVAD
     from getstream.plugins.deepgram import DeepgramSTT
-    from getstream.plugins.elevenlabs import ElevenLabsTTS
+    from getstream.plugins.gs_elevenlabs import ElevenLabsTTS
 
     audio = audio_track.AudioStreamTrack(framerate=16000)
     vad = SileroVAD()

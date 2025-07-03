@@ -24,7 +24,7 @@ from dotenv import load_dotenv
 from getstream.stream import Stream
 from getstream.video import rtc
 from getstream.video.rtc.track_util import PcmData
-from getstream.plugins.gs_deepgram import DeepgramSTT
+from getstream.plugins.deepgram.stt import DeepgramSTT
 from examples.utils import create_user, open_browser
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
