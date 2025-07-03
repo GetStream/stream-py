@@ -19,8 +19,8 @@ class Settings(BaseSettings):
         env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )
 
-    STREAM_API_KEY: str
-    STREAM_API_SECRET: str
+    STREAM_API_KEY: str = "test_key"
+    STREAM_API_SECRET: str = "test_secret"
     STREAM_BASE_URL: AnyHttpUrl = BASE_URL
 
 

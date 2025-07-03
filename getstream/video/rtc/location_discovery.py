@@ -1,3 +1,10 @@
+"""
+Location discovery for video streaming.
+
+This module provides functionality to discover the optimal location for video streaming
+connections based on CloudFront POP headers.
+"""
+
 import logging
 import http.client
 import functools
@@ -60,7 +67,7 @@ class HTTPHintLocationDiscovery:
             context: Optional context (for compatibility with Go implementation)
 
         Returns:
-            The 3-character location code
+            The 3-character location code (e.g. "IAD", "FRA")
         """
         parsed_url = self.url.split("://", 1)
         if len(parsed_url) != 2:
@@ -94,12 +101,19 @@ class HTTPHintLocationDiscovery:
                     self.logger.warning("Invalid pop name: %s", pop_name)
                     return FALLBACK_LOCATION_NAME
 
-                return pop_name[:3]
+                location = pop_name[:3]
+                self.logger.info(f"Discovered location: {location}")
+                return location
 
             except Exception as e:
                 self.logger.warning("HEAD request failed: %s", str(e))
                 continue
 
+        self.logger.info(
+            "Failed to discover location after %d attempts, using fallback %s",
+            self.max_retries,
+            FALLBACK_LOCATION_NAME,
+        )
         return FALLBACK_LOCATION_NAME
 
 
@@ -110,9 +124,6 @@ def create_default_http_client():
     Returns:
         A simple HTTP client
     """
-
-    # Since we're not using an interface like in Go, we'll return
-    # a simpler implementation here
     class SimpleHTTPClient:
         def request(self, method, url, body=None, headers=None, **kwargs):
             self.parsed_url = url.split("://", 1)

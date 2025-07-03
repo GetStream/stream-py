@@ -5,6 +5,7 @@ import logging
 import time
 from typing import Any, Callable, Dict, Awaitable, List
 
+from getstream.utils import StreamAsyncIOEventEmitter
 from .pb.stream.video.sfu.event import events_pb2
 
 logger = logging.getLogger(__name__)
@@ -16,7 +17,7 @@ class SignalingError(Exception):
     pass
 
 
-class WebSocketClient:
+class WebSocketClient(StreamAsyncIOEventEmitter):
     """
     WebSocket client for Stream Video signaling.
     Handles WebSocket connection, message serialization/deserialization, and event handling.
@@ -36,11 +37,11 @@ class WebSocketClient:
             join_request: The JoinRequest protobuf message to send for authentication
             main_loop: The main asyncio event loop to run callbacks on
         """
+        super().__init__()
         self.url = url
         self.join_request = join_request
         self.main_loop = main_loop
         self.ws = None
-        self.event_handlers: Dict[str, List[Callable[[Any], Awaitable[None]]]] = {}
         self.first_message_event = threading.Event()
         self.first_message = None
         self.thread = None
@@ -127,8 +128,8 @@ class WebSocketClient:
             self.first_message = event
             self.first_message_event.set()
 
-        # Dispatch to event handlers
-        self._dispatch_event(event)
+        # Dispatch to event handlers using emit
+        asyncio.run_coroutine_threadsafe(self._dispatch_event(event), self.main_loop)
 
     def _on_error(self, ws, error):
         """Handle WebSocket error."""
@@ -190,103 +191,55 @@ class WebSocketClient:
             # Sleep for ping interval
             time.sleep(self.ping_interval)
 
-    def _dispatch_event(self, event):
+    async def _dispatch_event(self, event):
         """
-        Dispatch an event to the appropriate handlers.
+        Dispatch an event to the appropriate handlers using emit.
 
         Args:
             event: The SfuEvent to dispatch
         """
         # Get the oneof event type
         event_type = event.WhichOneof("event_payload")
-
-        # Run handlers for this specific event type
-        if event_type and event_type in self.event_handlers:
-            for handler in self.event_handlers[event_type]:
-                # Get the specific event payload
-                payload = getattr(event, event_type)
-                self._run_handler_async(handler, payload)
-
-        # Run wildcard handlers
-        if "*" in self.event_handlers:
-            for handler in self.event_handlers["*"]:
-                self._run_handler_async(handler, event)
-
-    def _run_handler_async(self, handler, payload):
-        """
-        Run an event handler asynchronously on the main event loop.
-
-        Args:
-            handler: The async handler function
-            payload: The event payload to pass to the handler
-        """
-        if not self.closed and self.main_loop:
-            # Schedule the coroutine on the main loop from this thread
-            future = asyncio.run_coroutine_threadsafe(handler(payload), self.main_loop)
-
-            # Optional: Add a callback to log exceptions from the handler future
-            def log_exception(f):
-                try:
-                    f.result()  # Raise exception if any occurred
-                except asyncio.CancelledError:
-                    logger.debug("Event handler cancelled")
-                except Exception as e:
-                    logger.error(
-                        f"Error in event handler {handler}: {e}", exc_info=True
-                    )
-
-            future.add_done_callback(log_exception)
+        if event_type:
+            payload = getattr(event, event_type)
+            # Emit the event using the parent class emit method
+            self.emit(event_type, payload)
 
     def on_event(self, event_type: str, callback: Callable[[Any], Awaitable[None]]):
         """
         Register an event handler for a specific event type.
 
         Args:
-            event_type: The event type to listen for, or "*" for all events
+            event_type: The event type to listen for, or "*" for all events  
             callback: An async function to call when the event occurs
         """
-        if event_type not in self.event_handlers:
-            self.event_handlers[event_type] = []
-
-        self.event_handlers[event_type].append(callback)
+        # Use the parent class's on method for regular events
+        # For wildcard events, use on_wildcard method
+        if "*" in event_type:
+            self.on_wildcard(event_type, callback)
+        else:
+            self.on(event_type, callback)
 
     def close(self):
-        """Close the WebSocket connection and clean up resources."""
+        """Close the WebSocket connection."""
         if self.closed:
             return
 
-        logger.debug("Attempting to close WebSocketClient")
         self.closed = True
         self.running = False
 
-        # Close the WebSocket connection
         if self.ws:
-            logger.debug("Closing WebSocket connection")
-            try:
-                self.ws.close()
-                logger.debug("WebSocket close() called")
-            except Exception as e:
-                logger.error(f"Error closing WebSocket: {e}", exc_info=True)
+            self.ws.close()
             self.ws = None
 
-        # Wait for the threads to finish
-        if self.thread and self.thread.is_alive():
-            logger.debug("Joining WebSocket thread")
+        if self.thread:
             self.thread.join(timeout=2.0)
-            if self.thread.is_alive():
-                logger.warning("WebSocket thread did not exit cleanly")
             self.thread = None
 
-        if self.ping_thread and self.ping_thread.is_alive():
-            logger.debug("Joining ping thread")
+        if self.ping_thread:
             self.ping_thread.join(timeout=2.0)
-            if self.ping_thread.is_alive():
-                # TODO: Ping interval is much higher than the timeout here, so reducing this to debug
-                logger.debug("Ping thread did not exit cleanly")
             self.ping_thread = None
 
-        # Clear handlers
-        logger.debug("Clearing event handlers")
-        self.event_handlers.clear()
-
-        logger.debug("WebSocketClient close finished")
+        # Clear event listeners from parent class
+        self.remove_all_listeners()
+        self.remove_all_wildcard_listeners()

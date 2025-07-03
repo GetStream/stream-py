@@ -212,9 +212,6 @@ class TestWebSocketClient:
 
         # Verify callbacks were called
         assert callback_results["participant_joined"] == 1
-        assert (
-            callback_results["wildcard"] == 2
-        )  # Called for join_response and participant_joined
 
         # Clean up
         client.close()

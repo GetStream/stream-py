@@ -62,7 +62,17 @@ class STT(AsyncIOEventEmitter, abc.ABC):
         the correct loop regardless of the calling thread.
         """
 
-        _loop = loop or asyncio.get_event_loop()
+        if loop is None:
+            try:
+                # Prefer the currently running loop if in async context
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                # We are likely being instantiated in a sync test before any loop
+                # exists.  Create a dedicated loop to schedule callbacks.
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+
+        _loop = loop
 
         # Pass the resolved loop to the ``AsyncIOEventEmitter`` base class so
         # that all callbacks are scheduled on this loop even when ``emit`` is

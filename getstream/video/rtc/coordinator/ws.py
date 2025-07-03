@@ -12,8 +12,8 @@ import time
 from typing import Optional
 
 import websockets
-from pyee.asyncio import AsyncIOEventEmitter
 
+from getstream.utils import StreamAsyncIOEventEmitter
 from .errors import (
     StreamWSAuthError,
     StreamWSConnectionError,
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_WS_URI = "wss://chat.stream-io-api.com/api/v2/connect"
 
 
-class StreamAPIWS(AsyncIOEventEmitter):
+class StreamAPIWS(StreamAsyncIOEventEmitter):
     """
     Asynchronous WebSocket client for Stream Video Coordinator.
 
@@ -145,6 +145,9 @@ class StreamAPIWS(AsyncIOEventEmitter):
         # Check if authentication failed
         if message.get("type") in ("error", "connection.error"):
             self._logger.error("Authentication failed", extra={"error": message})
+            # Emit the error event before raising exception so wildcard handlers can catch it
+            event_type = message.get("type", "unknown")
+            self.emit(event_type, message)
             await self._websocket.close()
             self._websocket = None
             raise StreamWSAuthError(f"Authentication failed: {message}")

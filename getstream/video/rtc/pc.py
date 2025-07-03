@@ -4,6 +4,7 @@ from collections import defaultdict
 from typing import Optional, Any
 
 import aiortc
+from aiortc.contrib.media import MediaRelay
 
 from getstream.video.rtc.track_util import AudioTrackHandler
 from pyee.asyncio import AsyncIOEventEmitter
@@ -70,7 +71,7 @@ class PublisherPeerConnection(aiortc.RTCPeerConnection):
             f"Publisher remote description set successfully. {self.localDescription}"
         )
 
-    async def wait_for_connected(self, timeout: float = 5.0):
+    async def wait_for_connected(self, timeout: float = 15.0):
         # If already connected, return immediately
         if self.connectionState == "connected":
             logger.info("Publisher already connected, no need to wait")
@@ -114,28 +115,45 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
         super().__init__(configuration)
         self.connection = connection
 
-        # the list of tracks
-        self.tracks = defaultdict(lambda: defaultdict(list))
+        self.track_map = {}  # track_id -> (MediaRelay, original_track)
 
         @self.on("track")
         async def on_track(track: aiortc.mediastreams.MediaStreamTrack):
-            logger.info(f"Track received: f{track.id}")
+            logger.info(f"VIVEK Track received: {track.id} : {track.kind}")
             user = self.connection.participants_state.get_user_from_track_id(track.id)
-
+            relay = MediaRelay()
+            self.track_map[track.id] = (relay, track)
+            
             if track.kind == "audio":
+                # Add a new subscriber for AudioTrackHandler
                 handler = AudioTrackHandler(
-                    track, lambda pcm: self.emit("audio", pcm, user)
+                    relay.subscribe(track), lambda pcm: self.emit("audio", pcm, user)
                 )
                 asyncio.ensure_future(handler.start())
+            
+            self.emit("track_added", relay.subscribe(track), user)
 
         @self.on("icegatheringstatechange")
         def on_icegatheringstatechange():
             logger.info(f"ICE gathering state changed to {self.iceGatheringState}")
             if self.iceGatheringState == "complete":
                 logger.info("All ICE candidates have been gathered.")
+    
+    def add_track_subscriber(self, track_id: str) -> Optional[aiortc.mediastreams.MediaStreamTrack]:
+        """Add a new subscriber to an existing track's MediaRelay."""
+        track_data = self.track_map.get(track_id)
+        
+        if track_data:
+            relay, original_track = track_data
+            return relay.subscribe(original_track)
+        return None
 
     def handle_track_ended(self, track: aiortc.mediastreams.MediaStreamTrack) -> None:
-        logger.info(f"track ended: f{track.id}")
+        logger.info(f"track ended: {track.id}")
+        
+        # Clean up stored references when track ends
+        if track.id in self.track_map:
+            del self.track_map[track.id]
 
     async def restartIce(self):
         """Restart ICE connection for reconnection scenarios."""

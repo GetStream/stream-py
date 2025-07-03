@@ -32,7 +32,7 @@ from getstream.video.rtc import audio_track
 from getstream.plugins.elevenlabs.tts import ElevenLabsTTS
 
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(levelname)s %(message)s")
 
 
 async def main() -> None:

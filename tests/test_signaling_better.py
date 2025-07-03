@@ -99,54 +99,10 @@ async def test_websocket_client_initialization():
         assert client.url == "wss://test.url"
         assert client.join_request is join_request
         assert client.ws is None
-        assert client.event_handlers == {}
         assert client.first_message is None
         assert client.thread is None
         assert client.running is False
         assert client.closed is False
-
-
-@pytest.mark.asyncio
-async def test_websocket_client_event_registration():
-    """Test event handler registration."""
-    # Create aiortc mock for this test only
-    mock_aiortc = MagicMock()
-    mock_aiortc.__version__ = "1.0.0"
-
-    # Patch the dependencies
-    with patch.dict(
-        "sys.modules",
-        {
-            "aiortc": mock_aiortc,
-            "getstream.video.rtc.pb.stream.video.sfu.event.events_pb2": mock_events_pb2,
-        },
-    ):
-        # Import the client after patching
-        from getstream.video.rtc.signaling import WebSocketClient
-
-        # Create a client
-        join_request = MockJoinRequest()
-        client = WebSocketClient(
-            "wss://test.url", join_request, asyncio.get_running_loop()
-        )
-
-        # Register event handlers
-        async def handler1(event):
-            pass
-
-        async def handler2(event):
-            pass
-
-        client.on_event("test_event", handler1)
-        client.on_event("test_event", handler2)
-        client.on_event("*", handler1)
-
-        # Verify handlers were registered
-        assert len(client.event_handlers["test_event"]) == 2
-        assert client.event_handlers["test_event"][0] is handler1
-        assert client.event_handlers["test_event"][1] is handler2
-        assert len(client.event_handlers["*"]) == 1
-        assert client.event_handlers["*"][0] is handler1
 
 
 @pytest.mark.asyncio
@@ -259,7 +215,6 @@ async def test_websocket_client_close():
         mock_ws.close.assert_called_once()
         mock_thread.join.assert_called_once_with(timeout=2.0)
         mock_ping_thread.join.assert_called_once_with(timeout=2.0)
-        assert not client.event_handlers  # Should be empty
 
         # Call close again - should be a no-op
         client.close()

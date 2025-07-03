@@ -312,7 +312,7 @@ async def test_play_file(client: Stream):
 
     call = client.video.call("default", CALL_ID)
 
-    file_path = "/Users/tommaso/src/data-samples/video/SampleVideo_1280x720_30mb.mp4"
+    file_path = "/Users/vivek/stream/tools/samples/videos/bbb_sunflower_1080p_60fps_normal.mp4"
 
     # Check if file exists before running test, skip if not
     if not os.path.exists(file_path):
@@ -320,14 +320,15 @@ async def test_play_file(client: Stream):
 
     player = MediaPlayer(file_path)
 
-    async with await rtc.join(call, "test-user") as connection:
+    async with await rtc.join(call, "vivek33") as connection:
         # Use add_tracks which now automatically detects properties
         await connection.add_tracks(
             video=player.video,
             audio=player.audio,
         )
 
-        await asyncio.sleep(10)
+        await connection.wait()
+
 
 
 @pytest.mark.asyncio
@@ -402,4 +403,6 @@ async def test_simple_capture(client: Stream):
         async def on_audio(pcm: PcmData, user):
             print("got audio")
 
-        await asyncio.sleep(10)
+        await connection.wait()
+
+
