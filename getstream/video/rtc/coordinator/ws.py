@@ -94,9 +94,6 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
         """
         Build the authentication payload to send after connection.
 
-        For initial connections, includes user_details if provided.
-        For reconnections, user_details are excluded.
-
         Returns:
             Authentication payload as a dictionary
         """
@@ -105,8 +102,8 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
             "products": ["video"],
         }
 
-        # Only include user_details on initial connection, not on reconnects
-        if self._initial_connection and self.user_details:
+        # Include user_details if available (both for initial connection and reconnections)
+        if self.user_details:
             payload["user_details"] = self.user_details
 
         return payload

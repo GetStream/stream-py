@@ -23,10 +23,21 @@ class ParticipantsState(AsyncIOEventEmitter):
     # ------------------------------------------------------------------
 
     def get_user_from_track_id(self, track_id: str) -> Optional[models_pb2.Participant]:
+        # Track IDs have format: participant_id:track_type:...
+        # We can extract the participant prefix directly from the track ID
+        if ":" in track_id:
+            # Extract the participant prefix from the track ID
+            prefix = track_id.split(":")[0]
+            user = self._participant_by_prefix.get(prefix)
+            if user:
+                return user
+
+        # Fallback to the old mapping approach if it exists
         stream_id = self._track_stream_mapping.get(track_id)
         if stream_id:
             prefix = stream_id.split(":")[0]
             return self._participant_by_prefix.get(prefix)
+
         return None
 
     def get_stream_id_from_track_id(self, track_id: str) -> Optional[str]:
@@ -57,4 +68,4 @@ class ParticipantsState(AsyncIOEventEmitter):
 
     async def _on_participant_left(self, event: events_pb2.ParticipantLeft):
         self.remove_participant(event.participant)
-        self.emit("participant_left", event.participant) 
+        self.emit("participant_left", event.participant)

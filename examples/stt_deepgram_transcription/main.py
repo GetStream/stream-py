@@ -85,7 +85,7 @@ async def main():
             @stt.on("transcript")
             async def on_transcript(text: str, user: any, metadata: dict):
                 timestamp = time.strftime("%H:%M:%S")
-                user_info = user if user else "unknown"
+                user_info = user.name if user and hasattr(user, "name") else "unknown"
                 print(f"[{timestamp}] {user_info}: {text}")
                 if metadata.get("confidence"):
                     print(f"    └─ confidence: {metadata['confidence']:.2%}")
@@ -93,7 +93,9 @@ async def main():
             @stt.on("partial_transcript")
             async def on_partial_transcript(text: str, user: any, metadata: dict):
                 if text.strip():  # Only show non-empty partial transcripts
-                    user_info = user if user else "unknown"
+                    user_info = (
+                        user.name if user and hasattr(user, "name") else "unknown"
+                    )
                     print(
                         f"    {user_info} (partial): {text}", end="\r"
                     )  # Overwrite line

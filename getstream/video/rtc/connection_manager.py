@@ -9,8 +9,8 @@ import aiortc
 from twirp.context import Context
 
 from getstream.utils import StreamAsyncIOEventEmitter
-from getstream.video.rtc.coordinator import StreamAPIWS
 from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
+from getstream.video.rtc.pb.stream.video.sfu.signal_rpc import signal_pb2
 from getstream.video.rtc.twirp_client_wrapper import SignalClient
 
 from getstream.video.call import Call
@@ -39,7 +39,7 @@ async def _log_event(event_type: str, data: Any):
 
 class ConnectionManager(StreamAsyncIOEventEmitter):
     """Main connection manager facade for video streaming."""
-    
+
     def __init__(
         self,
         call: Call,
@@ -59,19 +59,22 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         self.session_id: str = str(uuid.uuid4())
         self.join_response: Optional[JoinCallResponse] = None
         self.local_sfu: bool = False  # Local SFU flag for development
-        
+
         # Private attributes
         self._connection_state: ConnectionState = ConnectionState.IDLE
         self._stop_event: asyncio.Event = asyncio.Event()
         self._connection_options: ConnectionOptions = ConnectionOptions()
         self._ws_client = None
-        
+        self._coordinator_ws_client = None
+
         # Initialize private managers
         self._participants_state: ParticipantsState = ParticipantsState()
         self._recording_manager: RecordingManager = RecordingManager()
         self._network_monitor: NetworkMonitor = NetworkMonitor(self)
         self._reconnector: ReconnectionManager = ReconnectionManager(self)
-        self._subscription_manager: SubscriptionManager = SubscriptionManager(self, subscription_config)
+        self._subscription_manager: SubscriptionManager = SubscriptionManager(
+            self, subscription_config
+        )
         self._peer_manager: PeerConnectionManager = PeerConnectionManager(self)
 
         self.recording_manager = self._recording_manager  # type: ignore
@@ -93,11 +96,8 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             old_state = self._connection_state
             self._connection_state = state
             # Schedule the emit as a background task since property setters cannot be async
-            self.emit('connection.state_changed', {
-                'old': old_state,
-                'new': state
-            })
-    
+            self.emit("connection.state_changed", {"old": old_state, "new": state})
+
     async def _on_ice_trickle(self, event):
         """Handle ICE trickle from SFU."""
         logger.debug(f"Received ICE trickle for peer type {event.peer_type}")
@@ -124,6 +124,75 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         except Exception as e:
             logger.debug(f"Error handling ICE trickle: {e}")
 
+    async def _on_subscriber_offer(self, event):
+        """Handle subscriber offer from SFU."""
+        logger.info(f"Received subscriber offer: ice_restart={event.ice_restart}")
+
+        try:
+            # Ensure we have a subscriber peer connection
+            if not self.subscriber_pc:
+                await self._peer_manager.setup_subscriber()
+
+            # Parse SDP to extract track-to-stream mapping
+            self._extract_track_stream_mapping(event.sdp)
+
+            # Handle ICE restart if needed
+            if event.ice_restart:
+                logger.info("Restarting ICE for subscriber")
+                await self.subscriber_pc.restartIce()
+
+            # Set remote description with the SFU's offer
+            remote_description = aiortc.RTCSessionDescription(
+                type="offer", sdp=event.sdp
+            )
+            await self.subscriber_pc.setRemoteDescription(remote_description)
+
+            # Create and set local answer
+            answer = await self.subscriber_pc.createAnswer()
+            await self.subscriber_pc.setLocalDescription(answer)
+
+            # Send answer back to SFU
+            response = await self.twirp_signaling_client.SendAnswer(
+                ctx=self.twirp_context,
+                request=signal_pb2.SendAnswerRequest(
+                    session_id=self.session_id,
+                    peer_type=models_pb2.PEER_TYPE_SUBSCRIBER,
+                    sdp=self.subscriber_pc.localDescription.sdp,
+                ),
+                server_path_prefix="",
+            )
+            logger.info(f"Sent subscriber answer: {response}")
+
+        except Exception as e:
+            logger.error(f"Error handling subscriber offer: {e}")
+            raise
+
+    def _extract_track_stream_mapping(self, sdp: str):
+        """Extract track-to-stream mapping from SDP."""
+        track_mapping = {}
+
+        # Parse SDP to find track-to-stream mapping
+        # SDP format includes lines like:
+        # a=msid:<stream_id> <track_id>
+        # a=mid:<media_id>
+        for line in sdp.split("\n"):
+            line = line.strip()
+            if line.startswith("a=msid:"):
+                # Extract msid line: a=msid:<stream_id> <track_id>
+                parts = line.split(" ")
+                if len(parts) >= 3:
+                    stream_id = parts[1]
+                    track_id = parts[2]
+                    track_mapping[track_id] = stream_id
+                    logger.debug(f"Extracted track mapping: {track_id} -> {stream_id}")
+
+        # Set the mapping in participants state
+        if track_mapping:
+            logger.info(f"Setting track stream mapping: {track_mapping}")
+            self.participants_state.set_track_stream_mapping(track_mapping)
+        else:
+            logger.warning("No track-to-stream mapping found in SDP")
+
     async def _connect_internal(
         self,
         region: Optional[str] = None,
@@ -139,10 +208,10 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             ws_url: Optional WebSocket URL to connect to
             token: Optional authentication token
             session_id: Optional session ID
-            
+
         Raises:
             SfuConnectionError: If connection fails
-        """        
+        """
         self.connection_state = ConnectionState.JOINING
 
         # Step 1: Determine region
@@ -158,16 +227,21 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         # Step 2: Join call via coordinator
         if not (ws_url or token):
             join_response = await join_call(
-                self.call, self.user_id, location, self.create, self.local_sfu, **self.kwargs
+                self.call,
+                self.user_id,
+                location,
+                self.create,
+                self.local_sfu,
+                **self.kwargs,
             )
             ws_url = join_response.data.credentials.server.ws_endpoint
             token = join_response.data.credentials.token
             self.join_response = join_response
             logger.debug(f"coordinator join response: {join_response.data}")
-        
+
         # Use provided session_id or current one
         current_session_id = session_id or self.session_id
-        
+
         # Step 3: Connect to WebSocket
         try:
             self._ws_client, sfu_event = await connect_websocket(
@@ -179,6 +253,17 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
 
             self._ws_client.on_wildcard("*", _log_event)
             self._ws_client.on_event("ice_trickle", self._on_ice_trickle)
+
+            # Connect track subscription events to subscription manager
+            self._ws_client.on_event(
+                "track_published", self._subscription_manager.handle_track_published
+            )
+            self._ws_client.on_event(
+                "track_unpublished", self._subscription_manager.handle_track_unpublished
+            )
+
+            # Connect subscriber offer event to handle SDP negotiation
+            self._ws_client.on_event("subscriber_offer", self._on_subscriber_offer)
 
             if hasattr(sfu_event, "join_response"):
                 logger.debug(f"sfu join response: {sfu_event.join_response}")
@@ -193,7 +278,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                     )
             else:
                 logger.warning(f"No join response from WebSocket: {sfu_event}")
-                    
+
             logger.debug(f"WebSocket connected successfully to {ws_url}")
         except Exception as e:
             logger.error(f"Failed to connect WebSocket to {ws_url}: {e}")
@@ -204,15 +289,21 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         self.twirp_signaling_client = SignalClient(address=twirp_server_url)
         self.twirp_context = Context(headers={"authorization": token})
 
-        # Step 5: Create coordinator websocket
-        user_token = self.call.client.stream.create_token(user_id=self.user_id)
-        self._coordinator_ws_client = StreamAPIWS(
-            api_key=self.call.client.stream.api_key,
-            token=user_token,
-            user_details={"id": self.user_id},
-        )
-        self._coordinator_ws_client.on_wildcard("*", _log_event)
-        await self._coordinator_ws_client.connect()
+        # Step 5: Create coordinator websocket (temporarily disabled to test)
+        # user_token = self.call.client.stream.create_token(user_id=self.user_id)
+        # self._coordinator_ws_client = StreamAPIWS(
+        #     api_key=self.call.client.stream.api_key,
+        #     token=user_token,
+        #     user_details={"id": self.user_id},
+        #     healthcheck_interval=15.0,  # Send heartbeat every 15 seconds instead of 25
+        #     healthcheck_timeout=20.0,   # Expect server messages within 20 seconds instead of 30
+        # )
+        # self._coordinator_ws_client.on_wildcard("*", _log_event)
+        # await self._coordinator_ws_client.connect()
+        self._coordinator_ws_client = None  # Temporarily disable coordinator connection
+
+        # Step 6: Setup subscriber peer connection to receive incoming tracks
+        await self._peer_manager.setup_subscriber()
 
         # Mark as connected
         self.running = True
@@ -255,6 +346,9 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         if self._ws_client:
             await self._ws_client.close()
             self._ws_client = None
+        if self._coordinator_ws_client:
+            await self._coordinator_ws_client.disconnect()
+            self._coordinator_ws_client = None
 
         self.connection_state = ConnectionState.LEFT
 
@@ -264,7 +358,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         """Async context manager entry."""
         # Register network event handlers
         self._network_monitor.register_event_handlers()
-        
+
         # Connect with retry
         await self.connect()
 
@@ -287,10 +381,14 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         else:
             await self.add_tracks(audio=track)
 
-    async def start_recording(self, recording_types, user_ids=None, output_dir="recordings"):
+    async def start_recording(
+        self, recording_types, user_ids=None, output_dir="recordings"
+    ):
         """Start recording."""
         logger.info("Starting recording")
-        await self._recording_manager.start_recording(recording_types, user_ids, output_dir)
+        await self._recording_manager.start_recording(
+            recording_types, user_ids, output_dir
+        )
 
     async def stop_recording(self, recording_types=None, user_ids=None):
         """Stop recording."""
@@ -306,7 +404,9 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         """Get current recording status."""
         return self._recording_manager.get_recording_status()
 
-    async def subscribe_to_track(self, track_id: str, config: Optional[SubscriptionConfig] = None):
+    async def subscribe_to_track(
+        self, track_id: str, config: Optional[SubscriptionConfig] = None
+    ):
         """Subscribe to a specific track."""
         await self._subscription_manager.subscribe_to_track(track_id, config)
 
@@ -314,7 +414,9 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         """Unsubscribe from a specific track."""
         await self._subscription_manager.unsubscribe_from_track(track_id)
 
-    async def update_track_subscription(self, track_id: str, config: SubscriptionConfig):
+    async def update_track_subscription(
+        self, track_id: str, config: SubscriptionConfig
+    ):
         """Update subscription configuration for a track."""
         await self._subscription_manager.update_track_subscription(track_id, config)
 
@@ -410,7 +512,9 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
     # Internal cleanup & restoration helpers referenced by other modules
     # ------------------------------------------------------------------
 
-    async def _cleanup_connections(self, ws_client=None, publisher_pc=None, subscriber_pc=None):
+    async def _cleanup_connections(
+        self, ws_client=None, publisher_pc=None, subscriber_pc=None
+    ):
         """Close provided connections safely; used by ReconnectionManager."""
         try:
             # Close peer connections (async)
@@ -438,4 +542,3 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             await self._peer_manager.restore_published_tracks()
         except Exception as e:
             logger.error("Failed to restore published tracks", exc_info=e)
-

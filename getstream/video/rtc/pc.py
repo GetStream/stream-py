@@ -119,17 +119,26 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
         @self.on("track")
         async def on_track(track: aiortc.mediastreams.MediaStreamTrack):
             logger.info(f"VIVEK Track received: {track.id} : {track.kind}")
+
+            # Try to get user from track ID first (original method)
             user = self.connection.participants_state.get_user_from_track_id(track.id)
+
+            # If that fails and it's an audio track, try to get the next expected audio user
+            if user is None and track.kind == "audio":
+                user = (
+                    self.connection._subscription_manager.get_next_expected_audio_user()
+                )
+
             relay = MediaRelay()
             self.track_map[track.id] = (relay, track)
-            
+
             if track.kind == "audio":
                 # Add a new subscriber for AudioTrackHandler
                 handler = AudioTrackHandler(
                     relay.subscribe(track), lambda pcm: self.emit("audio", pcm, user)
                 )
                 asyncio.ensure_future(handler.start())
-            
+
             self.emit("track_added", relay.subscribe(track), user)
 
         @self.on("icegatheringstatechange")
@@ -137,11 +146,13 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
             logger.info(f"ICE gathering state changed to {self.iceGatheringState}")
             if self.iceGatheringState == "complete":
                 logger.info("All ICE candidates have been gathered.")
-    
-    def add_track_subscriber(self, track_id: str) -> Optional[aiortc.mediastreams.MediaStreamTrack]:
+
+    def add_track_subscriber(
+        self, track_id: str
+    ) -> Optional[aiortc.mediastreams.MediaStreamTrack]:
         """Add a new subscriber to an existing track's MediaRelay."""
         track_data = self.track_map.get(track_id)
-        
+
         if track_data:
             relay, original_track = track_data
             return relay.subscribe(original_track)
@@ -149,7 +160,7 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
 
     def handle_track_ended(self, track: aiortc.mediastreams.MediaStreamTrack) -> None:
         logger.info(f"track ended: {track.id}")
-        
+
         # Clean up stored references when track ends
         if track.id in self.track_map:
             del self.track_map[track.id]
