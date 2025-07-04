@@ -69,7 +69,6 @@ jobs:
               twine upload --repository-url https://test.pypi.org/legacy/ "$FILE"
             fi
           done
-          twine upload --repository-url https://test.pypi.org/legacy/ dist/*
 
       - name: Install core from TestPyPI using uv
         run: |
