@@ -78,7 +78,6 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         self._recording_manager: RecordingManager = RecordingManager()
         self._network_monitor: NetworkMonitor = NetworkMonitor(self)
         self._reconnector: ReconnectionManager = ReconnectionManager(self)
-        logger.info(f"VIVEK subscription_config: {subscription_config}")
         self._subscription_manager: SubscriptionManager = SubscriptionManager(
             self, subscription_config
         )

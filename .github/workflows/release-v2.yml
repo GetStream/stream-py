@@ -41,6 +41,10 @@ jobs:
           uv sync --all-packages --all-extras --dev --all-groups
 
       - name: Run tests (core only)
+        env:
+          STREAM_BASE_URL: ${{ vars.STREAM_BASE_URL }}
+          STREAM_API_KEY: ${{ vars.STREAM_API_KEY }}
+          STREAM_API_SECRET: ${{ secrets.STREAM_API_SECRET }}
         run: |
           uv run pytest --ignore=getstream/plugins
 
@@ -104,6 +108,10 @@ jobs:
           uv build --all-packages -o dist-plugins --wheel --sdist
 
       - name: Run plugin tests (local wheels, core from TestPyPI)
+        env:
+          STREAM_BASE_URL: ${{ vars.STREAM_BASE_URL }}
+          STREAM_API_KEY: ${{ vars.STREAM_API_KEY }}
+          STREAM_API_SECRET: ${{ secrets.STREAM_API_SECRET }}
         run: |
           # Install all built plugin wheels using uv
           uv pip install dist-plugins/*.whl
