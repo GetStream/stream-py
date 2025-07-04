@@ -38,23 +38,15 @@ jobs:
 
       - name: Sync environment & install dev extras
         run: |
-          uv sync --dev ## TODO Change to actual command with packages, groups etc
+          uv sync --all-packages --all-extras --dev --all-groups
+
+      - name: Run tests (core only)
+        run: |
+          uv run pytest --ignore=getstream/plugins
 
       - name: Build core distributions
         run: |
           uv build -o dist
-
-      - name: Run tests with coverage (core only)
-        env:
-          PYTHONPATH: "${{ github.workspace }}"
-        run: |
-          uv run pytest --cov=getstream --cov-report=xml --ignore=getstream/plugins
-
-      - name: Upload coverage artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: core-coverage-xml
-          path: coverage.xml
 
       - name: Extract package version
         id: get_version
@@ -97,7 +89,7 @@ jobs:
 
       - name: Run core tests against TestPyPI artifact
         run: |
-          UV_NO_SOURCES=1 uv run pytest tests/ --ignore=getstream/plugins
+          uv run pytest tests/ --ignore=getstream/plugins
 
   build-plugins:
     name: Build & Test Plugin Packages
@@ -123,10 +115,11 @@ jobs:
       - name: Install new core from TestPyPI using uv (for plugin builds/tests)
         run: |
           uv pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple getstream==${CORE_VERSION}
+          uv sync --all-packages --all-extras --dev --all-groups
 
       - name: Build all plugin dists (no workspace sources)
         run: |
-          UV_NO_SOURCES=1 uv build --all-packages -o dist-plugins --wheel --sdist
+          uv build --all-packages -o dist-plugins --wheel --sdist
 
       - name: Run plugin tests (local wheels, core from TestPyPI)
         run: |
