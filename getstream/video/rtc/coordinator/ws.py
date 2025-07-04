@@ -41,7 +41,7 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
         user_details: Optional[dict] = None,
         *,
         uri: str = DEFAULT_WS_URI,
-        healthcheck_interval: float = 25.0,
+        healthcheck_interval: float = 15.0,
         healthcheck_timeout: float = 30.0,
         max_retries: int = 5,
         backoff_base: float = 1.0,

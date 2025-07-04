@@ -9,9 +9,11 @@ import aiortc
 from twirp.context import Context
 
 from getstream.utils import StreamAsyncIOEventEmitter
+from getstream.video.rtc.coordinator.ws import StreamAPIWS
+from getstream.video.rtc.pb.stream.video.sfu.event import events_pb2
 from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
 from getstream.video.rtc.pb.stream.video.sfu.signal_rpc import signal_pb2
-from getstream.video.rtc.twirp_client_wrapper import SignalClient
+from getstream.video.rtc.twirp_client_wrapper import SfuRpcError, SignalClient
 
 from getstream.video.call import Call
 from getstream.video.rtc.connection_utils import (
@@ -20,6 +22,10 @@ from getstream.video.rtc.connection_utils import (
     ConnectionOptions,
     connect_websocket,
     join_call,
+)
+from getstream.video.rtc.track_util import (
+    fix_sdp_msid_semantic,
+    parse_track_stream_mapping,
 )
 from getstream.video.rtc.network_monitor import NetworkMonitor
 from getstream.video.rtc.recording import RecordingManager
@@ -72,6 +78,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         self._recording_manager: RecordingManager = RecordingManager()
         self._network_monitor: NetworkMonitor = NetworkMonitor(self)
         self._reconnector: ReconnectionManager = ReconnectionManager(self)
+        logger.info(f"VIVEK subscription_config: {subscription_config}")
         self._subscription_manager: SubscriptionManager = SubscriptionManager(
             self, subscription_config
         )
@@ -124,48 +131,57 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         except Exception as e:
             logger.debug(f"Error handling ICE trickle: {e}")
 
-    async def _on_subscriber_offer(self, event):
-        """Handle subscriber offer from SFU."""
-        logger.info(f"Received subscriber offer: ice_restart={event.ice_restart}")
+    async def _on_subscriber_offer(self, event: events_pb2.SubscriberOffer):
+        logger.info("Subscriber offer received")
+
+        await self.subscriber_negotiation_lock.acquire()
 
         try:
-            # Ensure we have a subscriber peer connection
-            if not self.subscriber_pc:
-                await self._peer_manager.setup_subscriber()
-
-            # Parse SDP to extract track-to-stream mapping
-            self._extract_track_stream_mapping(event.sdp)
-
-            # Handle ICE restart if needed
-            if event.ice_restart:
-                logger.info("Restarting ICE for subscriber")
-                await self.subscriber_pc.restartIce()
-
-            # Set remote description with the SFU's offer
-            remote_description = aiortc.RTCSessionDescription(
-                type="offer", sdp=event.sdp
+            # Fix any invalid msid-semantic format in the SDP
+            fixed_sdp = fix_sdp_msid_semantic(event.sdp)
+            # Parse SDP to create track_id to stream_id mapping
+            self.participants_state.set_track_stream_mapping(
+                parse_track_stream_mapping(fixed_sdp)
             )
+            # The SDP offer from the SFU might already contain candidates (trickled)
+            # or have a different structure. We set it as the remote description.
+            # The aiortc library handles merging and interpretation.
+            remote_description = aiortc.RTCSessionDescription(
+                type="offer", sdp=fixed_sdp
+            )
+            logger.debug(f"""Setting remote description with SDP:
+            {remote_description.sdp}""")
             await self.subscriber_pc.setRemoteDescription(remote_description)
 
-            # Create and set local answer
+            # Create the answer based on the remote offer (which includes our candidates)
             answer = await self.subscriber_pc.createAnswer()
+            # Set the local description. aiortc will manage the SDP content.
             await self.subscriber_pc.setLocalDescription(answer)
 
-            # Send answer back to SFU
-            response = await self.twirp_signaling_client.SendAnswer(
-                ctx=self.twirp_context,
-                request=signal_pb2.SendAnswerRequest(
-                    session_id=self.session_id,
-                    peer_type=models_pb2.PEER_TYPE_SUBSCRIBER,
-                    sdp=self.subscriber_pc.localDescription.sdp,
-                ),
-                server_path_prefix="",
+            logger.info(
+                f"""Sending answer with local description:
+            {self.subscriber_pc.localDescription.sdp}"""
             )
-            logger.info(f"Sent subscriber answer: {response}")
 
-        except Exception as e:
-            logger.error(f"Error handling subscriber offer: {e}")
-            raise
+            try:
+                await self.twirp_signaling_client.SendAnswer(
+                    ctx=self.twirp_context,
+                    request=signal_pb2.SendAnswerRequest(
+                        peer_type=models_pb2.PEER_TYPE_SUBSCRIBER,
+                        sdp=self.subscriber_pc.localDescription.sdp,
+                        session_id=self.session_id,
+                    ),
+                    server_path_prefix="",  # Note: Our wrapper doesn't need this, underlying client handles prefix
+                )
+                logger.info("Subscriber answer sent successfully.")
+            except SfuRpcError as e:
+                logger.error(f"Failed to send subscriber answer: {e}")
+                # Decide how to handle: maybe close connection, notify user, etc.
+                # For now, just log the error.
+            except Exception as e:
+                logger.error(f"Unexpected error sending subscriber answer: {e}")
+        finally:
+            self.subscriber_negotiation_lock.release()
 
     def _extract_track_stream_mapping(self, sdp: str):
         """Extract track-to-stream mapping from SDP."""
@@ -242,6 +258,8 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         # Use provided session_id or current one
         current_session_id = session_id or self.session_id
 
+        await self._peer_manager.setup_subscriber()
+
         # Step 3: Connect to WebSocket
         try:
             self._ws_client, sfu_event = await connect_websocket(
@@ -290,20 +308,14 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         self.twirp_context = Context(headers={"authorization": token})
 
         # Step 5: Create coordinator websocket (temporarily disabled to test)
-        # user_token = self.call.client.stream.create_token(user_id=self.user_id)
-        # self._coordinator_ws_client = StreamAPIWS(
-        #     api_key=self.call.client.stream.api_key,
-        #     token=user_token,
-        #     user_details={"id": self.user_id},
-        #     healthcheck_interval=15.0,  # Send heartbeat every 15 seconds instead of 25
-        #     healthcheck_timeout=20.0,   # Expect server messages within 20 seconds instead of 30
-        # )
-        # self._coordinator_ws_client.on_wildcard("*", _log_event)
-        # await self._coordinator_ws_client.connect()
-        self._coordinator_ws_client = None  # Temporarily disable coordinator connection
-
-        # Step 6: Setup subscriber peer connection to receive incoming tracks
-        await self._peer_manager.setup_subscriber()
+        user_token = self.call.client.stream.create_token(user_id=self.user_id)
+        self._coordinator_ws_client = StreamAPIWS(
+            api_key=self.call.client.stream.api_key,
+            token=user_token,
+            user_details={"id": self.user_id},
+        )
+        self._coordinator_ws_client.on_wildcard("*", _log_event)
+        await self._coordinator_ws_client.connect()
 
         # Mark as connected
         self.running = True

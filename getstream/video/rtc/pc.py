@@ -118,7 +118,7 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
 
         @self.on("track")
         async def on_track(track: aiortc.mediastreams.MediaStreamTrack):
-            logger.info(f"VIVEK Track received: {track.id} : {track.kind}")
+            logger.info(f"Track received: {track.id} : {track.kind}")
 
             # Try to get user from track ID first (original method)
             user = self.connection.participants_state.get_user_from_track_id(track.id)

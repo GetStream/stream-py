@@ -702,6 +702,10 @@ class RecordingManager(AsyncIOEventEmitter):
 
         self.config = config or RecordingConfig()
 
+        # Tracks that were received before recording started.
+        # Mapping of track_id -> (user_id, track)
+        self._pending_tracks: Dict[str, tuple[str, MediaStreamTrack]] = {}
+
         # Recording state
         self._recording_types: Set[RecordingType] = set()
         self._target_user_ids: Optional[Set[str]] = None
@@ -751,6 +755,9 @@ class RecordingManager(AsyncIOEventEmitter):
 
         # Set up event forwarding for new recorders
         self._setup_recorder_events()
+
+        # Process any tracks that were received before recording was enabled.
+        await self._process_pending_tracks()
 
         self.emit('recording_started', {
             'recording_types': [rt.value for rt in recording_types],
@@ -803,6 +810,12 @@ class RecordingManager(AsyncIOEventEmitter):
         if self._composite_audio_recorder:
             self._composite_audio_recorder.remove_user_track(user_id)
 
+        # Remove from pending tracks
+        for track_id in list(self._pending_tracks.keys()):
+            pending_user, _ = self._pending_tracks[track_id]
+            if pending_user == user_id:
+                del self._pending_tracks[track_id]
+
         # Stop track recording (both audio and video)
         await self._stop_user_recording(user_id)
         logger.info(f"Stopped recording for user {user_id} who left the call")
@@ -814,8 +827,13 @@ class RecordingManager(AsyncIOEventEmitter):
             await self._stop_user_recording_by_key(recorder_key, track_type)
             logger.info(f"Stopped {track_type} recording for user {user_id} whose {track_type} track was removed")
 
+            # Remove from pending
+            for track_id in list(self._pending_tracks.keys()):
+                pending_user, pending_track = self._pending_tracks[track_id]
+                if pending_user == user_id and pending_track.kind == track_type:
+                    del self._pending_tracks[track_id]
+
     async def on_track_received(self, track, user):
-        logger.info(f"VIVEK on_track_received: {track.kind} track for user {user}")
         """Handle new track received from track event."""
         if not track or track.kind not in ["audio", "video"]:
             return
@@ -837,6 +855,11 @@ class RecordingManager(AsyncIOEventEmitter):
         # Start track recording if enabled (both audio and video)
         if RecordingType.TRACK in self._recording_types:
             await self._start_user_track_recording(user_id, track)
+
+        # Cache track so that we can start recording later if recording is not
+        # yet enabled.
+        if RecordingType.TRACK not in self._recording_types:
+            self._pending_tracks[track.id] = (user_id, track)
 
     async def _start_user_track_recording(self, user_id: str, track: MediaStreamTrack):
         """Start recording a user track using MediaRecorder."""
@@ -1166,3 +1189,31 @@ class RecordingManager(AsyncIOEventEmitter):
             self._composite_audio_recorder = None
 
         logger.info("RecordingManager cleanup completed")
+
+    async def _process_pending_tracks(self):
+        """Start recording for any tracks that were received before recording was enabled."""
+        if not self._pending_tracks:
+            return
+
+        for track_id, (user_id, track) in list(self._pending_tracks.items()):
+            try:
+                # Filter by requested user_ids if provided
+                if self._target_user_ids and user_id not in self._target_user_ids:
+                    continue
+
+                # Start individual track recording if requested
+                if RecordingType.TRACK in self._recording_types:
+                    await self._start_user_track_recording(user_id, track)
+
+                # Add to composite recorder if requested and audio track
+                if (
+                    RecordingType.COMPOSITE in self._recording_types
+                    and track.kind == "audio"
+                    and self._composite_audio_recorder is not None
+                ):
+                    self._composite_audio_recorder.add_user_track(user_id, track)
+
+                # Remove from pending once handled
+                del self._pending_tracks[track_id]
+            except Exception as e:
+                logger.warning(f"Error processing pending track {track_id}: {e}")

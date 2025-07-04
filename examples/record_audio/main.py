@@ -91,18 +91,23 @@ async def record(connection, recording_type, output_dir, user_id_filter=None):
     print(f"   • Output Directory: {final_status['output_directory']}")
 
 
-async def record_composite(call, recorder_connection, bot_connections, players):
+async def record_composite(recorder_connection, bot_connections):
     """Record composite audio from all participants."""
-    await record(recorder_connection, RecordingType.COMPOSITE, "recordings/composite")
+    await record(
+        recorder_connection,
+        RecordingType.COMPOSITE,
+        "recordings/composite",
+        user_id_filter=bot_connections,
+    )
 
 
-async def record_tracks(call, recorder_connection, bot_connections, players):
+async def record_tracks(recorder_connection, bot_connections):
     """Record individual tracks from each participant."""
     await record(
         recorder_connection,
         RecordingType.TRACK,
         "recordings/tracks",
-        user_id_filter=bot_connections[0].user_id,  # Record only the first bot's audio
+        user_id_filter=bot_connections,
     )
 
 
@@ -189,17 +194,13 @@ async def main():
                 # Run the selected recording type
                 if args.type == "composite":
                     await record_composite(
-                        call,
                         recorder_connection,
-                        [bot1_connection, bot2_connection, bot3_connection],
-                        players,
+                        [bot1_connection.user_id],
                     )
                 else:  # track recording
                     await record_tracks(
-                        call,
                         recorder_connection,
-                        [bot1_connection, bot2_connection, bot3_connection],
-                        players,
+                        [bot1_connection.user_id],
                     )
 
                 for connection in [bot1_connection, bot2_connection, bot3_connection]:
