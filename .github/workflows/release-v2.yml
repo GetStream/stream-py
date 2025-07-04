@@ -116,7 +116,7 @@ jobs:
           TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
         run: |
           uv pip install --upgrade twine
-          twine upload --repository-url https://test.pypi.org/legacy/ dist-plugins/getstream-plugins-*
+          twine upload --repository-url https://test.pypi.org/legacy/ dist-plugins/getstream_plugins_*
 
       - name: Install core and plugins from TestPyPI using uv
         run: |
