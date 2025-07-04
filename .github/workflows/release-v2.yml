@@ -16,6 +16,7 @@ jobs:
   build-core:
     name: Build & Test Core SDK
     runs-on: ubuntu-latest
+    environment: testpypi
     outputs:
       version: ${{ steps.get_version.outputs.version }}
     steps:
@@ -70,8 +71,6 @@ jobs:
         with:
           repository-url: https://test.pypi.org/legacy/
           packages-dir: dist
-        environment:
-          name: testpypi
 
   test-core-index:
     name: Verify Core from TestPyPI
@@ -102,6 +101,7 @@ jobs:
     name: Build & Test Plugin Packages
     runs-on: ubuntu-latest
     needs: test-core-index
+    environment: testpypi
     env:
       CORE_VERSION: ${{ needs.build-core.outputs.version }}
       UV_NO_SOURCES: "1"
@@ -136,8 +136,6 @@ jobs:
         with:
           repository-url: https://test.pypi.org/legacy/
           packages-dir: dist-plugins
-        environment:
-          name: testpypi
 
   test-plugins-index:
     name: Verify Plugins from TestPyPI
