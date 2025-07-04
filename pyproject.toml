@@ -1,7 +1,7 @@
 [project]
 name = "getstream"
-version = "1.4.1"
-description = ""
+dynamic = [ "version" ]
+description = "GetStream Python SDK - Build scalable activity feeds, chat, and video calling applications"
 authors = [
     { name = "sachaarbonel", email = "sacha.arbonel@hotmail.fr" },
     { name = "tbarbugli", email = "tbarbugli@gmail.com" },
@@ -44,6 +44,15 @@ webrtc = [
 mcp = [
     "fastmcp>=2.10.1",
 ]
+plugins = [
+    "getstream[webrtc]",
+    "getstream-plugins-deepgram",
+    "getstream-plugins-moonshine",
+    "getstream-plugins-elevenlabs",
+    "getstream-plugins-cartesia",
+    "getstream-plugins-openai",
+    "getstream-plugins-silero",
+]
 
 [dependency-groups]
 dev = [
@@ -62,11 +71,16 @@ dev = [
 members = [
     "getstream/plugins/*",
 ]
-exclude = [
+ exclude = [
     "**/__pycache__",
-    "**/tests",
-    "**/*.egg-info",
-]
+    "**/tests/__pycache__",
+    "**/*.pyc",
+    "**/dist/",
+    "**/*.egg-info/",
+    "**/.pytest_cache/",
+    "**/.mypy_cache/",
+    "**/.ruff_cache/",
+ ]
 
 [tool.uv.sources]
 getstream-plugins-deepgram = { workspace = true }
@@ -81,6 +95,13 @@ getstream-plugins-kokoro = { workspace = true }
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "getstream/version.py"
+pattern = "VERSION = ['\"](?P<version>[^'\"]*)['\"]"
+
+[tool.hatch.build.targets.wheel]
+packages = ["getstream"]
 
 [tool.ruff]
 exclude = [
