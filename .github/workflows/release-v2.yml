@@ -90,7 +90,7 @@ jobs:
 
       - name: Install new core from TestPyPI using uv (for plugin builds/tests)
         run: |
-          uv pip install --index-url https://test.pypi.org/simple/ getstream==${CORE_VERSION}
+          uv pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple getstream==${CORE_VERSION}
 
       - name: Sync environment & install dev extras
         run: |
