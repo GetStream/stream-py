@@ -105,6 +105,7 @@ jobs:
 
       - name: Sync environment & install dev extras
         run: |
+          uv add useful-moonshine-onnx@git+https://github.com/usefulsensors/moonshine.git#subdirectory=moonshine-onnx
           uv sync --all-packages --all-extras --dev --all-groups
 
       - name: Build all plugin dists
