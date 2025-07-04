@@ -23,30 +23,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python ${{ github.event.inputs.python-version || '3.12' }}
-        uses: actions/setup-python@v5
+      - name: Install uv and set the python version
+        uses: astral-sh/setup-uv@v5
         with:
           python-version: ${{ github.event.inputs.python-version || '3.12' }}
-
-      - name: Install build tooling (uv & test deps)
-        run: |
-          python -m pip install --upgrade pip
-          # Install uv (once) using pip, then use uv for the rest
-          python -m pip install uv
-          uv venv --python 3.12
-          uv pip install pytest pytest-asyncio
 
       - name: Sync environment & install dev extras
         run: |
           uv sync --all-packages --all-extras --dev --all-groups
-
-      - name: Run tests (core only)
-        env:
-          STREAM_BASE_URL: ${{ vars.STREAM_BASE_URL }}
-          STREAM_API_KEY: ${{ vars.STREAM_API_KEY }}
-          STREAM_API_SECRET: ${{ secrets.STREAM_API_SECRET }}
-        run: |
-          uv run pytest --ignore=getstream/plugins
 
       - name: Build core distributions
         run: |
@@ -71,9 +55,13 @@ jobs:
 
       - name: Install core from TestPyPI using uv
         run: |
-          uv pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple getstream==${{ needs.build-core.outputs.version }}
+          uv pip install --index-url https://test.pypi.org/simple/ getstream==${{ needs.build-core.outputs.version }}
 
       - name: Run core tests against TestPyPI artifact
+        env:
+          STREAM_BASE_URL: ${{ vars.STREAM_BASE_URL }}
+          STREAM_API_KEY: ${{ vars.STREAM_API_KEY }}
+          STREAM_API_SECRET: ${{ secrets.STREAM_API_SECRET }}
         run: |
           UV_NO_SOURCES=1 uv run pytest --ignore=getstream/plugins
 
@@ -86,24 +74,23 @@ jobs:
       CORE_VERSION: ${{ needs.build-core.outputs.version }}
       UV_NO_SOURCES: "1"
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Install uv and set the python version
+        uses: astral-sh/setup-uv@v5
         with:
           python-version: ${{ github.event.inputs.python-version || '3.12' }}
 
-      - name: Install uv & tooling
-        run: |
-          python -m pip install uv
-          uv venv --python 3.12
-          uv pip install pytest pytest-asyncio
-
       - name: Install new core from TestPyPI using uv (for plugin builds/tests)
         run: |
-          uv pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple getstream==${CORE_VERSION}
+          uv pip install --index-url https://test.pypi.org/simple/ getstream==${CORE_VERSION}
+
+      - name: Sync environment & install dev extras
+        run: |
           uv sync --all-packages --all-extras --dev --all-groups
 
-      - name: Build all plugin dists (no workspace sources)
+      - name: Build all plugin dists
         run: |
           uv build --all-packages -o dist-plugins --wheel --sdist
 
