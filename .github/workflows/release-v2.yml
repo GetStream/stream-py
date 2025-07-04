@@ -57,7 +57,7 @@ jobs:
 
       - name: Install core from TestPyPI using uv
         run: |
-          uv pip install --index-url https://test.pypi.org/simple/ getstream==${{ needs.build-core.outputs.version }}
+          uv pip install --index-url https://test.pypi.org/simple/ "getstream==${{ needs.build-core.outputs.version }}"
 
       - name: Run core tests against TestPyPI artifact
         env:
@@ -116,8 +116,8 @@ jobs:
 
       - name: Install core and plugins from TestPyPI using uv
         run: |
-          uv pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple getstream==${CORE_VERSION}
-          uv pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple "getstream-plugins-*"
+          uv pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple "getstream==${CORE_VERSION}"
+          uv pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple getstream-plugins-*
 
       - name: Run all plugin tests against TestPyPI artifacts
         run: |
