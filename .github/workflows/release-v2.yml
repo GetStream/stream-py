@@ -76,7 +76,7 @@ jobs:
   build-plugins:
     name: Build & Test Plugin Packages
     runs-on: ubuntu-latest
-    needs: test-core-index
+    needs: build-core
     environment: ci
     env:
       CORE_VERSION: ${{ needs.build-core.outputs.version }}
@@ -127,7 +127,7 @@ jobs:
   summarize:
     name: Publish Test Deployment Report
     runs-on: ubuntu-latest
-    needs: test-plugins-index
+    needs: build-plugins
     steps:
       - name: Generate summary
         run: |
