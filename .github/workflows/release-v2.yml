@@ -123,30 +123,41 @@ jobs:
           uv run pytest getstream/plugins
 
       - name: Publish plugins to TestPyPI
+        id: publish_plugins
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
         run: |
           set -e
           uv pip install --upgrade twine
+          UPLOAD_LIST=""
           # Iterate over each built plugin wheel in dist-plugins/
           for FILE in dist-plugins/getstream_plugins_*.whl; do
             BASENAME=$(basename "$FILE")
-            PACKAGE_NAME=${BASENAME%%-*}            # getstream_plugins_deepgram
-            VERSION=$(echo "$BASENAME" | cut -d'-' -f2) # 1.5.0a2 etc.
+            PACKAGE_NAME=${BASENAME%%-*}
+            VERSION=$(echo "$BASENAME" | cut -d'-' -f2)  # 1.5.0a2 etc.
             echo "Checking if $PACKAGE_NAME version $VERSION exists on TestPyPI..."
             if pip index versions --pre "$PACKAGE_NAME" --index-url https://test.pypi.org/simple | grep -q "$VERSION"; then
               echo "Version $VERSION already exists for $PACKAGE_NAME – skipping upload."
             else
               echo "Uploading $BASENAME to TestPyPI."
               twine upload --repository-url https://test.pypi.org/legacy/ "$FILE"
+              UPLOAD_LIST="$UPLOAD_LIST $PACKAGE_NAME==$VERSION"
             fi
           done
+          # Expose the list (space-separated) as a step output
+          echo "install_list=$UPLOAD_LIST" >> "$GITHUB_OUTPUT"
 
-      - name: Install core and plugins from TestPyPI using uv
+      - name: Install uploaded plugins from TestPyPI using uv
+        if: steps.publish_plugins.outputs.install_list != ''
+        env:
+          INSTALL_LIST: ${{ steps.publish_plugins.outputs.install_list }}
+        run: |
+          uv pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple --index-strategy unsafe-best-match "getstream==${CORE_VERSION}" $INSTALL_LIST
+      - name: Install core (only) if no new plugins were uploaded
+        if: steps.publish_plugins.outputs.install_list == ''
         run: |
           uv pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple --index-strategy unsafe-best-match "getstream==${CORE_VERSION}"
-          uv pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple --index-strategy unsafe-best-match getstream-plugins-*
 
       - name: Run all plugin tests against TestPyPI artifacts
         run: |
