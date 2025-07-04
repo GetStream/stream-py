@@ -40,9 +40,13 @@ jobs:
         id: get_version
         run: |
           python - <<'PY'
-          import tomllib, pathlib, os
-          meta = tomllib.loads(pathlib.Path('pyproject.toml').read_text())
-          version = meta['project']['version']
+          import re, os, pathlib, sys
+          version_file = pathlib.Path('getstream') / 'version.py'
+          content = version_file.read_text()
+          match = re.search(r"VERSION\s*=\s*['\"]([^'\"]+)['\"]", content)
+          if not match:
+              sys.exit('Could not find VERSION in getstream/version.py')
+          version = match.group(1)
           with open(os.environ['GITHUB_OUTPUT'], 'a') as fh:
               fh.write(f'version={version}\n')
           PY
