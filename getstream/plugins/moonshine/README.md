@@ -15,37 +15,36 @@ This plugin provides Speech-to-Text functionality using [Moonshine](https://gith
 
 ## Installation
 
-### From PyPI (Recommended)
+### From PyPI + GitHub (Required)
+
+Since the Moonshine ONNX models are not available on PyPI, you need to install them separately from GitHub:
 
 ```bash
-# Install from PyPI with the GitHub dependency
-pip install getstream-plugins-moonshine[github-deps]
-
-# Or with uv
-uv add getstream-plugins-moonshine[github-deps]
-```
-
-### From PyPI (Manual GitHub dependency)
-
-If you prefer to install the GitHub dependency separately:
-
-```bash
-# Install the core plugin
+# 1. Install the core plugin from PyPI
 pip install getstream-plugins-moonshine
 
-# Then install the moonshine model dependency from GitHub
+# 2. Install the moonshine model dependency from GitHub
 pip install "useful-moonshine-onnx @ git+https://github.com/usefulsensors/moonshine.git#subdirectory=moonshine-onnx"
+```
+
+### With uv
+
+```bash
+# Install both dependencies
+uv add getstream-plugins-moonshine
+uv add "useful-moonshine-onnx @ git+https://github.com/usefulsensors/moonshine.git#subdirectory=moonshine-onnx"
 ```
 
 ### Development Installation (uv)
 
-If your project already uses **uv**, add the plugin to your `pyproject.toml`:
+If your project uses **uv**, add both dependencies to your `pyproject.toml`:
 
 ```toml
 [project]
 dependencies = [
     # … other deps …
-    "getstream-plugins-moonshine[github-deps]",
+    "getstream-plugins-moonshine",
+    "useful-moonshine-onnx @ git+https://github.com/usefulsensors/moonshine.git#subdirectory=moonshine-onnx",
 ]
 
 [tool.uv.sources]
@@ -55,7 +54,7 @@ getstream-plugins-moonshine = { path = "getstream/plugins/moonshine" }  # for lo
 Then:
 
 ```bash
-uv sync        # installs useful-moonshine-onnx, onnxruntime, etc.
+uv sync        # installs both dependencies
 ```
 
 ## Usage

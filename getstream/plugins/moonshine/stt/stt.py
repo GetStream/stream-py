@@ -77,8 +77,7 @@ class MoonshineSTT(STT):
         if not MOONSHINE_AVAILABLE:
             raise ImportError(
                 "moonshine_onnx is not installed. "
-                "Please install it with: pip install 'getstream-plugins-moonshine[github-deps]' "
-                "or directly from GitHub: pip install 'useful-moonshine-onnx@git+https://github.com/usefulsensors/moonshine.git#subdirectory=moonshine-onnx'"
+                "Please install it from GitHub: pip install 'useful-moonshine-onnx@git+https://github.com/usefulsensors/moonshine.git#subdirectory=moonshine-onnx'"
             )
 
         # Validate and normalize model name

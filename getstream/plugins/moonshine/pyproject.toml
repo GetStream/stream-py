@@ -17,11 +17,6 @@ dependencies = [
     "soundfile>=0.13.1",
 ]
 
-[project.optional-dependencies]
-github-deps = [
-    "useful-moonshine-onnx@git+https://github.com/usefulsensors/moonshine.git#subdirectory=moonshine-onnx",
-]
-
 [tool.hatch.build.targets.wheel]
 packages = ["."]
 
