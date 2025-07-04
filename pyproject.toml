@@ -98,7 +98,6 @@ build-backend = "hatchling.build"
 
 [tool.hatch.version]
 path = "getstream/version.py"
-pattern = "VERSION = 'b(?P<version>[^']+)'"
 
 [tool.hatch.build.targets.wheel]
 packages = ["getstream"]
