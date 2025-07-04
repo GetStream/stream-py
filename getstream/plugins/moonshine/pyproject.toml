@@ -12,10 +12,14 @@ license = "MIT"
 dependencies = [
     "getstream[webrtc]",
     "getstream-plugins-common",
-    "useful-moonshine-onnx@git+https://github.com/usefulsensors/moonshine.git#subdirectory=moonshine-onnx",
     "onnxruntime>=1.22.0",
     "numpy>=2.2.6,<2.3",
     "soundfile>=0.13.1",
+]
+
+[project.optional-dependencies]
+github-deps = [
+    "useful-moonshine-onnx@git+https://github.com/usefulsensors/moonshine.git#subdirectory=moonshine-onnx",
 ]
 
 [tool.hatch.build.targets.wheel]
