@@ -52,6 +52,7 @@ plugins = [
     "getstream-plugins-cartesia",
     "getstream-plugins-openai",
     "getstream-plugins-silero",
+    "getstream-plugins-kokoro",
 ]
 
 [dependency-groups]
