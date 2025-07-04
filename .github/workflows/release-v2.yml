@@ -57,6 +57,18 @@ jobs:
           TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
         run: |
           uv pip install --upgrade twine
+          for FILE in dist/getstream*.whl; do
+            BASENAME=$(basename "$FILE")
+            PACKAGE_NAME=${BASENAME%%-*}
+            VERSION=$(echo "$BASENAME" | cut -d'-' -f2) # 1.5.0a2 etc.
+            echo "Checking if $PACKAGE_NAME version $VERSION exists on TestPyPI..."
+            if pip index versions --pre "$PACKAGE_NAME" --index-url https://test.pypi.org/simple | grep -q "$VERSION"; then
+              echo "Version $VERSION already exists for $PACKAGE_NAME – skipping upload."
+            else
+              echo "Uploading $BASENAME to TestPyPI."
+              twine upload --repository-url https://test.pypi.org/legacy/ "$FILE"
+            fi
+          done
           twine upload --repository-url https://test.pypi.org/legacy/ dist/*
 
       - name: Install core from TestPyPI using uv
@@ -115,8 +127,21 @@ jobs:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
         run: |
+          set -e
           uv pip install --upgrade twine
-          twine upload --repository-url https://test.pypi.org/legacy/ dist-plugins/getstream_plugins_*
+          # Iterate over each built plugin wheel in dist-plugins/
+          for FILE in dist-plugins/getstream_plugins_*.whl; do
+            BASENAME=$(basename "$FILE")
+            PACKAGE_NAME=${BASENAME%%-*}            # getstream_plugins_deepgram
+            VERSION=$(echo "$BASENAME" | cut -d'-' -f2) # 1.5.0a2 etc.
+            echo "Checking if $PACKAGE_NAME version $VERSION exists on TestPyPI..."
+            if pip index versions --pre "$PACKAGE_NAME" --index-url https://test.pypi.org/simple | grep -q "$VERSION"; then
+              echo "Version $VERSION already exists for $PACKAGE_NAME – skipping upload."
+            else
+              echo "Uploading $BASENAME to TestPyPI."
+              twine upload --repository-url https://test.pypi.org/legacy/ "$FILE"
+            fi
+          done
 
       - name: Install core and plugins from TestPyPI using uv
         run: |
