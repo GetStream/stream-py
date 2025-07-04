@@ -1,39 +1,164 @@
 name: Release
 
 on:
-  pull_request:
-    types: [closed]
-    branches:
-      - main
+  workflow_dispatch:
+    inputs:
+      python-version:
+        description: "Python version to use"
+        default: "3.12"
+        required: false
+
+permissions:
+  contents: read
+  id-token: write
 
 jobs:
-  Release:
-    name: 🚀 Release
-    if: github.event.pull_request.merged && startsWith(github.head_ref, 'release-')
+  build-core:
+    name: Build & Test Core SDK
     runs-on: ubuntu-latest
-    permissions: write-all
+    environment: ci
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
     steps:
-      - uses: actions/github-script@v7
-        with:
-          script: |
-            // Getting the release version from the PR source branch
-            // Source branch looks like this: release-1.0.0
-            const version = context.payload.pull_request.head.ref.split('-')[1]
-            core.exportVariable('VERSION', version)
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Install uv and set the python version
         uses: astral-sh/setup-uv@v5
         with:
-          python-version: "3.12"
-      - name: Build project
-        run: uv build
-      - name: Publish package distributions to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-      - name: Create release on GitHub
-        uses: ncipollo/release-action@v1
+          python-version: ${{ github.event.inputs.python-version || '3.12' }}
+
+      - name: Sync environment & install dev extras
+        run: |
+          uv sync --all-packages --all-extras --dev --all-groups
+
+      - name: Build core distributions
+        run: |
+          uv build -o dist
+
+      - name: Extract package version
+        id: get_version
+        run: |
+          python - <<'PY'
+          import re, os, pathlib, sys
+          version_file = pathlib.Path('getstream') / 'version.py'
+          content = version_file.read_text()
+          match = re.search(r"VERSION\s*=\s*['\"]([^'\"]+)['\"]", content)
+          if not match:
+              sys.exit('Could not find VERSION in getstream/version.py')
+          version = match.group(1)
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as fh:
+              fh.write(f'version={version}\n')
+          PY
+
+      - name: Publish core to PyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          uv pip install --upgrade twine
+          for FILE in dist/getstream*.whl; do
+            BASENAME=$(basename "$FILE")
+            PACKAGE_NAME=${BASENAME%%-*}
+            VERSION=$(echo "$BASENAME" | cut -d'-' -f2) # 1.5.0a2 etc.
+            echo "Checking if $PACKAGE_NAME version $VERSION exists on PyPI..."
+            if pip index versions --pre "$PACKAGE_NAME" | grep -q "$VERSION"; then
+              echo "Version $VERSION already exists for $PACKAGE_NAME – skipping upload."
+            else
+              echo "Uploading $BASENAME to PyPI."
+              twine upload "$FILE"
+            fi
+          done
+
+      - name: Install core from using uv
+        run: |
+          uv pip install "getstream==${{ steps.get_version.outputs.version }}"
+
+      - name: Run core tests against PyPI artifact
+        env:
+          STREAM_BASE_URL: ${{ vars.STREAM_BASE_URL }}
+          STREAM_API_KEY: ${{ vars.STREAM_API_KEY }}
+          STREAM_API_SECRET: ${{ secrets.STREAM_API_SECRET }}
+        run: |
+          UV_NO_SOURCES=1 uv run pytest --ignore=getstream/plugins
+
+  build-plugins:
+    name: Build & Test Plugin Packages
+    runs-on: ubuntu-latest
+    needs: build-core
+    environment: ci
+    env:
+      CORE_VERSION: ${{ needs.build-core.outputs.version }}
+      UV_NO_SOURCES: "1"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv and set the python version
+        uses: astral-sh/setup-uv@v5
         with:
-          tag: ${{ env.VERSION }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-          generateReleaseNotes: true
+          python-version: ${{ github.event.inputs.python-version || '3.12' }}
+
+      - name: Install new core from PyPI using uv (for plugin builds/tests)
+        run: |
+          uv pip install "getstream==${CORE_VERSION}"
+
+      - name: Sync environment & install dev extras
+        run: |
+          uv add useful-moonshine-onnx@git+https://github.com/usefulsensors/moonshine.git#subdirectory=moonshine-onnx
+          uv sync --all-packages --all-extras --dev --all-groups
+
+      - name: Build all plugin dists
+        run: |
+          uv build --all-packages -o dist-plugins --wheel --sdist
+
+      - name: Run plugin tests (local wheels, core from PyPI)
+        env:
+          STREAM_BASE_URL: ${{ vars.STREAM_BASE_URL }}
+          STREAM_API_KEY: ${{ vars.STREAM_API_KEY }}
+          STREAM_API_SECRET: ${{ secrets.STREAM_API_SECRET }}
+        run: |
+          # Install all built plugin wheels using uv
+          uv pip install dist-plugins/*.whl
+          uv run pytest getstream/plugins
+
+      - name: Publish plugins to PyPI
+        id: publish_plugins
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          set -e
+          uv pip install --upgrade twine
+          UPLOAD_LIST=""
+          # Iterate over each built plugin wheel in dist-plugins/
+          for FILE in dist-plugins/getstream_plugins_*.whl; do
+            BASENAME=$(basename "$FILE")
+            PACKAGE_NAME=${BASENAME%%-*}
+            VERSION=$(echo "$BASENAME" | cut -d'-' -f2)  # 1.5.0a2 etc.
+            echo "Checking if $PACKAGE_NAME version $VERSION exists on PyPI..."
+            if pip index versions --pre "$PACKAGE_NAME" | grep -q "$VERSION"; then
+              echo "Version $VERSION already exists for $PACKAGE_NAME – skipping upload."
+            else
+              echo "Uploading $BASENAME to PyPI."
+              twine upload "$FILE"
+              UPLOAD_LIST="$UPLOAD_LIST $PACKAGE_NAME==$VERSION"
+            fi
+          done
+          # Expose the list (space-separated) as a step output
+          echo "install_list=$UPLOAD_LIST" >> "$GITHUB_OUTPUT"
+
+      - name: Install uploaded plugins from PyPI using uv
+        if: steps.publish_plugins.outputs.install_list != ''
+        env:
+          INSTALL_LIST: ${{ steps.publish_plugins.outputs.install_list }}
+        run: |
+          uv pip install "getstream==${CORE_VERSION}" $INSTALL_LIST
+      - name: Install core (only) if no new plugins were uploaded
+        if: steps.publish_plugins.outputs.install_list == ''
+        run: |
+          uv pip install "getstream==${CORE_VERSION}"
+
+      - name: Run all plugin tests against PyPI artifacts
+        run: |
+          uv run pytest getstream/plugins
