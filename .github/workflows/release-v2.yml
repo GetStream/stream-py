@@ -48,10 +48,12 @@ jobs:
           PY
 
       - name: Publish core to TestPyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          repository-url: https://test.pypi.org/legacy/
-          packages-dir: dist
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
+        run: |
+          uv pip install --upgrade twine
+          twine upload --repository-url https://test.pypi.org/legacy/ dist/*
 
       - name: Install core from TestPyPI using uv
         run: |
@@ -105,10 +107,12 @@ jobs:
           uv run pytest getstream/plugins
 
       - name: Publish plugins to TestPyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          repository-url: https://test.pypi.org/legacy/
-          packages-dir: dist-plugins
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
+        run: |
+          uv pip install --upgrade twine
+          twine upload --repository-url https://test.pypi.org/legacy/ dist-plugins/*
 
       - name: Install core and plugins from TestPyPI using uv
         run: |
