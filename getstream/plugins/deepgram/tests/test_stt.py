@@ -412,7 +412,7 @@ async def test_deepgram_with_real_api(
     max_retries = 3
     for attempt in range(max_retries):
         try:
-            print(f"Attempt {attempt+1}/{max_retries}: Sending audio to Deepgram")
+            print(f"Attempt {attempt + 1}/{max_retries}: Sending audio to Deepgram")
 
             # Instead of sending all at once, let's chunk the audio
             # This simulates real-time audio streaming better
@@ -465,7 +465,7 @@ async def test_deepgram_with_real_api(
         except Exception as e:
             if attempt < max_retries - 1:
                 # Log the error and retry
-                print(f"Retry {attempt+1}/{max_retries} failed: {e}")
+                print(f"Retry {attempt + 1}/{max_retries} failed: {e}")
                 await asyncio.sleep(1.0)  # Wait before retrying
                 # Try to create a fresh STT instance
                 await stt.close()
@@ -498,9 +498,9 @@ async def test_deepgram_with_real_api(
             else:
                 # Final attempt failed
                 print(f"All retry attempts failed: {e}")
-                assert (
-                    False
-                ), f"Failed to process audio after {max_retries} attempts: {e}"
+                assert False, (
+                    f"Failed to process audio after {max_retries} attempts: {e}"
+                )
 
     # Cleanup and close the connection
     try:
@@ -510,9 +510,9 @@ async def test_deepgram_with_real_api(
         print(f"Error closing STT: {e}")
 
     # We should have received transcripts
-    assert (
-        len(transcripts) > 0 or len(partial_transcripts) > 0
-    ), "No transcripts received after sending audio"
+    assert len(transcripts) > 0 or len(partial_transcripts) > 0, (
+        "No transcripts received after sending audio"
+    )
     print(
         f"Received {len(transcripts)} transcripts and {len(partial_transcripts)} partial transcripts"
     )
@@ -541,9 +541,9 @@ async def test_deepgram_keep_alive_mechanism():
     await asyncio.sleep(0.2)
 
     # We should see that keep-alive messages have been sent
-    assert (
-        len(connection.sent_text_messages) > 0
-    ), "No keep-alive messages sent after wait"
+    assert len(connection.sent_text_messages) > 0, (
+        "No keep-alive messages sent after wait"
+    )
 
     # Cleanup
     await stt.close()
@@ -569,9 +569,9 @@ async def test_deepgram_keep_alive_after_audio():
     await asyncio.sleep(0.2)
 
     # We should see that keep-alive messages have been sent
-    assert (
-        len(connection.sent_text_messages) > 0
-    ), "No keep-alive messages sent after audio processing"
+    assert len(connection.sent_text_messages) > 0, (
+        "No keep-alive messages sent after audio processing"
+    )
 
     # Cleanup
     await stt.close()
@@ -594,9 +594,9 @@ async def test_deepgram_keep_alive_direct():
     assert success, "Failed to send keep-alive message"
 
     # The connection should have received the message
-    assert (
-        len(connection.sent_text_messages) > 0
-    ), "No keep-alive messages were recorded"
+    assert len(connection.sent_text_messages) > 0, (
+        "No keep-alive messages were recorded"
+    )
 
     # If the connection has a keep_alive method, then the send_text method should not be used
     if hasattr(connection, "keep_alive"):
@@ -853,7 +853,7 @@ async def test_deepgram_real_integration():
 
         if transcripts:
             for i, (text, user, metadata) in enumerate(transcripts):
-                print(f"Final transcript {i+1}: {text}")
+                print(f"Final transcript {i + 1}: {text}")
                 print(f"Metadata: {metadata}")
 
         if partial_transcripts:
@@ -861,7 +861,7 @@ async def test_deepgram_real_integration():
 
         if errors:
             for i, error in enumerate(errors):
-                print(f"Error {i+1}: {error}")
+                print(f"Error {i + 1}: {error}")
 
         # Validation
         assert len(errors) == 0, f"Received errors: {errors}"
@@ -904,14 +904,14 @@ async def test_deepgram_real_integration():
             print(f"Key words found: {found_key_words}")
 
             # We should find at least some key words from the story
-            assert (
-                len(found_key_words) >= 2
-            ), f"Expected to find at least 2 key words from {key_words}, but only found {found_key_words}"
+            assert len(found_key_words) >= 2, (
+                f"Expected to find at least 2 key words from {key_words}, but only found {found_key_words}"
+            )
 
             # Check that we got a reasonable amount of text
-            assert (
-                len(actual_words) >= 10
-            ), f"Expected at least 10 words, but got {len(actual_words)}: {combined_text}"
+            assert len(actual_words) >= 10, (
+                f"Expected at least 10 words, but got {len(actual_words)}: {combined_text}"
+            )
 
             # Verify metadata structure
             assert "confidence" in metadata

@@ -124,6 +124,7 @@ def create_default_http_client():
     Returns:
         A simple HTTP client
     """
+
     class SimpleHTTPClient:
         def request(self, method, url, body=None, headers=None, **kwargs):
             self.parsed_url = url.split("://", 1)

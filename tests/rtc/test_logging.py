@@ -23,4 +23,3 @@ def test_logging_configuration():
     log_output = log_capture.getvalue()
     assert "DEBUG:getstream.video.rtc:This is a debug message" in log_output
     assert "INFO:getstream.video.rtc:This is an info message" in log_output
-

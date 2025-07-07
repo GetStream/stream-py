@@ -14,7 +14,6 @@ from getstream.utils import validate_and_clean_url
 from getstream.video.client import VideoClient
 
 
-
 BASE_URL = "https://chat.stream-io-api.com/"
 
 

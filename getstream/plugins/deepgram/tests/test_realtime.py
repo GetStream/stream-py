@@ -188,18 +188,18 @@ async def test_real_time_partial_transcript_emission():
 
     # Check that we received the partial transcript events
     assert len(partial_transcript_events) == 2, "Expected 2 partial transcript events"
-    assert (
-        partial_transcript_events[0][0] == "typing in prog"
-    ), "Incorrect partial transcript text"
-    assert (
-        partial_transcript_events[1][0] == "typing in progress"
-    ), "Incorrect partial transcript text"
+    assert partial_transcript_events[0][0] == "typing in prog", (
+        "Incorrect partial transcript text"
+    )
+    assert partial_transcript_events[1][0] == "typing in progress", (
+        "Incorrect partial transcript text"
+    )
 
     # Check that we received the final transcript event
     assert len(transcript_events) == 1, "Expected 1 final transcript event"
-    assert (
-        transcript_events[0][0] == "typing in progress complete"
-    ), "Incorrect final transcript text"
+    assert transcript_events[0][0] == "typing in progress complete", (
+        "Incorrect final transcript text"
+    )
 
     # Cleanup
     await stt.close()

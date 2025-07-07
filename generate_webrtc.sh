@@ -41,7 +41,7 @@ fi
 
 # Install Python dependencies
 echo "Installing Python dependencies..."
-uv add "twirp>=0.0.7" "protobuf>=4.25.1" "python-dateutil>=2.8.2" "aiortc>=1.10.1" --optional webrtc
+uv add "twirp>=0.0.7" "protobuf>=6.31.1" "python-dateutil>=2.8.2" "aiortc>=1.10.1" --optional webrtc
 
 # Ensure Go tools are available for Twirp
 if ! command -v go &> /dev/null; then

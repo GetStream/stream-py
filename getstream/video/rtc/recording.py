@@ -92,13 +92,17 @@ class TrackRecorder(AsyncIOEventEmitter):
         track: Optional[MediaStreamTrack] = None,
         filename: Optional[str] = None,
         recorder_id: Optional[str] = None,
-        config: Optional[RecordingConfig] = None
+        config: Optional[RecordingConfig] = None,
     ):
         super().__init__()
         self.track_type = track_type
         self._track = track
-        self._filename = filename or f"{track_type.value}_recording_{int(time.time() * 1000)}"
-        self.recorder_id = recorder_id or f"{track_type.value}_recorder_{int(time.time() * 1000)}"
+        self._filename = (
+            filename or f"{track_type.value}_recording_{int(time.time() * 1000)}"
+        )
+        self.recorder_id = (
+            recorder_id or f"{track_type.value}_recorder_{int(time.time() * 1000)}"
+        )
         self.config = config or RecordingConfig()
         self._recorder: Optional[MediaRecorder] = None
         self._is_recording = False
@@ -131,40 +135,56 @@ class TrackRecorder(AsyncIOEventEmitter):
             if Path(self._filename).suffix:
                 filepath = Path(self.config.output_dir) / self._filename
             else:
-                filepath = Path(self.config.output_dir) / f"{self._filename}.{file_format}"
+                filepath = (
+                    Path(self.config.output_dir) / f"{self._filename}.{file_format}"
+                )
 
             os.makedirs(filepath.parent, exist_ok=True)
 
             # Create MediaRecorder
             self._recorder = MediaRecorder(str(filepath))
-            logger.info(f"TrackRecorder {self.recorder_id}: Created MediaRecorder for {filepath}")
+            logger.info(
+                f"TrackRecorder {self.recorder_id}: Created MediaRecorder for {filepath}"
+            )
             self._recorder.addTrack(self._track)
-            logger.info(f"TrackRecorder {self.recorder_id}: Added track {type(self._track).__name__} to MediaRecorder")
+            logger.info(
+                f"TrackRecorder {self.recorder_id}: Added track {type(self._track).__name__} to MediaRecorder"
+            )
 
             # Start recording
             await self._recorder.start()
-            logger.info(f"TrackRecorder {self.recorder_id}: MediaRecorder started successfully")
+            logger.info(
+                f"TrackRecorder {self.recorder_id}: MediaRecorder started successfully"
+            )
             self._is_recording = True
             self._start_time = time.time()
             self._filename = str(filepath)
 
-            self.emit('recording_started', {
-                'recorder_id': self.recorder_id,
-                'track_type': self.track_type.value,
-                'filename': self._filename,
-                'timestamp': self._start_time
-            })
+            self.emit(
+                "recording_started",
+                {
+                    "recorder_id": self.recorder_id,
+                    "track_type": self.track_type.value,
+                    "filename": self._filename,
+                    "timestamp": self._start_time,
+                },
+            )
 
-            logger.info(f"Started {self.track_type.value} recording {self.recorder_id}: {self._filename}")
+            logger.info(
+                f"Started {self.track_type.value} recording {self.recorder_id}: {self._filename}"
+            )
         except Exception as e:
             logger.error(f"Error starting recording for {self.recorder_id}: {e}")
-            self.emit('recording_error', {
-                'recorder_id': self.recorder_id,
-                'track_type': self.track_type.value,
-                'error_type': 'start_error',
-                'message': str(e),
-                'timestamp': time.time()
-            })
+            self.emit(
+                "recording_error",
+                {
+                    "recorder_id": self.recorder_id,
+                    "track_type": self.track_type.value,
+                    "error_type": "start_error",
+                    "message": str(e),
+                    "timestamp": time.time(),
+                },
+            )
             raise
 
     async def stop_recording(self):
@@ -184,15 +204,20 @@ class TrackRecorder(AsyncIOEventEmitter):
             # Clean up
             self._recorder = None
             self._is_recording = False
-            self.emit('recording_stopped', {
-                'recorder_id': self.recorder_id,
-                'track_type': self.track_type.value,
-                'filename': filename,
-                'duration': duration,
-                'timestamp': time.time()
-            })
+            self.emit(
+                "recording_stopped",
+                {
+                    "recorder_id": self.recorder_id,
+                    "track_type": self.track_type.value,
+                    "filename": filename,
+                    "duration": duration,
+                    "timestamp": time.time(),
+                },
+            )
 
-        logger.info(f"Stopped {self.track_type.value} recording {self.recorder_id} after {duration:.2f}s")
+        logger.info(
+            f"Stopped {self.track_type.value} recording {self.recorder_id} after {duration:.2f}s"
+        )
 
 
 class MixedAudioStreamTrack(MediaStreamTrack):
@@ -246,7 +271,9 @@ class MixedAudioStreamTrack(MediaStreamTrack):
                 for user_id, track in list(self._user_tracks.items()):
                     try:
                         # Try to receive frame with short timeout
-                        aiortc_frame = await asyncio.wait_for(track.recv(), timeout=0.001)
+                        aiortc_frame = await asyncio.wait_for(
+                            track.recv(), timeout=0.001
+                        )
 
                         # Convert aiortc frame to our AudioFrame format
                         audio_bytes = self._aiortc_frame_to_bytes(aiortc_frame)
@@ -255,7 +282,7 @@ class MixedAudioStreamTrack(MediaStreamTrack):
                                 user_id=user_id,
                                 data=audio_bytes,
                                 timestamp=current_time,
-                                metadata=aiortc_frame
+                                metadata=aiortc_frame,
                             )
                             frames_collected.append(frame)
 
@@ -317,8 +344,7 @@ class MixedAudioStreamTrack(MediaStreamTrack):
         try:
             # Wait for mixed frame with timeout
             mixed_frame = await asyncio.wait_for(
-                self._mixed_frame_buffer.get(),
-                timeout=timeout
+                self._mixed_frame_buffer.get(), timeout=timeout
             )
             return mixed_frame
         except asyncio.TimeoutError:
@@ -330,19 +356,23 @@ class MixedAudioStreamTrack(MediaStreamTrack):
 
     def _create_silent_frame(self) -> AiortcAudioFrame:
         """Create a silent audio frame."""
-        samples_per_frame = int(self.config.audio_sample_rate * self.config.frame_duration)
-        silent_samples = np.zeros((samples_per_frame, self.config.audio_channels), dtype=np.int16)
+        samples_per_frame = int(
+            self.config.audio_sample_rate * self.config.frame_duration
+        )
+        silent_samples = np.zeros(
+            (samples_per_frame, self.config.audio_channels), dtype=np.int16
+        )
 
         return AiortcAudioFrame(
             format="s16",
             layout="mono" if self.config.audio_channels == 1 else "stereo",
-            samples=silent_samples
+            samples=silent_samples,
         )
 
     def _aiortc_frame_to_bytes(self, aiortc_frame: AiortcAudioFrame) -> Optional[bytes]:
         """Convert aiortc AudioFrame to bytes, handling variable frame sizes."""
         try:
-            if hasattr(aiortc_frame, 'to_ndarray'):
+            if hasattr(aiortc_frame, "to_ndarray"):
                 samples = aiortc_frame.to_ndarray()
 
                 # Handle different array shapes - flatten to 1D
@@ -366,15 +396,23 @@ class MixedAudioStreamTrack(MediaStreamTrack):
         try:
             # Calculate expected frame size for consistent timing (20ms)
             bytes_per_sample = 2  # 16-bit = 2 bytes per sample
-            expected_samples = int(self.config.audio_sample_rate * self.config.frame_duration)
-            expected_bytes = expected_samples * self.config.audio_channels * bytes_per_sample
+            expected_samples = int(
+                self.config.audio_sample_rate * self.config.frame_duration
+            )
+            expected_bytes = (
+                expected_samples * self.config.audio_channels * bytes_per_sample
+            )
             layout = "mono" if self.config.audio_channels == 1 else "stereo"
 
             # Normalize audio data to expected frame size to prevent stretched audio
-            normalized_bytes = self._normalize_audio_frame_size(audio_bytes, expected_bytes)
+            normalized_bytes = self._normalize_audio_frame_size(
+                audio_bytes, expected_bytes
+            )
 
             # Create AudioFrame with consistent frame size
-            frame = AiortcAudioFrame(format="s16", layout=layout, samples=expected_samples)
+            frame = AiortcAudioFrame(
+                format="s16", layout=layout, samples=expected_samples
+            )
 
             # Update the frame planes with our normalized audio data
             for plane in frame.planes:
@@ -390,7 +428,9 @@ class MixedAudioStreamTrack(MediaStreamTrack):
             logger.warning(f"Error converting bytes to aiortc frame: {e}")
             return None
 
-    def _normalize_audio_frame_size(self, audio_bytes: bytes, target_bytes: int) -> bytes:
+    def _normalize_audio_frame_size(
+        self, audio_bytes: bytes, target_bytes: int
+    ) -> bytes:
         """Normalize audio frame size to target duration while preserving quality."""
         if len(audio_bytes) == target_bytes:
             return audio_bytes
@@ -405,7 +445,9 @@ class MixedAudioStreamTrack(MediaStreamTrack):
                 target_indices = np.linspace(0, len(samples) - 1, target_samples)
 
                 # Interpolate samples to new length
-                resampled = np.interp(target_indices, original_indices, samples.astype(np.float32))
+                resampled = np.interp(
+                    target_indices, original_indices, samples.astype(np.float32)
+                )
                 resampled_int16 = np.clip(resampled, -32767, 32767).astype(np.int16)
 
                 return resampled_int16.tobytes()
@@ -419,7 +461,9 @@ class MixedAudioStreamTrack(MediaStreamTrack):
     def add_track(self, user_id: str, track: MediaStreamTrack) -> None:
         """Add a user track to the mix."""
         self._user_tracks[user_id] = track
-        logger.info(f"Added user {user_id} track. Total tracks: {len(self._user_tracks)}")
+        logger.info(
+            f"Added user {user_id} track. Total tracks: {len(self._user_tracks)}"
+        )
 
         # Signal that tracks are now available for mixing
         if len(self._user_tracks) == 1:
@@ -561,7 +605,7 @@ class MixedAudioStreamTrack(MediaStreamTrack):
                 if samples.shape[0] != target_length:
                     if samples.shape[0] < target_length:
                         padded = np.zeros(target_length, dtype=np.int32)
-                        padded[:samples.shape[0]] = samples
+                        padded[: samples.shape[0]] = samples
                         samples = padded
                     else:
                         samples = samples[:target_length]
@@ -588,7 +632,9 @@ class MixedAudioStreamTrack(MediaStreamTrack):
 
     def _quantize_time(self, timestamp: float) -> float:
         """Quantize timestamp to frame boundaries."""
-        return round(timestamp / self.config.frame_duration) * self.config.frame_duration
+        return (
+            round(timestamp / self.config.frame_duration) * self.config.frame_duration
+        )
 
     def _extract_timestamp(self, frame: AudioFrame) -> float:
         """Extract or generate relative timestamp."""
@@ -625,9 +671,15 @@ class CompositeAudioRecorder(TrackRecorder):
         self,
         user_ids: Optional[Set[str]] = None,
         filename: Optional[str] = None,
-        config: Optional[RecordingConfig] = None
+        config: Optional[RecordingConfig] = None,
     ):
-        super().__init__(TrackType.AUDIO, None, filename or "composite_audio", "composite_audio", config)
+        super().__init__(
+            TrackType.AUDIO,
+            None,
+            filename or "composite_audio",
+            "composite_audio",
+            config,
+        )
         self.user_ids = user_ids
         self._mixed_track: Optional[MixedAudioStreamTrack] = None
 
@@ -759,12 +811,15 @@ class RecordingManager(AsyncIOEventEmitter):
         # Process any tracks that were received before recording was enabled.
         await self._process_pending_tracks()
 
-        self.emit('recording_started', {
-            'recording_types': [rt.value for rt in recording_types],
-            'user_ids': user_ids,
-            'output_dir': self.config.output_dir,
-            'timestamp': self._recording_start_time
-        })
+        self.emit(
+            "recording_started",
+            {
+                "recording_types": [rt.value for rt in recording_types],
+                "user_ids": user_ids,
+                "output_dir": self.config.output_dir,
+                "timestamp": self._recording_start_time,
+            },
+        )
 
         logger.info(f"Started recording: {[rt.value for rt in recording_types]}")
 
@@ -793,14 +848,21 @@ class RecordingManager(AsyncIOEventEmitter):
 
         # If all recording stopped, emit final event
         if not self.is_recording:
-            duration = time.time() - self._recording_start_time if self._recording_start_time else 0
+            duration = (
+                time.time() - self._recording_start_time
+                if self._recording_start_time
+                else 0
+            )
 
-            self.emit('recording_stopped', {
-                'recording_types': [rt.value for rt in recording_types],
-                'user_ids': user_ids,
-                'duration': duration,
-                'timestamp': time.time()
-            })
+            self.emit(
+                "recording_stopped",
+                {
+                    "recording_types": [rt.value for rt in recording_types],
+                    "user_ids": user_ids,
+                    "duration": duration,
+                    "timestamp": time.time(),
+                },
+            )
 
             logger.info("All recording stopped")
 
@@ -825,7 +887,9 @@ class RecordingManager(AsyncIOEventEmitter):
         if track_type in ["audio", "video"]:
             recorder_key = f"{user_id}_{track_type}"
             await self._stop_user_recording_by_key(recorder_key, track_type)
-            logger.info(f"Stopped {track_type} recording for user {user_id} whose {track_type} track was removed")
+            logger.info(
+                f"Stopped {track_type} recording for user {user_id} whose {track_type} track was removed"
+            )
 
             # Remove from pending
             for track_id in list(self._pending_tracks.keys()):
@@ -838,7 +902,9 @@ class RecordingManager(AsyncIOEventEmitter):
         if not track or track.kind not in ["audio", "video"]:
             return
 
-        user_id = getattr(user, 'user_id', getattr(user, 'id', str(user) if user else "unknown_user"))
+        user_id = getattr(
+            user, "user_id", getattr(user, "id", str(user) if user else "unknown_user")
+        )
 
         # Apply user filtering
         if self._target_user_ids and user_id not in self._target_user_ids:
@@ -864,7 +930,9 @@ class RecordingManager(AsyncIOEventEmitter):
     async def _start_user_track_recording(self, user_id: str, track: MediaStreamTrack):
         """Start recording a user track using MediaRecorder."""
         track_type = TrackType.AUDIO if track.kind == "audio" else TrackType.VIDEO
-        recorders_dict = self._audio_recorders if track.kind == "audio" else self._video_recorders
+        recorders_dict = (
+            self._audio_recorders if track.kind == "audio" else self._video_recorders
+        )
 
         # Check if user already has this type of track recording
         recorder_key = f"{user_id}_{track.kind}"
@@ -877,49 +945,65 @@ class RecordingManager(AsyncIOEventEmitter):
             filename = f"user_{user_id}_{track.kind}_{timestamp}"
 
             # Create track recorder with track and filename
-            track_recorder = TrackRecorder(track_type, track, filename, f"user_{user_id}_{track.kind}", self.config)
+            track_recorder = TrackRecorder(
+                track_type, track, filename, f"user_{user_id}_{track.kind}", self.config
+            )
 
             # Forward events
-            @track_recorder.on('recording_started')
+            @track_recorder.on("recording_started")
             def on_recording_started(data):
-                self.emit('user_recording_started', {
-                    'user_id': user_id,
-                    'track_type': data['track_type'],
-                    'filename': data['filename'],
-                    'timestamp': data['timestamp']
-                })
+                self.emit(
+                    "user_recording_started",
+                    {
+                        "user_id": user_id,
+                        "track_type": data["track_type"],
+                        "filename": data["filename"],
+                        "timestamp": data["timestamp"],
+                    },
+                )
 
-            @track_recorder.on('recording_stopped')
+            @track_recorder.on("recording_stopped")
             def on_recording_stopped(data):
-                self.emit('user_recording_stopped', {
-                    'user_id': user_id,
-                    'track_type': data['track_type'],
-                    'filename': data['filename'],
-                    'duration': data['duration'],
-                    'timestamp': data['timestamp']
-                })
+                self.emit(
+                    "user_recording_stopped",
+                    {
+                        "user_id": user_id,
+                        "track_type": data["track_type"],
+                        "filename": data["filename"],
+                        "duration": data["duration"],
+                        "timestamp": data["timestamp"],
+                    },
+                )
 
-            @track_recorder.on('recording_error')
+            @track_recorder.on("recording_error")
             def on_recording_error(data):
-                self.emit('recording_error', {
-                    'error_type': data['error_type'],
-                    'user_id': user_id,
-                    'track_type': data['track_type'],
-                    'message': data['message']
-                })
+                self.emit(
+                    "recording_error",
+                    {
+                        "error_type": data["error_type"],
+                        "user_id": user_id,
+                        "track_type": data["track_type"],
+                        "message": data["message"],
+                    },
+                )
 
             # Start recording (track and filename already provided in constructor)
             await track_recorder.start_recording()
             recorders_dict[recorder_key] = track_recorder
 
         except Exception as e:
-            logger.error(f"Failed to start {track.kind} recording for user {user_id}: {e}")
-            self.emit('recording_error', {
-                'error_type': 'start_user_recording',
-                'user_id': user_id,
-                'track_type': track.kind,
-                'message': str(e)
-            })
+            logger.error(
+                f"Failed to start {track.kind} recording for user {user_id}: {e}"
+            )
+            self.emit(
+                "recording_error",
+                {
+                    "error_type": "start_user_recording",
+                    "user_id": user_id,
+                    "track_type": track.kind,
+                    "message": str(e),
+                },
+            )
 
     async def _start_recording_type(self, recording_type: RecordingType) -> None:
         """Start a specific recording type."""
@@ -940,13 +1024,17 @@ class RecordingManager(AsyncIOEventEmitter):
             filename = f"composite_audio_{timestamp}{user_suffix}"
 
             # Create composite recorder with filename
-            self._composite_audio_recorder = CompositeAudioRecorder(self._target_user_ids, filename, self.config)
+            self._composite_audio_recorder = CompositeAudioRecorder(
+                self._target_user_ids, filename, self.config
+            )
             self._setup_composite_recorder_events()
 
             # Start composite recording
             await self._composite_audio_recorder.start_recording()
 
-    async def _stop_recording_type(self, recording_type: RecordingType, user_ids: Optional[List[str]] = None):
+    async def _stop_recording_type(
+        self, recording_type: RecordingType, user_ids: Optional[List[str]] = None
+    ):
         """Stop a specific recording type."""
         if recording_type == RecordingType.TRACK:
             if user_ids:
@@ -959,7 +1047,9 @@ class RecordingManager(AsyncIOEventEmitter):
                 for recorder_key in list(self._video_recorders.keys()):
                     await self._stop_user_recording_by_key(recorder_key, "video")
 
-        elif recording_type == RecordingType.COMPOSITE and self._composite_audio_recorder:
+        elif (
+            recording_type == RecordingType.COMPOSITE and self._composite_audio_recorder
+        ):
             await self._composite_audio_recorder.stop_recording()
             self._composite_audio_recorder = None
 
@@ -977,7 +1067,9 @@ class RecordingManager(AsyncIOEventEmitter):
 
     async def _stop_user_recording_by_key(self, recorder_key: str, track_type: str):
         """Stop recording for a specific recorder key."""
-        recorders_dict = self._audio_recorders if track_type == "audio" else self._video_recorders
+        recorders_dict = (
+            self._audio_recorders if track_type == "audio" else self._video_recorders
+        )
 
         if recorder_key in recorders_dict:
             recorder = recorders_dict[recorder_key]
@@ -994,7 +1086,9 @@ class RecordingManager(AsyncIOEventEmitter):
         if self._composite_audio_recorder:
             self._setup_composite_recorder_events()
 
-    def _create_event_forwarder(self, source_event: str, target_event: str, transform_data=None):
+    def _create_event_forwarder(
+        self, source_event: str, target_event: str, transform_data=None
+    ):
         """Create a generic event forwarder function."""
 
         def forwarder(data):
@@ -1031,15 +1125,24 @@ class RecordingManager(AsyncIOEventEmitter):
                 "message": data["message"],
             }
 
-        recorder.on('recording_started', self._create_event_forwarder(
-            'recording_started', 'user_recording_started', add_user_id
-        ))
-        recorder.on('recording_stopped', self._create_event_forwarder(
-            'recording_stopped', 'user_recording_stopped', add_user_id
-        ))
-        recorder.on('recording_error', self._create_event_forwarder(
-            'recording_error', 'recording_error', add_user_id_error
-        ))
+        recorder.on(
+            "recording_started",
+            self._create_event_forwarder(
+                "recording_started", "user_recording_started", add_user_id
+            ),
+        )
+        recorder.on(
+            "recording_stopped",
+            self._create_event_forwarder(
+                "recording_stopped", "user_recording_stopped", add_user_id
+            ),
+        )
+        recorder.on(
+            "recording_error",
+            self._create_event_forwarder(
+                "recording_error", "recording_error", add_user_id_error
+            ),
+        )
 
     def _setup_composite_recorder_events(self):
         """Set up event forwarding for the composite recorder."""
@@ -1069,22 +1172,35 @@ class RecordingManager(AsyncIOEventEmitter):
                 "message": data["message"],
             }
 
-        self._composite_audio_recorder.on('recording_started', self._create_event_forwarder(
-            'recording_started', 'composite_recording_started', add_composite_context
-        ))
-        self._composite_audio_recorder.on('recording_stopped', self._create_event_forwarder(
-            'recording_stopped', 'composite_recording_stopped', add_composite_context
-        ))
-        self._composite_audio_recorder.on('recording_error', self._create_event_forwarder(
-            'recording_error', 'recording_error', add_composite_error_context
-        ))
+        self._composite_audio_recorder.on(
+            "recording_started",
+            self._create_event_forwarder(
+                "recording_started",
+                "composite_recording_started",
+                add_composite_context,
+            ),
+        )
+        self._composite_audio_recorder.on(
+            "recording_stopped",
+            self._create_event_forwarder(
+                "recording_stopped",
+                "composite_recording_stopped",
+                add_composite_context,
+            ),
+        )
+        self._composite_audio_recorder.on(
+            "recording_error",
+            self._create_event_forwarder(
+                "recording_error", "recording_error", add_composite_error_context
+            ),
+        )
 
     def _to_bytes(self, pcm_data) -> bytes:
         """Convert PCM data to bytes."""
         if isinstance(pcm_data, bytes):
             return pcm_data
 
-        if hasattr(pcm_data, 'samples'):
+        if hasattr(pcm_data, "samples"):
             samples = pcm_data.samples
             if isinstance(samples, bytes):
                 return samples
@@ -1107,14 +1223,18 @@ class RecordingManager(AsyncIOEventEmitter):
     def get_recording_status(self) -> dict:
         """Get current recording status."""
         # Combine audio and video recorder keys
-        all_active_recordings = list(self._audio_recorders.keys()) + list(self._video_recorders.keys())
+        all_active_recordings = list(self._audio_recorders.keys()) + list(
+            self._video_recorders.keys()
+        )
 
         return {
             "recording_enabled": self.is_recording,
             "recording_types": [rt.value for rt in self._recording_types],
             "output_directory": str(self.config.output_dir),
             "active_user_recordings": all_active_recordings,
-            "target_user_ids": list(self._target_user_ids) if self._target_user_ids else None,
+            "target_user_ids": list(self._target_user_ids)
+            if self._target_user_ids
+            else None,
             "composite_active": RecordingType.COMPOSITE in self._recording_types,
             "individual_audio_recorders": {
                 recorder_key: {
@@ -1130,7 +1250,7 @@ class RecordingManager(AsyncIOEventEmitter):
                     "filename": recorder.filename,
                     "frame_count": 0,  # TrackRecorder doesn't track frame count
                     "is_recording": recorder.is_recording,
-                    "track_type": recorder.track_type.value
+                    "track_type": recorder.track_type.value,
                 }
                 for recorder_key, recorder in self._video_recorders.items()
             },
@@ -1156,7 +1276,7 @@ class RecordingManager(AsyncIOEventEmitter):
                 "video_height": self.config.video_height,
                 "video_fps": self.config.video_fps,
                 "video_bitrate": self.config.video_bitrate,
-            }
+            },
         }
 
     def record_audio_data(self, pcm_data, user_id: str):
@@ -1164,7 +1284,9 @@ class RecordingManager(AsyncIOEventEmitter):
         Legacy method for recording audio data directly.
         This is a no-op since the current implementation uses track-based recording.
         """
-        logger.debug(f"record_audio_data called for user {user_id} - this is a legacy method and will be ignored")
+        logger.debug(
+            f"record_audio_data called for user {user_id} - this is a legacy method and will be ignored"
+        )
         pass
 
     async def cleanup(self):
@@ -1175,12 +1297,12 @@ class RecordingManager(AsyncIOEventEmitter):
 
         # Clean up all recorders
         for recorder in self._audio_recorders.values():
-            if hasattr(recorder, 'stop_recording'):
+            if hasattr(recorder, "stop_recording"):
                 await recorder.stop_recording()
         self._audio_recorders.clear()
 
         for recorder in self._video_recorders.values():
-            if hasattr(recorder, 'stop_recording'):
+            if hasattr(recorder, "stop_recording"):
                 await recorder.stop_recording()
         self._video_recorders.clear()
 

@@ -18,12 +18,14 @@ logger = logging.getLogger(__name__)
 class NetworkMonitor(AsyncIOEventEmitter):
     """Monitors network connectivity and manages network state."""
 
-    def __init__(self, 
-                 connection_manager,
-                 connectivity_hosts: list = None,
-                 connectivity_timeout: float = 3.0,
-                 check_interval: float = 1.0,
-                 required_successful_pings: int = 1):
+    def __init__(
+        self,
+        connection_manager,
+        connectivity_hosts: list = None,
+        connectivity_timeout: float = 3.0,
+        check_interval: float = 1.0,
+        required_successful_pings: int = 1,
+    ):
         """
         Initialize network monitor.
 
@@ -42,7 +44,7 @@ class NetworkMonitor(AsyncIOEventEmitter):
             "1.1.1.1",  # Cloudflare DNS
             "208.67.222.222",  # OpenDNS
         ]
-        
+
         self.connection_manager = connection_manager
         self.connectivity_timeout = connectivity_timeout
         self.check_interval = check_interval
@@ -124,7 +126,7 @@ class NetworkMonitor(AsyncIOEventEmitter):
 
             except Exception as e:
                 self.logger.debug(f"Ping to {host} error: {e}")
-                
+
         return False
 
     async def _handle_network_change(self, online: bool):
@@ -147,15 +149,15 @@ class NetworkMonitor(AsyncIOEventEmitter):
         if online:
             self.emit("network_online", {"timestamp": asyncio.get_event_loop().time()})
         else:
-            self.emit('network_offline', {'timestamp': asyncio.get_event_loop().time()})
+            self.emit("network_offline", {"timestamp": asyncio.get_event_loop().time()})
 
     def register_event_handlers(self):
         """Register network event handlers."""
-        
-        @self.on('network_changed')
+
+        @self.on("network_changed")
         async def handle_network_change(event_data):
             logger.info(f"Received network change: {event_data}")
-            online = event_data.get('online', True)
+            online = event_data.get("online", True)
 
             if not online:
                 logger.debug("Going offline")
@@ -171,9 +173,11 @@ class NetworkMonitor(AsyncIOEventEmitter):
 
                 if self._last_offline_timestamp:
                     offline_duration = time.time() - self._last_offline_timestamp
-                    strategy = (ReconnectionStrategy.FAST
-                              if offline_duration <= self._fast_reconnect_deadline_seconds
-                              else ReconnectionStrategy.REJOIN)
+                    strategy = (
+                        ReconnectionStrategy.FAST
+                        if offline_duration <= self._fast_reconnect_deadline_seconds
+                        else ReconnectionStrategy.REJOIN
+                    )
                 else:
                     strategy = ReconnectionStrategy.REJOIN
 
@@ -182,13 +186,15 @@ class NetworkMonitor(AsyncIOEventEmitter):
                     self.connection_manager.reconnector.set_network_event = None
 
                 asyncio.create_task(
-                    self.connection_manager.reconnector.reconnect(strategy, "Going online")
+                    self.connection_manager.reconnector.reconnect(
+                        strategy, "Going online"
+                    )
                 )
-        
-        @self.on('network_online')
+
+        @self.on("network_online")
         def handle_network_online(event_data):
             logger.debug("Network came online")
-            
-        @self.on('network_offline')
+
+        @self.on("network_offline")
         def handle_network_offline(event_data):
-            logger.debug("Network went offline") 
+            logger.debug("Network went offline")

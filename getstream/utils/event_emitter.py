@@ -7,17 +7,17 @@ import inspect
 class StreamAsyncIOEventEmitter(AsyncIOEventEmitter):
     """
     AsyncIOEventEmitter with wildcard pattern support for event names.
-    
+
     Supports patterns like:
     - '*' - matches all events
     - 'prefix.*' - matches events starting with 'prefix.' (single level)
     - 'prefix.**' - matches events starting with 'prefix.' (multiple levels)
     """
-    
+
     def __init__(self):
         super().__init__()
         self._wildcard_listeners = {}
-    
+
     def emit(self, event, *args, **kwargs):
         """Override emit to handle wildcard patterns without requiring callers to await.
 
@@ -68,10 +68,8 @@ class StreamAsyncIOEventEmitter(AsyncIOEventEmitter):
                         for p in sig.parameters.values()
                         if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)
                     ]
-                    wants_event = (
-                        len(positional) > len(args) or any(
-                            p.kind == p.VAR_POSITIONAL for p in sig.parameters.values()
-                        )
+                    wants_event = len(positional) > len(args) or any(
+                        p.kind == p.VAR_POSITIONAL for p in sig.parameters.values()
                     )
                     call_args = (event, *args) if wants_event else args
 
@@ -85,14 +83,14 @@ class StreamAsyncIOEventEmitter(AsyncIOEventEmitter):
                             self._report_listener_error(loop, exc, event, args, kwargs)
 
         return result
-    
+
     def on_wildcard(self, pattern, listener):
         """Register a wildcard event listener"""
         if pattern not in self._wildcard_listeners:
             self._wildcard_listeners[pattern] = []
         self._wildcard_listeners[pattern].append(listener)
         return self
-    
+
     def remove_wildcard_listener(self, pattern, listener):
         """Remove a specific wildcard listener"""
         if pattern in self._wildcard_listeners:
@@ -103,7 +101,7 @@ class StreamAsyncIOEventEmitter(AsyncIOEventEmitter):
             except ValueError:
                 pass
         return self
-    
+
     def remove_all_wildcard_listeners(self, pattern=None):
         """Remove all wildcard listeners for a pattern, or all if no pattern specified"""
         if pattern is None:
@@ -111,28 +109,28 @@ class StreamAsyncIOEventEmitter(AsyncIOEventEmitter):
         elif pattern in self._wildcard_listeners:
             del self._wildcard_listeners[pattern]
         return self
-    
+
     def wildcard_listeners(self, pattern=None):
         """Get wildcard listeners for a pattern, or all if no pattern specified"""
         if pattern is None:
             return dict(self._wildcard_listeners)
         return self._wildcard_listeners.get(pattern, []).copy()
-    
+
     def _matches_pattern(self, event, pattern):
         """Check if an event matches a wildcard pattern"""
-        if pattern == '*':
+        if pattern == "*":
             return True
-        elif pattern.endswith('**'):
+        elif pattern.endswith("**"):
             # Match multiple levels: 'api.**' matches 'api.user.login'
             prefix = pattern[:-2]
             return event.startswith(prefix)
-        elif pattern.endswith('*'):
+        elif pattern.endswith("*"):
             # Match single level: 'api.*' matches 'api.user' but not 'api.user.login'
             prefix = pattern[:-1]
-            remainder = event[len(prefix):] if event.startswith(prefix) else ''
-            return event.startswith(prefix) and '.' not in remainder
+            remainder = event[len(prefix) :] if event.startswith(prefix) else ""
+            return event.startswith(prefix) and "." not in remainder
         else:
-            return event == pattern 
+            return event == pattern
 
     @staticmethod
     def _report_listener_error(loop, exc, event, args, kwargs):
@@ -144,11 +142,11 @@ class StreamAsyncIOEventEmitter(AsyncIOEventEmitter):
         if loop and hasattr(loop, "call_exception_handler"):
             loop.call_exception_handler(
                 {
-                    'message': 'Exception in wildcard event handler',
-                    'exception': exc,
-                    'event': event,
-                    'args': args,
-                    'kwargs': kwargs,
+                    "message": "Exception in wildcard event handler",
+                    "exception": exc,
+                    "event": event,
+                    "args": args,
+                    "kwargs": kwargs,
                 }
             )
         else:
@@ -165,4 +163,4 @@ class StreamAsyncIOEventEmitter(AsyncIOEventEmitter):
         if exc:
             logging.getLogger(__name__).error(
                 "Exception in async wildcard listener: %s", exc, exc_info=exc
-            ) 
+            )

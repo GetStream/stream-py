@@ -210,7 +210,7 @@ class WebSocketClient(StreamAsyncIOEventEmitter):
         Register an event handler for a specific event type.
 
         Args:
-            event_type: The event type to listen for, or "*" for all events  
+            event_type: The event type to listen for, or "*" for all events
             callback: An async function to call when the event occurs
         """
         # Use the parent class's on method for regular events
