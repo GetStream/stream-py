@@ -180,6 +180,10 @@ class SendStatsRequest(google.protobuf.message.Message):
     RTMP_FIELD_NUMBER: builtins.int
     SUBSCRIBER_RTC_STATS_FIELD_NUMBER: builtins.int
     PUBLISHER_RTC_STATS_FIELD_NUMBER: builtins.int
+    RTC_STATS_FIELD_NUMBER: builtins.int
+    ENCODE_STATS_FIELD_NUMBER: builtins.int
+    DECODE_STATS_FIELD_NUMBER: builtins.int
+    UNIFIED_SESSION_ID_FIELD_NUMBER: builtins.int
     session_id: builtins.str
     subscriber_stats: builtins.str
     publisher_stats: builtins.str
@@ -200,6 +204,26 @@ class SendStatsRequest(google.protobuf.message.Message):
     def rtmp(self) -> video.sfu.models.models_pb2.RTMPIngress: ...
     subscriber_rtc_stats: builtins.str
     publisher_rtc_stats: builtins.str
+    rtc_stats: builtins.str
+    @property
+    def encode_stats(
+        self,
+    ) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[
+        video.sfu.models.models_pb2.PerformanceStats
+    ]:
+        """Encode stats for the publisher"""
+    @property
+    def decode_stats(
+        self,
+    ) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[
+        video.sfu.models.models_pb2.PerformanceStats
+    ]:
+        """Decode stats for the subscriber"""
+    unified_session_id: builtins.str
+    """user_session id can change during reconnects, this helps us to
+    identify the user across reconnects and should remain consistent until the user explicitly
+    disconnects, is kicked or the call is ended.
+    """
     def __init__(
         self,
         *,
@@ -217,6 +241,16 @@ class SendStatsRequest(google.protobuf.message.Message):
         rtmp: video.sfu.models.models_pb2.RTMPIngress | None = ...,
         subscriber_rtc_stats: builtins.str = ...,
         publisher_rtc_stats: builtins.str = ...,
+        rtc_stats: builtins.str = ...,
+        encode_stats: collections.abc.Iterable[
+            video.sfu.models.models_pb2.PerformanceStats
+        ]
+        | None = ...,
+        decode_stats: collections.abc.Iterable[
+            video.sfu.models.models_pb2.PerformanceStats
+        ]
+        | None = ...,
+        unified_session_id: builtins.str = ...,
     ) -> None: ...
     def HasField(
         self,
@@ -246,12 +280,18 @@ class SendStatsRequest(google.protobuf.message.Message):
             b"apple",
             "audio_devices",
             b"audio_devices",
+            "decode_stats",
+            b"decode_stats",
             "device_state",
             b"device_state",
+            "encode_stats",
+            b"encode_stats",
             "publisher_rtc_stats",
             b"publisher_rtc_stats",
             "publisher_stats",
             b"publisher_stats",
+            "rtc_stats",
+            b"rtc_stats",
             "rtmp",
             b"rtmp",
             "sdk",
@@ -266,6 +306,8 @@ class SendStatsRequest(google.protobuf.message.Message):
             b"subscriber_stats",
             "telemetry",
             b"telemetry",
+            "unified_session_id",
+            b"unified_session_id",
             "video_devices",
             b"video_devices",
             "webrtc_version",

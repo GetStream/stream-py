@@ -136,7 +136,9 @@ class _ErrorCodeEnumTypeWrapper(
     ERROR_CODE_PARTICIPANT_MIGRATING: _ErrorCode.ValueType  # 203
     ERROR_CODE_PARTICIPANT_RECONNECT_FAILED: _ErrorCode.ValueType  # 204
     ERROR_CODE_PARTICIPANT_MEDIA_TRANSPORT_FAILURE: _ErrorCode.ValueType  # 205
+    ERROR_CODE_PARTICIPANT_SIGNAL_LOST: _ErrorCode.ValueType  # 206
     ERROR_CODE_CALL_NOT_FOUND: _ErrorCode.ValueType  # 300
+    ERROR_CODE_CALL_PARTICIPANT_LIMIT_REACHED: _ErrorCode.ValueType  # 301
     ERROR_CODE_REQUEST_VALIDATION_FAILED: _ErrorCode.ValueType  # 400
     ERROR_CODE_UNAUTHENTICATED: _ErrorCode.ValueType  # 401
     ERROR_CODE_PERMISSION_DENIED: _ErrorCode.ValueType  # 403
@@ -159,7 +161,9 @@ ERROR_CODE_PARTICIPANT_MIGRATION_FAILED: ErrorCode.ValueType  # 202
 ERROR_CODE_PARTICIPANT_MIGRATING: ErrorCode.ValueType  # 203
 ERROR_CODE_PARTICIPANT_RECONNECT_FAILED: ErrorCode.ValueType  # 204
 ERROR_CODE_PARTICIPANT_MEDIA_TRANSPORT_FAILURE: ErrorCode.ValueType  # 205
+ERROR_CODE_PARTICIPANT_SIGNAL_LOST: ErrorCode.ValueType  # 206
 ERROR_CODE_CALL_NOT_FOUND: ErrorCode.ValueType  # 300
+ERROR_CODE_CALL_PARTICIPANT_LIMIT_REACHED: ErrorCode.ValueType  # 301
 ERROR_CODE_REQUEST_VALIDATION_FAILED: ErrorCode.ValueType  # 400
 ERROR_CODE_UNAUTHENTICATED: ErrorCode.ValueType  # 401
 ERROR_CODE_PERMISSION_DENIED: ErrorCode.ValueType  # 403
@@ -419,6 +423,29 @@ APPLE_THERMAL_STATE_FAIR: AppleThermalState.ValueType  # 2
 APPLE_THERMAL_STATE_SERIOUS: AppleThermalState.ValueType  # 3
 APPLE_THERMAL_STATE_CRITICAL: AppleThermalState.ValueType  # 4
 global___AppleThermalState = AppleThermalState
+
+class _ClientCapability:
+    ValueType = typing.NewType("ValueType", builtins.int)
+    V: typing_extensions.TypeAlias = ValueType
+
+class _ClientCapabilityEnumTypeWrapper(
+    google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[
+        _ClientCapability.ValueType
+    ],
+    builtins.type,
+):
+    DESCRIPTOR: google.protobuf.descriptor.EnumDescriptor
+    CLIENT_CAPABILITY_UNSPECIFIED: _ClientCapability.ValueType  # 0
+    CLIENT_CAPABILITY_SUBSCRIBER_VIDEO_PAUSE: _ClientCapability.ValueType  # 1
+    """Enables SFU pausing inbound video"""
+
+class ClientCapability(_ClientCapability, metaclass=_ClientCapabilityEnumTypeWrapper):
+    """ClientCapability defines a feature that client supports"""
+
+CLIENT_CAPABILITY_UNSPECIFIED: ClientCapability.ValueType  # 0
+CLIENT_CAPABILITY_SUBSCRIBER_VIDEO_PAUSE: ClientCapability.ValueType  # 1
+"""Enables SFU pausing inbound video"""
+global___ClientCapability = ClientCapability
 
 @typing_extensions.final
 class CallState(google.protobuf.message.Message):
@@ -782,6 +809,7 @@ class PublishOption(google.protobuf.message.Message):
     MAX_TEMPORAL_LAYERS_FIELD_NUMBER: builtins.int
     VIDEO_DIMENSION_FIELD_NUMBER: builtins.int
     ID_FIELD_NUMBER: builtins.int
+    USE_SINGLE_LAYER_FIELD_NUMBER: builtins.int
     track_type: global___TrackType.ValueType
     """The type of the track being published (e.g., video, screenshare)."""
     @property
@@ -827,6 +855,11 @@ class PublishOption(google.protobuf.message.Message):
       independently. For instance, an `id` is critical when stopping a specific
       publish request without affecting others.
     """
+    use_single_layer: builtins.bool
+    """If true, instructs the publisher to send only the highest available simulcast layer,
+    disabling all lower layers. This applies to simulcast encodings.
+    For SVC codecs, prefer using the L1T3 (single spatial, 3 temporal layers) mode instead.
+    """
     def __init__(
         self,
         *,
@@ -838,6 +871,7 @@ class PublishOption(google.protobuf.message.Message):
         max_temporal_layers: builtins.int = ...,
         video_dimension: global___VideoDimension | None = ...,
         id: builtins.int = ...,
+        use_single_layer: builtins.bool = ...,
     ) -> None: ...
     def HasField(
         self,
@@ -862,6 +896,8 @@ class PublishOption(google.protobuf.message.Message):
             b"max_temporal_layers",
             "track_type",
             b"track_type",
+            "use_single_layer",
+            b"use_single_layer",
             "video_dimension",
             b"video_dimension",
         ],
@@ -1429,3 +1465,65 @@ class AppleState(google.protobuf.message.Message):
     ) -> None: ...
 
 global___AppleState = AppleState
+
+@typing_extensions.final
+class PerformanceStats(google.protobuf.message.Message):
+    """PerformanceStats represents the encoding/decoding statistics for a track."""
+
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    TRACK_TYPE_FIELD_NUMBER: builtins.int
+    CODEC_FIELD_NUMBER: builtins.int
+    AVG_FRAME_TIME_MS_FIELD_NUMBER: builtins.int
+    AVG_FPS_FIELD_NUMBER: builtins.int
+    VIDEO_DIMENSION_FIELD_NUMBER: builtins.int
+    TARGET_BITRATE_FIELD_NUMBER: builtins.int
+    track_type: global___TrackType.ValueType
+    """the type of the track (e.g., video, audio, screen share)"""
+    @property
+    def codec(self) -> global___Codec:
+        """the codec used for the track"""
+    avg_frame_time_ms: builtins.float
+    """the average encode/decode time in ms"""
+    avg_fps: builtins.float
+    """the average fps for the track"""
+    @property
+    def video_dimension(self) -> global___VideoDimension:
+        """the track dimensions"""
+    target_bitrate: builtins.int
+    """the target bitrate for the track, only for published tracks"""
+    def __init__(
+        self,
+        *,
+        track_type: global___TrackType.ValueType = ...,
+        codec: global___Codec | None = ...,
+        avg_frame_time_ms: builtins.float = ...,
+        avg_fps: builtins.float = ...,
+        video_dimension: global___VideoDimension | None = ...,
+        target_bitrate: builtins.int = ...,
+    ) -> None: ...
+    def HasField(
+        self,
+        field_name: typing_extensions.Literal[
+            "codec", b"codec", "video_dimension", b"video_dimension"
+        ],
+    ) -> builtins.bool: ...
+    def ClearField(
+        self,
+        field_name: typing_extensions.Literal[
+            "avg_fps",
+            b"avg_fps",
+            "avg_frame_time_ms",
+            b"avg_frame_time_ms",
+            "codec",
+            b"codec",
+            "target_bitrate",
+            b"target_bitrate",
+            "track_type",
+            b"track_type",
+            "video_dimension",
+            b"video_dimension",
+        ],
+    ) -> None: ...
+
+global___PerformanceStats = PerformanceStats

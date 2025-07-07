@@ -47,6 +47,7 @@ class SfuEvent(google.protobuf.message.Message):
     PARTICIPANT_UPDATED_FIELD_NUMBER: builtins.int
     PARTICIPANT_MIGRATION_COMPLETE_FIELD_NUMBER: builtins.int
     CHANGE_PUBLISH_OPTIONS_FIELD_NUMBER: builtins.int
+    INBOUND_STATE_NOTIFICATION_FIELD_NUMBER: builtins.int
     @property
     def subscriber_offer(self) -> global___SubscriberOffer:
         """SubscriberOffer sends the SDP offer for establishing the
@@ -151,6 +152,9 @@ class SfuEvent(google.protobuf.message.Message):
     @property
     def change_publish_options(self) -> global___ChangePublishOptions:
         """ChangePublishOptions is sent to signal the change in publish options such as a new codec or simulcast layers"""
+    @property
+    def inbound_state_notification(self) -> global___InboundStateNotification:
+        """InboundStateNotification"""
     def __init__(
         self,
         *,
@@ -177,6 +181,7 @@ class SfuEvent(google.protobuf.message.Message):
         participant_migration_complete: global___ParticipantMigrationComplete
         | None = ...,
         change_publish_options: global___ChangePublishOptions | None = ...,
+        inbound_state_notification: global___InboundStateNotification | None = ...,
     ) -> None: ...
     def HasField(
         self,
@@ -207,6 +212,8 @@ class SfuEvent(google.protobuf.message.Message):
             b"ice_restart",
             "ice_trickle",
             b"ice_trickle",
+            "inbound_state_notification",
+            b"inbound_state_notification",
             "join_response",
             b"join_response",
             "participant_joined",
@@ -258,6 +265,8 @@ class SfuEvent(google.protobuf.message.Message):
             b"ice_restart",
             "ice_trickle",
             b"ice_trickle",
+            "inbound_state_notification",
+            b"inbound_state_notification",
             "join_response",
             b"join_response",
             "participant_joined",
@@ -306,6 +315,7 @@ class SfuEvent(google.protobuf.message.Message):
             "participant_updated",
             "participant_migration_complete",
             "change_publish_options",
+            "inbound_state_notification",
         ]
         | None
     ): ...
@@ -687,6 +697,7 @@ class JoinRequest(google.protobuf.message.Message):
     RECONNECT_DETAILS_FIELD_NUMBER: builtins.int
     PREFERRED_PUBLISH_OPTIONS_FIELD_NUMBER: builtins.int
     PREFERRED_SUBSCRIBE_OPTIONS_FIELD_NUMBER: builtins.int
+    CAPABILITIES_FIELD_NUMBER: builtins.int
     token: builtins.str
     session_id: builtins.str
     subscriber_sdp: builtins.str
@@ -722,6 +733,12 @@ class JoinRequest(google.protobuf.message.Message):
     ) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[
         video.sfu.models.models_pb2.SubscribeOption
     ]: ...
+    @property
+    def capabilities(
+        self,
+    ) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[
+        video.sfu.models.models_pb2.ClientCapability.ValueType
+    ]: ...
     def __init__(
         self,
         *,
@@ -741,6 +758,10 @@ class JoinRequest(google.protobuf.message.Message):
             video.sfu.models.models_pb2.SubscribeOption
         ]
         | None = ...,
+        capabilities: collections.abc.Iterable[
+            video.sfu.models.models_pb2.ClientCapability.ValueType
+        ]
+        | None = ...,
     ) -> None: ...
     def HasField(
         self,
@@ -756,6 +777,8 @@ class JoinRequest(google.protobuf.message.Message):
     def ClearField(
         self,
         field_name: typing_extensions.Literal[
+            "capabilities",
+            b"capabilities",
             "client_details",
             b"client_details",
             "fast_reconnect",
@@ -1484,3 +1507,65 @@ class CallEnded(google.protobuf.message.Message):
     ) -> None: ...
 
 global___CallEnded = CallEnded
+
+@typing_extensions.final
+class InboundStateNotification(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    INBOUND_VIDEO_STATES_FIELD_NUMBER: builtins.int
+    @property
+    def inbound_video_states(
+        self,
+    ) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[
+        global___InboundVideoState
+    ]: ...
+    def __init__(
+        self,
+        *,
+        inbound_video_states: collections.abc.Iterable[global___InboundVideoState]
+        | None = ...,
+    ) -> None: ...
+    def ClearField(
+        self,
+        field_name: typing_extensions.Literal[
+            "inbound_video_states", b"inbound_video_states"
+        ],
+    ) -> None: ...
+
+global___InboundStateNotification = InboundStateNotification
+
+@typing_extensions.final
+class InboundVideoState(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    USER_ID_FIELD_NUMBER: builtins.int
+    SESSION_ID_FIELD_NUMBER: builtins.int
+    TRACK_TYPE_FIELD_NUMBER: builtins.int
+    PAUSED_FIELD_NUMBER: builtins.int
+    user_id: builtins.str
+    session_id: builtins.str
+    track_type: video.sfu.models.models_pb2.TrackType.ValueType
+    paused: builtins.bool
+    def __init__(
+        self,
+        *,
+        user_id: builtins.str = ...,
+        session_id: builtins.str = ...,
+        track_type: video.sfu.models.models_pb2.TrackType.ValueType = ...,
+        paused: builtins.bool = ...,
+    ) -> None: ...
+    def ClearField(
+        self,
+        field_name: typing_extensions.Literal[
+            "paused",
+            b"paused",
+            "session_id",
+            b"session_id",
+            "track_type",
+            b"track_type",
+            "user_id",
+            b"user_id",
+        ],
+    ) -> None: ...
+
+global___InboundVideoState = InboundVideoState
