@@ -7,6 +7,15 @@ from getstream.plugins.moonshine.stt import MoonshineSTT
 from getstream.video.rtc.track_util import PcmData
 from getstream.plugins.test_utils import get_audio_asset, get_json_metadata
 
+# Skip all tests in this module if moonshine_onnx is not installed
+try:
+    import moonshine_onnx  # noqa: F401
+except ImportError:
+    pytest.skip(
+        "moonshine_onnx is not installed. Skipping all Moonshine STT tests.",
+        allow_module_level=True,
+    )
+
 
 # Mock moonshine module for tests that don't require the actual library
 class MockMoonshine:
@@ -719,7 +728,16 @@ async def test_moonshine_real_integration(mia_audio_data, mia_metadata):
 
             # Content validation - check for key words from the expected transcript
             # We'll be lenient since STT accuracy can vary
-            key_words = ["mia", "village", "brushes", "map", "treasure", "fields", "hues", "discovered"]
+            key_words = [
+                "mia",
+                "village",
+                "brushes",
+                "map",
+                "treasure",
+                "fields",
+                "hues",
+                "discovered",
+            ]
             found_key_words = [
                 word for word in key_words if word in combined_text.lower()
             ]
