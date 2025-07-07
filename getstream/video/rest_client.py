@@ -348,6 +348,28 @@ class VideoRestClient(BaseClient):
             json=json,
         )
 
+    def query_call_participants(
+        self,
+        id: str,
+        type: str,
+        limit: Optional[int] = None,
+        filter_conditions: Optional[Dict[str, object]] = None,
+    ) -> StreamResponse[QueryCallParticipantsResponse]:
+        query_params = build_query_param(limit=limit)
+        path_params = {
+            "id": id,
+            "type": type,
+        }
+        json = build_body_dict(filter_conditions=filter_conditions)
+
+        return self.post(
+            "/api/v2/video/call/{type}/{id}/participants",
+            QueryCallParticipantsResponse,
+            query_params=query_params,
+            path_params=path_params,
+            json=json,
+        )
+
     def video_pin(
         self, type: str, id: str, session_id: str, user_id: str
     ) -> StreamResponse[PinResponse]:
@@ -538,21 +560,6 @@ class VideoRestClient(BaseClient):
             StartTranscriptionResponse,
             path_params=path_params,
             json=json,
-        )
-
-    def get_call_stats(
-        self, type: str, id: str, session: str
-    ) -> StreamResponse[GetCallStatsResponse]:
-        path_params = {
-            "type": type,
-            "id": id,
-            "session": session,
-        }
-
-        return self.get(
-            "/api/v2/video/call/{type}/{id}/stats/{session}",
-            GetCallStatsResponse,
-            path_params=path_params,
         )
 
     def stop_hls_broadcasting(
