@@ -1,12 +1,10 @@
 name: Release
 
 on:
-  workflow_dispatch:
-    inputs:
-      python-version:
-        description: "Python version to use"
-        default: "3.12"
-        required: false
+  pull_request:
+    types: [closed]
+    branches:
+      - main
 
 permissions:
   contents: read
@@ -15,6 +13,7 @@ permissions:
 jobs:
   build-core:
     name: Build & Test Core SDK
+    if: github.event.pull_request.merged && startsWith(github.head_ref, 'release-')
     runs-on: ubuntu-latest
     environment: ci
     outputs:

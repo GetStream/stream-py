@@ -7,13 +7,6 @@ on:
   pull_request:
     branches:
       - main
-  workflow_dispatch:
-    inputs:
-      branch_name:
-        description: 'Branch to checkout (defaults to main)'
-        required: false
-        type: string
-        default: 'main'
 
 jobs:
   test:
@@ -28,8 +21,6 @@ jobs:
     steps:
     - name: Check out repo
       uses: actions/checkout@v4
-      with:
-        ref: '${{ github.event.inputs.branch_name }}'
     - uses: astral-sh/ruff-action@v3
       continue-on-error: false
     - name: Install uv and set the python version
