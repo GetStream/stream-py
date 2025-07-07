@@ -12,7 +12,7 @@ import aiortc
 from aiortc.contrib.media import MediaRelay
 from pyee.asyncio import AsyncIOEventEmitter
 
-from getstream.models import VideoDimension
+from getstream.video.rtc.pb.stream.video.sfu.models.models_pb2 import VideoDimension
 from getstream.video.rtc.pb.stream.video.sfu.models.models_pb2 import (
     TrackInfo,
     TrackType,
