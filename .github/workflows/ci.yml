@@ -30,7 +30,7 @@ jobs:
     - name: Install the project
       run: |
         if [[ "${{ matrix.python-version }}" == "3.9"* ]]; then
-          uv sync --all-packages
+          uv sync --all-packages --exclude getstream/plugins/*
         else
           uv sync --all-packages --all-groups --all-extras
         fi
