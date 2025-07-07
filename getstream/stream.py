@@ -1,15 +1,19 @@
-import time
-import jwt
 from functools import cached_property
+import time
 from typing import List
+
+import jwt
+from pydantic import AnyHttpUrl, ConfigDict
+from pydantic_settings import BaseSettings
 
 from getstream.chat.client import ChatClient
 from getstream.common.client import CommonClient
 from getstream.models import UserRequest
+from getstream.moderation.client import ModerationClient
 from getstream.utils import validate_and_clean_url
 from getstream.video.client import VideoClient
-from pydantic import AnyHttpUrl, ConfigDict
-from pydantic_settings import BaseSettings
+
+
 
 BASE_URL = "https://chat.stream-io-api.com/"
 
@@ -90,6 +94,20 @@ class Stream(CommonClient):
 
         """
         return ChatClient(
+            api_key=self.api_key,
+            base_url=self.base_url,
+            token=self.token,
+            timeout=self.timeout,
+            stream=self,
+        )
+
+    @cached_property
+    def moderation(self):
+        """
+        Moderation stream client.
+
+        """
+        return ModerationClient(
             api_key=self.api_key,
             base_url=self.base_url,
             token=self.token,

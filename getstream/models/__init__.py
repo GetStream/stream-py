@@ -1789,8 +1789,8 @@ class CallParticipant(DataClassJsonMixin):
         )
     )
     online: bool = dc_field(metadata=dc_config(field_name="online"))
-    role: str = dc_field(metadata=dc_config(field_name="role"))
     role: str = dc_field(metadata=dc_config(field_name="Role"))
+    role: str = dc_field(metadata=dc_config(field_name="role"))
     user_session_id: str = dc_field(metadata=dc_config(field_name="UserSessionID"))
     custom: Dict[str, object] = dc_field(metadata=dc_config(field_name="custom"))
     teams_role: "Dict[str, str]" = dc_field(metadata=dc_config(field_name="teams_role"))
@@ -8575,7 +8575,7 @@ class ModerationFlagResponse(DataClassJsonMixin):
     moderation_payload: "Optional[ModerationPayload]" = dc_field(
         default=None, metadata=dc_config(field_name="moderation_payload")
     )
-    review_queue_item: "Optional[ReviewQueueItemResponse]" = dc_field(
+    review_queue_item: "Optional[ReviewQueueItem]" = dc_field(
         default=None, metadata=dc_config(field_name="review_queue_item")
     )
     user: "Optional[UserResponse]" = dc_field(
