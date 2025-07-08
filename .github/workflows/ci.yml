@@ -17,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
     steps:
     - name: Check out repo
       uses: actions/checkout@v4
@@ -29,19 +29,7 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Install the project
       run: |
-        if [[ "${{ matrix.python-version }}" == "3.9"* ]]; then
-          uv sync --all-packages \
-            --no-install-package getstream-plugins-cartesia \
-            --no-install-package getstream-plugins-common \
-            --no-install-package getstream-plugins-deepgram \
-            --no-install-package getstream-plugins-elevenlabs \
-            --no-install-package getstream-plugins-kokoro \
-            --no-install-package getstream-plugins-moonshine \
-            --no-install-package getstream-plugins-openai \
-            --no-install-package getstream-plugins-silero
-        else
           uv sync --all-packages --all-groups --all-extras
-        fi
     - name: Run tests
       env:
         STREAM_BASE_URL: ${{ vars.STREAM_BASE_URL }}

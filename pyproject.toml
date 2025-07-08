@@ -24,35 +24,22 @@ dependencies = [
 
 [project.optional-dependencies]
 openai-realtime = [
-  "openai[realtime]>=1.93.0; python_version >= '3.10'",
+  "openai[realtime]>=1.93.0",
 ]
 webrtc = [
-    "aiortc>=1.10.1; python_version >= '3.10'",
-    "numpy>=2.2.6,<2.3; python_version >= '3.10'",
-    "torch>=2.7.1; python_version >= '3.10'",
-    "torchaudio>=2.7.1; python_version >= '3.10'",
-    "onnxruntime>=1.22.0; python_version >= '3.10'",
-    "soundfile>=0.13.1; python_version >= '3.10'",
-    "scipy>=1.15.3,<1.16; python_version >= '3.10'",
-    "twirp>=0.0.7; python_version >= '3.10'",
-    "protobuf>=4.25.1; python_version >= '3.10'",
-    "pyee>=13.0.0; python_version >= '3.10'",
-    "websockets>=15.0.1,<16; python_version >= '3.10'",
-    "websocket-client>=1.8.0; python_version >= '3.10'",
-    "python-dateutil>=2.8.2; python_version >= '3.10'",
-]
-mcp = [
-    "fastmcp>=2.10.1; python_version >= '3.10'",
-]
-plugins = [
-    "getstream[webrtc]",
-    "getstream-plugins-deepgram",
-    "getstream-plugins-moonshine",
-    "getstream-plugins-elevenlabs",
-    "getstream-plugins-cartesia",
-    "getstream-plugins-openai",
-    "getstream-plugins-silero",
-    "getstream-plugins-kokoro",
+    "aiortc>=1.10.1",
+    "numpy>=2.2.6,<2.3",
+    "torch>=2.7.1",
+    "torchaudio>=2.7.1",
+    "onnxruntime>=1.22.0",
+    "soundfile>=0.13.1",
+    "scipy>=1.15.3,<1.16",
+    "twirp>=0.0.7",
+    "protobuf>=4.25.1",
+    "pyee>=13.0.0",
+    "websockets>=15.0.1,<16",
+    "websocket-client>=1.8.0",
+    "python-dateutil>=2.8.2",
 ]
 
 [dependency-groups]
