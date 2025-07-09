@@ -16,13 +16,51 @@ class Call:
         if hasattr(data, "call") and isinstance(data.call, CallResponse):
             self.custom_data = data.call.custom
 
+    def connect_openai(
+        self, openai_api_key, agent_user_id, model="gpt-4o-realtime-preview"
+    ):
+        from .openai import get_openai_realtime_client, ConnectionManagerWrapper
+
+        client = get_openai_realtime_client(openai_api_key, self.client.base_url)
+        token = self.client.stream.create_token(agent_user_id)
+        connection_manager = client.beta.realtime.connect(
+            extra_query={
+                "call_type": self.call_type,
+                "call_id": self.id,
+                "api_key": self.client.api_key,
+            },
+            model=model,
+            extra_headers={
+                "Authorization": f"Bearer {openai_api_key}",
+                "OpenAI-Beta": "realtime=v1",
+                "Stream-Authorization": token,
+            },
+        )
+
+        # Wrap the connection manager to check for errors in the first message
+        return ConnectionManagerWrapper(connection_manager, self.call_type, self.id)
+
+    def ring(
+        self, target_member_ids: Optional[List[str]] = None
+    ) -> StreamResponse[GetCallResponse]:
+        """
+        Ring method as a shorthand for call.get({ ring: true }).
+
+        Args:
+            target_member_ids: Optional list of member IDs to ring
+
+        Returns:
+            StreamResponse[GetCallResponse] from the get_call operation with ring=True
+        """
+        return self.get_call(ring=True, target_member_ids=target_member_ids)
+
     def get(
         self,
         members_limit: Optional[int] = None,
         ring: Optional[bool] = None,
         notify: Optional[bool] = None,
         video: Optional[bool] = None,
-        member_ids: Optional[List[str]] = None,
+        target_member_ids: Optional[List[str]] = None,
     ) -> StreamResponse[GetCallResponse]:
         response = self.client.get_call(
             type=self.call_type,
@@ -31,7 +69,7 @@ class Call:
             ring=ring,
             notify=notify,
             video=video,
-            member_ids=member_ids,
+            target_member_ids=target_member_ids,
         )
         self._sync_from_response(response.data)
         return response
@@ -185,6 +223,20 @@ class Call:
         self._sync_from_response(response.data)
         return response
 
+    def query_call_participants(
+        self,
+        limit: Optional[int] = None,
+        filter_conditions: Optional[Dict[str, object]] = None,
+    ) -> StreamResponse[QueryCallParticipantsResponse]:
+        response = self.client.query_call_participants(
+            type=self.call_type,
+            id=self.id,
+            limit=limit,
+            filter_conditions=filter_conditions,
+        )
+        self._sync_from_response(response.data)
+        return response
+
     def video_pin(self, session_id: str, user_id: str) -> StreamResponse[PinResponse]:
         response = self.client.video_pin(
             type=self.call_type, id=self.id, session_id=session_id, user_id=user_id
@@ -287,13 +339,6 @@ class Call:
             enable_closed_captions=enable_closed_captions,
             language=language,
             transcription_external_storage=transcription_external_storage,
-        )
-        self._sync_from_response(response.data)
-        return response
-
-    def get_call_stats(self, session: str) -> StreamResponse[GetCallStatsResponse]:
-        response = self.client.get_call_stats(
-            type=self.call_type, id=self.id, session=session
         )
         self._sync_from_response(response.data)
         return response
@@ -405,19 +450,5 @@ class Call:
         )
         self._sync_from_response(response.data)
         return response
-
-    def ring(
-        self, member_ids: Optional[List[str]] = None
-    ) -> StreamResponse[GetCallResponse]:
-        """
-        Ring method as a shorthand for call.get({ ring: true }).
-
-        Args:
-            member_ids: Optional list of member IDs to ring
-
-        Returns:
-            StreamResponse[GetCallResponse] from the get_call operation with ring=True
-        """
-        return self.get(ring=True, member_ids=member_ids)
 
     create = get_or_create

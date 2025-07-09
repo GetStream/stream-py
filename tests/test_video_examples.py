@@ -339,6 +339,26 @@ def test_start_stop_frame_recording(client: Stream):
     )
 
 
+def test_query_call_participants(client):
+    call = client.video.call("default", "call-id")
+    call.get_or_create(
+        data=CallRequest(
+            created_by_id=str(uuid.uuid4()),
+        )
+    )
+
+    call.query_call_participants(filter_conditions={"user_id": {"$eq": "user-id"}})
+
+    # filter by published track
+    call.query_call_participants(
+        filter_conditions={"published_tracks": {"$eq": "video"}}
+    )
+    # filter multiple users
+    call.query_call_participants(
+        filter_conditions={"user_id": {"$in": ["user-id-1", "user-id-2"]}}, limit=100
+    )
+
+
 def test_create_call_with_custom_frame_recording_settings(client: Stream):
     user_id = str(uuid.uuid4())
 
@@ -450,35 +470,32 @@ async def test_event_representation():
         assert str(repr(value)) in event_str
 
 
-
 def test_ring_individual_members(client: Stream, get_user):
     """Test ringing individual members in a call."""
     call_id = str(uuid.uuid4())
     call = client.video.call("default", call_id)
-    
+
     # Create users
     myself = get_user(name="myself")
     my_friend = get_user(name="my-friend")
     my_other_friend = get_user(name="my-other-friend")
-    
+
     # Create call with two members
     call.get_or_create(
         data=CallRequest(
             created_by_id=myself.id,
             members=[
-                MemberRequest(user_id=myself.id), 
-                MemberRequest(user_id=my_friend.id)
+                MemberRequest(user_id=myself.id),
+                MemberRequest(user_id=my_friend.id),
             ],
         )
     )
-    
+
     # Ring existing member
     response = call.ring(member_ids=[my_friend.id])
     assert response.status_code() == 200
-    
+
     # Add and ring a new member
-    call.update_call_members(
-        update_members=[{"user_id": my_other_friend.id}]
-    )
+    call.update_call_members(update_members=[{"user_id": my_other_friend.id}])
     response = call.ring(member_ids=[my_other_friend.id])
     assert response.status_code() == 200

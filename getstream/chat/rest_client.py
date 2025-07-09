@@ -413,22 +413,23 @@ class ChatRestClient(BaseClient):
 
     def update_member_partial(
         self,
-        user_id: str,
         type: str,
         id: str,
+        user_id: Optional[str] = None,
         unset: Optional[List[str]] = None,
         set: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[UpdateMemberPartialResponse]:
+        query_params = build_query_param(user_id=user_id)
         path_params = {
-            "user_id": user_id,
             "type": type,
             "id": id,
         }
         json = build_body_dict(unset=unset, set=set)
 
         return self.patch(
-            "/api/v2/chat/channels/{type}/{id}/member/{user_id}",
+            "/api/v2/chat/channels/{type}/{id}/member",
             UpdateMemberPartialResponse,
+            query_params=query_params,
             path_params=path_params,
             json=json,
         )
@@ -567,6 +568,7 @@ class ChatRestClient(BaseClient):
         skip_push: Optional[bool] = None,
         truncated_at: Optional[datetime] = None,
         user_id: Optional[str] = None,
+        member_ids: Optional[List[str]] = None,
         message: Optional[MessageRequest] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[TruncateChannelResponse]:
@@ -579,6 +581,7 @@ class ChatRestClient(BaseClient):
             skip_push=skip_push,
             truncated_at=truncated_at,
             user_id=user_id,
+            member_ids=member_ids,
             message=message,
             user=user,
         )
@@ -638,10 +641,12 @@ class ChatRestClient(BaseClient):
         read_events: Optional[bool] = None,
         replies: Optional[bool] = None,
         search: Optional[bool] = None,
+        shared_locations: Optional[bool] = None,
         skip_last_msg_update_for_system_msgs: Optional[bool] = None,
         typing_events: Optional[bool] = None,
         uploads: Optional[bool] = None,
         url_enrichment: Optional[bool] = None,
+        user_message_reminders: Optional[bool] = None,
         blocklists: Optional[List[BlockListOptions]] = None,
         commands: Optional[List[str]] = None,
         permissions: Optional[List[PolicyRequest]] = None,
@@ -667,10 +672,12 @@ class ChatRestClient(BaseClient):
             read_events=read_events,
             replies=replies,
             search=search,
+            shared_locations=shared_locations,
             skip_last_msg_update_for_system_msgs=skip_last_msg_update_for_system_msgs,
             typing_events=typing_events,
             uploads=uploads,
             url_enrichment=url_enrichment,
+            user_message_reminders=user_message_reminders,
             blocklists=blocklists,
             commands=commands,
             permissions=permissions,
@@ -723,10 +730,12 @@ class ChatRestClient(BaseClient):
         reminders: Optional[bool] = None,
         replies: Optional[bool] = None,
         search: Optional[bool] = None,
+        shared_locations: Optional[bool] = None,
         skip_last_msg_update_for_system_msgs: Optional[bool] = None,
         typing_events: Optional[bool] = None,
         uploads: Optional[bool] = None,
         url_enrichment: Optional[bool] = None,
+        user_message_reminders: Optional[bool] = None,
         allowed_flag_reasons: Optional[List[str]] = None,
         blocklists: Optional[List[BlockListOptions]] = None,
         commands: Optional[List[str]] = None,
@@ -757,10 +766,12 @@ class ChatRestClient(BaseClient):
             reminders=reminders,
             replies=replies,
             search=search,
+            shared_locations=shared_locations,
             skip_last_msg_update_for_system_msgs=skip_last_msg_update_for_system_msgs,
             typing_events=typing_events,
             uploads=uploads,
             url_enrichment=url_enrichment,
+            user_message_reminders=user_message_reminders,
             allowed_flag_reasons=allowed_flag_reasons,
             blocklists=blocklists,
             commands=commands,
@@ -929,12 +940,18 @@ class ChatRestClient(BaseClient):
         )
 
     def update_message(
-        self, id: str, message: MessageRequest, skip_enrich_url: Optional[bool] = None
+        self,
+        id: str,
+        message: MessageRequest,
+        skip_enrich_url: Optional[bool] = None,
+        skip_push: Optional[bool] = None,
     ) -> StreamResponse[UpdateMessageResponse]:
         path_params = {
             "id": id,
         }
-        json = build_body_dict(message=message, skip_enrich_url=skip_enrich_url)
+        json = build_body_dict(
+            message=message, skip_enrich_url=skip_enrich_url, skip_push=skip_push
+        )
 
         return self.post(
             "/api/v2/chat/messages/{id}",
@@ -1104,12 +1121,18 @@ class ChatRestClient(BaseClient):
         )
 
     def undelete_message(
-        self, id: str, message: MessageRequest, skip_enrich_url: Optional[bool] = None
+        self,
+        id: str,
+        message: MessageRequest,
+        skip_enrich_url: Optional[bool] = None,
+        skip_push: Optional[bool] = None,
     ) -> StreamResponse[UpdateMessageResponse]:
         path_params = {
             "id": id,
         }
-        json = build_body_dict(message=message, skip_enrich_url=skip_enrich_url)
+        json = build_body_dict(
+            message=message, skip_enrich_url=skip_enrich_url, skip_push=skip_push
+        )
 
         return self.post(
             "/api/v2/chat/messages/{id}/undelete",
@@ -1154,6 +1177,59 @@ class ChatRestClient(BaseClient):
             PollVoteResponse,
             query_params=query_params,
             path_params=path_params,
+        )
+
+    def delete_reminder(
+        self, message_id: str, user_id: Optional[str] = None
+    ) -> StreamResponse[DeleteReminderResponse]:
+        query_params = build_query_param(user_id=user_id)
+        path_params = {
+            "message_id": message_id,
+        }
+
+        return self.delete(
+            "/api/v2/chat/messages/{message_id}/reminders",
+            DeleteReminderResponse,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
+    def update_reminder(
+        self,
+        message_id: str,
+        remind_at: Optional[datetime] = None,
+        user_id: Optional[str] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[UpdateReminderResponse]:
+        path_params = {
+            "message_id": message_id,
+        }
+        json = build_body_dict(remind_at=remind_at, user_id=user_id, user=user)
+
+        return self.patch(
+            "/api/v2/chat/messages/{message_id}/reminders",
+            UpdateReminderResponse,
+            path_params=path_params,
+            json=json,
+        )
+
+    def create_reminder(
+        self,
+        message_id: str,
+        remind_at: Optional[datetime] = None,
+        user_id: Optional[str] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[ReminderResponseData]:
+        path_params = {
+            "message_id": message_id,
+        }
+        json = build_body_dict(remind_at=remind_at, user_id=user_id, user=user)
+
+        return self.post(
+            "/api/v2/chat/messages/{message_id}/reminders",
+            ReminderResponseData,
+            path_params=path_params,
+            json=json,
         )
 
     def get_replies(
@@ -1492,6 +1568,39 @@ class ChatRestClient(BaseClient):
             "/api/v2/chat/push_preferences", UpsertPushPreferencesResponse, json=json
         )
 
+    def get_push_templates(
+        self, push_provider_type: str, push_provider_name: Optional[str] = None
+    ) -> StreamResponse[GetPushTemplatesResponse]:
+        query_params = build_query_param(
+            push_provider_type=push_provider_type, push_provider_name=push_provider_name
+        )
+
+        return self.get(
+            "/api/v2/chat/push_templates",
+            GetPushTemplatesResponse,
+            query_params=query_params,
+        )
+
+    def upsert_push_template(
+        self,
+        event_type: str,
+        push_provider_type: str,
+        enable_push: Optional[bool] = None,
+        push_provider_name: Optional[str] = None,
+        template: Optional[str] = None,
+    ) -> StreamResponse[UpsertPushTemplateResponse]:
+        json = build_body_dict(
+            event_type=event_type,
+            push_provider_type=push_provider_type,
+            enable_push=enable_push,
+            push_provider_name=push_provider_name,
+            template=template,
+        )
+
+        return self.post(
+            "/api/v2/chat/push_templates", UpsertPushTemplateResponse, json=json
+        )
+
     def query_banned_users(
         self, payload: Optional[QueryBannedUsersPayload] = None
     ) -> StreamResponse[QueryBannedUsersResponse]:
@@ -1501,6 +1610,30 @@ class ChatRestClient(BaseClient):
             "/api/v2/chat/query_banned_users",
             QueryBannedUsersResponse,
             query_params=query_params,
+        )
+
+    def query_reminders(
+        self,
+        limit: Optional[int] = None,
+        next: Optional[str] = None,
+        prev: Optional[str] = None,
+        user_id: Optional[str] = None,
+        sort: Optional[List[SortParamRequest]] = None,
+        filter: Optional[Dict[str, object]] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[QueryRemindersResponse]:
+        json = build_body_dict(
+            limit=limit,
+            next=next,
+            prev=prev,
+            user_id=user_id,
+            sort=sort,
+            filter=filter,
+            user=user,
+        )
+
+        return self.post(
+            "/api/v2/chat/reminders/query", QueryRemindersResponse, json=json
         )
 
     def search(
