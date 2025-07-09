@@ -8,9 +8,9 @@ then
   exit 1;
 fi
 
-if ! poetry -V &> /dev/null
+if ! uv -V &> /dev/null
 then
-  echo "cannot find poetry in path, did you setup this repo correctly?";
+  echo "cannot find uv in path, did you setup this repo correctly?";
   exit 1;
 fi
 
@@ -20,4 +20,4 @@ set -ex
 ( cd $SOURCE_PATH ; make openapi ; go run ./cmd/chat-manager openapi generate-client --language python --spec ./releases/v2/serverside-api.yaml --output ../stream-py/getstream/ )
 
 # lint generated code with ruff
-poetry run ruff format getstream/ tests/
+uv run ruff format getstream/ tests/
