@@ -21,24 +21,68 @@ import logging
 import os
 import time
 import uuid
+import webbrowser
+from urllib.parse import urlencode
+
 from dotenv import load_dotenv
 
+from getstream.models import UserRequest
 from getstream.stream import Stream
 from getstream.video import rtc
 from getstream.video.rtc.track_util import PcmData
 from getstream.plugins.moonshine.stt import MoonshineSTT
 from getstream.plugins.silero.vad import SileroVAD
-from examples.utils import create_user, open_browser
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+
+
+def create_user(client: Stream, id: str, name: str) -> None:
+    """
+    Create a user with a unique Stream ID.
+
+    Args:
+        client: Stream client instance
+        id: Unique user ID
+        name: Display name for the user
+    """
+    user_request = UserRequest(id=id, name=name)
+    client.upsert_users(user_request)
+
+
+def open_browser(api_key: str, token: str, call_id: str) -> str:
+    """
+    Helper function to open browser with Stream call link.
+
+    Args:
+        api_key: Stream API key
+        token: JWT token for the user
+        call_id: ID of the call
+
+    Returns:
+        The URL that was opened
+    """
+    base_url = f"{os.getenv('EXAMPLE_BASE_URL')}/join/"
+    params = {"api_key": api_key, "token": token, "skip_lobby": "true"}
+
+    url = f"{base_url}{call_id}?{urlencode(params)}"
+    print(f"Opening browser to: {url}")
+
+    try:
+        webbrowser.open(url)
+        print("Browser opened successfully!")
+    except Exception as e:
+        print(f"Failed to open browser: {e}")
+        print(f"Please manually open this URL: {url}")
+
+    return url
 
 
 async def main() -> None:  # noqa: D401
     print("🌙  Stream + Moonshine Real-time Transcription Example")
     print("=" * 60)
 
-    load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
+    load_dotenv()
 
     client = Stream.from_env()
 

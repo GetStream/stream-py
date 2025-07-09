@@ -1,51 +1,40 @@
-# Stream × Kokoro — TTS Bot
+# Stream + Kokoro TTS Bot Example
 
-Speak into a Stream video call… from Python!
+This example demonstrates how to build a text-to-speech bot that joins a Stream video call and greets participants using the open-source Kokoro model.
 
-This tiny example spins up a text-to-speech bot that joins a call and greets participants using the open-weight [Kokoro](https://github.com/hexgrad/kokoro) model.
+## What it does
 
----
+- 🤖 Creates a TTS bot that joins a Stream video call
+- 🌐 Opens a browser interface for users to join the call
+- 🔊 Greets users when they join using Kokoro TTS (offline model)
+- 🎙️ Sends audio directly to the call in real-time
 
-## Quick start
+## Prerequisites
 
+1. **Stream Account**: Get your API credentials from [Stream Dashboard](https://dashboard.getstream.io)
+2. **espeak-ng**: Required for phonemization (install via `brew install espeak-ng` on macOS)
+3. **Python 3.10+**: Required for running the example
+
+## Installation
+
+You can use your preferred package manager, but we recommend [`uv`](https://docs.astral.sh/uv/).
+
+1. **Navigate to this directory:**
+   ```bash
+   cd examples/tts_kokoro
+   ```
+
+2. **Install dependencies:**
+   ```bash
+   uv sync
+   ```
+
+3. **Set up environment variables:**
+   Rename `env.example` to `.env` and fill in your Stream credentials.
+
+## Usage
+
+Run the example:
 ```bash
-# clone and move into the repo (if not already there)
-cd examples/tts_kokoro
-
-# install deps (pick one)
-pip install -e .            # classic
-uv venv .venv && source .venv/bin/activate && uv sync   # fast ⚡️
-
-# copy env template and fill in Stream keys
-cp ../stt_deepgram_transcription/env.example .env
-$EDITOR .env                # STREAM_*
-
-# make sure espeak-ng is installed (macOS example)
-brew install espeak-ng
-
-# The example will auto-bootstrap pip if it's missing; this command is a
-# manual fallback in case you want to do it yourself upfront.
-python -m ensurepip --upgrade  # optional
-
-# run it
-python main.py              # or: uv -m python main.py
+uv run main.py
 ```
-
-You'll see the bot join, say a greeting, then wait. Add extra `await tts.send("…")` calls in `main.py` to make it speak more.
-
----
-
-## How it works (60 sec)
-
-1. Creates two temporary Stream users (human + `tts-bot`).
-2. Opens a browser URL so you can join the call instantly.
-3. Builds an `AudioStreamTrack` at **24 kHz** and connects it to Kokoro.
-4. Joins the call and sends a greeting via `tts.send()`.
-5. `await connection.wait()` keeps the bot alive until **Ctrl-C**.
-6. On shutdown the script deletes the temporary users.
-
-Under 120 lines of code 😀
-
----
-
-Need help? → [Stream Video docs](https://getstream.io/video/docs/) · [Kokoro README](https://github.com/hexgrad/kokoro/blob/main/README.md)

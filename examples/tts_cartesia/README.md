@@ -1,42 +1,40 @@
-# Stream × Cartesia — TTS Bot
+# Stream + Cartesia TTS Bot Example
 
-Speak into a Stream video call… from Python!
+This example demonstrates how to build a text-to-speech bot that joins a Stream video call and greets participants using Cartesia's Sonic voices.
 
-This tiny example spins up a text-to-speech bot that joins a call and greets participants using [Cartesia](https://github.com/cartesia-ai/cartesia-python) Sonic voices.
+## What it does
 
----
+- 🤖 Creates a TTS bot that joins a Stream video call
+- 🌐 Opens a browser interface for users to join the call
+- 🔊 Greets users when they join using Cartesia TTS
+- 🎙️ Sends audio directly to the call in real-time
 
-## Quick start
+## Prerequisites
 
+1. **Stream Account**: Get your API credentials from [Stream Dashboard](https://dashboard.getstream.io)
+2. **Cartesia Account**: Get your API key from [Cartesia](https://cartesia.ai)
+3. **Python 3.10+**: Required for running the example
+
+## Installation
+
+You can use your preferred package manager, but we recommend [`uv`](https://docs.astral.sh/uv/).
+
+1. **Navigate to this directory:**
+   ```bash
+   cd examples/tts_cartesia
+   ```
+
+2. **Install dependencies:**
+   ```bash
+   uv sync
+   ```
+
+3. **Set up environment variables:**
+   Rename `env.example` to `.env` and fill in your actual credentials.
+
+## Usage
+
+Run the example:
 ```bash
-# clone and move into the repo (if not already there)
-cd examples/tts_cartesia
-
-# install deps (pick one)
-pip install -e .            # classic
-uv venv .venv && source .venv/bin/activate && uv sync   # fast ⚡️
-
-# copy env template and fill in keys
-cp ../stt_deepgram_transcription/env.example .env
-$EDITOR .env                # STREAM_* + CARTESIA_API_KEY
-
-# run it
-python main.py              # or: uv -m python main.py
+uv run main.py
 ```
-
-You'll see the bot join, say a greeting, then wait. Add extra `await tts.send("...")` calls in `main.py` to make it speak more.
-
----
-
-## How it works
-
-1. Creates two temporary Stream users (human + "tts-bot").
-2. Opens a browser URL so you can join the call instantly.
-3. Builds an `AudioStreamTrack` and connects it to `Cartesia`.
-4. Joins the call and sends a greeting via `tts.send()`.
-5. `await connection.wait()` keeps the bot alive until **Ctrl-C**.
-6. On shutdown the script deletes the temporary users.
-
----
-
-Need help? → [Stream Video docs](https://getstream.io/video/docs/) · [Cartesia docs](https://docs.cartesia.ai)

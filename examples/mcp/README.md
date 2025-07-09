@@ -1,105 +1,47 @@
-# Stream × FastMCP Demo
+# Stream + FastMCP Example
 
-This folder contains a **complete Stream × FastMCP demo**. Running a *single* script spins up everything you need – the MCP server, the LLM agent and a Stream-Video call bot – and shows the whole tool-calling loop end-to-end.
+This example demonstrates how to build an AI conversation bot with tool-calling capabilities using Stream's Video SDK, FastMCP, and multiple AI services (STT, LLM, TTS).
 
-Run it, talk, and the bot will answer – possibly after calling a tool.
+## What it does
 
-> The supporting files (`server.py`, `agent.py`) are here mostly to show how
-> MCP tools are defined and how the agent lets the LLM call them. You don't
-> run them directly; `main.py` orchestrates the whole thing for you.
+- 🤖 Creates an AI conversation bot that joins a Stream video call
+- 🌐 Opens a browser interface for users to join the call
+- 🎤 Uses Deepgram STT to transcribe speech in real-time
+- 🧠 Processes transcriptions through OpenAI's GPT model with MCP tool access
+- 🛠️ Supports function calls (example: weather forecasts)
+- 🔊 Converts AI responses to speech using ElevenLabs TTS
+- 📝 Displays conversation flow with timestamps in the terminal
 
----
+## Prerequisites
 
-## 1 — Prerequisites
+1. **Stream Account**: Get your API credentials from [Stream Dashboard](https://dashboard.getstream.io)
+2. **OpenAI Account**: Get your API key from [OpenAI Platform](https://platform.openai.com)
+3. **Deepgram Account**: Get your API key from [Deepgram Console](https://console.deepgram.com)
+4. **ElevenLabs Account**: Get your API key from [ElevenLabs](https://elevenlabs.io)
+5. **Python 3.10+**: Required for running the example
 
-• Python ≥ 3.10 (⁠we use `pyproject.toml` to pin the packages)
-• A Stream account with API key/secret
-• An OpenAI API key
-• Deepgram + ElevenLabs keys if you want speech-to-text **and** text-to-speech
+## Installation
 
-Create an `.env` file in this directory (or export the variables any other way):
+You can use your preferred package manager, but we recommend [`uv`](https://docs.astral.sh/uv/).
 
-```env
-OPENAI_API_KEY=sk-…
-
-# stream.io credentials
-STREAM_API_KEY=…
-STREAM_API_SECRET=…
-
-# optional – only needed if you run `main.py`
-DEEPGRAM_API_KEY=…
-ELEVENLABS_API_KEY=…
-```
-
----
-
-## 2 — Install deps into an isolated venv
-
-We recommend [uv](https://github.com/astral-sh/uv):
-
-```bash
-# create a fresh virtual-env in .venv and install everything from pyproject.toml
-uv venv .venv
-uv pip install -r <(uv pip compile examples/mcp/pyproject.toml)
-
-# or, if you already have uv 0.1.26+
-uv sync -q --all-packages -p examples/mcp/pyproject.toml
-```
-
-Feel free to use `pip`/`poetry`/`pip-tools` instead; the TOML lists the same deps.
-
----
-
-## 3 — Run the demo (1-liner)
-
-```bash
-uv run examples/mcp/main.py   # or: python examples/mcp/main.py
-```
-
-`main.py` will
-
-1. launch the tiny MCP server defined in `server.py`,
-2. create a temporary Stream call and open it in your browser,
-3. join the call as a bot participant, and
-4. feed speech → text → LLM → tools → speech.
-
-Speak in the browser tab. The Deepgram STT engine turns your voice into
-text; the LLM decides whether it should answer directly or call a tool (see
-the `get_forecast` sample); if it does, the result is fed back to the LLM and
-finally read out loud via ElevenLabs.
-
-Stop with `Ctrl-C`. The script tears everything down and removes the temporary
-users from your Stream instance.
-
----
-
-## 4 — Anatomy of the example
-
-| File | Role |
-|------|------|
-| `server.py` | Shows how to **define MCP tools** with the `@mcp.tool()` decorator. (Launched automatically by `main.py`.) |
-| `agent.py` | Very small helper that lets the LLM call tools and loops the results back. Imported by `main.py`. |
-| `main.py` | The only file you *run*. Orchestrates the video call, launches the MCP server as a subprocess and drives the agent. |
-
----
-
-## 5 — Adding your own tools
-
-1.  Edit `server.py` and drop in a regular Python function. Annotate the
-    parameters and return type — those become the tool's schema.
-
-   ```python
-   @mcp.tool()
-   def table_availability(restaurant: str, date: str, seats: int) -> str:
-       """Check if *restaurant* has a free table for *seats* people on *date*."""
-       # Imagine this hits the booking API for the venue.
-       resp = httpx.get(
-           "https://api.example.com/availability",
-           params={"restaurant": restaurant, "date": date, "seats": seats},
-           timeout=5,
-       )
-       return resp.json()["status"]  # e.g. "available" / "fully booked"
+1. **Navigate to this directory:**
+   ```bash
+   cd examples/mcp
    ```
 
-2.  Restart the demo.  The agent advertises the new tool automatically; the LLM
-    can now call `table_availability[{"restaurant": "Pasta Place", "date": "2025-07-01", "seats": 4}]`.
+2. **Install dependencies:**
+   ```bash
+   uv sync
+   ```
+
+3. **Set up environment variables:**
+   Rename `env.example` to `.env` and fill in your actual credentials.
+
+## Usage
+
+Run the example:
+```bash
+uv run main.py
+```
+
+The bot will automatically start the MCP server, join the call, and begin listening for speech. Try asking for a weather forecast to see the tool-calling functionality in action.

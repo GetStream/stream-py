@@ -7,10 +7,7 @@ requires-python = ">=3.10"
 license = { text = "MIT" }
 
 dependencies = [
-    "gestream[webrtc]",
-    "getstream-plugins-cartesia",
+    "getstream[webrtc]>=2.3.0a0",
+    "getstream-plugins-cartesia>=0.1.0",
     "python-dotenv>=1.1.1",
 ]
-
-[tool.uv.sources]
-getstream = { workspace = true }

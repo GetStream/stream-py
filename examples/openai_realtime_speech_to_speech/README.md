@@ -1,93 +1,41 @@
-# OpenAI Realtime Speech-to-Speech + Stream Video
+# Stream + OpenAI Realtime Speech-to-Speech Example
 
-This example shows how to attach an **OpenAI Realtime** speech-to-speech agent to a Stream Video call.
+This example demonstrates how to connect an OpenAI Realtime speech-to-speech agent to a Stream video call for real-time voice conversations with function calling capabilities.
 
-The agent is able to:
+## What it does
 
-* Join a call as a virtual participant.
-* Listen to human speech and reply with synthesized voice in real-time.
-* React to **function calls** – in this sample it can start closed-captions on the call when asked ("Start closed captions").
+- 🤖 Creates an AI agent that joins a Stream video call
+- 🌐 Opens a browser interface for users to join the call
+- 🎤 Listens to speech and responds with synthesized voice in real-time
+- 🛠️ Supports function calls (example: "Start closed captions")
+- 🧠 Uses OpenAI's GPT-4o Realtime model with voice capabilities
 
----
-## Requirements
+## Prerequisites
 
-| Tool | Purpose |
-|------|---------|
-| Python ≥ 3.9 | Runtime |
-| `uv` *(optional)* | Fast dependency sync – you can also use plain `pip` |
-| A **Stream** account | Obtain `STREAM_API_KEY` and `STREAM_API_SECRET` |
-| An **OpenAI** account | Obtain `OPENAI_API_KEY` (must have Realtime access) |
+1. **Stream Account**: Get your API credentials from [Stream Dashboard](https://dashboard.getstream.io)
+2. **OpenAI Account**: Get your API key from [OpenAI Platform](https://platform.openai.com) (must have Realtime access)
+3. **Python 3.10+**: Required for running the example
 
----
 ## Installation
 
+You can use your preferred package manager, but we recommend [`uv`](https://docs.astral.sh/uv/).
+
+1. **Navigate to this directory:**
+   ```bash
+   cd examples/openai_realtime_speech_to_speech
+   ```
+
+2. **Install dependencies:**
+   ```bash
+   uv sync
+   ```
+
+3. **Set up environment variables:**
+   Rename `env.example` to `.env` and fill in your actual credentials.
+
+## Usage
+
+Run the example:
 ```bash
-# 1. Clone the repo and cd in
-$ git clone https://github.com/GetStream/stream-py.git
-$ cd stream-py
-
-# 2. Set up the environment (pick one)
-
-# ⚡️ Using **uv** (recommended)
-$ uv venv .venv                 # create an isolated virtual-env (or omit path to use .venv default)
-$ source .venv/bin/activate     # activate it (Fish/Zsh users: use the matching script)
-$ uv sync                       # install deps from `pyproject.toml` / `uv.lock`
-
-# 🐍 Classic Python workflow (no uv)
-$ python -m venv .venv && source .venv/bin/activate
-$ pip install -r requirements.txt
+uv run main.py
 ```
-
----
-## Environment variables
-
-Create an **`.env`** file at the repo root (or export vars in your shell):
-
-```dotenv
-# Stream credentials
-STREAM_API_KEY=xxx
-STREAM_API_SECRET=xxx
-STREAM_BASE_URL=https://pronto.getstream.io   # default; change if you have a dedicated endpoint
-
-# OpenAI credentials
-OPENAI_API_KEY=sk-...
-```
-
----
-## Running the demo
-
-### With uv (one-liner)
-
-```bash
-$ uv run examples/openai_realtime_speech_to_speech/main.py
-```
-
-`uv run` will automatically lock & sync dependencies before launching the script.
-
-### With plain Python
-
-```bash
-python examples/openai_realtime_speech_to_speech/main.py
-```
-
-The script will:
-
-1. Spin up a temporary Stream Video call.
-2. Create two users: *you* and the *OpenAI bot*.
-3. Open your default browser on the call URL (auto-join lobby is skipped).
-4. Connect the OpenAI Realtime agent to the call with:
-   * model `gpt-4o-realtime-preview`
-   * voice `alloy`
-   * system instructions: "You are a friendly assistant; reply verbally in a short sentence."
-5. Wait for audio. Try speaking and then say **"Start closed captions."**
-6. The assistant will issue a `start_closed_captions` **function call**. The script intercepts it, calls Stream's `start_closed_captions()` backend method, and returns the result to OpenAI so it can confirm success verbally.
-
-Stop the example with **Ctrl +C**.
-
----
-## File guide
-
-* `main.py` – The runnable example described above.
-* `README.md` – (this file) How to run the sample.
-
-For a deeper dive into the STS wrapper see `getstream/plugins/sts/openai_realtime/sts.py`.

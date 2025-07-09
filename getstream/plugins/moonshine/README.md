@@ -43,7 +43,7 @@ If your project uses **uv**, add both dependencies to your `pyproject.toml`:
 [project]
 dependencies = [
     # … other deps …
-    "getstream-plugins-moonshine",
+    "getstream-plugins-moonshine>=0.1.0",
     "useful-moonshine-onnx @ git+https://github.com/usefulsensors/moonshine.git#subdirectory=moonshine-onnx",
 ]
 
