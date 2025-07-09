@@ -492,10 +492,10 @@ def test_ring_individual_members(client: Stream, get_user):
     )
 
     # Ring existing member
-    response = call.ring(member_ids=[my_friend.id])
+    response = call.ring(target_member_ids=[my_friend.id])
     assert response.status_code() == 200
 
     # Add and ring a new member
     call.update_call_members(update_members=[{"user_id": my_other_friend.id}])
-    response = call.ring(member_ids=[my_other_friend.id])
+    response = call.ring(target_member_ids=[my_other_friend.id])
     assert response.status_code() == 200

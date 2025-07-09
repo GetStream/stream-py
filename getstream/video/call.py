@@ -52,7 +52,7 @@ class Call:
         Returns:
             StreamResponse[GetCallResponse] from the get_call operation with ring=True
         """
-        return self.get_call(ring=True, target_member_ids=target_member_ids)
+        return self.get(ring=True, target_member_ids=target_member_ids)
 
     def get(
         self,

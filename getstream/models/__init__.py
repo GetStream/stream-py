@@ -45,10 +45,14 @@ class AIVideoConfig(DataClassJsonMixin):
 class APIError(DataClassJsonMixin):
     code: int = dc_field(metadata=dc_config(field_name="code"))
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
-    message: str = dc_field(metadata=dc_config(field_name="message"))
     more_info: str = dc_field(metadata=dc_config(field_name="more_info"))
     status_code: int = dc_field(metadata=dc_config(field_name="StatusCode"))
-    details: "List[int]" = dc_field(metadata=dc_config(field_name="details"))
+    details: "Optional[List[int]]" = dc_field(
+        default=None, metadata=dc_config(field_name="details")
+    )
+    message: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="message")
+    )
     unrecoverable: Optional[bool] = dc_field(
         default=None, metadata=dc_config(field_name="unrecoverable")
     )
