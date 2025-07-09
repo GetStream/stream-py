@@ -161,9 +161,9 @@ def test_with_nested_dictionaries():
 def test_with_lists_and_dicts():
     result = build_body_dict(data=[1, 2, {"num": 3}, [4, 5]])
     expected = {"data": [1, 2, {"num": 3}, [4, 5]]}
-    assert (
-        result == expected
-    ), "Failed to handle lists containing dictionaries and other lists"
+    assert result == expected, (
+        "Failed to handle lists containing dictionaries and other lists"
+    )
 
 
 def test_empty_input():
@@ -197,17 +197,17 @@ def test_encode_datetime_with_none():
 def test_encode_datetime_with_valid_datetime():
     date = datetime(2022, 1, 1, 15, 30, 45)
     expected = "2022-01-01T15:30:45"
-    assert (
-        encode_datetime(date) == expected
-    ), f"Expected {expected}, got {encode_datetime(date)}"
+    assert encode_datetime(date) == expected, (
+        f"Expected {expected}, got {encode_datetime(date)}"
+    )
 
 
 def test_encode_datetime_with_timezone_aware_datetime():
     date = datetime(2022, 1, 1, 15, 30, 45, tzinfo=timezone.utc)
     expected = "2022-01-01T15:30:45+00:00"
-    assert (
-        encode_datetime(date) == expected
-    ), f"Expected {expected}, got {encode_datetime(date)}"
+    assert encode_datetime(date) == expected, (
+        f"Expected {expected}, got {encode_datetime(date)}"
+    )
 
 
 @dataclass

@@ -17,21 +17,22 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
     steps:
     - name: Check out repo
       uses: actions/checkout@v4
-    - uses: chartboost/ruff-action@v1
+    - uses: astral-sh/ruff-action@v3
       continue-on-error: false
     - name: Install uv and set the python version
       uses: astral-sh/setup-uv@v5
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install the project
-      run: uv sync --all-extras --dev
+      run: |
+          uv sync --all-packages --all-groups --all-extras
     - name: Run tests
       env:
         STREAM_BASE_URL: ${{ vars.STREAM_BASE_URL }}
         STREAM_API_KEY: ${{ vars.STREAM_API_KEY }}
         STREAM_API_SECRET: ${{ secrets.STREAM_API_SECRET }}
-      run: uv run pytest tests/ getstream/
+      run: uv run pytest

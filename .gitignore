@@ -1,18 +1,7 @@
-*/__pycache__
-*/chat/__pycache__
-*/video/__pycache__
-*/chat/sync/__pycache__
-*/chat/async_/__pycache__
-*/sync/__pycache__
-*/async_/__pycache__
-*/video/sync/__pycache__
-*/model/__pycache__/
-*/cli/__pycache__
-*/cli/__pycache__
+*__pycache__
 .env
 .vscode/settings.json
 *.pyc
-dist/*
 dist/*
 *.log
 .python-version
@@ -23,3 +12,11 @@ lib/*
 shell.nix
 pyrightconfig.json
 .DS_Store
+
+# Python package build artifacts
+*.egg-info/
+build/
+*.egg
+__pycache__/
+*.py[cod]
+*$py.class

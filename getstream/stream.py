@@ -1,16 +1,30 @@
-import time
-import jwt
 from functools import cached_property
+import time
 from typing import List
+
+import jwt
+from pydantic import AnyHttpUrl, ConfigDict
+from pydantic_settings import BaseSettings
 
 from getstream.chat.client import ChatClient
 from getstream.common.client import CommonClient
 from getstream.models import UserRequest
+from getstream.moderation.client import ModerationClient
 from getstream.utils import validate_and_clean_url
 from getstream.video.client import VideoClient
-from getstream.moderation.client import ModerationClient
+
 
 BASE_URL = "https://chat.stream-io-api.com/"
+
+
+class Settings(BaseSettings):
+    model_config = ConfigDict(
+        env_file=".env", env_file_encoding="utf-8", extra="ignore"
+    )
+
+    STREAM_API_KEY: str = "test_key"
+    STREAM_API_SECRET: str = "test_secret"
+    STREAM_BASE_URL: AnyHttpUrl = BASE_URL
 
 
 class Stream(CommonClient):
@@ -42,6 +56,21 @@ class Stream(CommonClient):
         self.base_url = validate_and_clean_url(base_url)
         self.token = self._create_token()
         super().__init__(self.api_key, self.base_url, self.token, self.timeout)
+
+    @classmethod
+    def from_env(cls, timeout: float = 6.0) -> "Stream":
+        """
+        Construct a StreamClient by loading its credentials and base_url
+        from environment variables (via our pydantic Settings).
+        """
+        settings = Settings()
+
+        return cls(
+            api_key=settings.STREAM_API_KEY,
+            api_secret=settings.STREAM_API_SECRET,
+            base_url=str(settings.STREAM_BASE_URL),
+            timeout=timeout,
+        )
 
     @cached_property
     def video(self):
