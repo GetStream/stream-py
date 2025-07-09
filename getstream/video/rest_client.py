@@ -21,6 +21,11 @@ class VideoRestClient(BaseClient):
             token=token,
         )
 
+    def get_active_calls_status(self) -> StreamResponse[GetActiveCallsStatusResponse]:
+        return self.get(
+            "/api/v2/video/active_calls_status", GetActiveCallsStatusResponse
+        )
+
     def query_user_feedback(
         self,
         full: Optional[bool] = None,
