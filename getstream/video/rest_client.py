@@ -96,9 +96,14 @@ class VideoRestClient(BaseClient):
         ring: Optional[bool] = None,
         notify: Optional[bool] = None,
         video: Optional[bool] = None,
+        target_member_ids: Optional[List[str]] = None,
     ) -> StreamResponse[GetCallResponse]:
         query_params = build_query_param(
-            members_limit=members_limit, ring=ring, notify=notify, video=video
+            members_limit=members_limit,
+            ring=ring,
+            notify=notify,
+            video=video,
+            target_member_ids=target_member_ids,
         )
         path_params = {
             "type": type,

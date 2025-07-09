@@ -188,6 +188,7 @@ class StreamAPIException(Exception):
 
     def __str__(self) -> str:
         if self.api_error:
-            return f'Stream error code {self.api_error.code}: {self.api_error.message}"'
+            message = self.api_error.message or f"Error code {self.api_error.code}"
+            return f'Stream error code {self.api_error.code}: {message}"'
         else:
             return f"Stream error HTTP code: {self.status_code}"

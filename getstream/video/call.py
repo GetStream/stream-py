@@ -40,12 +40,27 @@ class Call:
         # Wrap the connection manager to check for errors in the first message
         return ConnectionManagerWrapper(connection_manager, self.call_type, self.id)
 
+    def ring(
+        self, target_member_ids: Optional[List[str]] = None
+    ) -> StreamResponse[GetCallResponse]:
+        """
+        Ring method as a shorthand for call.get({ ring: true }).
+
+        Args:
+            target_member_ids: Optional list of member IDs to ring
+
+        Returns:
+            StreamResponse[GetCallResponse] from the get_call operation with ring=True
+        """
+        return self.get(ring=True, target_member_ids=target_member_ids)
+
     def get(
         self,
         members_limit: Optional[int] = None,
         ring: Optional[bool] = None,
         notify: Optional[bool] = None,
         video: Optional[bool] = None,
+        target_member_ids: Optional[List[str]] = None,
     ) -> StreamResponse[GetCallResponse]:
         response = self.client.get_call(
             type=self.call_type,
@@ -54,6 +69,7 @@ class Call:
             ring=ring,
             notify=notify,
             video=video,
+            target_member_ids=target_member_ids,
         )
         self._sync_from_response(response.data)
         return response
