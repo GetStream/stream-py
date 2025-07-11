@@ -583,6 +583,42 @@ class CommonRestClient(BaseClient):
 
         return self.post("/api/v2/users/delete", DeleteUsersResponse, json=json)
 
+    def get_user_live_locations(
+        self, user_id: Optional[str] = None
+    ) -> StreamResponse[SharedLocationsResponse]:
+        query_params = build_query_param(user_id=user_id)
+
+        return self.get(
+            "/api/v2/users/live_locations",
+            SharedLocationsResponse,
+            query_params=query_params,
+        )
+
+    def update_live_location(
+        self,
+        created_by_device_id: str,
+        message_id: str,
+        end_at: Optional[datetime] = None,
+        latitude: Optional[float] = None,
+        longitude: Optional[float] = None,
+        user_id: Optional[str] = None,
+    ) -> StreamResponse[SharedLocationResponse]:
+        query_params = build_query_param(user_id=user_id)
+        json = build_body_dict(
+            created_by_device_id=created_by_device_id,
+            message_id=message_id,
+            end_at=end_at,
+            latitude=latitude,
+            longitude=longitude,
+        )
+
+        return self.put(
+            "/api/v2/users/live_locations",
+            SharedLocationResponse,
+            query_params=query_params,
+            json=json,
+        )
+
     def reactivate_users(
         self,
         user_ids: List[str],
