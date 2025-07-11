@@ -338,14 +338,6 @@ def test_start_stop_frame_recording(client: Stream):
     )
 
 
-def test_call_status(client):
-    import json
-
-    response = client.video.get_active_calls_status()
-    print(json.dumps(response.data.to_json()))
-    print(response)
-
-
 def test_query_call_participants(client):
     call = client.video.call("default", "call-id")
     call.get_or_create(

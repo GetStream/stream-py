@@ -234,8 +234,7 @@ class ActiveCallsFPSStats(DataClassJsonMixin):
 @dataclass
 class ActiveCallsLatencyStats(DataClassJsonMixin):
     p50: float = dc_field(metadata=dc_config(field_name="p50"))
-    p95: float = dc_field(metadata=dc_config(field_name="p95"))
-    p99: float = dc_field(metadata=dc_config(field_name="p99"))
+    p90: float = dc_field(metadata=dc_config(field_name="p90"))
 
 
 @dataclass
@@ -515,7 +514,7 @@ class AsyncExportErrorEvent(DataClassJsonMixin):
     task_id: str = dc_field(metadata=dc_config(field_name="task_id"))
     custom: Dict[str, object] = dc_field(metadata=dc_config(field_name="custom"))
     type: str = dc_field(
-        default="export.moderation_logs.error", metadata=dc_config(field_name="type")
+        default="export.users.error", metadata=dc_config(field_name="type")
     )
     received_at: Optional[datetime] = dc_field(
         default=None,
@@ -1829,8 +1828,8 @@ class CallParticipant(DataClassJsonMixin):
         )
     )
     online: bool = dc_field(metadata=dc_config(field_name="online"))
-    role: str = dc_field(metadata=dc_config(field_name="role"))
     role: str = dc_field(metadata=dc_config(field_name="Role"))
+    role: str = dc_field(metadata=dc_config(field_name="role"))
     user_session_id: str = dc_field(metadata=dc_config(field_name="UserSessionID"))
     custom: Dict[str, object] = dc_field(metadata=dc_config(field_name="custom"))
     teams_role: "Dict[str, str]" = dc_field(metadata=dc_config(field_name="teams_role"))
@@ -6530,9 +6529,6 @@ class GetActiveCallsStatusResponse(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         )
     )
-    call_cids: "Dict[str, Dict[str, str]]" = dc_field(
-        metadata=dc_config(field_name="call_cids")
-    )
     metrics: "Optional[ActiveCallsMetrics]" = dc_field(
         default=None, metadata=dc_config(field_name="metrics")
     )
@@ -8002,9 +7998,7 @@ class MessageNewEvent(DataClassJsonMixin):
         )
     )
     watcher_count: int = dc_field(metadata=dc_config(field_name="watcher_count"))
-    type: str = dc_field(
-        default="notification.thread_message_new", metadata=dc_config(field_name="type")
-    )
+    type: str = dc_field(default="message.new", metadata=dc_config(field_name="type"))
     team: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="team"))
     thread_participants: "Optional[List[User]]" = dc_field(
         default=None, metadata=dc_config(field_name="thread_participants")
@@ -12601,12 +12595,6 @@ class SubscriberStatsResponse(DataClassJsonMixin):
 class SubscriberVideoMetrics(DataClassJsonMixin):
     fps_30: "Optional[ActiveCallsFPSStats]" = dc_field(
         default=None, metadata=dc_config(field_name="fps_30")
-    )
-    frame_decoding_time_ms: "Optional[ActiveCallsLatencyStats]" = dc_field(
-        default=None, metadata=dc_config(field_name="frame_decoding_time_ms")
-    )
-    freeze_duration_seconds: "Optional[ActiveCallsLatencyStats]" = dc_field(
-        default=None, metadata=dc_config(field_name="freeze_duration_seconds")
     )
     jitter_ms: "Optional[ActiveCallsLatencyStats]" = dc_field(
         default=None, metadata=dc_config(field_name="jitter_ms")
