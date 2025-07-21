@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 
 
 async def _log_event(event_type: str, data: Any):
-    logger.debug(f"Received event {event_type}: {data}")
+    logger.info(f"Received event {event_type}: {data}")
 
 
 class ConnectionManager(StreamAsyncIOEventEmitter):

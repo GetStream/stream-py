@@ -46,11 +46,11 @@ class PeerConnectionManager:
 
             @self.subscriber_pc.on("track_added")
             async def on_track_added(track, user):
-                logger.info(f"Track added: {track.kind} track for user {user}")
                 """Handle track events from MediaRelay subscribers"""
                 await self.connection_manager.recording_manager.on_track_received(
                     track, user
                 )
+                self.connection_manager.emit("track_added", track._source.id, track.kind, user)
 
             logger.debug("Created new subscriber peer connection")
         else:

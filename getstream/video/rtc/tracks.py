@@ -38,7 +38,7 @@ class TrackSubscriptionConfig:
     """Subscription rules for a participant role."""
 
     # Track types to subscribe to (audio by default)
-    track_types: List[int] = field(default_factory=lambda: [TrackType.TRACK_TYPE_AUDIO])
+    track_types: List[int] = field(default_factory=lambda: [TrackType.TRACK_TYPE_VIDEO])
 
     # Preferred dimensions
     video_dimension: VideoDimension = field(
@@ -307,6 +307,7 @@ class SubscriptionManager(AsyncIOEventEmitter):
 
     async def _update_subscriptions(self):
         """Push the current subscription list to the SFU."""
+        logger.error(f"Updating subscriptions: {self._subscribed_track_details}")
         async with self._lock:
             track_details = list(self._subscribed_track_details)
 
@@ -322,7 +323,7 @@ class SubscriptionManager(AsyncIOEventEmitter):
                 ),
                 server_path_prefix="",
             )
-            logger.info(f"Updated subscriptions: {response}")
+            logger.error(f"Updated subscriptions: {response}")
         except SfuRpcError as e:
             logger.error(f"Failed to update subscriptions SfuRpcError: {e}")
         except Exception as e:
@@ -330,6 +331,7 @@ class SubscriptionManager(AsyncIOEventEmitter):
 
     async def handle_track_published(self, event):
         """Handle new remote track publications from the SFU."""
+        logger.error(f"Handling track published: {event.user_id} - {event.session_id} - {event.type}")
         try:
             # Keep participants state up-to-date
             if hasattr(event, "participant"):
@@ -345,11 +347,13 @@ class SubscriptionManager(AsyncIOEventEmitter):
 
             track_type = getattr(event, "type", None)
             if track_type is None:
+                logger.error(f"Track type is None: {event}")
                 return
 
             if not self._should_subscribe(
                 getattr(event, "participant", None), track_type
             ):
+                logger.error(f"Not subscribing to track: {event}")
                 return
 
             # Check for duplicates & subscription limits
@@ -361,6 +365,7 @@ class SubscriptionManager(AsyncIOEventEmitter):
                     for d in self._subscribed_track_details
                 )
                 if already_subscribed:
+                    logger.error(f"Already subscribed to track: {event}")
                     return
 
                 if (
@@ -368,7 +373,7 @@ class SubscriptionManager(AsyncIOEventEmitter):
                     and len(self._subscribed_track_details)
                     >= self._subscription_config.max_subscriptions
                 ):
-                    logger.info(
+                    logger.error(
                         "Max subscription limit reached, skipping new track subscription"
                     )
                     return
@@ -380,6 +385,7 @@ class SubscriptionManager(AsyncIOEventEmitter):
                     event.session_id,
                 )
                 if detail is None:
+                    logger.error(f"Detail is None: {event}")
                     return
 
                 self._subscribed_track_details.append(detail)

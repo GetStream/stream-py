@@ -155,7 +155,7 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
 
         if track_data:
             relay, original_track = track_data
-            return relay.subscribe(original_track)
+            return relay.subscribe(original_track, buffered=False)
         return None
 
     def handle_track_ended(self, track: aiortc.mediastreams.MediaStreamTrack) -> None:
