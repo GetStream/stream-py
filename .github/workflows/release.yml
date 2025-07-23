@@ -108,123 +108,60 @@ jobs:
         run: |
           uv pip install "getstream==${CORE_VERSION}"
 
-      - name: Sync environment & install dev extras
-        run: |
-          uv add useful-moonshine-onnx@git+https://github.com/usefulsensors/moonshine.git#subdirectory=moonshine-onnx
-          uv sync --all-packages --all-extras --dev --all-groups
-
-      - name: Check which plugins need updates
-        id: check_plugins
+      - name: Detect updated plugins
+        id: detect
+        shell: bash
         run: |
           set -e
-          echo "Checking which plugins need to be updated..."
-
-          # Get list of all plugin directories
-          PLUGIN_DIRS=$(find getstream/plugins -name "pyproject.toml" -exec dirname {} \; | sort)
-          PACKAGES_TO_BUILD=""
-          PACKAGES_TO_TEST=""
-
-          for PLUGIN_DIR in $PLUGIN_DIRS; do
-            PLUGIN_NAME=$(basename "$PLUGIN_DIR")
-            PACKAGE_NAME="getstream-plugins-${PLUGIN_NAME}"
-
-            # Extract version from pyproject.toml
-            VERSION=$(python -c "import tomllib; f=open('$PLUGIN_DIR/pyproject.toml','rb'); data=tomllib.load(f); f.close(); print(data['project']['version'])")
-
-            echo "Checking $PACKAGE_NAME version $VERSION..."
-
-            # Check if this version exists on PyPI
-            if pip index versions --pre "$PACKAGE_NAME" | grep -q "$VERSION"; then
-              echo "Version $VERSION already exists for $PACKAGE_NAME – skipping."
-            else
-              echo "Version $VERSION is new for $PACKAGE_NAME – will build and test."
-              PACKAGES_TO_BUILD="$PACKAGES_TO_BUILD $PLUGIN_DIR"
-              PACKAGES_TO_TEST="$PACKAGES_TO_TEST getstream/plugins/$PLUGIN_NAME"
+          declare -a UPD_PKG UPD_DIR
+          for dir in getstream/plugins/*/; do
+            [[ -f "$dir/pyproject.toml" ]] || continue
+            # get "name version" from pyproject.toml in one shot
+            read -r name ver <<<"$(python -c 'import tomllib,sys, pathlib; p=sys.argv[1]; data=tomllib.load(open(p,"rb")); print(data["project"]["name"], data["project"]["version"])' "$dir/pyproject.toml")"
+            if ! pip index versions --pre "$name" | grep -q "$ver"; then
+              UPD_PKG+=("$name")
+              UPD_DIR+=("${dir%/}")
             fi
           done
+          echo "updated_packages=${UPD_PKG[*]}"   >>"$GITHUB_OUTPUT"
+          echo "updated_dirs=${UPD_DIR[*]}"       >>"$GITHUB_OUTPUT"
+          [[ ${#UPD_PKG[@]} -gt 0 ]] && echo "has_updates=true" >>"$GITHUB_OUTPUT"
 
-          echo "packages_to_build=$PACKAGES_TO_BUILD" >> "$GITHUB_OUTPUT"
-          echo "packages_to_test=$PACKAGES_TO_TEST" >> "$GITHUB_OUTPUT"
-
-          if [ -z "$PACKAGES_TO_BUILD" ]; then
-            echo "No plugins need updating."
-            echo "skip_build=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "skip_build=false" >> "$GITHUB_OUTPUT"
-            echo "Plugins to build:$PACKAGES_TO_BUILD"
-            echo "Plugins to test:$PACKAGES_TO_TEST"
-          fi
-
-      - name: Build updated plugin dists only
-        if: steps.check_plugins.outputs.skip_build == 'false'
+      #-----------------------------------------------------------------
+      - name: Build wheels
+        if: steps.detect.outputs.has_updates == 'true'
         run: |
           mkdir -p dist-plugins
-          PACKAGES_TO_BUILD="${{ steps.check_plugins.outputs.packages_to_build }}"
-
-          for PLUGIN_DIR in $PACKAGES_TO_BUILD; do
-            # Extract the actual package name from pyproject.toml
-            PACKAGE_NAME=$(uv run python -c "import tomllib; f=open('$PLUGIN_DIR/pyproject.toml','rb'); data=tomllib.load(f); f.close(); print(data['project']['name'])")
-            echo "Building $PLUGIN_DIR (package: $PACKAGE_NAME)..."
-            uv build --package "$PACKAGE_NAME" -o dist-plugins --wheel --sdist
+          for pkg in ${{ steps.detect.outputs.updated_packages }}; do
+            echo "::group::Building $pkg"
+            uv build --package "$pkg" -o dist-plugins --wheel --sdist
+            echo "::endgroup::"
           done
 
-      - name: Run plugin tests for updated packages only
-        if: steps.check_plugins.outputs.skip_build == 'false'
+      #-----------------------------------------------------------------
+      - name: Test updated plugins (local wheels)
+        if: steps.detect.outputs.has_updates == 'true'
         env:
-          STREAM_BASE_URL: ${{ vars.STREAM_BASE_URL }}
-          STREAM_API_KEY: ${{ vars.STREAM_API_KEY }}
+          STREAM_BASE_URL:   ${{ vars.STREAM_BASE_URL }}
+          STREAM_API_KEY:    ${{ vars.STREAM_API_KEY }}
           STREAM_API_SECRET: ${{ secrets.STREAM_API_SECRET }}
         run: |
-          # Install all built plugin wheels using uv
           uv pip install dist-plugins/*.whl
+          uv run pytest ${{ steps.detect.outputs.updated_dirs }}
 
-          # Only test the packages that were built
-          PACKAGES_TO_TEST="${{ steps.check_plugins.outputs.packages_to_test }}"
-
-          if [ -n "$PACKAGES_TO_TEST" ]; then
-            uv run pytest $PACKAGES_TO_TEST
-          else
-            echo "No packages to test."
-          fi
-
-      - name: Publish updated plugins to PyPI
-        if: steps.check_plugins.outputs.skip_build == 'false'
-        id: publish_plugins
+      #-----------------------------------------------------------------
+      - name: Publish wheels to PyPI
+        if: steps.detect.outputs.has_updates == 'true'
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
         run: |
-          set -e
           uv pip install --upgrade twine
-          UPLOAD_LIST=""
+          twine upload dist-plugins/*.whl
 
-          # Upload all files in dist-plugins (these are already filtered to new versions only)
-          for FILE in dist-plugins/getstream_plugins_*.whl; do
-            [ -f "$FILE" ] || continue  # Skip if no files match pattern
-
-            BASENAME=$(basename "$FILE")
-            PACKAGE_NAME=${BASENAME%%-*}
-            VERSION=$(echo "$BASENAME" | cut -d'-' -f2)  # 1.5.0a2 etc.
-
-            echo "Uploading $BASENAME to PyPI..."
-            twine upload "$FILE"
-            UPLOAD_LIST="$UPLOAD_LIST $PACKAGE_NAME==$VERSION"
-          done
-
-          # Expose the list (space-separated) as a step output
-          echo "install_list=$UPLOAD_LIST" >> "$GITHUB_OUTPUT"
-
-      - name: Install uploaded plugins from PyPI using uv
-        if: steps.publish_plugins.outputs.install_list != ''
-        env:
-          INSTALL_LIST: ${{ steps.publish_plugins.outputs.install_list }}
+      #-----------------------------------------------------------------
+      - name: Re-install from PyPI and re-run tests
+        if: steps.detect.outputs.has_updates == 'true'
         run: |
-          uv pip install "getstream==${CORE_VERSION}" $INSTALL_LIST
-      - name: Install core (only) if no new plugins were uploaded
-        if: steps.publish_plugins.outputs.install_list == ''
-        run: |
-          uv pip install "getstream==${CORE_VERSION}"
-
-      - name: Run all plugin tests against PyPI artifacts
-        run: |
-          uv run pytest getstream/plugins
+          uv pip install "getstream==${CORE_VERSION}" ${{ steps.detect.outputs.updated_packages }}
+          uv run pytest ${{ steps.detect.outputs.updated_dirs }}
