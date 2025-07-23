@@ -71,6 +71,7 @@ dev = [
 [tool.uv.workspace]
 members = [
     "getstream/plugins/*",
+    "examples/video_ai",
 ]
  exclude = [
     "**/__pycache__",
@@ -92,6 +93,7 @@ getstream-plugins-openai = { workspace = true }
 getstream-plugins-ten = { workspace = true }
 getstream-plugins-silero = { workspace = true }
 getstream-plugins-kokoro = { workspace = true }
+video-ai = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]

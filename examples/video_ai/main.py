@@ -2,6 +2,7 @@
 import argparse
 import logging
 import numpy as np
+import traceback
 from uuid import uuid4
 import aiortc
 from dotenv import load_dotenv
@@ -272,7 +273,7 @@ async def main():
 
             await ai_connection.wait()
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Error: {e} - stacktrace: {traceback.format_exc()}")
     finally:
         # Delete created users
         print("Deleting created users...")
@@ -294,6 +295,6 @@ if __name__ == "__main__":
         help="Enable debug mode"
     )
     args = args_parser.parse_args()
-    if args.input_file != "" and os.path.exists(args.input_file):
+    if args.input_file and args.input_file != "" and os.path.exists(args.input_file):
         INPUT_FILE = args.input_file
     asyncio.run(main())

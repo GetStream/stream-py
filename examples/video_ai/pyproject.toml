@@ -24,3 +24,6 @@ record-audio = "main:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["main.py"]
+
+[tool.uv.sources]
+getstream = { workspace = true }
