@@ -113,11 +113,61 @@ jobs:
           uv add useful-moonshine-onnx@git+https://github.com/usefulsensors/moonshine.git#subdirectory=moonshine-onnx
           uv sync --all-packages --all-extras --dev --all-groups
 
-      - name: Build all plugin dists
+      - name: Check which plugins need updates
+        id: check_plugins
         run: |
-          uv build --all-packages -o dist-plugins --wheel --sdist
+          set -e
+          echo "Checking which plugins need to be updated..."
 
-      - name: Run plugin tests (local wheels, core from PyPI)
+          # Get list of all plugin directories
+          PLUGIN_DIRS=$(find getstream/plugins -name "pyproject.toml" -exec dirname {} \; | sort)
+          PACKAGES_TO_BUILD=""
+          PACKAGES_TO_TEST=""
+
+          for PLUGIN_DIR in $PLUGIN_DIRS; do
+            PLUGIN_NAME=$(basename "$PLUGIN_DIR")
+            PACKAGE_NAME="getstream-plugins-${PLUGIN_NAME}"
+
+            # Extract version from pyproject.toml
+            VERSION=$(python -c "import tomllib; f=open('$PLUGIN_DIR/pyproject.toml','rb'); data=tomllib.load(f); f.close(); print(data['project']['version'])")
+
+            echo "Checking $PACKAGE_NAME version $VERSION..."
+
+            # Check if this version exists on PyPI
+            if pip index versions --pre "$PACKAGE_NAME" | grep -q "$VERSION"; then
+              echo "Version $VERSION already exists for $PACKAGE_NAME – skipping."
+            else
+              echo "Version $VERSION is new for $PACKAGE_NAME – will build and test."
+              PACKAGES_TO_BUILD="$PACKAGES_TO_BUILD $PLUGIN_DIR"
+              PACKAGES_TO_TEST="$PACKAGES_TO_TEST getstream/plugins/$PLUGIN_NAME"
+            fi
+          done
+
+          echo "packages_to_build=$PACKAGES_TO_BUILD" >> "$GITHUB_OUTPUT"
+          echo "packages_to_test=$PACKAGES_TO_TEST" >> "$GITHUB_OUTPUT"
+
+          if [ -z "$PACKAGES_TO_BUILD" ]; then
+            echo "No plugins need updating."
+            echo "skip_build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip_build=false" >> "$GITHUB_OUTPUT"
+            echo "Plugins to build:$PACKAGES_TO_BUILD"
+            echo "Plugins to test:$PACKAGES_TO_TEST"
+          fi
+
+      - name: Build updated plugin dists only
+        if: steps.check_plugins.outputs.skip_build == 'false'
+        run: |
+          mkdir -p dist-plugins
+          PACKAGES_TO_BUILD="${{ steps.check_plugins.outputs.packages_to_build }}"
+
+          for PLUGIN_DIR in $PACKAGES_TO_BUILD; do
+            echo "Building $PLUGIN_DIR..."
+            uv build --package "$(basename "$PLUGIN_DIR")" -o dist-plugins --wheel --sdist
+          done
+
+      - name: Run plugin tests for updated packages only
+        if: steps.check_plugins.outputs.skip_build == 'false'
         env:
           STREAM_BASE_URL: ${{ vars.STREAM_BASE_URL }}
           STREAM_API_KEY: ${{ vars.STREAM_API_KEY }}
@@ -125,9 +175,18 @@ jobs:
         run: |
           # Install all built plugin wheels using uv
           uv pip install dist-plugins/*.whl
-          uv run pytest getstream/plugins
 
-      - name: Publish plugins to PyPI
+          # Only test the packages that were built
+          PACKAGES_TO_TEST="${{ steps.check_plugins.outputs.packages_to_test }}"
+
+          if [ -n "$PACKAGES_TO_TEST" ]; then
+            uv run pytest $PACKAGES_TO_TEST
+          else
+            echo "No packages to test."
+          fi
+
+      - name: Publish updated plugins to PyPI
+        if: steps.check_plugins.outputs.skip_build == 'false'
         id: publish_plugins
         env:
           TWINE_USERNAME: __token__
@@ -136,20 +195,20 @@ jobs:
           set -e
           uv pip install --upgrade twine
           UPLOAD_LIST=""
-          # Iterate over each built plugin wheel in dist-plugins/
+
+          # Upload all files in dist-plugins (these are already filtered to new versions only)
           for FILE in dist-plugins/getstream_plugins_*.whl; do
+            [ -f "$FILE" ] || continue  # Skip if no files match pattern
+
             BASENAME=$(basename "$FILE")
             PACKAGE_NAME=${BASENAME%%-*}
             VERSION=$(echo "$BASENAME" | cut -d'-' -f2)  # 1.5.0a2 etc.
-            echo "Checking if $PACKAGE_NAME version $VERSION exists on PyPI..."
-            if pip index versions --pre "$PACKAGE_NAME" | grep -q "$VERSION"; then
-              echo "Version $VERSION already exists for $PACKAGE_NAME – skipping upload."
-            else
-              echo "Uploading $BASENAME to PyPI."
-              twine upload "$FILE"
-              UPLOAD_LIST="$UPLOAD_LIST $PACKAGE_NAME==$VERSION"
-            fi
+
+            echo "Uploading $BASENAME to PyPI..."
+            twine upload "$FILE"
+            UPLOAD_LIST="$UPLOAD_LIST $PACKAGE_NAME==$VERSION"
           done
+
           # Expose the list (space-separated) as a step output
           echo "install_list=$UPLOAD_LIST" >> "$GITHUB_OUTPUT"
 
