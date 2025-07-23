@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 from aiortc.contrib.media import MediaPlayer
 from google.genai.types import Modality, MediaResolution, TurnCoverage, ActivityHandling
 
-from examples.utils import create_user
+from examples.utils import create_user, open_browser
 from getstream.plugins.silero.vad import SileroVAD
 from getstream.stream import Stream
 from getstream.video import rtc
@@ -17,14 +17,13 @@ from getstream.video import rtc
 import asyncio
 import os
 from pathlib import Path
-import webbrowser
-from urllib.parse import urlencode
 
 from google import genai
 from google.genai import types
 import websockets
 import pyaudio
 
+from getstream.video.call import Call
 from getstream.video.rtc.track_util import PcmData
 
 pya = pyaudio.PyAudio()
@@ -41,7 +40,7 @@ CHANNELS = 1
 RECEIVE_SAMPLE_RATE = 24000
 CHUNK_SIZE = 1024
 
-INPUT_FILE = "/Users/vivek/Desktop/darts/darts_coaching_4.mp4"
+INPUT_FILE = ""
 
 async def play_audio(audio_in_queue):
     """Play audio from the queue using PyAudio."""
@@ -142,7 +141,7 @@ async def on_track_added(track_id, track_type, user, target_user_id, ai_connecti
                     config=gemini_config,
             ) as session:
                 g_session = session
-                asyncio.create_task(gather_responses(session, Path("recordings/texts/analysis.txt"), audio_in_queue))
+                asyncio.create_task(gather_responses(session, Path("debug/analysis.txt"), audio_in_queue))
                 asyncio.create_task(play_audio(audio_in_queue))
                 # await session.send_realtime_input(text="This is the starting position")
                 if track_type == "video":
@@ -150,62 +149,50 @@ async def on_track_added(track_id, track_type, user, target_user_id, ai_connecti
                     while True:
                         try:
                             video_frame: aiortc.mediastreams.VideoFrame = await track.recv()
-
-                            # feed to smolVLM/openCV
                             if video_frame:
-                                print(f"Video frame received: {video_frame.time}")
+                                print(f"Video frame received: {video_frame.time} - {video_frame.format}")
                                 img = video_frame.to_image()
                                 if args.debug:
-                                    with open(f"recordings/texts/image_{frame_count}.png", "wb") as f:
+                                    with open(f"debug/image_{frame_count}.png", "wb") as f:
                                         img.save(f)
                                 await session.send_realtime_input(
                                     media=img,
                                 )
                                 frame_count += 1
-                            await asyncio.sleep(1)
+                            await asyncio.sleep(0.5)
                         except Exception as e:
                             print(f"Error receiving track: {e} - {type(e)}")
                             break
     else:
         print(f"Track not found: {track_id}")
 
-def open_browser(api_key: str, token: str, call_id: str) -> str:
-    """
-    Helper function to open browser with Stream call link.
-
-    Args:
-        api_key: Stream API key
-        token: JWT token for the user
-        call_id: ID of the call
-
-    Returns:
-        The URL that was opened
-    """
-    base_url = f"{os.getenv('EXAMPLE_BASE_URL')}/join/"
-    params = {"api_key": api_key, "token": token, "skip_lobby": "true"}
-
-    url = f"{base_url}{call_id}?{urlencode(params)}"
-    print(f"Opening browser to: {url}")
-
+async def publish_media(call: Call, user_id: str, player: MediaPlayer):
     try:
-        webbrowser.open(url)
-        print("Browser opened successfully!")
-    except Exception as e:
-        print(f"Failed to open browser: {e}")
-        print(f"Please manually open this URL: {url}")
+        async with await rtc.join(call, user_id) as connection:
+            await connection.add_tracks(audio=player.audio, video=player.video)
 
-    return url
+            await connection.wait()
+    except Exception as e:
+        print(f"Error: {e} - stacktrace: {traceback.format_exc()}")
 
 async def main():
-    # Load environment variables
-    load_dotenv()
-
-    if not os.path.exists(INPUT_FILE):
-        print(f"Input file not found: {INPUT_FILE}")
-        return None
 
     print(f"LLM Live Example")
     print("=" * 50)
+
+    # Load environment variables
+    load_dotenv()
+
+    input_media_player = None
+
+    if INPUT_FILE != "":
+        if not os.path.exists(INPUT_FILE):
+            print(f"Input file not found: {INPUT_FILE}")
+            return None
+        input_media_player = MediaPlayer(INPUT_FILE, loop=False)
+        if not (input_media_player.audio or input_media_player.video):
+            print("No audio/video track found in input file")
+            return None
 
     # Initialize Stream client
     client = Stream.from_env()
@@ -219,30 +206,22 @@ async def main():
     player_user_id = f"player-{str(uuid4())[:8]}"
     ai_user_id = f"ai-{str(uuid4())[:8]}"
 
-    create_user(client, viewer_user_id, "Viewer")
     create_user(client, player_user_id, "Player")
+    if input_media_player:
+        create_user(client, viewer_user_id, "Viewer")
+        token = client.create_token(viewer_user_id, expiration=3600)
+    else:
+        token = client.create_token(player_user_id, expiration=3600)
     create_user(client, ai_user_id, "AI Bot")
-
-    token = client.create_token(viewer_user_id, expiration=3600)
 
     # Create the call
     call.get_or_create(data={"created_by_id": "ai-example"})
 
     try:
-        player = MediaPlayer(INPUT_FILE, loop=False)
-        if not (player.audio or player.video):
-            print("No audio/video track found in input file")
-            return None
-
         # vad = SileroVAD()
 
         # Join all bots first and add their tracks
-        async with (
-            await rtc.join(call, player_user_id) as player_connection,
-            await rtc.join(call, ai_user_id) as ai_connection,
-        ):
-            open_browser(client.api_key, token, call_id)
-
+        async with await rtc.join(call, ai_user_id) as ai_connection:            
             # Create audio queue for playback and model responses
             audio_in_queue = asyncio.Queue()
             ai_connection.on(
@@ -266,10 +245,13 @@ async def main():
                             data=pcm.samples.astype(np.int16).tobytes(), mime_type="audio/pcm;rate=48000"
                         )
                     )
+            
+            open_browser(client.api_key, token, call_id)
 
-            await asyncio.sleep(3)
+            await asyncio.sleep(2)
 
-            await player_connection.add_tracks(audio=player.audio, video=player.video)
+            if input_media_player:
+                asyncio.create_task(publish_media(call, player_user_id, input_media_player))
 
             await ai_connection.wait()
     except Exception as e:
@@ -285,9 +267,11 @@ if __name__ == "__main__":
     # Parse command line arguments
     args_parser = argparse.ArgumentParser(description="Video AI Example")
     args_parser.add_argument(
-        "--input-file",
+        "-i", "--input-file",
         required = False,
-        help = "Input file with video and audio tracks to publish",
+        help = "Input file with video and audio tracks to publish. " \
+        "If an input file is specified, it will be used. Otherwise, " \
+        "the bot will wait till a video track is published",
     )
     args_parser.add_argument(
         "-d", '--debug',
@@ -297,4 +281,6 @@ if __name__ == "__main__":
     args = args_parser.parse_args()
     if args.input_file and args.input_file != "" and os.path.exists(args.input_file):
         INPUT_FILE = args.input_file
+    if args.debug:
+        os.makedirs("debug", exist_ok=True)
     asyncio.run(main())

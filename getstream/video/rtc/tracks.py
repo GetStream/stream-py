@@ -38,11 +38,11 @@ class TrackSubscriptionConfig:
     """Subscription rules for a participant role."""
 
     # Track types to subscribe to (audio by default)
-    track_types: List[int] = field(default_factory=lambda: [TrackType.TRACK_TYPE_VIDEO])
+    track_types: List[int] = field(default_factory=lambda: [TrackType.TRACK_TYPE_VIDEO, TrackType.TRACK_TYPE_AUDIO])
 
     # Preferred dimensions
     video_dimension: VideoDimension = field(
-        default_factory=lambda: VideoDimension(width=1280, height=720)
+        default_factory=lambda: VideoDimension(width=1920, height=1080)
     )
     screenshare_dimension: VideoDimension = field(
         default_factory=lambda: VideoDimension(width=1920, height=1080)

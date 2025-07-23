@@ -65,7 +65,7 @@ async def join(
     """
     # Return ConnectionManager instance that handles everything internally
     # when used as an async context manager and async iterator
-    return ConnectionManager(call=call, user_id=user_id, create=create, subscription_config=SubscriptionConfig(default=TrackSubscriptionConfig(track_types=[TrackType.TRACK_TYPE_VIDEO])), **kwargs)
+    return ConnectionManager(call=call, user_id=user_id, create=create, **kwargs)
 
 
 __all__ = [
