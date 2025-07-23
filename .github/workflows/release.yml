@@ -5,6 +5,12 @@ on:
     types: [closed]
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      python-version:
+        description: "Python version to use"
+        default: "3.12"
+        required: false
 
 permissions:
   contents: read
@@ -13,7 +19,7 @@ permissions:
 jobs:
   build-core:
     name: Build & Test Core SDK
-    if: github.event.pull_request.merged && startsWith(github.head_ref, 'release-')
+    if: (github.event.pull_request.merged && startsWith(github.head_ref, 'release-')) || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: ci
     outputs:

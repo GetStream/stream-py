@@ -38,3 +38,11 @@ Run the example:
 ```bash
 uv run main.py
 ```
+
+## Partial transcripts
+
+You can receive partial transcript events by setting `interim_results=True` in the `Deepgram` client instantiation.
+
+```python
+stt = DeepgramSTT(interim_results=True)
+```
