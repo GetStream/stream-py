@@ -13,4 +13,5 @@ dependencies = [
     "getstream-plugins-silero>=0.1.0",
     "python-dotenv>=1.1.1",
     "openai>=1.93.0",
+    "elevenlabs>=2.7.1",
 ]

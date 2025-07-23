@@ -170,13 +170,9 @@ def patch_realtime_connect(client):
     # Try to patch the AsyncRealtimeConnection.recv method directly
     try:
         # First, try to import the AsyncRealtimeConnection class
-        try:
-            from openai.resources.beta.realtime.realtime import (  # type: ignore
-                AsyncRealtimeConnection,
-            )
-        except ImportError:
-            # If that fails, try another possible location
-            from openai.types.beta.realtime import AsyncRealtimeConnection  # type: ignore
+        from openai.resources.beta.realtime.realtime import (  # type: ignore
+            AsyncRealtimeConnection,
+        )
 
         # Store the original recv method and replace it with our patched version
         if not hasattr(AsyncRealtimeConnection, "recv"):
@@ -195,18 +191,10 @@ def patch_realtime_connect(client):
 
     # Try to patch the connection manager's _prepare_url method
     try:
-        # First, try to import the AsyncRealtimeConnectionManager class
-        try:
-            from openai.resources.beta.realtime.realtime import (
-                AsyncRealtimeConnectionManager,
-            )
-        except ImportError:
-            # If that fails, try another possible location
-            from openai.types.beta.realtime.realtime import (  # type: ignore
-                AsyncRealtimeConnectionManager,
-            )
+        from openai.resources.beta.realtime.realtime import (
+            AsyncRealtimeConnectionManager,
+        )
 
-        # Check if it has the _prepare_url method
         if not hasattr(AsyncRealtimeConnectionManager, "_prepare_url"):
             # Look for methods that might be the prepare_url method
             prepare_url_candidates = [
@@ -245,15 +233,9 @@ def patch_realtime_connect(client):
     # Monkey patch the __aenter__ method of AsyncRealtimeConnectionManager to patch the connection's recv method
     try:
         # First, try to import the AsyncRealtimeConnectionManager class
-        try:
-            from openai.resources.beta.realtime.realtime import (
-                AsyncRealtimeConnectionManager,
-            )
-        except ImportError:
-            # If that fails, try another possible location
-            from openai.types.beta.realtime.realtime import (  # type: ignore
-                AsyncRealtimeConnectionManager,
-            )
+        from openai.resources.beta.realtime.realtime import (
+            AsyncRealtimeConnectionManager,
+        )
 
         # Store the original __aenter__ method
         original_aenter = AsyncRealtimeConnectionManager.__aenter__
