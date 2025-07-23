@@ -162,8 +162,10 @@ jobs:
           PACKAGES_TO_BUILD="${{ steps.check_plugins.outputs.packages_to_build }}"
 
           for PLUGIN_DIR in $PACKAGES_TO_BUILD; do
-            echo "Building $PLUGIN_DIR..."
-            uv build --package "$(basename "$PLUGIN_DIR")" -o dist-plugins --wheel --sdist
+            # Extract the actual package name from pyproject.toml
+            PACKAGE_NAME=$(uv run python -c "import tomllib; f=open('$PLUGIN_DIR/pyproject.toml','rb'); data=tomllib.load(f); f.close(); print(data['project']['name'])")
+            echo "Building $PLUGIN_DIR (package: $PACKAGE_NAME)..."
+            uv build --package "$PACKAGE_NAME" -o dist-plugins --wheel --sdist
           done
 
       - name: Run plugin tests for updated packages only
