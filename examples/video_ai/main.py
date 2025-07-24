@@ -25,6 +25,7 @@ import pyaudio
 
 from getstream.video.call import Call
 from getstream.video.rtc.track_util import PcmData
+from getstream.video.rtc.audio_track import AudioStreamTrack
 
 pya = pyaudio.PyAudio()
 
@@ -35,29 +36,22 @@ g_session = None
 logging.basicConfig(level=logging.ERROR)
 
 # Audio playback/recording constants
-FORMAT = pyaudio.paInt16
-CHANNELS = 1
 RECEIVE_SAMPLE_RATE = 24000
-CHUNK_SIZE = 1024
 
 INPUT_FILE = ""
 
-async def play_audio(audio_in_queue):
+async def play_audio(audio_in_queue, ai_connection):
     """Play audio from the queue using PyAudio."""
-    stream = await asyncio.to_thread(
-        pya.open,
-        format=FORMAT,
-        channels=CHANNELS,
-        rate=RECEIVE_SAMPLE_RATE,
-        output=True,
-    )
+    audio = AudioStreamTrack(framerate=RECEIVE_SAMPLE_RATE, stereo=False, format="s16")
+    await ai_connection.add_tracks(audio=audio)
     while True:
         bytestream = await audio_in_queue.get()
-        await asyncio.to_thread(stream.write, bytestream)
+        await audio.write(bytestream)
 
 async def gather_responses(session: "genai.aio.live.Session", output: Path, audio_in_queue):
     """Collect model responses and append parsed JSON to output list."""
-    buffer = ""
+    output_buffer = ""
+    input_buffer = ""
     try:
         while True:
             turn = session.receive()
@@ -65,14 +59,17 @@ async def gather_responses(session: "genai.aio.live.Session", output: Path, audi
                 if data := response.data:
                     audio_in_queue.put_nowait(data)
                     continue
+                if response.server_content.input_transcription:
+                    input_buffer += response.server_content.input_transcription.text
                 if response.server_content.output_transcription:
-                    buffer += response.server_content.output_transcription.text
-            print(f"\nTranscript: {buffer}")
+                    output_buffer += response.server_content.output_transcription.text
+            print(f"\nInput transcript: {input_buffer}")
+            print(f"\nOutput transcript: {output_buffer}")
             if args.debug:
                 with open(output, "a") as f:
-                    f.write(buffer)
+                    f.write(output_buffer)
                     f.write("\n")
-            buffer = ""
+            output_buffer = ""
             # while not audio_in_queue.empty():
             #     audio_in_queue.get_nowait()
             # await asyncio.sleep(1)
@@ -124,6 +121,7 @@ async def on_track_added(track_id, track_type, user, target_user_id, ai_connecti
                         target_tokens=12800
                     )
                 ),
+                input_audio_transcription=types.AudioTranscriptionConfig(),
                 output_audio_transcription=types.AudioTranscriptionConfig(),
                 realtime_input_config=types.RealtimeInputConfig(
                     turn_coverage=TurnCoverage.TURN_INCLUDES_ALL_INPUT,
@@ -142,7 +140,7 @@ async def on_track_added(track_id, track_type, user, target_user_id, ai_connecti
             ) as session:
                 g_session = session
                 asyncio.create_task(gather_responses(session, Path("debug/analysis.txt"), audio_in_queue))
-                asyncio.create_task(play_audio(audio_in_queue))
+                asyncio.create_task(play_audio(audio_in_queue, ai_connection))
                 # await session.send_realtime_input(text="This is the starting position")
                 if track_type == "video":
                     frame_count = 0
