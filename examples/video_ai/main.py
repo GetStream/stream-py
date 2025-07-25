@@ -217,7 +217,7 @@ async def main():
     call.get_or_create(data={"created_by_id": "ai-example"})
 
     try:
-        vad = SileroVAD()
+        # vad = SileroVAD()
 
         # Join all bots first and add their tracks
         async with await rtc.join(
@@ -238,12 +238,29 @@ async def main():
                 )
             )
 
+            # NOTE
+            # If an external VAD is required,  we need to handle the following
+            # "audio" event from ai_connection needs be fed to VAD
+            # "audio" event from VAD need to be fed to LLM
+            # It would look something like this -
+            # @ai_connection.on("audio")
+            # async def _on_pcm(pcm: PcmData, user):
+            #     if user.user_id == player_user_id:
+            #         await vad.process_audio(pcm, user)
             #
-            async def _on_pcm(pcm: PcmData, user):
-                if user.user_id == player_user_id:
-                    await vad.process_audio(pcm, user)
-
-            @vad.on("audio")
+            # @vad.on("audio")
+            # async def on_audio(pcm: PcmData, user):
+            #     if user.user_id == player_user_id and g_session:
+            #         await g_session.send_realtime_input(
+            #             audio=types.Blob(
+            #                 data=pcm.samples.astype(np.int16).tobytes(), mime_type="audio/pcm;rate=48000"
+            #             )
+            #         )
+            # Also need to configure correct LLM config. For Gemini in this case - 
+            # realtime_input_config=types.RealtimeInputConfig(
+            #     turn_coverage=TurnCoverage.TURN_INCLUDES_ONLY_ACTIVITY,
+            # )
+            # Without VAD, we directly rely on audio from ai_connection to send to LLM
             @ai_connection.on("audio")
             async def on_audio(pcm: PcmData, user):
                 if user.user_id == player_user_id and g_session:
