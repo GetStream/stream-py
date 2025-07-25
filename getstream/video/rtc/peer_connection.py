@@ -14,6 +14,7 @@ from getstream.video.rtc.connection_utils import (
     prepare_video_track_info,
 )
 from getstream.video.rtc.pb.stream.video.sfu.signal_rpc import signal_pb2
+from getstream.video.rtc.track_util import patch_sdp_offer
 from getstream.video.rtc.twirp_client_wrapper import SfuRpcError
 from getstream.video.rtc.pc import PublisherPeerConnection, SubscriberPeerConnection
 
@@ -46,11 +47,11 @@ class PeerConnectionManager:
 
             @self.subscriber_pc.on("track_added")
             async def on_track_added(track, user):
-                logger.info(f"Track added: {track.kind} track for user {user}")
                 """Handle track events from MediaRelay subscribers"""
                 await self.connection_manager.recording_manager.on_track_received(
                     track, user
                 )
+                self.connection_manager.emit("track_added", track._source.id, track.kind, user)
 
             logger.debug("Created new subscriber peer connection")
         else:
@@ -70,27 +71,21 @@ class PeerConnectionManager:
             logger.warning("No tracks provided to add_tracks")
             return
 
-        # Store original tracks for reconnection
-        original_audio = audio
-        original_video = video
-
-        track_infos = []
         relayed_audio = None
         relayed_video = None
         audio_relay = None
         video_relay = None
-
+        audio_info = None
+        video_info = None
+        track_infos = []
         if audio:
-            # Create individual MediaRelay for this audio track
+            audio_info = create_audio_track_info(audio)
             audio_relay = MediaRelay()
             relayed_audio = audio_relay.subscribe(audio)
-            track_infos.append(create_audio_track_info(relayed_audio))
         if video:
-            # Create individual MediaRelay for this video track
+            video_info, _ = await prepare_video_track_info(video)
             video_relay = MediaRelay()
             relayed_video = video_relay.subscribe(video)
-            video_info, relayed_video = await prepare_video_track_info(relayed_video)
-            track_infos.append(video_info)
 
         async with self.publisher_negotiation_lock:
             logger.info(f"Adding tracks: {len(track_infos)} tracks")
@@ -100,23 +95,35 @@ class PeerConnectionManager:
                     manager=self.connection_manager
                 )
 
-            if relayed_audio:
+            if audio:
                 self.publisher_pc.addTrack(relayed_audio)
                 logger.info(f"Added relayed audio track {relayed_audio.id}")
-            if relayed_video:
+            if video:
                 self.publisher_pc.addTrack(relayed_video)
                 logger.info(f"Added relayed video track {relayed_video.id}")
-
             offer = await self.publisher_pc.createOffer()
             await self.publisher_pc.setLocalDescription(offer)
 
             try:
+                patched_sdp = patch_sdp_offer(self.publisher_pc.localDescription.sdp)
+                parsed_sdp = aiortc.sdp.SessionDescription.parse(patched_sdp)
+                curr_mid = 0
+                for media in parsed_sdp.media:
+                    if audio and audio_info and media.kind == "audio" and audio.id == parsed_sdp.webrtc_track_id(media):
+                        audio_info.mid = str(curr_mid)
+                        track_infos.append(audio_info)
+                        curr_mid += 1
+                    if video and video_info and media.kind == "video" and relayed_video.id == parsed_sdp.webrtc_track_id(media):
+                        video_info.mid = str(curr_mid)
+                        track_infos.append(video_info)
+                logger.info(f"Patched SDP offer: {patched_sdp}")
+                logger.info(f"Tracks: {track_infos}")
                 response = (
                     await self.connection_manager.twirp_signaling_client.SetPublisher(
                         ctx=self.connection_manager.twirp_context,
                         request=signal_pb2.SetPublisherRequest(
                             session_id=self.connection_manager.session_id,
-                            sdp=self.publisher_pc.localDescription.sdp,
+                            sdp=patched_sdp,
                             tracks=track_infos,
                         ),
                         server_path_prefix="",
@@ -130,22 +137,22 @@ class PeerConnectionManager:
 
         # Register ORIGINAL tracks and their MediaRelay instances for reconnection
         track_info_index = 0
-        if original_audio:
+        if audio:
             # Store original track info with its MediaRelay for reconnection
             self.connection_manager.reconnector.reconnection_info.add_published_track(
-                original_audio.id,
-                original_audio,
+                audio.id,
+                audio,
                 track_infos[track_info_index],
-                audio_relay,
+                relayed_audio,
             )
             track_info_index += 1
-        if original_video:
+        if video:
             # Store original track info with its MediaRelay for reconnection
             self.connection_manager.reconnector.reconnection_info.add_published_track(
-                original_video.id,
-                original_video,
+                video.id,
+                video,
                 track_infos[track_info_index],
-                video_relay,
+                relayed_video,
             )
 
     async def restore_published_tracks(self):

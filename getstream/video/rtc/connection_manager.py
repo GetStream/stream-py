@@ -415,74 +415,6 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         """Get current recording status."""
         return self._recording_manager.get_recording_status()
 
-    async def subscribe_to_track(
-        self, track_id: str, config: Optional[SubscriptionConfig] = None
-    ):
-        """Subscribe to a specific track."""
-        await self._subscription_manager.subscribe_to_track(track_id, config)
-
-    async def unsubscribe_from_track(self, track_id: str):
-        """Unsubscribe from a specific track."""
-        await self._subscription_manager.unsubscribe_from_track(track_id)
-
-    async def update_track_subscription(
-        self, track_id: str, config: SubscriptionConfig
-    ):
-        """Update subscription configuration for a track."""
-        await self._subscription_manager.update_track_subscription(track_id, config)
-
-    async def get_track_subscription_status(self, track_id: str) -> dict:
-        """Get subscription status for a track."""
-        return await self._subscription_manager.get_track_subscription_status(track_id)
-
-    async def get_peer_connection_stats(self) -> dict:
-        """Get WebRTC peer connection statistics."""
-        return await self._peer_manager.get_stats()
-
-    async def restart_ice(self):
-        """Restart ICE negotiation."""
-        await self._peer_manager.restart_ice()
-
-    async def set_bandwidth_limit(self, limit_kbps: int):
-        """Set bandwidth limit for the peer connection."""
-        await self._peer_manager.set_bandwidth_limit(limit_kbps)
-
-    async def get_bandwidth_limit(self) -> int:
-        """Get current bandwidth limit."""
-        return await self._peer_manager.get_bandwidth_limit()
-
-    async def get_network_stats(self) -> dict:
-        """Get network statistics."""
-        return self._network_monitor.get_stats()
-
-    async def get_participants(self) -> list:
-        """Get list of current participants."""
-        return self._participants_state.get_participants()
-
-    async def get_participant(self, user_id: str) -> Optional[dict]:
-        """Get participant by user ID."""
-        return self._participants_state.get_participant(user_id)
-
-    async def get_participant_count(self) -> int:
-        """Get number of participants."""
-        return self._participants_state.get_participant_count()
-
-    async def get_participant_tracks(self, user_id: str) -> list:
-        """Get tracks published by a participant."""
-        return self._participants_state.get_participant_tracks(user_id)
-
-    async def get_track(self, track_id: str) -> Optional[dict]:
-        """Get track by ID."""
-        return self._participants_state.get_track(track_id)
-
-    async def get_tracks(self) -> list:
-        """Get all tracks in the call."""
-        return self._participants_state.get_tracks()
-
-    async def get_track_count(self) -> int:
-        """Get number of tracks."""
-        return self._participants_state.get_track_count()
-
     # WebSocket client helper
     @property
     def ws_client(self):
@@ -518,10 +450,6 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
     @property
     def subscriber_negotiation_lock(self):
         return self._peer_manager.subscriber_negotiation_lock
-
-    # ------------------------------------------------------------------
-    # Internal cleanup & restoration helpers referenced by other modules
-    # ------------------------------------------------------------------
 
     async def _cleanup_connections(
         self, ws_client=None, publisher_pc=None, subscriber_pc=None

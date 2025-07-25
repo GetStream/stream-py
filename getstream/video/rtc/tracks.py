@@ -28,21 +28,17 @@ from getstream.video.rtc.connection_utils import (
 
 logger = logging.getLogger(__name__)
 
-# ------------------------------------------------------------------
-# Track Subscription Configuration
-# ------------------------------------------------------------------
-
 
 @dataclass
 class TrackSubscriptionConfig:
     """Subscription rules for a participant role."""
 
     # Track types to subscribe to (audio by default)
-    track_types: List[int] = field(default_factory=lambda: [TrackType.TRACK_TYPE_AUDIO])
+    track_types: List[int] = field(default_factory=lambda: [])
 
     # Preferred dimensions
     video_dimension: VideoDimension = field(
-        default_factory=lambda: VideoDimension(width=1280, height=720)
+        default_factory=lambda: VideoDimension(width=1920, height=1080)
     )
     screenshare_dimension: VideoDimension = field(
         default_factory=lambda: VideoDimension(width=1920, height=1080)
@@ -68,127 +64,6 @@ class SubscriptionConfig:
     )
     role_filters: Dict[str, TrackSubscriptionConfig] = field(default_factory=dict)
     max_subscriptions: Optional[int] = None
-
-
-# ------------------------------------------------------------------
-# Track Publishing
-# ------------------------------------------------------------------
-
-
-class TrackPublisher:
-    """Handles local track publishing logic for a ConnectionManager instance."""
-
-    def __init__(
-        self, manager: "Any"
-    ) -> None:  # forward ref to avoid circular import typings
-        self._m = manager  # underlying ConnectionManager instance
-
-    async def add_tracks(
-        self,
-        audio: Optional[aiortc.mediastreams.MediaStreamTrack] = None,
-        video: Optional[aiortc.mediastreams.MediaStreamTrack] = None,
-    ):
-        """Publish audio / video tracks to the SFU."""
-
-        m = self._m  # shortcut
-        if not m.running:
-            logger.error("Connection manager not running. Call connect() first.")
-            return
-
-        if not audio and not video:
-            logger.warning("No tracks provided to add_tracks")
-            return
-
-        # Store original tracks for reconnection
-        original_audio = audio
-        original_video = video
-
-        track_infos: List[TrackInfo] = []
-        relayed_audio = None
-        relayed_video = None
-        audio_relay = None
-        video_relay = None
-
-        if audio:
-            audio_relay = MediaRelay()
-            relayed_audio = audio_relay.subscribe(audio)
-            track_infos.append(create_audio_track_info(relayed_audio))
-        if video:
-            video_relay = MediaRelay()
-            relayed_video = video_relay.subscribe(video)
-            video_info, relayed_video = await prepare_video_track_info(relayed_video)
-            track_infos.append(video_info)
-
-        async with m.publisher_negotiation_lock:
-            logger.info(f"Adding tracks: {len(track_infos)} tracks")
-
-            if m.publisher_pc is None:
-                from getstream.video.rtc.pc import (
-                    PublisherPeerConnection,
-                )  # local import to avoid cycle
-
-                m.publisher_pc = PublisherPeerConnection(manager=m)
-
-            if relayed_audio:
-                m.publisher_pc.addTrack(relayed_audio)
-                logger.info(f"Added relayed audio track {relayed_audio.id}")
-            if relayed_video:
-                m.publisher_pc.addTrack(relayed_video)
-                logger.info(f"Added relayed video track {relayed_video.id}")
-
-            offer = await m.publisher_pc.createOffer()
-            await m.publisher_pc.setLocalDescription(offer)
-
-            try:
-                response = await m.twirp_signaling_client.SetPublisher(
-                    ctx=m.twirp_context,
-                    request=signal_pb2.SetPublisherRequest(
-                        session_id=m.session_id,
-                        sdp=m.publisher_pc.localDescription.sdp,
-                        tracks=track_infos,
-                    ),
-                    server_path_prefix="",
-                )
-                await m.publisher_pc.handle_answer(response)
-                await m.publisher_pc.wait_for_connected()
-            except Exception as e:
-                logger.error(f"Failed to set publisher: {e}")
-                raise SfuConnectionError(f"Failed to set publisher: {e}")
-
-        # Register ORIGINAL tracks and their MediaRelay instances for reconnection
-        track_info_index = 0
-        if original_audio:
-            m._reconnection_info.add_published_track(
-                original_audio.id,
-                original_audio,
-                track_infos[track_info_index],
-                audio_relay,
-            )
-            track_info_index += 1
-        if original_video:
-            m._reconnection_info.add_published_track(
-                original_video.id,
-                original_video,
-                track_infos[track_info_index],
-                video_relay,
-            )
-
-    async def add_track(
-        self,
-        track: aiortc.mediastreams.MediaStreamTrack,
-        track_info: Optional[TrackInfo] = None,
-    ):
-        """Backward-compatible single track add."""
-        if track.kind == "video":
-            await self.add_tracks(video=track)
-        else:
-            await self.add_tracks(audio=track)
-
-
-# ------------------------------------------------------------------
-# Track Subscription Management
-# ------------------------------------------------------------------
-
 
 class SubscriptionManager(AsyncIOEventEmitter):
     """Encapsulates remote track subscription policy & SFU UpdateSubscriptions plumbing."""
@@ -322,7 +197,7 @@ class SubscriptionManager(AsyncIOEventEmitter):
                 ),
                 server_path_prefix="",
             )
-            logger.info(f"Updated subscriptions: {response}")
+            logger.debug(f"Updated subscriptions for req: {track_details} - {response}")
         except SfuRpcError as e:
             logger.error(f"Failed to update subscriptions SfuRpcError: {e}")
         except Exception as e:
@@ -330,6 +205,7 @@ class SubscriptionManager(AsyncIOEventEmitter):
 
     async def handle_track_published(self, event):
         """Handle new remote track publications from the SFU."""
+        logger.error(f"Handling track published: {event.user_id} - {event.session_id} - {event.type}")
         try:
             # Keep participants state up-to-date
             if hasattr(event, "participant"):
@@ -345,11 +221,13 @@ class SubscriptionManager(AsyncIOEventEmitter):
 
             track_type = getattr(event, "type", None)
             if track_type is None:
+                logger.error(f"Track type is None: {event}")
                 return
 
             if not self._should_subscribe(
                 getattr(event, "participant", None), track_type
             ):
+                logger.error(f"Not subscribing to track: {event}")
                 return
 
             # Check for duplicates & subscription limits
@@ -361,6 +239,7 @@ class SubscriptionManager(AsyncIOEventEmitter):
                     for d in self._subscribed_track_details
                 )
                 if already_subscribed:
+                    logger.error(f"Already subscribed to track: {event}")
                     return
 
                 if (
@@ -368,7 +247,7 @@ class SubscriptionManager(AsyncIOEventEmitter):
                     and len(self._subscribed_track_details)
                     >= self._subscription_config.max_subscriptions
                 ):
-                    logger.info(
+                    logger.error(
                         "Max subscription limit reached, skipping new track subscription"
                     )
                     return
@@ -380,6 +259,7 @@ class SubscriptionManager(AsyncIOEventEmitter):
                     event.session_id,
                 )
                 if detail is None:
+                    logger.error(f"Detail is None: {event}")
                     return
 
                 self._subscribed_track_details.append(detail)

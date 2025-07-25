@@ -18,10 +18,6 @@ class ParticipantsState(AsyncIOEventEmitter):
         self._participant_by_prefix = {}
         self._track_stream_mapping = {}
 
-    # ------------------------------------------------------------------
-    # Lookup helpers
-    # ------------------------------------------------------------------
-
     def get_user_from_track_id(self, track_id: str) -> Optional[models_pb2.Participant]:
         # Track IDs have format: participant_id:track_type:...
         # We can extract the participant prefix directly from the track ID
@@ -43,10 +39,6 @@ class ParticipantsState(AsyncIOEventEmitter):
     def get_stream_id_from_track_id(self, track_id: str) -> Optional[str]:
         return self._track_stream_mapping.get(track_id)
 
-    # ------------------------------------------------------------------
-    # Mutators
-    # ------------------------------------------------------------------
-
     def set_track_stream_mapping(self, mapping: dict):
         logger.debug(f"Setting track stream mapping: {mapping}")
         self._track_stream_mapping = mapping
@@ -57,10 +49,6 @@ class ParticipantsState(AsyncIOEventEmitter):
     def remove_participant(self, participant: models_pb2.Participant):
         if participant.track_lookup_prefix in self._participant_by_prefix:
             del self._participant_by_prefix[participant.track_lookup_prefix]
-
-    # ------------------------------------------------------------------
-    # Event handlers wired to SFU events
-    # ------------------------------------------------------------------
 
     async def _on_participant_joined(self, event: events_pb2.ParticipantJoined):
         self.add_participant(event.participant)
