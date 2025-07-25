@@ -79,13 +79,13 @@ class PeerConnectionManager:
         video_info = None
         track_infos = []
         if audio:
-            audio_info = create_audio_track_info(audio)
             audio_relay = MediaRelay()
             relayed_audio = audio_relay.subscribe(audio)
+            audio_info = create_audio_track_info(relayed_audio)
         if video:
-            video_info, _ = await prepare_video_track_info(video)
             video_relay = MediaRelay()
             relayed_video = video_relay.subscribe(video)
+            video_info, relayed_video = await prepare_video_track_info(relayed_video)
 
         async with self.publisher_negotiation_lock:
             logger.info(f"Adding tracks: {len(track_infos)} tracks")
@@ -109,7 +109,7 @@ class PeerConnectionManager:
                 parsed_sdp = aiortc.sdp.SessionDescription.parse(patched_sdp)
                 curr_mid = 0
                 for media in parsed_sdp.media:
-                    if audio and audio_info and media.kind == "audio" and audio.id == parsed_sdp.webrtc_track_id(media):
+                    if audio and audio_info and media.kind == "audio" and relayed_audio.id == parsed_sdp.webrtc_track_id(media):
                         audio_info.mid = str(curr_mid)
                         track_infos.append(audio_info)
                         curr_mid += 1
