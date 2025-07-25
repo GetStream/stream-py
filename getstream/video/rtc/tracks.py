@@ -38,7 +38,7 @@ class TrackSubscriptionConfig:
     """Subscription rules for a participant role."""
 
     # Track types to subscribe to (audio by default)
-    track_types: List[int] = field(default_factory=lambda: [TrackType.TRACK_TYPE_VIDEO, TrackType.TRACK_TYPE_AUDIO])
+    track_types: List[int] = field(default_factory=lambda: [])
 
     # Preferred dimensions
     video_dimension: VideoDimension = field(

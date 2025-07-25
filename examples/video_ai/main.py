@@ -21,15 +21,12 @@ from pathlib import Path
 from google import genai
 from google.genai import types
 import websockets
-import pyaudio
 
 from getstream.video.call import Call
 from getstream.video.rtc.track_util import PcmData
 from getstream.video.rtc.audio_track import AudioStreamTrack
+from getstream.video.rtc.tracks import SubscriptionConfig, TrackSubscriptionConfig, TrackType
 
-pya = pyaudio.PyAudio()
-
-initialised = False
 g_session = None
 
 # Configure logging for the Stream SDK
@@ -41,7 +38,6 @@ RECEIVE_SAMPLE_RATE = 24000
 INPUT_FILE = ""
 
 async def play_audio(audio_in_queue, ai_connection):
-    """Play audio from the queue using PyAudio."""
     audio = AudioStreamTrack(framerate=RECEIVE_SAMPLE_RATE, stereo=False, format="s16")
     await ai_connection.add_tracks(audio=audio)
     while True:
@@ -105,7 +101,7 @@ async def on_track_added(track_id, track_type, user, target_user_id, ai_connecti
         if not g_session:
             client = genai.Client(http_options={"api_version": "v1beta"}, api_key=os.getenv("GOOGLE_API_KEY"))
             PROMPT = """
-            You are a mini-golf expert. You will be given video frames from a mini-golf practice session at 2 frames per second of a single player.
+            You are a mini-golf expert.
             You will be given video frames from a mini-golf practice session at 2 frames per second of a single player.
             Proactively analyse the player posture, stance, swing, and overall form and providing coaching feedback to help them improve their game. 
             Your personality is that of a veteran coach but sarcastic so you can let some of that shine through as well. 
@@ -224,7 +220,15 @@ async def main():
         # vad = SileroVAD()
 
         # Join all bots first and add their tracks
-        async with await rtc.join(call, ai_user_id) as ai_connection:            
+        async with await rtc.join(
+            call,
+            ai_user_id,
+            subscription_config=SubscriptionConfig(
+                default=TrackSubscriptionConfig(track_types=[
+                    TrackType.TRACK_TYPE_VIDEO,
+                    # TrackType.TRACK_TYPE_SCREEN_SHARE,
+                ]
+            ))) as ai_connection:
             # Create audio queue for playback and model responses
             audio_in_queue = asyncio.Queue()
             ai_connection.on(

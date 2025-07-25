@@ -15,7 +15,6 @@ from getstream.video.rtc.models import (
 )
 from getstream.video.rtc.connection_utils import join_call_coordinator_request
 from getstream.video.rtc.connection_manager import ConnectionManager
-from getstream.video.rtc.tracks import SubscriptionConfig, TrackSubscriptionConfig, TrackType
 
 logger = logging.getLogger(__name__)
 

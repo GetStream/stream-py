@@ -41,7 +41,7 @@ def open_browser(api_key: str, token: str, call_id: str) -> str:
         The URL that was opened
     """
     base_url = f"{os.getenv('EXAMPLE_BASE_URL')}/join/"
-    params = {"api_key": api_key, "token": token, "skip_lobby": "true", "video_encoder": "h264", "bitrate": 5000}
+    params = {"api_key": api_key, "token": token, "skip_lobby": "true", "video_encoder": "h264", "bitrate": 100000, "w": 1920, "h": 1080}
 
     url = f"{base_url}{call_id}?{urlencode(params)}"
     print(f"Opening browser to: {url}")
