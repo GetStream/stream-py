@@ -15,8 +15,10 @@ Requirements:
     - Install dependencies: pip install -e .
 """
 
+import argparse
 import asyncio
 import logging
+import warnings
 import os
 import time
 import uuid
@@ -33,6 +35,11 @@ from getstream.models import CheckResponse, ModerationPayload
 from getstream.plugins.deepgram.stt import DeepgramSTT
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+
+# Suppress dataclasses_json missing value RuntimeWarnings
+warnings.filterwarnings(
+    "ignore", category=RuntimeWarning, module="dataclasses_json.core"
+)
 
 
 def create_user(client: Stream, id: str, name: str) -> None:
@@ -76,40 +83,7 @@ def open_browser(api_key: str, token: str, call_id: str) -> str:
     return url
 
 
-async def main():
-    """Main example function."""
-    print("🎙️  Stream + Deepgram Real-time Transcription Example")
-    print("=" * 55)
-
-    # Load environment variables
-    load_dotenv()
-
-    # Initialize Stream client from ENV
-    client = Stream.from_env()
-
-    # Create moderation config
-    config = {
-        "name": "default",
-        "description": "Default moderation config",
-        "enabled": True,
-        "rules": [
-            {
-                "name": "default",
-                "description": "Default moderation rule",
-                "enabled": True,
-                "action": "allow",
-                "conditions": [
-                    {
-                        "type": "text",
-                        "value": "test",
-                        "operator": "contains",
-                    }
-                ],
-            }
-        ],
-    }
-    client.moderation.upsert_config(config)
-
+async def main(client: Stream):
     # Create a unique call ID for this session
     call_id = str(uuid.uuid4())
     print(f"📞 Call ID: {call_id}")
@@ -162,29 +136,23 @@ async def main():
                 # ── Moderation check ────────────────────────────────────────
                 def _moderate():
                     """Run Stream Moderation synchronously inside a thread."""
-                    result: CheckResponse = client.moderation.check(
-                        config_key="default",  # your config
+                    # `client.moderation.check` returns a `StreamResponse[CheckResponse]`.
+                    # We unwrap the dataclass via the `.data` property so the caller
+                    # only deals with the actual `CheckResponse` instance.
+                    response = client.moderation.check(
+                        config_key="custom:python-ai-test",  # your moderation config key
                         entity_creator_id=user_info,
                         entity_id=str(uuid.uuid4()),
                         entity_type="transcript",
                         moderation_payload=ModerationPayload(texts=[text]),
                     )
-                    print(result)
-                    print(result.recommended_action)
-                    return result
+                    check: CheckResponse = response.data
+                    return check
 
                 moderation = await asyncio.to_thread(_moderate)
-                print(f"    └─ moderation action: {moderation.result.action}")
-
-            # @stt.on("partial_transcript")
-            # async def on_partial_transcript(text: str, user: any, metadata: dict):
-            #     if text.strip():  # Only show non-empty partial transcripts
-            #         user_info = (
-            #             user.name if user and hasattr(user, "name") else "unknown"
-            #         )
-            #         print(
-            #             f"    {user_info} (partial): {text}", end="\r"
-            #         )  # Overwrite line
+                print(
+                    f"    └─ moderation recommended action: {moderation.recommended_action} for transcript: {text}"
+                )
 
             @stt.on("error")
             async def on_stt_error(error):
@@ -207,5 +175,41 @@ async def main():
         print("🧹 Cleanup completed")
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Stream Real-time Audio Moderation Example"
+    )
+    parser.add_argument("--setup", action="store_true", help="Setup moderation config")
+    return parser.parse_args()
+
+
+def setup_moderation_config(client: Stream):
+    try:
+        # Create moderation config
+        config = {
+            "key": "custom:python-ai-test",
+            "ai_text_config": {
+                "rules": [
+                    {"label": "INSULT", "action": "flag"},
+                ],
+            },
+        }
+        client.moderation.upsert_config(**config)
+    except Exception as e:
+        print(f"Could not create moderation config. Error: {e}")
+
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    print("🎙️  Stream Real-time Audio Moderation Example")
+    print("=" * 55)
+
+    # Load environment variables
+    load_dotenv()
+
+    args = parse_args()
+    client = Stream.from_env()
+
+    if args.setup:
+        setup_moderation_config(client)
+
+    asyncio.run(main(client))
