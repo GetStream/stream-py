@@ -217,7 +217,7 @@ async def main():
     call.get_or_create(data={"created_by_id": "ai-example"})
 
     try:
-        # vad = SileroVAD()
+        vad = SileroVAD()
 
         # Join all bots first and add their tracks
         async with await rtc.join(
@@ -239,11 +239,11 @@ async def main():
             )
 
             #
-            # async def _on_pcm(pcm: PcmData, user):
-            #     if user.user_id == player_user_id:
-            #         await vad.process_audio(pcm, user)
+            async def _on_pcm(pcm: PcmData, user):
+                if user.user_id == player_user_id:
+                    await vad.process_audio(pcm, user)
 
-            # @vad.on("audio")
+            @vad.on("audio")
             @ai_connection.on("audio")
             async def on_audio(pcm: PcmData, user):
                 if user.user_id == player_user_id and g_session:
