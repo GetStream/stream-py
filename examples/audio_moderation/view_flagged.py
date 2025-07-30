@@ -17,4 +17,3 @@ if __name__ == "__main__":
         if item.recommended_action != "keep":
             print(f"Transcript: {item.moderation_payload.texts[0]}")
         print(f"Created at: {item.created_at.isoformat()}")
-        print(f"Status: {item.status}")
