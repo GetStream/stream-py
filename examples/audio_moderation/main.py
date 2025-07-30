@@ -83,6 +83,23 @@ def open_browser(api_key: str, token: str, call_id: str) -> str:
     return url
 
 
+def moderate(client: Stream, text: str, user_name: str) -> CheckResponse:
+    """Moderate a transcript using Stream Moderation.
+
+    This helper is synchronous on purpose so it can be executed in a background
+    thread with ``asyncio.to_thread`` from async code without blocking the event
+    loop.
+    """
+
+    return client.moderation.check(
+        config_key="custom:python-ai-test",  # your moderation config key
+        entity_creator_id=user_name,
+        entity_id=str(uuid.uuid4()),
+        entity_type="transcript",
+        moderation_payload=ModerationPayload(texts=[text]),
+    ).data
+
+
 async def main(client: Stream):
     # Create a unique call ID for this session
     call_id = str(uuid.uuid4())
@@ -133,23 +150,8 @@ async def main(client: Stream):
                 if metadata.get("confidence"):
                     print(f"    └─ confidence: {metadata['confidence']:.2%}")
 
-                # ── Moderation check ────────────────────────────────────────
-                def _moderate():
-                    """Run Stream Moderation synchronously inside a thread."""
-                    # `client.moderation.check` returns a `StreamResponse[CheckResponse]`.
-                    # We unwrap the dataclass via the `.data` property so the caller
-                    # only deals with the actual `CheckResponse` instance.
-                    response = client.moderation.check(
-                        config_key="custom:python-ai-test",  # your moderation config key
-                        entity_creator_id=user_info,
-                        entity_id=str(uuid.uuid4()),
-                        entity_type="transcript",
-                        moderation_payload=ModerationPayload(texts=[text]),
-                    )
-                    check: CheckResponse = response.data
-                    return check
-
-                moderation = await asyncio.to_thread(_moderate)
+                # Moderation check (executed in a background thread to avoid blocking)
+                moderation = await asyncio.to_thread(moderate, client, text, user_info)
                 print(
                     f"    └─ moderation recommended action: {moderation.recommended_action} for transcript: {text}"
                 )
