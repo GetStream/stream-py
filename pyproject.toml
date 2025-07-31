@@ -87,6 +87,7 @@ getstream-plugins-openai = { workspace = true }
 getstream-plugins-ten = { workspace = true }
 getstream-plugins-silero = { workspace = true }
 getstream-plugins-kokoro = { workspace = true }
+getstream-plugins-fal = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]

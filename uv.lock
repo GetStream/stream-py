@@ -15,6 +15,7 @@ members = [
     "getstream-plugins-common",
     "getstream-plugins-deepgram",
     "getstream-plugins-elevenlabs",
+    "getstream-plugins-fal",
     "getstream-plugins-kokoro",
     "getstream-plugins-moonshine",
     "getstream-plugins-openai",
@@ -880,6 +881,19 @@ wheels = [
 ]
 
 [[package]]
+name = "fal-client"
+version = "0.7.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httpx" },
+    { name = "httpx-sse" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/24/0b/f19815544307e969324906bc295d77c5a66bd5622d9555b9461bd5f99f6b/fal_client-0.7.0.tar.gz", hash = "sha256:9bf02cfc56ac8957159e8a959ef08c57e5618ceac2cff552f72043363b92a72f", size = 14659, upload-time = "2025-05-20T21:00:47.799Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/26/b0/4ede5c23e2e818ea7dad8dc0aedb97ea13f270c567f1c39c4d203c73408d/fal_client-0.7.0-py3-none-any.whl", hash = "sha256:f847ff76af5bd8f4f68541eff629481730656a374e6071dbb947a2ad9212f129", size = 10694, upload-time = "2025-05-20T21:00:46.528Z" },
+]
+
+[[package]]
 name = "filelock"
 version = "3.18.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1207,6 +1221,41 @@ requires-dist = [
 dev = [
     { name = "pytest", specifier = ">=8.4.1" },
     { name = "pytest-asyncio", specifier = ">=1.0.0" },
+]
+
+[[package]]
+name = "getstream-plugins-fal"
+version = "0.1.0"
+source = { editable = "getstream/plugins/fal" }
+dependencies = [
+    { name = "fal-client" },
+    { name = "getstream", extra = ["webrtc"] },
+    { name = "getstream-plugins-common" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "scipy" },
+    { name = "soundfile" },
+    { name = "torchaudio" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "fal-client", specifier = ">=0.7.0" },
+    { name = "getstream", extras = ["webrtc"], editable = "." },
+    { name = "getstream-plugins-common", editable = "getstream/plugins/common" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=8.4.1" },
+    { name = "pytest-asyncio", specifier = ">=1.0.0" },
+    { name = "scipy", specifier = ">=1.15.3,<1.16" },
+    { name = "soundfile", specifier = ">=0.13.1" },
+    { name = "torchaudio", specifier = ">=2.7.1" },
 ]
 
 [[package]]
