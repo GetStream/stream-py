@@ -1,50 +1,57 @@
-# Deepgram Speech-to-Text Plugin
+# FAL.ai Wizper Speech-to-Text and Translation Plugin
 
-A high-quality Speech-to-Text (STT) plugin for GetStream that uses the Deepgram API.
+High-quality real-time Speech-to-Text (STT) **and translation** for Stream, powered by
+[FAL.ai Wizper](https://fal.ai/models/wizper).
 
 ## Installation
 
 ```bash
-pip install getstream-plugins-deepgram
+pip install getstream-plugins-fal
 ```
 
-## Usage
+## Quick start
 
 ```python
-from getstream.plugins.deepgram import DeepgramSTT
+from getstream.plugins.fal import FalWizperSTT
 
-# Initialize with API key from environment variable
-stt = DeepgramSTT()
+# 1. Pure transcription (default)
+stt = FalWizperSTT()
 
-# Or specify API key directly
-stt = DeepgramSTT(api_key="your_deepgram_api_key")
+# 2. Translation to Spanish ("es")
+stt = FalWizperSTT(target_language="es")
 
-# Register event handlers
 @stt.on("transcript")
-def on_transcript(text, user, metadata):
-    print(f"Final transcript from {user}: {text}")
+async def on_transcript(text: str, user: dict, metadata: dict):
+    print(f"{user['name']} said → {text}")
 
-@stt.on("partial_transcript")
-def on_partial(text, user, metadata):
-    print(f"Partial transcript from {user}: {text}")
-
-# Process audio
+# Send Stream PCM audio frames to the plugin
 await stt.process_audio(pcm_data)
 
-# When done
+# Close when finished
 await stt.close()
 ```
 
-## Configuration Options
+The plugin emits the standard Stream STT events:
 
-- `api_key`: Deepgram API key (default: reads from DEEPGRAM_API_KEY environment variable)
-- `options`: Deepgram LiveOptions for configuring the transcription
-- `sample_rate`: Sample rate of the audio in Hz (default: 16000)
-- `language`: Language code for transcription (default: "en-US")
-- `keep_alive_interval`: Interval in seconds to send keep-alive messages (default: 5.0)
+* `transcript` – final, high-confidence text
+* `error` – if Wizper returns a failure
+
+## Configuration options
+
+| Parameter          | Type   | Default     | Description                                  |
+|--------------------|--------|-------------|----------------------------------------------|
+| `target_language`  | str\|None | `None`      | ISO-639-1 code used when `task="translate"`   |
+| `sample_rate`      | int    | `48000`     | Incoming PCM sample rate (Hz)                |
 
 ## Requirements
 
-- Python 3.10+
-- deepgram-sdk>=4.5.0
-- numpy>=2.2.6,<2.3
+* Python 3.10+
+
+## Why Wizper?
+
+Wizper is FAL.ai’s hosted version of Whisper v3 that streams results in
+real-time. This means you get:
+
+* Accurate multilingual transcription out-of-the-box
+* Fast first-word latency suitable for live calls
+* Optional on-the-fly translation to 100+ languages

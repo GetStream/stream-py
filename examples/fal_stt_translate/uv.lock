@@ -577,7 +577,8 @@ wheels = [
 
 [[package]]
 name = "getstream"
-source = { editable = "../../" }
+version = "2.3.0a4"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
     { name = "dataclasses-json" },
@@ -590,6 +591,9 @@ dependencies = [
     { name = "pytest-timeout" },
     { name = "python-dateutil" },
     { name = "tenacity" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f0/bd/ace1598d48dc593fb0c6a72024e3ebb980f385018e9a0ab19f4bf4bc6c30/getstream-2.3.0a4-py3-none-any.whl", hash = "sha256:f2afc051887c958bf6a587972cd233ccc778a6e58acc2d18f506074d9a402179", size = 262801, upload-time = "2025-08-01T14:32:32.641Z" },
 ]
 
 [package.optional-dependencies]
@@ -609,88 +613,28 @@ webrtc = [
     { name = "websockets" },
 ]
 
-[package.metadata]
-requires-dist = [
-    { name = "aiohttp", specifier = ">=3.11.16" },
-    { name = "aiortc", marker = "extra == 'webrtc'", specifier = ">=1.10.1" },
-    { name = "dataclasses-json", specifier = ">=0.6.0,<0.7" },
-    { name = "httpx", specifier = ">=0.28.1" },
-    { name = "marshmallow", specifier = ">=3.21.0,<4" },
-    { name = "numpy", marker = "extra == 'webrtc'", specifier = ">=2.2.6,<2.3" },
-    { name = "openai", extras = ["realtime"], marker = "extra == 'openai-realtime'", specifier = ">=1.93.0" },
-    { name = "ping3", specifier = ">=4.0.8" },
-    { name = "protobuf", marker = "extra == 'webrtc'", specifier = ">=4.25.1" },
-    { name = "pydantic", specifier = ">=2.10.6" },
-    { name = "pydantic-settings", specifier = ">=2.9.1" },
-    { name = "pyee", marker = "extra == 'webrtc'", specifier = ">=13.0.0" },
-    { name = "pyjwt", specifier = ">=2.8.0,<3" },
-    { name = "pytest-timeout", specifier = ">=2.3.1" },
-    { name = "python-dateutil", specifier = ">=2.8.2" },
-    { name = "python-dateutil", marker = "extra == 'webrtc'", specifier = ">=2.8.2" },
-    { name = "scipy", marker = "extra == 'webrtc'", specifier = ">=1.15.3,<1.16" },
-    { name = "soundfile", marker = "extra == 'webrtc'", specifier = ">=0.13.1" },
-    { name = "structlog", marker = "extra == 'webrtc'", specifier = "<24" },
-    { name = "tenacity", specifier = ">=9.1.2" },
-    { name = "torch", marker = "extra == 'webrtc'", specifier = ">=2.7.1" },
-    { name = "torchaudio", marker = "extra == 'webrtc'", specifier = ">=2.7.1" },
-    { name = "twirp", marker = "extra == 'webrtc'", specifier = ">=0.0.7" },
-    { name = "websocket-client", marker = "extra == 'webrtc'", specifier = ">=1.8.0" },
-    { name = "websockets", marker = "extra == 'webrtc'", specifier = ">=15.0.1,<16" },
-]
-provides-extras = ["openai-realtime", "webrtc"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "grpcio-tools", specifier = ">=1.73.1" },
-    { name = "mypy-protobuf", specifier = "==3.5.0" },
-    { name = "pre-commit", specifier = ">=4.2.0" },
-    { name = "pytest", specifier = ">=8.4.1" },
-    { name = "pytest-asyncio", specifier = ">=1.0.0" },
-    { name = "pytest-timeout", specifier = ">=2.4.0" },
-    { name = "python-dateutil", specifier = ">=2.8.2,<3" },
-    { name = "python-dotenv", specifier = ">=1.1.1,<2" },
-    { name = "ruff", specifier = ">=0.12.1" },
-]
-
 [[package]]
 name = "getstream-plugins-common"
 version = "0.1.0"
-source = { editable = "../../getstream/plugins/common" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "getstream", extra = ["webrtc"] },
 ]
-
-[package.metadata]
-requires-dist = [{ name = "getstream", extras = ["webrtc"], editable = "../../" }]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "pytest", specifier = ">=8.4.1" },
-    { name = "pytest-asyncio", specifier = ">=1.0.0" },
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/cc/4d/5db28256b3d570259cec735deb23e1a2e49cf7c16f518a37a511fcff7f9d/getstream_plugins_common-0.1.0-py3-none-any.whl", hash = "sha256:9688aab298b2d07e124216843b72c92960619f9568b2d4d8571bff8906404fb4", size = 14085, upload-time = "2025-07-04T13:42:31.11Z" },
 ]
 
 [[package]]
 name = "getstream-plugins-fal"
 version = "0.1.0"
-source = { editable = "../../getstream/plugins/fal" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "fal-client" },
     { name = "getstream", extra = ["webrtc"] },
     { name = "getstream-plugins-common" },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "fal-client", specifier = ">=0.7.0" },
-    { name = "getstream", extras = ["webrtc"], editable = "../../" },
-    { name = "getstream-plugins-common", editable = "../../getstream/plugins/common" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "numpy", specifier = ">=2.2.6,<2.3" },
-    { name = "pytest", specifier = ">=8.4.1" },
-    { name = "pytest-asyncio", specifier = ">=1.0.0" },
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c9/2c/e8637eec7bf4a03395d0678c816bed101f6c85e137b1321ff41583752f69/getstream_plugins_fal-0.1.0-py3-none-any.whl", hash = "sha256:0bf6b51da6589e9a56f10d6455202b51abc7df342e767c4435ec16af7ea0fb94", size = 6992, upload-time = "2025-08-01T14:34:25.161Z" },
 ]
 
 [[package]]
@@ -705,8 +649,8 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "getstream", extras = ["webrtc"], editable = "../../" },
-    { name = "getstream-plugins-fal", editable = "../../getstream/plugins/fal" },
+    { name = "getstream", extras = ["webrtc"], specifier = ">=2.3.0a4" },
+    { name = "getstream-plugins-fal", specifier = ">=0.1.0" },
     { name = "python-dotenv", specifier = ">=1.1.1" },
 ]
 

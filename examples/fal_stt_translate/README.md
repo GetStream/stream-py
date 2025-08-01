@@ -4,8 +4,6 @@ This sample shows how to build a real-time transcription and translation bot tha
 Stream video call and converts speech to text (or translates it) using
 [FAL.ai](https://fal.ai) — specifically the **Wizper** Speech-to-Text model.
 
----
-
 ## What it does
 
 - Creates a **transcription bot** that automatically joins a Stream video call
@@ -14,8 +12,6 @@ Stream video call and converts speech to text (or translates it) using
 - Prints final transcripts (optionally translated) in the terminal with
   timestamps and confidence values
 
----
-
 ## Prerequisites
 
 1. **Stream account** – Get your API key & secret from the
@@ -23,8 +19,6 @@ Stream video call and converts speech to text (or translates it) using
 2. **FAL.ai account** – Create an API key from the
    [FAL Console](https://app.fal.ai)
 3. **Python 3.10+**
-
----
 
 ## Installation
 
@@ -38,8 +32,6 @@ cd examples/stt_fal_transcription
 uv sync
 ```
 
----
-
 ## Environment variables
 
 Copy `env.example` to `.env` and fill in your credentials:
@@ -52,8 +44,6 @@ FAL_KEY=<your fal api key>
 # Optional – where the browser should open the call link
 EXAMPLE_BASE_URL=https://getstream.io/video/examples
 ```
-
----
 
 ## Usage
 
@@ -71,8 +61,6 @@ What happens next:
 4. Completed speech turns are transcribed (or translated) and printed.
 
 Press <kbd>Ctrl</kbd>+<kbd>C</kbd> to stop the bot.
-
----
 
 ## Customising the STT behaviour
 
@@ -95,8 +83,6 @@ stt = FalWizperSTT(task="translate", target_language="es")
 
 Partial transcripts are not currently supported by Wizper; callbacks fire when
 FAL.ai marks a segment as complete.
-
----
 
 ## Troubleshooting
 
