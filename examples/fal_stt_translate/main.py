@@ -30,6 +30,7 @@ from getstream.stream import Stream
 from getstream.video import rtc
 from getstream.video.rtc.track_util import PcmData
 from getstream.plugins.fal.stt import FalWizperSTT
+from getstream.plugins.silero.vad import SileroVAD
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
@@ -77,7 +78,7 @@ def open_browser(api_key: str, token: str, call_id: str) -> str:
 
 async def main():
     """Main example function."""
-    print("🎙️  Stream + Deepgram Real-time Transcription Example")
+    print("🎙️  Stream + Fal Real-time Transcription Example")
     print("=" * 55)
 
     # Load environment variables
@@ -110,21 +111,30 @@ async def main():
     open_browser(client.api_key, user_token, call_id)
 
     print("\n🤖 Starting transcription bot...")
-    print("The bot will join the call and transcribe all audio it receives.")
+    print(
+        "The bot will join the call and transcribe all audio it receives, optionally translating it to French."
+    )
     print("Join the call in your browser and speak to see transcriptions appear here!")
     print("\nPress Ctrl+C to stop the transcription bot.\n")
 
-    # Initialize Deepgram STT (api_key comes from .env)
-    stt = FalWizperSTT(task="transcribe")
+    # Initialize FAL.ai STT (api_key comes from .env)
+    stt = FalWizperSTT(target_language="fr")
+    vad = SileroVAD()
 
     try:
         async with await rtc.join(call, bot_user_id) as connection:
-            print(f"✅ Bot joined call: {call_id}")
-
-            # Set up transcription handlers
+            # Forward audio frames to the VAD engine
             @connection.on("audio")
-            async def on_audio(pcm: PcmData, user):
-                # Process audio through Deepgram STT
+            async def _on_pcm(pcm: PcmData, user):
+                await vad.process_audio(pcm, user)
+
+            # Complete speech turns
+            @vad.on("audio")  # type: ignore[arg-type]
+            async def on_speech_detected(pcm: PcmData, user):
+                print(
+                    f"{time.time()} Speech detected from user: {user} duration {pcm.duration}"
+                )
+                # Process audio through FAL.ai STT
                 await stt.process_audio(pcm, user)
 
             @stt.on("transcript")

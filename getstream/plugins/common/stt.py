@@ -39,7 +39,6 @@ class STT(AsyncIOEventEmitter, abc.ABC):
     def __init__(
         self,
         sample_rate: int = 16000,
-        language: str = "en-US",
         *,
         loop: Optional[AbstractEventLoop] = None,
     ):
@@ -48,7 +47,6 @@ class STT(AsyncIOEventEmitter, abc.ABC):
 
         Args:
             sample_rate: The sample rate of the audio to process, in Hz.
-            language: The language code to use for transcription.
             loop: The asyncio event loop that should be used by the underlying
                   ``AsyncIOEventEmitter`` when scheduling coroutine callbacks.
 
@@ -80,14 +78,12 @@ class STT(AsyncIOEventEmitter, abc.ABC):
         super().__init__(loop=_loop)
         self._track = None
         self.sample_rate = sample_rate
-        self.language = language
         self._is_closed = False
 
         logger.debug(
             "Initialized STT base class",
             extra={
                 "sample_rate": sample_rate,
-                "language": language,
                 "loop": str(_loop),
             },
         )

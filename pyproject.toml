@@ -47,6 +47,7 @@ webrtc = [
     "websockets>=15.0.1,<16",
     "websocket-client>=1.8.0",
     "python-dateutil>=2.8.2",
+    "structlog<24",
 ]
 
 [dependency-groups]

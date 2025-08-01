@@ -15,6 +15,18 @@ logger = logging.getLogger(__name__)
 
 
 class PcmData(NamedTuple):
+    """
+    A named tuple representing PCM audio data.
+
+    Attributes:
+        format: The format of the audio data.
+        sample_rate: The sample rate of the audio data.
+        samples: The audio samples as a numpy array.
+        pts: The presentation timestamp of the audio data.
+        dts: The decode timestamp of the audio data.
+        time_base: The time base for converting timestamps to seconds.
+    """
+
     format: str
     sample_rate: int
     samples: NDArray
@@ -126,6 +138,7 @@ def patch_sdp_offer(sdp: str) -> str:
 
     # Convert back to string
     return str(session)
+
 
 def fix_sdp_msid_semantic(sdp: str) -> str:
     """

@@ -10,9 +10,9 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 dependencies = [
-    "getstream[webrtc]",
-    "getstream-plugins-common",
-    "fal-client>=0.7.0"
+    "getstream[webrtc]>=2.3.0a4",
+    "getstream-plugins-common>=0.1.0",
+    "fal-client>=0.7.0",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -26,7 +26,5 @@ getstream-plugins-common = { workspace = true }
 dev = [
     "pytest>=8.4.1",
     "pytest-asyncio>=1.0.0",
-    "soundfile>=0.13.1",
-    "torchaudio>=2.7.1",
-    "scipy>=1.15.3,<1.16",
+    "numpy>=2.2.6,<2.3",
 ]
