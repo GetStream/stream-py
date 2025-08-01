@@ -4,14 +4,14 @@ build-backend = "hatchling.build"
 
 [project]
 name = "getstream-plugins-moonshine"
-version = "0.1.0"
+version = "0.1.1"
 description = "Moonshine plugin for GetStream"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 dependencies = [
-    "getstream[webrtc]",
-    "getstream-plugins-common",
+    "getstream[webrtc]>=2.3.0a4",
+    "getstream-plugins-common>=0.1.1",
     "onnxruntime>=1.22.0",
     "numpy>=2.2.6,<2.3",
     "soundfile>=0.13.1",

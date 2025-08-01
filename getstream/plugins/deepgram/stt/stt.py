@@ -62,7 +62,7 @@ class DeepgramSTT(STT):
                                 Default is 5.0 seconds (recommended value by Deepgram)
             interim_results: Whether to emit interim results (partial transcripts with the partial_transcript event).
         """
-        super().__init__(sample_rate=sample_rate, language=language)
+        super().__init__(sample_rate=sample_rate)
 
         # Check if deepgram is available
         if not _deepgram_available:

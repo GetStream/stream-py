@@ -57,7 +57,6 @@ class MoonshineSTT(STT):
         self,
         model_name: str = "moonshine/base",
         sample_rate: int = 16000,
-        language: str = "en-US",
         min_audio_length_ms: int = 100,
         target_dbfs: float = -26.0,
     ):
@@ -67,11 +66,10 @@ class MoonshineSTT(STT):
         Args:
             model_name: Moonshine model to use ("moonshine/tiny" or "moonshine/base")
             sample_rate: Sample rate of the audio in Hz (default: 16000, Moonshine's native rate)
-            language: Language code for transcription (currently only "en-US" supported)
             min_audio_length_ms: Minimum audio length required for transcription
             target_dbfs: Target RMS level in dBFS for audio normalization (default: -26.0, Moonshine's optimal level)
         """
-        super().__init__(sample_rate=sample_rate, language=language)
+        super().__init__(sample_rate=sample_rate)
 
         # Check if moonshine_onnx is available
         if not MOONSHINE_AVAILABLE:

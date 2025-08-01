@@ -1138,7 +1138,7 @@ dev = [
 
 [[package]]
 name = "getstream-plugins-common"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "getstream/plugins/common" }
 dependencies = [
     { name = "getstream", extra = ["webrtc"] },
@@ -1161,7 +1161,7 @@ dev = [
 
 [[package]]
 name = "getstream-plugins-deepgram"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "getstream/plugins/deepgram" }
 dependencies = [
     { name = "deepgram-sdk" },
@@ -1227,7 +1227,7 @@ dev = [
 
 [[package]]
 name = "getstream-plugins-fal"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "getstream/plugins/fal" }
 dependencies = [
     { name = "fal-client" },
@@ -1291,7 +1291,7 @@ dev = [
 
 [[package]]
 name = "getstream-plugins-moonshine"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "getstream/plugins/moonshine" }
 dependencies = [
     { name = "getstream", extra = ["webrtc"] },
