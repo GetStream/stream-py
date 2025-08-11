@@ -66,6 +66,7 @@ dev = [
 [tool.uv.workspace]
 members = [
     "getstream/plugins/*",
+    "examples/test",
 ]
  exclude = [
     "**/__pycache__",
@@ -89,18 +90,18 @@ path = "getstream/version.py"
 [tool.hatch.build.targets.wheel]
 packages = ["getstream"]
 exclude = [
-  "getstream/plugins/**",
-  "tests/**",
-  "scripts/**",
+  "examples/**",
   "protocol/**",
+  "scripts/**",
+  "tests/**",
 ]
 
 [tool.hatch.build.targets.sdist]
 exclude = [
-  "getstream/plugins/**",
-  "tests/**",
-  "scripts/**",
+  "examples/**",
   "protocol/**",
+  "scripts/**",
+  "tests/**",
 ]
 
 [tool.ruff]
