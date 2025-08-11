@@ -79,17 +79,6 @@ members = [
     "examples/",
  ]
 
-[tool.uv.sources]
-getstream-plugins-deepgram = { workspace = true }
-getstream-plugins-moonshine = { workspace = true }
-getstream-plugins-elevenlabs = { workspace = true }
-getstream-plugins-cartesia = { workspace = true }
-getstream-plugins-openai = { workspace = true }
-getstream-plugins-ten = { workspace = true }
-getstream-plugins-silero = { workspace = true }
-getstream-plugins-kokoro = { workspace = true }
-getstream-plugins-fal = { workspace = true }
-
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
@@ -99,6 +88,20 @@ path = "getstream/version.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["getstream"]
+exclude = [
+  "getstream/plugins/**",
+  "tests/**",
+  "scripts/**",
+  "protocol/**",
+]
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+  "getstream/plugins/**",
+  "tests/**",
+  "scripts/**",
+  "protocol/**",
+]
 
 [tool.ruff]
 exclude = [

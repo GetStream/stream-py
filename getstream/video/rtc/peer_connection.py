@@ -51,7 +51,9 @@ class PeerConnectionManager:
                 await self.connection_manager.recording_manager.on_track_received(
                     track, user
                 )
-                self.connection_manager.emit("track_added", track._source.id, track.kind, user)
+                self.connection_manager.emit(
+                    "track_added", track._source.id, track.kind, user
+                )
 
             logger.debug("Created new subscriber peer connection")
         else:
@@ -109,11 +111,21 @@ class PeerConnectionManager:
                 parsed_sdp = aiortc.sdp.SessionDescription.parse(patched_sdp)
                 curr_mid = 0
                 for media in parsed_sdp.media:
-                    if audio and audio_info and media.kind == "audio" and relayed_audio.id == parsed_sdp.webrtc_track_id(media):
+                    if (
+                        audio
+                        and audio_info
+                        and media.kind == "audio"
+                        and relayed_audio.id == parsed_sdp.webrtc_track_id(media)
+                    ):
                         audio_info.mid = str(curr_mid)
                         track_infos.append(audio_info)
                         curr_mid += 1
-                    if video and video_info and media.kind == "video" and relayed_video.id == parsed_sdp.webrtc_track_id(media):
+                    if (
+                        video
+                        and video_info
+                        and media.kind == "video"
+                        and relayed_video.id == parsed_sdp.webrtc_track_id(media)
+                    ):
                         video_info.mid = str(curr_mid)
                         track_infos.append(video_info)
                 logger.info(f"Patched SDP offer: {patched_sdp}")

@@ -8,23 +8,15 @@ import logging
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Any
 
-import aiortc
-from aiortc.contrib.media import MediaRelay
 from pyee.asyncio import AsyncIOEventEmitter
 
 from getstream.video.rtc.pb.stream.video.sfu.models.models_pb2 import VideoDimension
 from getstream.video.rtc.pb.stream.video.sfu.models.models_pb2 import (
-    TrackInfo,
     TrackType,
 )
 from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
 from getstream.video.rtc.pb.stream.video.sfu.signal_rpc import signal_pb2
 from getstream.video.rtc.twirp_client_wrapper import SfuRpcError
-from getstream.video.rtc.connection_utils import (
-    create_audio_track_info,
-    prepare_video_track_info,
-    SfuConnectionError,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +56,7 @@ class SubscriptionConfig:
     )
     role_filters: Dict[str, TrackSubscriptionConfig] = field(default_factory=dict)
     max_subscriptions: Optional[int] = None
+
 
 class SubscriptionManager(AsyncIOEventEmitter):
     """Encapsulates remote track subscription policy & SFU UpdateSubscriptions plumbing."""
@@ -205,7 +198,9 @@ class SubscriptionManager(AsyncIOEventEmitter):
 
     async def handle_track_published(self, event):
         """Handle new remote track publications from the SFU."""
-        logger.error(f"Handling track published: {event.user_id} - {event.session_id} - {event.type}")
+        logger.error(
+            f"Handling track published: {event.user_id} - {event.session_id} - {event.type}"
+        )
         try:
             # Keep participants state up-to-date
             if hasattr(event, "participant"):

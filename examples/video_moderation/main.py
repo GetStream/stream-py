@@ -138,6 +138,8 @@ async def main(client: Stream):
         async with await rtc.join(call, bot_user_id) as connection:
             print(f"✅ Bot joined call: {call_id}")
 
+            call.start_frame_recording()
+
             # Set up transcription handler
             @connection.on("audio")
             async def on_audio(pcm: PcmData, user):

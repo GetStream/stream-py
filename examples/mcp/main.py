@@ -86,10 +86,6 @@ async def run_bot(call: Call, bot_user_id: str):
 
                 @stt.on("transcript")
                 async def on_transcript(text: str, user: any, metadata: dict):
-                    """Handle **final** transcripts only."""
-                    if not metadata.get("is_final", False):
-                        return
-
                     logging.info("🗣️  %s: %s", user or "unknown", text)
 
                     # Ask the LLM; it may decide to call an MCP tool.
