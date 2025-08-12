@@ -77,7 +77,7 @@ async def run_bot(call: Call, bot_user_id: str):
             await connection.add_tracks(audio=track)
             logging.info("🤖 Bot joined the call and is now listening")
 
-            async with fastmcp.Client("server.py") as mcp_client:
+            async with fastmcp.Client("transport.py") as mcp_client:
 
                 @connection.on("audio")
                 async def on_audio(pcm: PcmData, user):

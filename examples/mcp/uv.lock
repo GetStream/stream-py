@@ -731,7 +731,7 @@ wheels = [
 
 [[package]]
 name = "getstream"
-version = "2.3.0a4"
+version = "2.3.0a5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -747,7 +747,7 @@ dependencies = [
     { name = "tenacity" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f0/bd/ace1598d48dc593fb0c6a72024e3ebb980f385018e9a0ab19f4bf4bc6c30/getstream-2.3.0a4-py3-none-any.whl", hash = "sha256:f2afc051887c958bf6a587972cd233ccc778a6e58acc2d18f506074d9a402179", size = 262801, upload-time = "2025-08-01T14:32:32.641Z" },
+    { url = "https://files.pythonhosted.org/packages/a9/69/fe478813a1e7fb35ae77d4dde08d2e989fd243fb0d80e4acad5809cd6c90/getstream-2.3.0a5-py3-none-any.whl", hash = "sha256:740072caebbaf0238d870a0a820569a947a20c4c5162f39645307bdd26c814dd", size = 262988, upload-time = "2025-08-11T18:34:16.885Z" },
 ]
 
 [package.optional-dependencies]
@@ -774,7 +774,6 @@ source = { virtual = "." }
 dependencies = [
     { name = "fastmcp" },
     { name = "getstream", extra = ["webrtc"] },
-    { name = "getstream-plugins-common" },
     { name = "getstream-plugins-deepgram" },
     { name = "getstream-plugins-elevenlabs" },
     { name = "httpx" },
@@ -785,8 +784,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "fastmcp", specifier = ">=2.10.1" },
-    { name = "getstream", extras = ["webrtc"], specifier = ">=2.3.0a4" },
-    { name = "getstream-plugins-common", specifier = ">=0.1.1" },
+    { name = "getstream", extras = ["webrtc"], specifier = ">=2.3.0a5" },
     { name = "getstream-plugins-deepgram", specifier = ">=0.1.1" },
     { name = "getstream-plugins-elevenlabs", specifier = ">=0.1.0" },
     { name = "httpx", specifier = ">=0.28.1" },
