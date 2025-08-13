@@ -53,6 +53,7 @@ class CommonRestClient(BaseClient):
         sqs_key: Optional[str] = None,
         sqs_secret: Optional[str] = None,
         sqs_url: Optional[str] = None,
+        user_response_time_enabled: Optional[bool] = None,
         webhook_url: Optional[str] = None,
         allowed_flag_reasons: Optional[List[str]] = None,
         event_hooks: Optional[List[EventHook]] = None,
@@ -102,6 +103,7 @@ class CommonRestClient(BaseClient):
             sqs_key=sqs_key,
             sqs_secret=sqs_secret,
             sqs_url=sqs_url,
+            user_response_time_enabled=user_response_time_enabled,
             webhook_url=webhook_url,
             allowed_flag_reasons=allowed_flag_reasons,
             event_hooks=event_hooks,
@@ -412,6 +414,243 @@ class CommonRestClient(BaseClient):
             path_params=path_params,
         )
 
+    def create_poll(
+        self,
+        name: str,
+        allow_answers: Optional[bool] = None,
+        allow_user_suggested_options: Optional[bool] = None,
+        description: Optional[str] = None,
+        enforce_unique_vote: Optional[bool] = None,
+        id: Optional[str] = None,
+        is_closed: Optional[bool] = None,
+        max_votes_allowed: Optional[int] = None,
+        user_id: Optional[str] = None,
+        voting_visibility: Optional[str] = None,
+        options: Optional[List[PollOptionInput]] = None,
+        custom: Optional[Dict[str, object]] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[PollResponse]:
+        json = build_body_dict(
+            name=name,
+            allow_answers=allow_answers,
+            allow_user_suggested_options=allow_user_suggested_options,
+            description=description,
+            enforce_unique_vote=enforce_unique_vote,
+            id=id,
+            is_closed=is_closed,
+            max_votes_allowed=max_votes_allowed,
+            user_id=user_id,
+            voting_visibility=voting_visibility,
+            options=options,
+            custom=custom,
+            user=user,
+        )
+
+        return self.post("/api/v2/polls", PollResponse, json=json)
+
+    def update_poll(
+        self,
+        id: str,
+        name: str,
+        allow_answers: Optional[bool] = None,
+        allow_user_suggested_options: Optional[bool] = None,
+        description: Optional[str] = None,
+        enforce_unique_vote: Optional[bool] = None,
+        is_closed: Optional[bool] = None,
+        max_votes_allowed: Optional[int] = None,
+        user_id: Optional[str] = None,
+        voting_visibility: Optional[str] = None,
+        options: Optional[List[PollOptionRequest]] = None,
+        custom: Optional[Dict[str, object]] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[PollResponse]:
+        json = build_body_dict(
+            id=id,
+            name=name,
+            allow_answers=allow_answers,
+            allow_user_suggested_options=allow_user_suggested_options,
+            description=description,
+            enforce_unique_vote=enforce_unique_vote,
+            is_closed=is_closed,
+            max_votes_allowed=max_votes_allowed,
+            user_id=user_id,
+            voting_visibility=voting_visibility,
+            options=options,
+            custom=custom,
+            user=user,
+        )
+
+        return self.put("/api/v2/polls", PollResponse, json=json)
+
+    def query_polls(
+        self,
+        user_id: Optional[str] = None,
+        limit: Optional[int] = None,
+        next: Optional[str] = None,
+        prev: Optional[str] = None,
+        sort: Optional[List[SortParamRequest]] = None,
+        filter: Optional[Dict[str, object]] = None,
+    ) -> StreamResponse[QueryPollsResponse]:
+        query_params = build_query_param(user_id=user_id)
+        json = build_body_dict(
+            limit=limit, next=next, prev=prev, sort=sort, filter=filter
+        )
+
+        return self.post(
+            "/api/v2/polls/query",
+            QueryPollsResponse,
+            query_params=query_params,
+            json=json,
+        )
+
+    def delete_poll(
+        self, poll_id: str, user_id: Optional[str] = None
+    ) -> StreamResponse[Response]:
+        query_params = build_query_param(user_id=user_id)
+        path_params = {
+            "poll_id": poll_id,
+        }
+
+        return self.delete(
+            "/api/v2/polls/{poll_id}",
+            Response,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
+    def get_poll(
+        self, poll_id: str, user_id: Optional[str] = None
+    ) -> StreamResponse[PollResponse]:
+        query_params = build_query_param(user_id=user_id)
+        path_params = {
+            "poll_id": poll_id,
+        }
+
+        return self.get(
+            "/api/v2/polls/{poll_id}",
+            PollResponse,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
+    def update_poll_partial(
+        self,
+        poll_id: str,
+        user_id: Optional[str] = None,
+        unset: Optional[List[str]] = None,
+        set: Optional[Dict[str, object]] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[PollResponse]:
+        path_params = {
+            "poll_id": poll_id,
+        }
+        json = build_body_dict(user_id=user_id, unset=unset, set=set, user=user)
+
+        return self.patch(
+            "/api/v2/polls/{poll_id}", PollResponse, path_params=path_params, json=json
+        )
+
+    def create_poll_option(
+        self,
+        poll_id: str,
+        text: str,
+        user_id: Optional[str] = None,
+        custom: Optional[Dict[str, object]] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[PollOptionResponse]:
+        path_params = {
+            "poll_id": poll_id,
+        }
+        json = build_body_dict(text=text, user_id=user_id, custom=custom, user=user)
+
+        return self.post(
+            "/api/v2/polls/{poll_id}/options",
+            PollOptionResponse,
+            path_params=path_params,
+            json=json,
+        )
+
+    def update_poll_option(
+        self,
+        poll_id: str,
+        id: str,
+        text: str,
+        user_id: Optional[str] = None,
+        custom: Optional[Dict[str, object]] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[PollOptionResponse]:
+        path_params = {
+            "poll_id": poll_id,
+        }
+        json = build_body_dict(
+            id=id, text=text, user_id=user_id, custom=custom, user=user
+        )
+
+        return self.put(
+            "/api/v2/polls/{poll_id}/options",
+            PollOptionResponse,
+            path_params=path_params,
+            json=json,
+        )
+
+    def delete_poll_option(
+        self, poll_id: str, option_id: str, user_id: Optional[str] = None
+    ) -> StreamResponse[Response]:
+        query_params = build_query_param(user_id=user_id)
+        path_params = {
+            "poll_id": poll_id,
+            "option_id": option_id,
+        }
+
+        return self.delete(
+            "/api/v2/polls/{poll_id}/options/{option_id}",
+            Response,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
+    def get_poll_option(
+        self, poll_id: str, option_id: str, user_id: Optional[str] = None
+    ) -> StreamResponse[PollOptionResponse]:
+        query_params = build_query_param(user_id=user_id)
+        path_params = {
+            "poll_id": poll_id,
+            "option_id": option_id,
+        }
+
+        return self.get(
+            "/api/v2/polls/{poll_id}/options/{option_id}",
+            PollOptionResponse,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
+    def query_poll_votes(
+        self,
+        poll_id: str,
+        user_id: Optional[str] = None,
+        limit: Optional[int] = None,
+        next: Optional[str] = None,
+        prev: Optional[str] = None,
+        sort: Optional[List[SortParamRequest]] = None,
+        filter: Optional[Dict[str, object]] = None,
+    ) -> StreamResponse[PollVotesResponse]:
+        query_params = build_query_param(user_id=user_id)
+        path_params = {
+            "poll_id": poll_id,
+        }
+        json = build_body_dict(
+            limit=limit, next=next, prev=prev, sort=sort, filter=filter
+        )
+
+        return self.post(
+            "/api/v2/polls/{poll_id}/votes",
+            PollVotesResponse,
+            query_params=query_params,
+            path_params=path_params,
+            json=json,
+        )
+
     def list_push_providers(self) -> StreamResponse[ListPushProvidersResponse]:
         return self.get("/api/v2/push_providers", ListPushProvidersResponse)
 
@@ -566,6 +805,7 @@ class CommonRestClient(BaseClient):
         user_ids: List[str],
         calls: Optional[str] = None,
         conversations: Optional[str] = None,
+        files: Optional[bool] = None,
         messages: Optional[str] = None,
         new_call_owner_id: Optional[str] = None,
         new_channel_owner_id: Optional[str] = None,
@@ -575,6 +815,7 @@ class CommonRestClient(BaseClient):
             user_ids=user_ids,
             calls=calls,
             conversations=conversations,
+            files=files,
             messages=messages,
             new_call_owner_id=new_call_owner_id,
             new_channel_owner_id=new_channel_owner_id,
@@ -596,7 +837,6 @@ class CommonRestClient(BaseClient):
 
     def update_live_location(
         self,
-        created_by_device_id: str,
         message_id: str,
         end_at: Optional[datetime] = None,
         latitude: Optional[float] = None,
@@ -605,11 +845,7 @@ class CommonRestClient(BaseClient):
     ) -> StreamResponse[SharedLocationResponse]:
         query_params = build_query_param(user_id=user_id)
         json = build_body_dict(
-            created_by_device_id=created_by_device_id,
-            message_id=message_id,
-            end_at=end_at,
-            latitude=latitude,
-            longitude=longitude,
+            message_id=message_id, end_at=end_at, latitude=latitude, longitude=longitude
         )
 
         return self.put(
