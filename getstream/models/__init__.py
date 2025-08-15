@@ -557,7 +557,7 @@ class AsyncExportErrorEvent(DataClassJsonMixin):
     task_id: str = dc_field(metadata=dc_config(field_name="task_id"))
     custom: Dict[str, object] = dc_field(metadata=dc_config(field_name="custom"))
     type: str = dc_field(
-        default="export.moderation_logs.error", metadata=dc_config(field_name="type")
+        default="export.channels.error", metadata=dc_config(field_name="type")
     )
     received_at: Optional[datetime] = dc_field(
         default=None,
@@ -1884,8 +1884,8 @@ class CallParticipant(DataClassJsonMixin):
         )
     )
     online: bool = dc_field(metadata=dc_config(field_name="online"))
-    role: str = dc_field(metadata=dc_config(field_name="Role"))
     role: str = dc_field(metadata=dc_config(field_name="role"))
+    role: str = dc_field(metadata=dc_config(field_name="Role"))
     user_session_id: str = dc_field(metadata=dc_config(field_name="UserSessionID"))
     custom: Dict[str, object] = dc_field(metadata=dc_config(field_name="custom"))
     teams_role: "Dict[str, str]" = dc_field(metadata=dc_config(field_name="teams_role"))
@@ -14911,7 +14911,6 @@ class UserMessagesDeletedEvent(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         )
     )
-    hard_delete: bool = dc_field(metadata=dc_config(field_name="hard_delete"))
     soft_delete: bool = dc_field(metadata=dc_config(field_name="soft_delete"))
     custom: Dict[str, object] = dc_field(metadata=dc_config(field_name="custom"))
     user: "UserResponseCommonFields" = dc_field(metadata=dc_config(field_name="user"))
@@ -14928,6 +14927,9 @@ class UserMessagesDeletedEvent(DataClassJsonMixin):
         default=None, metadata=dc_config(field_name="channel_type")
     )
     cid: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="cid"))
+    hard_delete: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="hard_delete")
+    )
     received_at: Optional[datetime] = dc_field(
         default=None,
         metadata=dc_config(
