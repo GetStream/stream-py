@@ -21,13 +21,13 @@ class ElevenLabsTTS(TTS):
             model_id: The model ID to use for synthesis
         """
         super().__init__()
-        from elevenlabs.client import ElevenLabs
+        from elevenlabs.client import AsyncElevenLabs
 
         # elevenlabs sdk does not always load the env correctly (default kwarg)
         if not api_key:
             api_key = os.environ.get("ELEVENLABS_API_KEY")
 
-        self.client = ElevenLabs(api_key=api_key)
+        self.client = AsyncElevenLabs(api_key=api_key)
         self.voice_id = voice_id
         self.model_id = model_id
         self.output_format = "pcm_16000"
@@ -47,7 +47,7 @@ class ElevenLabsTTS(TTS):
         Returns:
             An iterator of audio chunks as bytes
         """
-        audio_stream = self.client.text_to_speech.stream(
+        audio_stream = await self.client.text_to_speech.stream(
             text=text,
             voice_id=self.voice_id,
             output_format=self.output_format,
