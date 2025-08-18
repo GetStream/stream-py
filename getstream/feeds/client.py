@@ -9,7 +9,7 @@ from getstream.feeds.feeds import Feed
 class FeedsClient(FeedsRestClient):
     """
     Client for Stream Feeds API operations.
-    
+
     Provides access to feed operations including activities, reactions, comments,
     bookmarks, follows, and more.
     """
@@ -29,10 +29,12 @@ class FeedsClient(FeedsRestClient):
             token=token,
         )
 
-    def feed(self, feed_type: str, feed_id: str, custom_data: Optional[Dict] = None) -> Feed:
+    def feed(
+        self, feed_type: str, feed_id: str, custom_data: Optional[Dict] = None
+    ) -> Feed:
         """
         Create a Feed instance for the given feed type and ID.
-        
+
         :param feed_type: The type of feed (e.g., 'user', 'timeline')
         :param feed_id: The unique identifier for the feed
         :param custom_data: Optional custom data for the feed
