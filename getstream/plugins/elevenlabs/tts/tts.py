@@ -47,7 +47,7 @@ class ElevenLabsTTS(TTS):
         Returns:
             An async iterator of audio chunks as bytes
         """
-        audio_stream = await self.client.text_to_speech.stream(
+        audio_stream = self.client.text_to_speech.stream(
             text=text,
             voice_id=self.voice_id,
             output_format=self.output_format,
