@@ -21,3 +21,5 @@ pyvenv.cfg
 bin/*
 lib/*
 shell.nix
+pyrightconfig.json
+.DS_Store

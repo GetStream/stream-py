@@ -23,19 +23,15 @@ jobs:
       uses: actions/checkout@v4
     - uses: chartboost/ruff-action@v1
       continue-on-error: false
-    - name: Install poetry
-      run: pipx install poetry
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
+    - name: Install uv and set the python version
+      uses: astral-sh/setup-uv@v5
       with:
         python-version: ${{ matrix.python-version }}
-        allow-prereleases: true
-        cache: 'poetry'
-    - name: Install deps
-      run: poetry install
+    - name: Install the project
+      run: uv sync --all-extras --dev
     - name: Run tests
       env:
         STREAM_BASE_URL: ${{ vars.STREAM_BASE_URL }}
         STREAM_API_KEY: ${{ vars.STREAM_API_KEY }}
         STREAM_API_SECRET: ${{ secrets.STREAM_API_SECRET }}
-      run: poetry run pytest tests/ getstream/
+      run: uv run pytest tests/ getstream/

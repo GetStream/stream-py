@@ -15,17 +15,19 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0 # gives the changelog generator access to all previous commits
-      - uses: actions/setup-python@v5
+      - name: Install uv and set the python version
+        uses: astral-sh/setup-uv@v5
         with:
           python-version: "3.12"
-      - name: Install poetry
-        run: pipx install poetry
       - name: Update version.py and push release branch
         env:
           VERSION: ${{ github.event.inputs.version }}
         run: |
-          poetry version $VERSION
+          # Update pyproject.toml with sed since uv doesn't have a version command
+          sed -i "s/^version = \".*\"/version = \"$VERSION\"/" pyproject.toml
+          # Update version.py directly
           sed -i "s/^VERSION = \".*\"/VERSION = \"$VERSION\"/" getstream/version.py
+          # Configure git and push release branch
           git config --global user.name 'github-actions'
           git config --global user.email 'release@getstream.io'
           git checkout -q -b "release-$VERSION"
