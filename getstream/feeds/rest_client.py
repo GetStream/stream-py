@@ -24,8 +24,7 @@ class FeedsRestClient(BaseClient):
     def add_activity(
         self,
         type: str,
-        feeds: List[str] = None,
-        fids: List[str] = None,
+        fids: List[str],
         expires_at: Optional[str] = None,
         id: Optional[str] = None,
         parent_id: Optional[str] = None,
@@ -42,11 +41,9 @@ class FeedsRestClient(BaseClient):
         location: Optional[ActivityLocation] = None,
         search_data: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[AddActivityResponse]:
-        # Temporary workaround for backend bug - use fids instead of feeds
-        feed_ids = fids if fids is not None else feeds
         json = build_body_dict(
             type=type,
-            fids=feed_ids,  # Use fids instead of feeds
+            fids=fids,
             expires_at=expires_at,
             id=id,
             parent_id=parent_id,

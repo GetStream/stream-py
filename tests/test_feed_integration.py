@@ -114,7 +114,8 @@ class TestFeedIntegration:
 
         except Exception as e:
             print(f"⚠️ Setup failed: {e}")
-            # Continue with tests even if setup partially fails
+            # Stop everything
+            exit(1)
 
     def _cleanup_resources(self):
         """Cleanup created resources in reverse order"""
