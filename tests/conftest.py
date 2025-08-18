@@ -1,8 +1,8 @@
 import pytest
 from dotenv import load_dotenv
-from tests.fixtures import client, call, get_user, shared_call
+from tests.fixtures import client, call, get_user, shared_call, test_feed, get_feed
 
-__all__ = ["client", "call", "get_user", "shared_call"]
+__all__ = ["client", "call", "get_user", "shared_call", "test_feed", "get_feed"]
 
 
 @pytest.fixture(scope="session", autouse=True)
