@@ -9,6 +9,7 @@ from getstream.feeds.client import FeedsClient
 from getstream.models import UserRequest
 from getstream.utils import validate_and_clean_url
 from getstream.video.client import VideoClient
+from getstream.moderation.client import ModerationClient
 
 BASE_URL = "https://chat.stream-io-api.com/"
 
@@ -54,6 +55,7 @@ class Stream(CommonClient):
             base_url=self.base_url,
             token=self.token,
             timeout=self.timeout,
+            stream=self,
         )
 
     @cached_property
@@ -67,6 +69,21 @@ class Stream(CommonClient):
             base_url=self.base_url,
             token=self.token,
             timeout=self.timeout,
+            stream=self,
+        )
+
+    @cached_property
+    def moderation(self):
+        """
+        Moderation stream client.
+
+        """
+        return ModerationClient(
+            api_key=self.api_key,
+            base_url=self.base_url,
+            token=self.token,
+            timeout=self.timeout,
+            stream=self,
         )
 
     @cached_property

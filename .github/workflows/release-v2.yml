@@ -1,0 +1,181 @@
+name: ReleaseV2 (TestPyPI)
+
+on:
+  workflow_dispatch:
+    inputs:
+      python-version:
+        description: "Python version to use"
+        default: "3.12"
+        required: false
+
+permissions:
+  contents: read
+  id-token: write  # required for OIDC publishing to TestPyPI via trusted publisher
+
+jobs:
+  build-core:
+    name: Build & Test Core SDK
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ github.event.inputs.python-version || '3.12' }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ github.event.inputs.python-version || '3.12' }}
+
+      - name: Install build tooling (uv & test deps)
+        run: |
+          python -m pip install --upgrade pip
+          # Install uv (once) using pip, then use uv for the rest
+          python -m pip install uv
+          uv pip install pytest pytest-asyncio coverage[toml]
+
+      - name: Sync environment & install dev extras
+        run: |
+          uv sync --dev --all-packages --all-groups --all-extras 
+
+      - name: Build core distributions
+        run: |
+          uv build -o dist
+
+      - name: Run tests with coverage (core only)
+        env:
+          PYTHONPATH: "${{ github.workspace }}"
+        run: |
+          uv run pytest --cov=getstream --cov-report=xml --ignore=getstream/plugins
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: core-coverage-xml
+          path: coverage.xml
+
+      - name: Extract package version
+        id: get_version
+        run: |
+          python - <<'PY'
+          import tomllib, pathlib, os
+          meta = tomllib.loads(pathlib.Path('pyproject.toml').read_text())
+          version = meta['project']['version']
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as fh:
+              fh.write(f'version={version}\n')
+          PY
+
+      - name: Publish core to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: dist
+        environment:
+          name: testpypi
+
+  test-core-index:
+    name: Verify Core from TestPyPI
+    needs: build-core
+    runs-on: ubuntu-latest
+    env:
+      UV_NO_SOURCES: "1"
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ github.event.inputs.python-version || '3.12' }}
+
+      - name: Install uv and testing tools
+        run: |
+          python -m pip install uv
+          uv pip install pytest pytest-asyncio
+
+      - name: Install core from TestPyPI using uv
+        run: |
+          uv pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple getstream==${{ needs.build-core.outputs.version }}
+
+      - name: Run core tests against TestPyPI artifact
+        run: |
+          UV_NO_SOURCES=1 uv run pytest tests/ --ignore=getstream/plugins
+
+  build-plugins:
+    name: Build & Test Plugin Packages
+    runs-on: ubuntu-latest
+    needs: test-core-index
+    env:
+      CORE_VERSION: ${{ needs.build-core.outputs.version }}
+      UV_NO_SOURCES: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ github.event.inputs.python-version || '3.12' }}
+
+      - name: Install uv & tooling
+        run: |
+          python -m pip install uv
+          uv pip install pytest pytest-asyncio
+
+      - name: Install new core from TestPyPI using uv (for plugin builds/tests)
+        run: |
+          uv pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple getstream==${CORE_VERSION}
+
+      - name: Build all plugin dists (no workspace sources)
+        run: |
+          UV_NO_SOURCES=1 uv build --all-packages -o dist-plugins --wheel --sdist
+
+      - name: Run plugin tests (local wheels, core from TestPyPI)
+        run: |
+          # Install all built plugin wheels using uv
+          uv pip install dist-plugins/*.whl
+          uv run pytest getstream/plugins
+
+      - name: Publish plugins to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: dist-plugins
+        environment:
+          name: testpypi
+
+  test-plugins-index:
+    name: Verify Plugins from TestPyPI
+    runs-on: ubuntu-latest
+    needs: build-plugins
+    env:
+      CORE_VERSION: ${{ needs.build-core.outputs.version }}
+      UV_NO_SOURCES: "1"
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ github.event.inputs.python-version || '3.12' }}
+
+      - name: Install uv & test tools
+        run: |
+          python -m pip install uv
+          uv pip install pytest pytest-asyncio
+
+      - name: Install core and plugins from TestPyPI using uv
+        run: |
+          uv pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple getstream==${CORE_VERSION}
+          uv pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple "getstream-plugins-*"
+
+      - name: Run all plugin tests against TestPyPI artifacts
+        run: |
+          uv run pytest getstream/plugins
+
+  summarize:
+    name: Publish Test Deployment Report
+    runs-on: ubuntu-latest
+    needs: test-plugins-index
+    steps:
+      - name: Generate summary
+        run: |
+          echo "### Release V2 Test Report" >> $GITHUB_STEP_SUMMARY
+          echo "* Core Version: ${{ needs.build-core.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "* Core build & tests: ✅" >> $GITHUB_STEP_SUMMARY
+          echo "* Core published to TestPyPI: ✅" >> $GITHUB_STEP_SUMMARY
+          echo "* Plugins built & tests: ✅" >> $GITHUB_STEP_SUMMARY
+          echo "* Plugins published to TestPyPI: ✅" >> $GITHUB_STEP_SUMMARY
+          echo "* Tests against TestPyPI packages: ✅" >> $GITHUB_STEP_SUMMARY 

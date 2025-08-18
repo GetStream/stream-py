@@ -1,0 +1,268 @@
+{
+    "call": {
+        "type": "default",
+        "id": "123456",
+        "cid": "default:123456",
+        "current_session_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+        "created_by": {
+            "id": "123456",
+            "name": "user_123",
+            "language": "",
+            "role": "user",
+            "teams": [],
+            "custom": {
+                "theme": "dark",
+                "preference": "standard"
+            },
+            "created_at": 1722935789908727000,
+            "updated_at": 1723638024945648000,
+            "banned": false,
+            "online": false,
+            "last_active": 1724326575850346281,
+            "blocked_user_ids": [],
+            "shadow_banned": false,
+            "devices": [
+                {
+                    "push_provider": "firebase",
+                    "push_provider_name": "ProviderX",
+                    "id": "device_token_1",
+                    "created_at": 1724320173550128000,
+                    "user_id": "123456"
+                }
+            ],
+            "invisible": false
+        },
+        "custom": {
+            "priority": "high",
+            "notification_type": "silent"
+        },
+        "created_at": 1724326455766084000,
+        "updated_at": 1724326455766084000,
+        "recording": false,
+        "transcribing": false,
+        "ended_at": 1724326457711546000,
+        "starts_at": null,
+        "backstage": false,
+        "settings": {
+            "audio": {
+                "access_request_enabled": true,
+                "opus_dtx_enabled": true,
+                "redundant_coding_enabled": true,
+                "mic_default_on": true,
+                "speaker_default_on": true,
+                "default_device": "earpiece",
+                "noise_cancellation": {
+                    "mode": "auto-on"
+                }
+            },
+            "backstage": {
+                "enabled": false
+            },
+            "broadcasting": {
+                "enabled": true,
+                "hls": {
+                    "auto_on": false,
+                    "enabled": true,
+                    "quality_tracks": [
+                        "720p"
+                    ],
+                    "layout": {
+                        "name": "spotlight",
+                        "external_app_url": "",
+                        "external_css_url": ""
+                    }
+                },
+                "rtmp": {
+                    "enabled": true,
+                    "quality": "720p",
+                    "layout": {
+                        "name": "spotlight",
+                        "external_app_url": "",
+                        "external_css_url": ""
+                    }
+                }
+            },
+            "geofencing": {
+                "names": []
+            },
+            "recording": {
+                "audio_only": false,
+                "mode": "available",
+                "quality": "720p",
+                "layout": {
+                    "name": "spotlight",
+                    "external_app_url": "",
+                    "external_css_url": ""
+                }
+            },
+            "ring": {
+                "incoming_call_timeout_ms": 10000,
+                "auto_cancel_timeout_ms": 10000,
+                "missed_call_timeout_ms": 13000
+            },
+            "screensharing": {
+                "enabled": true,
+                "access_request_enabled": true,
+                "target_resolution": null
+            },
+            "transcription": {
+                "mode": "available",
+                "closed_caption_mode": "available",
+                "languages": []
+            },
+            "video": {
+                "enabled": true,
+                "access_request_enabled": true,
+                "target_resolution": {
+                    "width": 1280,
+                    "height": 720,
+                    "bitrate": 1500000
+                },
+                "camera_default_on": true,
+                "camera_facing": "front"
+            },
+            "thumbnails": {
+                "enabled": false
+            },
+            "limits": {
+                "max_participants": null,
+                "max_duration_seconds": null
+            }
+        },
+        "blocked_user_ids": [],
+        "ingress": {
+            "rtmp": {
+                "address": "rtmps://ingress.example.com:443/xxxx"
+            }
+        },
+        "session": {
+            "id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+            "started_at": null,
+            "ended_at": null,
+            "participants": [],
+            "participants_count_by_role": {},
+            "anonymous_participant_count": 0,
+            "rejected_by": {
+                "123456": 1724326459013491368
+            },
+            "accepted_by": {},
+            "missed_by": {
+                "789012": 1724326459330435301
+            },
+            "live_started_at": null,
+            "live_ended_at": null,
+            "timer_ends_at": null
+        },
+        "egress": {
+            "broadcasting": false,
+            "hls": null,
+            "rtmps": []
+        },
+        "thumbnails": null,
+        "join_ahead_time_seconds": 0
+    },
+    "members": [
+        {
+            "user": {
+                "id": "123456",
+                "name": "user_123",
+                "language": "",
+                "role": "user",
+                "teams": [],
+                "custom": {
+                    "theme": "dark",
+                    "notification_settings": "all"
+                },
+                "created_at": 1722935789908727000,
+                "updated_at": 1723638024945648000,
+                "banned": false,
+                "online": false,
+                "last_active": 1724326575850346281,
+                "blocked_user_ids": [],
+                "shadow_banned": false,
+                "devices": [
+                    {
+                        "push_provider": "firebase",
+                        "push_provider_name": "ProviderX",
+                        "id": "device_token_1",
+                        "created_at": 1724320173550128000,
+                        "user_id": "123456"
+                    }
+                ],
+                "invisible": false
+            },
+            "user_id": "123456",
+            "custom": {
+                "status": "active"
+            },
+            "created_at": 1724326455897545000,
+            "updated_at": 1724326455897545000
+        },
+        {
+            "user": {
+                "id": "789012",
+                "name": "expert_123",
+                "language": "",
+                "role": "user",
+                "teams": [],
+                "custom": {
+                    "theme": "light",
+                    "preference": "premium"
+                },
+                "created_at": 1721374114768805000,
+                "updated_at": 1723644559946746000,
+                "banned": false,
+                "online": false,
+                "last_active": 1724326902166957819,
+                "blocked_user_ids": [],
+                "shadow_banned": false,
+                "devices": [
+                    {
+                        "push_provider": "firebase",
+                        "push_provider_name": "ProviderX",
+                        "id": "device_token_3",
+                        "created_at": 1724213850360044000,
+                        "user_id": "789012"
+                    }
+                ],
+                "invisible": false
+            },
+            "user_id": "789012",
+            "custom": {
+                "status": "offline"
+            },
+            "created_at": 1724326455897545000,
+            "updated_at": 1724326455897545000
+        }
+    ],
+    "own_capabilities": [
+        "block-users",
+        "change-max-duration",
+        "create-call",
+        "create-reaction",
+        "enable-noise-cancellation",
+        "end-call",
+        "join-backstage",
+        "join-call",
+        "join-ended-call",
+        "mute-users",
+        "pin-for-everyone",
+        "read-call",
+        "remove-call-member",
+        "screenshare",
+        "send-audio",
+        "send-video",
+        "start-broadcast-call",
+        "start-record-call",
+        "start-transcription-call",
+        "stop-broadcast-call",
+        "stop-record-call",
+        "stop-transcription-call",
+        "update-call",
+        "update-call-member",
+        "update-call-permissions",
+        "update-call-settings"
+    ],
+    "blocked_users": [],
+    "duration": "10.89ms"
+}
