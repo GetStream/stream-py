@@ -26,11 +26,11 @@ class MockAsyncElevenLabsClient:
 
         # Create a mock audio stream that returns a few chunks of audio
         mock_audio = [b"\x00\x00" * 1000, b"\x00\x00" * 1000]
-        
+
         # Mock the async stream method
         async def mock_stream(*args, **kwargs):
             return iter(mock_audio)
-        
+
         self.text_to_speech.stream = mock_stream
 
 
@@ -133,7 +133,8 @@ async def test_elevenlabs_with_real_api():
     """
     Integration test with the real ElevenLabs API.
 
-    This test uses the actual ElevenLabs API with the ELEVENLABS_API_KEY environment variable.
+    This test uses the actual ElevenLabs API with the
+    ELEVENLABS_API_KEY environment variable.
     It will be skipped if the environment variable is not set.
 
     To set up the ELEVENLABS_API_KEY:
@@ -147,7 +148,8 @@ async def test_elevenlabs_with_real_api():
     # Skip the test if the ELEVENLABS_API_KEY environment variable is not set
     if not api_key:
         pytest.skip(
-            "ELEVENLABS_API_KEY environment variable not set. Add it to your .env file."
+            "ELEVENLABS_API_KEY environment variable not set. "
+            "Add it to your .env file."
         )
 
     # Create a real ElevenLabs TTS instance with the API key explicitly set
