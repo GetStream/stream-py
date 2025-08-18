@@ -6,6 +6,7 @@ import pytest
 
 from getstream import Stream
 from getstream.models import UserRequest, FullUserResponse
+from getstream.feeds.feeds import Feed
 
 
 def _client():
@@ -51,4 +52,22 @@ def get_user(client: Stream):
             ),
         ).data.users[id]
 
+    return inner
+
+
+@pytest.fixture
+def test_feed(client: Stream):
+    """Create a test feed for integration testing"""
+    user_id = f"test-user-{uuid.uuid4()}"
+    return client.feeds.feed("user", user_id)
+
+
+@pytest.fixture
+def get_feed(client: Stream):
+    """Factory fixture for creating feeds"""
+    def inner(feed_type: str = "user", feed_id: str = None, custom_data: Dict = None) -> Feed:
+        if feed_id is None:
+            feed_id = f"test-{feed_type}-{uuid.uuid4()}"
+        return client.feeds.feed(feed_type, feed_id, custom_data)
+    
     return inner
