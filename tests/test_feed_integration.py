@@ -18,22 +18,16 @@ import os
 import uuid
 import pytest
 from datetime import datetime, timedelta
-from typing import List, Dict, Any
+from typing import List
 
 from getstream import Stream
 from getstream.models import (
     UserRequest,
     Attachment,
-    ActivityLocation,
     AddFolderRequest,
     VoteData,
     SortParamRequest,
     ActivityRequest,
-    FeedRequest,
-    FollowRequest,
-    FollowPair,
-    FeedMemberRequest,
-    AddCommentRequest,
 )
 from getstream.stream_response import StreamResponse
 
