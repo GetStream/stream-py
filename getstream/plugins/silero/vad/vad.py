@@ -7,6 +7,9 @@ from typing import Dict, Any, Optional
 from getstream.plugins.common import VAD
 from getstream.video.rtc.track_util import PcmData
 from getstream.audio.utils import resample_audio
+from getstream.plugins.common.events import VADAudioEvent
+from getstream.plugins.common.event_utils import register_global_event
+            
 
 try:
     import onnxruntime as ort
@@ -377,7 +380,23 @@ class SileroVAD(VAD):
                 extra={"duration_ms": duration_ms, "samples": len(speech_data)},
             )
 
-            self.emit("audio", pcm_data, user)
+            audio_event = VADAudioEvent(
+                session_id=self.session_id,
+                plugin_name=self.provider_name,
+                audio_data=speech_data.tobytes(),
+                sample_rate=self.sample_rate,
+                audio_format="s16",
+                channels=1,
+                duration_ms=duration_ms,
+                speech_probability=0.8,  # Default value, could be enhanced
+                frame_count=len(speech_data) // self.frame_size,
+                user_metadata=user
+            )
+            register_global_event(audio_event)
+            self.emit("audio", audio_event)  # New structured event
+            
+            # Also emit legacy format for backward compatibility
+            self.emit("audio_legacy", pcm_data, user)
 
         # Reset state variables
         self.speech_buffer = bytearray()
