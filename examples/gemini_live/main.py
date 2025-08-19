@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 from getstream import Stream
 from getstream.models import CallRequest, UserRequest
-from getstream.plugins.gemini.sts import GeminiLive
+from getstream.plugins.gemini.live import GeminiLive
 from getstream.video import rtc
 from getstream.video.rtc.track_util import PcmData
 
@@ -21,7 +21,7 @@ logging.basicConfig(
 )
 
 # Enable debug logging for Gemini plugin
-logging.getLogger("getstream.plugins.gemini.sts.live").setLevel(logging.DEBUG)
+logging.getLogger("getstream.plugins.gemini.live").setLevel(logging.DEBUG)
 
 
 def create_user(client: Stream, id: str, name: str) -> None:
@@ -109,10 +109,10 @@ async def main():
             await connection.add_tracks(audio=gemini_live.output_track)
 
             @connection.on("audio")
-            async def on_audio(pcm: PcmData):
+            async def on_audio(pcm: PcmData, user):
                 try:
                     await gemini_live.send_audio_pcm(pcm, target_rate=48000)
-                    logging.debug("✅ Audio sent to Gemini Live")
+                    logging.debug("✅ Audio sent to Gemini Live from user %s", user)
                 except Exception as e:
                     logging.error("❌ Failed to send audio to Gemini: %s", e)
 
