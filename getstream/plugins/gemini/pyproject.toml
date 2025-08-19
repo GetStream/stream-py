@@ -13,6 +13,7 @@ dependencies = [
     "getstream[webrtc]>=2.3.0a6",
     "getstream-plugins-common>=0.1.1",
     "google-genai>=1.29.0",
+    "numpy>=2.2.6",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -26,4 +27,5 @@ getstream-plugins-common = { workspace = true }
 dev = [
     "pytest>=8.4.1",
     "pytest-asyncio>=1.0.0",
+    "python-dotenv>=1.1.1",
 ]

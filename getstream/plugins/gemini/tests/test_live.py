@@ -102,17 +102,13 @@ class _DummyClient:
 _genai_mod: Any = types.ModuleType("google.genai")
 _genai_mod.Client = _DummyClient
 
-# Install stub submodules under the real google package
+# Ensure root google package exists for environments that lack it
 try:
     importlib.import_module("google")
 except ImportError:  # pragma: no cover - environment should have google from protobuf
     pkg: Any = types.ModuleType("google")
     pkg.__path__ = []  # mark as package
     sys.modules["google"] = pkg
-
-sys.modules["google.genai"] = _genai_mod
-sys.modules["google.genai.types"] = _types_mod
-sys.modules["google.genai.live"] = _live_mod
 
 
 from getstream.plugins.gemini.live import live as gemini_live  # noqa: E402
