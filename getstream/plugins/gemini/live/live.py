@@ -1,13 +1,6 @@
 """Gemini Live Speech-to-Speech implementation.
 
-This module provides a wrapper around Google's Gemini Live API that implements the
-common STS interface. It is designed to mirror the OpenAI realtime wrapper so it
-can be used in a similar way across the plugin ecosystem.
-
-Notes:
-- This wrapper exposes a connection object that proxies the underlying GenAI
-  live session. It yields responses via ``session.receive()``.
-- Session updates are best-effort based on available public API methods.
+This module provides a wrapper around Google's Gemini Live API.
 """
 
 from __future__ import annotations
@@ -28,18 +21,16 @@ from google.genai.types import (
     SpeechConfigDict,
     VoiceConfigDict,
     PrebuiltVoiceConfigDict,
+    ContextWindowCompressionConfigDict,
+    SlidingWindowDict,
 )
 from google.genai.live import AsyncSession
+import numpy as np
 
 from getstream.plugins.common import STS
 from getstream.audio.utils import resample_audio
 from getstream.video.rtc.track_util import PcmData
 from getstream.video.rtc.audio_track import AudioStreamTrack
-
-try:
-    import numpy as np  # type: ignore
-except Exception:  # pragma: no cover
-    np = None  # type: ignore
 
 
 logger = logging.getLogger(__name__)
@@ -62,7 +53,11 @@ class GeminiLive(STS):
                 )
             ),
             realtime_input_config=RealtimeInputConfigDict(
-                turn_coverage=TurnCoverage.TURN_INCLUDES_ALL_INPUT
+                turn_coverage=TurnCoverage.TURN_INCLUDES_ONLY_ACTIVITY
+            ),
+            context_window_compression=ContextWindowCompressionConfigDict(
+                trigger_tokens=25600,
+                sliding_window=SlidingWindowDict(target_tokens=12800),
             ),
         ),
     ):
@@ -98,8 +93,16 @@ class GeminiLive(STS):
         # Prefer explicit config passed to constructor; can be overridden per-call
         self.config: Optional[LiveConnectConfigDict] = config
         self._session: Optional[AsyncSession] = None
-        self._listener_task: Optional[asyncio.Task] = None
+        self._audio_receiver_task: Optional[asyncio.Task] = None
         self._connect_task: Optional[asyncio.Task] = None
+        self._playback_enabled: bool = True
+        # Barge-in control
+        self._barge_in_enabled: bool = True
+        self._silence_timeout_ms: int = 500
+        self._user_speaking: bool = False
+        self._eos_timer_task: Optional[asyncio.Task] = None
+        # Simple energy-based activity detection (int16 amplitude threshold)
+        self._activity_threshold: int = 500
         self._stop_event = asyncio.Event()
         self._ready_event = asyncio.Event()
 
@@ -107,7 +110,6 @@ class GeminiLive(STS):
         self.output_track = AudioStreamTrack(
             framerate=24000, stereo=False, format="s16"
         )
-
         # Kick off background connect if we are in an event loop
         loop = asyncio.get_running_loop()
         self._connect_task = loop.create_task(self._run_connection())
@@ -132,7 +134,7 @@ class GeminiLive(STS):
         self._session = None
         self._is_connected = False
         self._ready_event.clear()
-        self._listener_task = None
+        self._audio_receiver_task = None
 
     async def wait_until_ready(self, timeout: Optional[float] = None) -> bool:
         """Wait until the live session is ready. Returns True if ready."""
@@ -164,9 +166,6 @@ class GeminiLive(STS):
             if not self._is_connected or not self._session:
                 raise RuntimeError("Not connected")
 
-        if np is None:
-            raise ImportError("numpy not available; required for PCM conversion")
-
         # Convert to numpy int16 array
         if isinstance(pcm.samples, (bytes, bytearray)):
             # Interpret as int16 little-endian
@@ -182,6 +181,22 @@ class GeminiLive(STS):
                 audio_array, pcm.sample_rate, target_rate
             ).astype(np.int16)
 
+        # Activity detection to avoid constant interruption when streaming continuous audio
+        is_active = bool(np.mean(np.abs(audio_array)) > self._activity_threshold)
+
+        # On first frame of a speaking burst, interrupt current playback (barge-in)
+        if self._barge_in_enabled and is_active and not self._user_speaking:
+            logger.info("Barge-in enabled, interrupting playback")
+            await self.interrupt_playback()
+            self._user_speaking = True
+
+        # (Re)start silence timer only on active chunks; silence will let timer elapse
+        if self._barge_in_enabled and is_active:
+            logger.info("Barge-in enabled, starting silence timer")
+            if self._eos_timer_task and not self._eos_timer_task.done():
+                self._eos_timer_task.cancel()
+            self._eos_timer_task = asyncio.create_task(self._silence_timeout_task())
+
         # Build blob and send directly
         audio_bytes = audio_array.tobytes()
         mime = f"audio/pcm;rate={target_rate}"
@@ -190,6 +205,15 @@ class GeminiLive(STS):
             "Sending %d bytes audio to Gemini Live (%s)", len(audio_bytes), mime
         )
         await self._session.send_realtime_input(audio=blob)
+
+    async def _silence_timeout_task(self) -> None:
+        try:
+            await asyncio.sleep(self._silence_timeout_ms / 1000)
+            # Consider utterance ended; resume playback for next assistant turn
+            self._user_speaking = False
+            self.resume_playback()
+        except asyncio.CancelledError:
+            return
 
     async def start_response_listener(
         self,
@@ -204,11 +228,13 @@ class GeminiLive(STS):
             await self.wait_until_ready()
             if not self._is_connected or not self._session:
                 raise RuntimeError("Not connected")
-        if self._listener_task and not self._listener_task.done():
+
+        if self._audio_receiver_task and not self._audio_receiver_task.done():
             return
 
-        # Capture for type-checker
-        async def _loop():
+        logger.info("Starting response listener")
+
+        async def _audio_receive_loop():
             try:
                 assert self._session is not None
                 # Continuously read turns; receive() yields one complete model turn
@@ -217,8 +243,9 @@ class GeminiLive(STS):
                         if data := resp.data:
                             if emit_events:
                                 self.emit("audio", data)
-                            # Write to published output track
-                            await self.output_track.write(data)
+                            # Write directly to the outbound track when playback is enabled
+                            if self._playback_enabled:
+                                await self.output_track.write(data)
                         text = getattr(resp, "text", None)
                         if text and emit_events:
                             self.emit("text", text)
@@ -230,19 +257,36 @@ class GeminiLive(STS):
             except Exception as e:
                 self.emit("error", e)
 
-        self._listener_task = asyncio.create_task(_loop())
-        asyncio.create_task(self._write_to_output_track())
+        logger.info("Response listener started")
+        self._audio_receiver_task = asyncio.create_task(_audio_receive_loop())
         return None
+
+    async def interrupt_playback(self) -> None:
+        """Stop current playback immediately and clear queued audio chunks."""
+        # Disable playback so writer loop stops sending frames
+        self._playback_enabled = False
+        # Flush any pending bytes in the output track
+        await self.output_track.flush()
+
+    def resume_playback(self) -> None:
+        """Re-enable playback after an interruption."""
+        self._playback_enabled = True
 
     async def stop_response_listener(self) -> None:
         """Stop the background response listener, if running."""
-        if self._listener_task and not self._listener_task.done():
-            self._listener_task.cancel()
+        if self._audio_receiver_task and not self._audio_receiver_task.done():
+            self._audio_receiver_task.cancel()
             try:
-                await self._listener_task
+                await self._audio_receiver_task
             except asyncio.CancelledError:
                 pass
-        self._listener_task = None
+        self._audio_receiver_task = None
+        # Cancel end-of-speech timer
+        if self._eos_timer_task and not self._eos_timer_task.done():
+            self._eos_timer_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self._eos_timer_task
+        self._eos_timer_task = None
 
     async def close(self) -> None:
         """Stop the session and background tasks."""
