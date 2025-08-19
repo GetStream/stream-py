@@ -42,4 +42,4 @@ await tts.send("Hello, this is a test of the ElevenLabs text-to-speech plugin.")
 ## Requirements
 
 - Python 3.10+
-- elevenlabs>=0.2.0
+- elevenlabs>=2.5.0
