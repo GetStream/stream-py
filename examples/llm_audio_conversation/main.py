@@ -150,15 +150,15 @@ async def main():
                 await stt.process_audio(pcm, user)
 
             @stt.on("transcript")
-            async def on_transcript(text: str, user: Any, metadata: dict[str, Any]):
+            async def on_transcript(event):
                 print(
-                    f"{time.time()} got text from user {user}, with metadata {metadata}"
-                    f"will send the transcript to the LLM: {text}"
+                    f"{time.time()} got text from user {user}, with metadata {event.to_dict()}"
+                    f"will send the transcript to the LLM: {event.text}"
                 )
 
                 response = openai_client.responses.create(
                     model="gpt-4o",
-                    input=f"You are a helpful and friendly assistant. Respond to the user's message in a conversational way. Here's the message: {text}",
+                    input=f"You are a helpful and friendly assistant. Respond to the user's message in a conversational way. Here's the message: {event.text}",
                 )
 
                 llm_response = response.output_text

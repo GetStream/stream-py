@@ -147,22 +147,26 @@ async def main(client: Stream):
                 await stt.process_audio(pcm, user)
 
             @stt.on("transcript")
-            async def on_transcript(text: str, user: any, metadata: dict):
+            async def on_transcript(event):
                 timestamp = time.strftime("%H:%M:%S")
                 user_info = user.name if user and hasattr(user, "name") else "unknown"
-                print(f"[{timestamp}] {user_info}: {text}")
-                if metadata.get("confidence"):
-                    print(f"    └─ confidence: {metadata['confidence']:.2%}")
+                print(f"[{timestamp}] {user_info}: {event.text}")
+                if hasattr(event, 'confidence') and event.confidence:
+                    print(f"    └─ confidence: {event.confidence:.2%}")
+                if hasattr(event, 'processing_time_ms') and event.processing_time_ms:
+                    print(f"    └─ processing time: {event.processing_time_ms:.1f}ms")
 
                 # Moderation check (executed in a background thread to avoid blocking)
-                moderation = await asyncio.to_thread(moderate, client, text, user_info)
+                moderation = await asyncio.to_thread(moderate, client, event.text, user_info)
                 print(
-                    f"    └─ moderation recommended action: {moderation.recommended_action} for transcript: {text}"
+                    f"    └─ moderation recommended action: {moderation.recommended_action} for transcript: {event.text}"
                 )
 
             @stt.on("error")
-            async def on_stt_error(error):
-                print(f"\n❌ STT Error: {error}")
+            async def on_stt_error(event):
+                print(f"\n❌ STT Error: {event.error_message}")
+                if hasattr(event, 'context') and event.context:
+                    print(f"    └─ context: {event.context}")
 
             # Keep the connection alive and wait for audio
             print("🎧 Listening for audio... (Press Ctrl+C to stop)")
