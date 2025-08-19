@@ -219,8 +219,11 @@ class ReconnectionManager:
                 )
 
                 # Clean up old WebSocket after successful connection
-                if previous_ws_client:
-                    previous_ws_client.close()
+                if previous_ws_client is not None:
+                    try:
+                        previous_ws_client.close()
+                    except Exception as e:
+                        logger.warning(f"Error closing previous WebSocket client: {e}")
 
                 # Restore published tracks with stored MediaRelay instances
                 await self.connection_manager._restore_published_tracks()

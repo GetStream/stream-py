@@ -354,12 +354,20 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         await self._recording_manager.cleanup()
         await self._network_monitor.stop_monitoring()
         await self._peer_manager.close()
-        if self._ws_client:
-            await self._ws_client.close()
-            self._ws_client = None
-        if self._coordinator_ws_client:
-            await self._coordinator_ws_client.disconnect()
-            self._coordinator_ws_client = None
+        if self._ws_client is not None:
+            try:
+                await self._ws_client.close()
+            except Exception as e:
+                logger.warning(f"Error closing WebSocket client: {e}")
+            finally:
+                self._ws_client = None
+        if self._coordinator_ws_client is not None:
+            try:
+                await self._coordinator_ws_client.disconnect()
+            except Exception as e:
+                logger.warning(f"Error disconnecting coordinator WebSocket client: {e}")
+            finally:
+                self._coordinator_ws_client = None
 
         self.connection_state = ConnectionState.LEFT
 
@@ -458,16 +466,16 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         try:
             # Close peer connections (async)
             tasks = []
-            if publisher_pc:
+            if publisher_pc is not None:
                 tasks.append(publisher_pc.close())
-            if subscriber_pc:
+            if subscriber_pc is not None:
                 tasks.append(subscriber_pc.close())
 
             if tasks:
                 await asyncio.gather(*tasks, return_exceptions=True)
 
             # Close WebSocket client (sync)
-            if ws_client:
+            if ws_client is not None:
                 try:
                     ws_client.close()
                 except Exception:

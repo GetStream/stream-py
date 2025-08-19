@@ -8,11 +8,11 @@ import time
 
 # Conditional imports with error handling
 try:
-    from deepgram import DeepgramClient, LiveTranscriptionEvents, LiveOptions
+    from deepgram import AsyncLiveClient, LiveTranscriptionEvents, LiveOptions
 
     _deepgram_available = True
 except ImportError:
-    DeepgramClient = None  # type: ignore
+    AsyncLiveClient = None  # type: ignore
     LiveTranscriptionEvents = None  # type: ignore
     LiveOptions = None  # type: ignore
     _deepgram_available = False
@@ -76,9 +76,11 @@ class DeepgramSTT(STT):
                     "No API key provided and DEEPGRAM_API_KEY environment variable not found."
                 )
 
-        # Initialize DeepgramClient with the API key
+        # Initialize AsyncLiveClient with the API key
         logger.info("Initializing Deepgram client")
-        self.deepgram = DeepgramClient(api_key)
+        from deepgram import DeepgramClientOptions
+        client_options = DeepgramClientOptions(api_key=api_key)
+        self.deepgram = AsyncLiveClient(client_options)
         self.dg_connection = None
         self.options = options or LiveOptions(
             model="nova-2",
@@ -100,7 +102,7 @@ class DeepgramSTT(STT):
         # Track current user context for associating transcripts with users
         self._current_user = None
 
-        self._setup_connection()
+        # Note: Connection setup is now async and will be called when needed
 
     def _handle_transcript_result(
         self, is_final: bool, text: str, metadata: Dict[str, Any]
@@ -122,7 +124,7 @@ class DeepgramSTT(STT):
             },
         )
 
-    def _setup_connection(self):
+    async def _setup_connection(self):
         """Set up the Deepgram connection with event handlers."""
         if self._is_closed:
             logger.warning("Cannot setup connection - Deepgram instance is closed")
@@ -133,12 +135,12 @@ class DeepgramSTT(STT):
             return
 
         try:
-            # Use the newer websocket interface instead of deprecated live
+            # Use the async websocket interface
             logger.debug("Setting up Deepgram WebSocket connection")
-            self.dg_connection = self.deepgram.listen.websocket.v("1")
+            self.dg_connection = self.deepgram
 
             # Handler for transcript results
-            def handle_transcript(conn, result=None):
+            async def handle_transcript(conn, result=None):
                 try:
                     # Update the last activity time
                     self.last_activity_time = time.time()
@@ -193,7 +195,7 @@ class DeepgramSTT(STT):
                     self._emit_error_event(e, "Deepgram transcript processing")
 
             # Handler for errors
-            def handle_error(conn, error=None):
+            async def handle_error(conn, error=None):
                 # Update the last activity time
                 self.last_activity_time = time.time()
 
@@ -210,7 +212,7 @@ class DeepgramSTT(STT):
 
             # Start the connection
             logger.info("Starting Deepgram connection with options %s", self.options)
-            self.dg_connection.start(self.options)
+            await self.dg_connection.start(self.options)
 
             # Start the keep-alive task
             self._running = True
@@ -276,13 +278,13 @@ class DeepgramSTT(STT):
             # The Deepgram SDK doesn't have a send_text method, but the connection
             # does have a method to send non-binary data which we should use
             if hasattr(self.dg_connection, "send_text"):
-                self.dg_connection.send_text(keep_alive_msg)
+                await self.dg_connection.send_text(keep_alive_msg)
             elif hasattr(self.dg_connection, "keep_alive"):
                 # Many SDKs have a dedicated keep_alive method
-                self.dg_connection.keep_alive()
+                await self.dg_connection.keep_alive()
             else:
                 # Fallback: try sending json as non-binary data
-                self.dg_connection.send(keep_alive_msg)
+                await self.dg_connection.send(keep_alive_msg)
 
             logger.info("Sent keep-alive message to Deepgram")
             return True
@@ -323,13 +325,13 @@ class DeepgramSTT(STT):
         # Ensure connection is set up
         if not self.dg_connection and not self._setup_attempted:
             logger.warning("Deepgram connection not initialized, attempting setup")
-            self._setup_connection()
+            await self._setup_connection()
             self._setup_attempted = True
 
         if not self.dg_connection:
             if not self._setup_attempted:
                 logger.info("No Deepgram connection available, retrying setup")
-                self._setup_connection()
+                await self._setup_connection()
                 self._setup_attempted = True
             else:
                 logger.error("No Deepgram connection available after retry")
@@ -354,7 +356,7 @@ class DeepgramSTT(STT):
                 "Sending audio data to Deepgram",
                 extra={"audio_bytes": len(audio_data)},
             )
-            self.dg_connection.send(audio_data)
+            await self.dg_connection.send(audio_data)
         except Exception as e:
             # Raise exception to be handled by base class
             raise Exception(f"Deepgram audio transmission error: {e}")
@@ -386,7 +388,7 @@ class DeepgramSTT(STT):
         if self.dg_connection:
             logger.debug("Closing Deepgram connection")
             try:
-                self.dg_connection.finish()
+                await self.dg_connection.finish()
                 self.dg_connection = None
             except Exception as e:
                 logger.error("Error closing Deepgram connection", exc_info=e)
