@@ -108,7 +108,7 @@ class STTTranscriptEvent(BaseEvent):
     """Event emitted when a complete transcript is available."""
     event_type: EventType = field(default=EventType.STT_TRANSCRIPT, init=False)
     text: str = ""
-    confidence: float = 1.0
+    confidence: Optional[float] = None
     language: Optional[str] = None
     processing_time_ms: Optional[float] = None
     audio_duration_ms: Optional[float] = None
@@ -126,7 +126,7 @@ class STTPartialTranscriptEvent(BaseEvent):
     """Event emitted when a partial transcript is available."""
     event_type: EventType = field(default=EventType.STT_PARTIAL_TRANSCRIPT, init=False)
     text: str = ""
-    confidence: float = 1.0
+    confidence: Optional[float] = None
     language: Optional[str] = None
     processing_time_ms: Optional[float] = None
     audio_duration_ms: Optional[float] = None

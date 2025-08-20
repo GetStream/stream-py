@@ -598,7 +598,7 @@ async def test_moonshine_with_mia_audio_mocked(mia_audio_data, mia_metadata):
 
         # Verify metadata structure
         assert metadata["model_name"] == "moonshine/base"
-        assert metadata["confidence"] == 1.0
+        assert metadata["confidence"] is None  # Moonshine doesn't provide confidence scores
         assert metadata["target_sample_rate"] == 16000
         assert "processing_time_ms" in metadata
         assert "original_sample_rate" in metadata
@@ -758,7 +758,7 @@ async def test_moonshine_real_integration(mia_audio_data, mia_metadata):
             assert "processing_time_ms" in metadata
             assert "confidence" in metadata
             assert (
-                metadata["confidence"] == 1.0
+                metadata["confidence"] is None
             )  # Moonshine doesn't provide confidence scores
             assert "original_sample_rate" in metadata
             assert "target_sample_rate" in metadata
