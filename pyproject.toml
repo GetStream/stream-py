@@ -28,7 +28,6 @@ dependencies = [
     "pydantic>=2.10.6",
     "tenacity>=9.1.2",
     "ping3>=4.0.8",
-    "pyee>=13.0.0",
     "aiortc>=1.13.0",
     "numpy>=2.2.6",
     "torch>=2.7.1",
