@@ -604,6 +604,284 @@ class TestEventEdgeCases:
         assert event_dict['is_final'] is True
 
 
+class TestEventMetrics:
+    """Test event metrics calculation functions."""
+    
+    def test_calculate_stt_metrics_empty_events(self):
+        """Test STT metrics calculation with no events."""
+        from getstream.plugins.common.event_metrics import calculate_stt_metrics
+        
+        metrics = calculate_stt_metrics([])
+        assert metrics == {"total_transcripts": 0}
+    
+    def test_calculate_stt_metrics_basic_counts(self):
+        """Test STT metrics calculation with basic event counts."""
+        from getstream.plugins.common.event_metrics import calculate_stt_metrics
+        
+        events = [
+            STTTranscriptEvent(text="First transcript", is_final=True),
+            STTTranscriptEvent(text="Second transcript", is_final=True),
+            STTPartialTranscriptEvent(text="Partial transcript", is_final=False),
+            STTErrorEvent(error=Exception("Test error"))  # Should be ignored
+        ]
+        
+        metrics = calculate_stt_metrics(events)
+        
+        assert metrics["total_transcripts"] == 3
+        assert metrics["final_transcripts"] == 2
+        assert metrics["partial_transcripts"] == 1
+    
+    def test_calculate_stt_metrics_with_processing_times(self):
+        """Test STT metrics calculation with processing time data."""
+        from getstream.plugins.common.event_metrics import calculate_stt_metrics
+        
+        events = [
+            STTTranscriptEvent(text="Fast", processing_time_ms=50.0),
+            STTTranscriptEvent(text="Medium", processing_time_ms=100.0),
+            STTTranscriptEvent(text="Slow", processing_time_ms=200.0),
+            STTPartialTranscriptEvent(text="Partial", processing_time_ms=75.0)
+        ]
+        
+        metrics = calculate_stt_metrics(events)
+        
+        assert metrics["total_transcripts"] == 4
+        assert metrics["avg_processing_time_ms"] == 106.25  # (50+100+200+75)/4
+        assert metrics["min_processing_time_ms"] == 50.0
+        assert metrics["max_processing_time_ms"] == 200.0
+    
+    def test_calculate_stt_metrics_with_confidence(self):
+        """Test STT metrics calculation with confidence data."""
+        from getstream.plugins.common.event_metrics import calculate_stt_metrics
+        
+        events = [
+            STTTranscriptEvent(text="High confidence", confidence=0.95),
+            STTTranscriptEvent(text="Medium confidence", confidence=0.75),
+            STTTranscriptEvent(text="Low confidence", confidence=0.55),
+            STTPartialTranscriptEvent(text="Partial", confidence=0.80)
+        ]
+        
+        metrics = calculate_stt_metrics(events)
+        
+        assert metrics["total_transcripts"] == 4
+        assert metrics["avg_confidence"] == 0.7625  # (0.95+0.75+0.55+0.80)/4
+        assert metrics["min_confidence"] == 0.55
+        assert metrics["max_confidence"] == 0.95
+    
+    def test_calculate_stt_metrics_mixed_data(self):
+        """Test STT metrics calculation with mixed data (some missing values)."""
+        from getstream.plugins.common.event_metrics import calculate_stt_metrics
+        
+        events = [
+            STTTranscriptEvent(text="Complete", confidence=0.9, processing_time_ms=100.0),
+            STTTranscriptEvent(text="No confidence", processing_time_ms=150.0),
+            STTTranscriptEvent(text="No processing time", confidence=0.8),
+            STTPartialTranscriptEvent(text="Partial only")
+        ]
+        
+        metrics = calculate_stt_metrics(events)
+        
+        assert metrics["total_transcripts"] == 4
+        assert metrics["final_transcripts"] == 3
+        assert metrics["partial_transcripts"] == 1
+        
+        # Only events with processing_time_ms should be included
+        assert metrics["avg_processing_time_ms"] == 125.0  # (100+150)/2
+        assert metrics["min_processing_time_ms"] == 100.0
+        assert metrics["max_processing_time_ms"] == 150.0
+        
+        # Only events with confidence should be included
+        assert pytest.approx(metrics["avg_confidence"], 0.001) == 0.85  # (0.9+0.8)/2
+        assert metrics["min_confidence"] == 0.8
+        assert metrics["max_confidence"] == 0.9
+    
+    def test_calculate_tts_metrics_empty_events(self):
+        """Test TTS metrics calculation with no events."""
+        from getstream.plugins.common.event_metrics import calculate_tts_metrics
+        
+        metrics = calculate_tts_metrics([])
+        assert metrics == {
+            "total_audio_chunks": 0,
+            "total_syntheses": 0,
+            "completed_syntheses": 0
+        }
+    
+    def test_calculate_tts_metrics_basic_counts(self):
+        """Test TTS metrics calculation with basic event counts."""
+        from getstream.plugins.common.event_metrics import calculate_tts_metrics
+        
+        events = [
+            TTSAudioEvent(audio_data=b"chunk1"),
+            TTSAudioEvent(audio_data=b"chunk2"),
+            TTSSynthesisStartEvent(text="Start synthesis"),
+            TTSSynthesisCompleteEvent(synthesis_id="synth1"),
+            TTSErrorEvent(error=Exception("TTS error"))  # Should be ignored
+        ]
+        
+        metrics = calculate_tts_metrics(events)
+        
+        assert metrics["total_audio_chunks"] == 2
+        assert metrics["total_syntheses"] == 1
+        assert metrics["completed_syntheses"] == 1
+    
+    def test_calculate_tts_metrics_with_synthesis_times(self):
+        """Test TTS metrics calculation with synthesis time data."""
+        from getstream.plugins.common.event_metrics import calculate_tts_metrics
+        
+        events = [
+            TTSSynthesisCompleteEvent(synthesis_id="fast", synthesis_time_ms=100.0),
+            TTSSynthesisCompleteEvent(synthesis_id="medium", synthesis_time_ms=200.0),
+            TTSSynthesisCompleteEvent(synthesis_id="slow", synthesis_time_ms=300.0)
+        ]
+        
+        metrics = calculate_tts_metrics(events)
+        
+        assert metrics["completed_syntheses"] == 3
+        assert metrics["avg_synthesis_time_ms"] == 200.0  # (100+200+300)/3
+        assert metrics["min_synthesis_time_ms"] == 100.0
+        assert metrics["max_synthesis_time_ms"] == 300.0
+    
+    def test_calculate_tts_metrics_with_real_time_factors(self):
+        """Test TTS metrics calculation with real-time factor data."""
+        from getstream.plugins.common.event_metrics import calculate_tts_metrics
+        
+        events = [
+            TTSSynthesisCompleteEvent(synthesis_id="rt1", real_time_factor=0.5),
+            TTSSynthesisCompleteEvent(synthesis_id="rt2", real_time_factor=1.0),
+            TTSSynthesisCompleteEvent(synthesis_id="rt3", real_time_factor=1.5),
+            TTSSynthesisCompleteEvent(synthesis_id="rt4")  # No real_time_factor
+        ]
+        
+        metrics = calculate_tts_metrics(events)
+        
+        assert metrics["completed_syntheses"] == 4
+        assert metrics["avg_real_time_factor"] == 1.0  # (0.5+1.0+1.5)/3 (only 3 have values)
+        assert metrics["min_real_time_factor"] == 0.5
+        assert metrics["max_real_time_factor"] == 1.5
+    
+    def test_calculate_vad_metrics_empty_events(self):
+        """Test VAD metrics calculation with no events."""
+        from getstream.plugins.common.event_metrics import calculate_vad_metrics
+        
+        metrics = calculate_vad_metrics([])
+        assert metrics == {
+            "total_speech_segments": 0,
+            "total_partial_events": 0
+        }
+    
+    def test_calculate_vad_metrics_basic_counts(self):
+        """Test VAD metrics calculation with basic event counts."""
+        from getstream.plugins.common.event_metrics import calculate_vad_metrics
+        
+        events = [
+            VADAudioEvent(audio_data=b"speech1"),
+            VADAudioEvent(audio_data=b"speech2"),
+            VADPartialEvent(speech_probability=0.8),
+            VADPartialEvent(speech_probability=0.9),
+            VADErrorEvent(error=Exception("VAD error"))  # Should be ignored
+        ]
+        
+        metrics = calculate_vad_metrics(events)
+        
+        assert metrics["total_speech_segments"] == 2
+        assert metrics["total_partial_events"] == 2
+    
+    def test_calculate_vad_metrics_with_durations_and_probabilities(self):
+        """Test VAD metrics calculation with duration and probability data."""
+        from getstream.plugins.common.event_metrics import calculate_vad_metrics
+        
+        events = [
+            VADAudioEvent(audio_data=b"short", duration_ms=500.0, speech_probability=0.8),
+            VADAudioEvent(audio_data=b"medium", duration_ms=1000.0, speech_probability=0.9),
+            VADAudioEvent(audio_data=b"long", duration_ms=2000.0, speech_probability=0.95)
+        ]
+        
+        metrics = calculate_vad_metrics(events)
+        
+        assert metrics["total_speech_segments"] == 3
+        assert pytest.approx(metrics["avg_speech_duration_ms"], 0.01) == 1166.67  # (500+1000+2000)/3
+        assert metrics["total_speech_duration_ms"] == 3500.0  # 500+1000+2000
+        assert pytest.approx(metrics["avg_speech_probability"], 0.001) == 0.883  # (0.8+0.9+0.95)/3
+    
+    def test_calculate_vad_metrics_mixed_data(self):
+        """Test VAD metrics calculation with mixed data (some missing values)."""
+        from getstream.plugins.common.event_metrics import calculate_vad_metrics
+        
+        events = [
+            VADAudioEvent(audio_data=b"complete", duration_ms=1000.0, speech_probability=0.9),
+            VADAudioEvent(audio_data=b"no_duration", speech_probability=0.8),
+            VADAudioEvent(audio_data=b"no_probability", duration_ms=1500.0),
+            VADPartialEvent(speech_probability=0.7)
+        ]
+        
+        metrics = calculate_vad_metrics(events)
+        
+        assert metrics["total_speech_segments"] == 3
+        assert metrics["total_partial_events"] == 1
+        
+        # Note: VADAudioEvent has default values (duration_ms=0.0, speech_probability=0.0)
+        # So all events contribute to averages, but with their actual values
+        assert pytest.approx(metrics["avg_speech_duration_ms"], 0.01) == 833.33  # (1000+0+1500)/3
+        assert metrics["total_speech_duration_ms"] == 2500.0  # 1000+0+1500
+        
+        # Only events with non-zero speech_probability should be included
+        assert pytest.approx(metrics["avg_speech_probability"], 0.001) == 0.567  # (0.9+0.8+0.0)/3
+    
+    def test_calculate_metrics_with_realistic_event_sequence(self):
+        """Test metrics calculation with a realistic sequence of events."""
+        from getstream.plugins.common.event_metrics import (
+            calculate_stt_metrics, calculate_tts_metrics, calculate_vad_metrics
+        )
+        
+        # Create a realistic sequence of events
+        events = [
+            # STT Events
+            STTTranscriptEvent(text="Hello", confidence=0.95, processing_time_ms=100.0),
+            STTPartialTranscriptEvent(text="Hello wo", confidence=0.85, processing_time_ms=50.0),
+            STTTranscriptEvent(text="Hello world", confidence=0.92, processing_time_ms=120.0),
+            
+            # TTS Events
+            TTSSynthesisStartEvent(text="Hello world"),
+            TTSAudioEvent(audio_data=b"audio1"),
+            TTSAudioEvent(audio_data=b"audio2"),
+            TTSSynthesisCompleteEvent(
+                synthesis_id="synth1", 
+                synthesis_time_ms=200.0, 
+                real_time_factor=0.8
+            ),
+            
+            # VAD Events
+            VADAudioEvent(audio_data=b"speech1", duration_ms=800.0, speech_probability=0.9),
+            VADPartialEvent(speech_probability=0.85),
+            VADAudioEvent(audio_data=b"speech2", duration_ms=1200.0, speech_probability=0.95)
+        ]
+        
+        # Calculate all metrics
+        stt_metrics = calculate_stt_metrics(events)
+        tts_metrics = calculate_tts_metrics(events)
+        vad_metrics = calculate_vad_metrics(events)
+        
+        # Verify STT metrics
+        assert stt_metrics["total_transcripts"] == 3
+        assert stt_metrics["final_transcripts"] == 2
+        assert stt_metrics["partial_transcripts"] == 1
+        assert stt_metrics["avg_processing_time_ms"] == 90.0  # (100+50+120)/3
+        assert pytest.approx(stt_metrics["avg_confidence"], 0.001) == 0.907  # (0.95+0.85+0.92)/3
+        
+        # Verify TTS metrics
+        assert tts_metrics["total_audio_chunks"] == 2
+        assert tts_metrics["total_syntheses"] == 1
+        assert tts_metrics["completed_syntheses"] == 1
+        assert tts_metrics["avg_synthesis_time_ms"] == 200.0
+        assert tts_metrics["avg_real_time_factor"] == 0.8
+        
+        # Verify VAD metrics
+        assert vad_metrics["total_speech_segments"] == 2
+        assert vad_metrics["total_partial_events"] == 1
+        assert pytest.approx(vad_metrics["avg_speech_duration_ms"], 0.01) == 1000.0  # (800+1200)/2
+        assert vad_metrics["total_speech_duration_ms"] == 2000.0  # 800+1200
+        assert pytest.approx(vad_metrics["avg_speech_probability"], 0.001) == 0.925  # (0.9+0.95)/2
+
+
 class TestEventSerialization:
     """Test event serialization and deserialization."""
     
