@@ -11,6 +11,7 @@ resolution-markers = [
 [manifest]
 members = [
     "getstream",
+    "getstream-plugins-assemblyai",
     "getstream-plugins-cartesia",
     "getstream-plugins-common",
     "getstream-plugins-deepgram",
@@ -216,6 +217,21 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/95/7d/4c1bd541d4dffa1b52bd83fb8527089e097a106fc90b467a7313b105f840/anyio-4.9.0.tar.gz", hash = "sha256:673c0c244e15788651a4ff38710fea9675823028a6f08a5eda409e0c9840a028", size = 190949, upload-time = "2025-03-17T00:02:54.77Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a1/ee/48ca1a7c89ffec8b6a0c5d02b89c305671d5ffd8d3c94acf8b8c408575bb/anyio-4.9.0-py3-none-any.whl", hash = "sha256:9f76d541cad6e36af7beb62e978876f3b41e3e04f2c1fbf0884604c0a9c4d93c", size = 100916, upload-time = "2025-03-17T00:02:52.713Z" },
+]
+
+[[package]]
+name = "assemblyai"
+version = "0.43.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "typing-extensions" },
+    { name = "websockets" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/9b/a6/51324e434a250f44f5d6d041e5acb8a98451604dbe8aaa9e5f91bf1dc902/assemblyai-0.43.1.tar.gz", hash = "sha256:c39e8ddb4434af316ade3259e51f86be8134c24be821d8cd84502850ea551951", size = 53970, upload-time = "2025-08-12T21:22:14.547Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f2/c4/3df745c07cc66be2d1134629b7007e3c8f3b9931caa5a62e023dcc7984cd/assemblyai-0.43.1-py3-none-any.whl", hash = "sha256:4e6e11eb07130c5c87aea84cc63d80933a6588e9b3aeee80026c2419756a3513", size = 50053, upload-time = "2025-08-12T21:22:13.255Z" },
 ]
 
 [[package]]
@@ -1020,6 +1036,7 @@ source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
     { name = "aiortc" },
+    { name = "assemblyai" },
     { name = "dataclasses-json" },
     { name = "httpx" },
     { name = "marshmallow" },
@@ -1028,7 +1045,6 @@ dependencies = [
     { name = "protobuf" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
-    { name = "pyee" },
     { name = "pyjwt" },
     { name = "pytest-timeout" },
     { name = "python-dateutil" },
@@ -1081,6 +1097,7 @@ requires-dist = [
     { name = "aiohttp", specifier = ">=3.11.16" },
     { name = "aiortc", specifier = ">=1.13.0" },
     { name = "aiortc", marker = "extra == 'webrtc'", specifier = ">=1.10.1" },
+    { name = "assemblyai", specifier = ">=0.43.1" },
     { name = "dataclasses-json", specifier = ">=0.6.0,<0.7" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "marshmallow", specifier = ">=3.21.0,<4" },
@@ -1092,7 +1109,6 @@ requires-dist = [
     { name = "protobuf", marker = "extra == 'webrtc'", specifier = ">=4.25.1" },
     { name = "pydantic", specifier = ">=2.10.6" },
     { name = "pydantic-settings", specifier = ">=2.9.1" },
-    { name = "pyee", specifier = ">=13.0.0" },
     { name = "pyee", marker = "extra == 'webrtc'", specifier = ">=13.0.0" },
     { name = "pyjwt", specifier = ">=2.8.0,<3" },
     { name = "pytest-timeout", specifier = ">=2.3.1" },
@@ -1129,6 +1145,43 @@ dev = [
     { name = "python-dateutil", specifier = ">=2.8.2,<3" },
     { name = "python-dotenv", specifier = ">=1.1.1,<2" },
     { name = "ruff", specifier = ">=0.12.1" },
+]
+
+[[package]]
+name = "getstream-plugins-assemblyai"
+version = "0.1.0"
+source = { editable = "getstream/plugins/assemblyai" }
+dependencies = [
+    { name = "assemblyai" },
+    { name = "getstream", extra = ["webrtc"] },
+    { name = "getstream-plugins-common" },
+    { name = "numpy" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "scipy" },
+    { name = "soundfile" },
+    { name = "torchaudio" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "assemblyai", specifier = ">=0.43.1" },
+    { name = "getstream", extras = ["webrtc"], editable = "." },
+    { name = "getstream-plugins-common", editable = "getstream/plugins/common" },
+    { name = "numpy", specifier = ">=2.2.6,<2.3" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=8.4.1" },
+    { name = "pytest-asyncio", specifier = ">=1.0.0" },
+    { name = "scipy", specifier = ">=1.15.3,<1.16" },
+    { name = "soundfile", specifier = ">=0.13.1" },
+    { name = "torchaudio", specifier = ">=2.7.1" },
 ]
 
 [[package]]
