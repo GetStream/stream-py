@@ -8,6 +8,6 @@ license = {text = "MIT"}
 
 dependencies = [
     "getstream[webrtc]>=2.3.0a0",
+    "getstream-plugins-assemblyai>=0.1.0",
     "python-dotenv>=1.1.1",
-    "assemblyai>=0.43.1",
 ]
