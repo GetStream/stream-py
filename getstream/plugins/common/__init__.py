@@ -53,12 +53,12 @@ from .event_utils import (
     EventFilter,
     EventRegistry,
     EventLogger,
-    EventMetrics,
     register_global_event,
     get_global_registry,
     get_global_logger,
 )
 from .event_serialization import serialize_event, serialize_events, deserialize_event
+from .event_metrics import calculate_stt_metrics, calculate_tts_metrics, calculate_vad_metrics
 from .events import create_event
 
 __all__ = [
@@ -113,7 +113,6 @@ __all__ = [
     "EventFilter",
     "EventRegistry",
     "EventLogger",
-    "EventMetrics",
     "register_global_event",
     "get_global_registry",
     "get_global_logger",
@@ -123,4 +122,9 @@ __all__ = [
     "serialize_event",
     "serialize_events",
     "deserialize_event",
+
+    # Event metrics
+    "calculate_stt_metrics",
+    "calculate_tts_metrics",
+    "calculate_vad_metrics",
 ]
