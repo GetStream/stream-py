@@ -1153,7 +1153,7 @@ dev = [
 
 [[package]]
 name = "getstream-plugins-common"
-version = "0.1.1"
+version = "0.2.0"
 source = { editable = "getstream/plugins/common" }
 dependencies = [
     { name = "getstream", extra = ["webrtc"] },

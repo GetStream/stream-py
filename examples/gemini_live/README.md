@@ -1,28 +1,28 @@
-# Stream + OpenAI Realtime Speech-to-Speech Example
+## Stream + Gemini Live Speech-to-Speech Example
 
-This example demonstrates how to connect an OpenAI Realtime speech-to-speech agent to a Stream video call for real-time voice conversations with function calling capabilities.
+This example shows how to connect a Google Gemini Live speech-to-speech agent to a Stream video call for real-time voice conversations. It has turn detection and interruption enabled so you can interrupt the bot as it speaks.
 
-## What it does
+### What It Does
 
-- 🤖 Creates an AI agent that joins a Stream video call
-- 🌐 Opens a browser interface for users to join the call
-- 🎤 Listens to speech and responds with synthesized voice in real-time
-- 🛠️ Supports function calls (example: "Start closed captions")
-- 🧠 Uses OpenAI's GPT-4o Realtime model with voice capabilities
+- 🤖 AI agent: joins a Stream video call as a bot user
+- 🌐 Browser UI: opens a link so you can join the same call
+- 🎤 Live audio: streams your microphone audio to Gemini
+- 🔊 Assistant speech: plays Gemini’s synthesized audio into the call
+- 🧠 Model: uses a Gemini Live model with voice output
 
-## Prerequisites
+### Prerequisites
 
-1. **Stream Account**: Get your API credentials from [Stream Dashboard](https://dashboard.getstream.io)
-2. **OpenAI Account**: Get your API key from [OpenAI Platform](https://platform.openai.com) (must have Realtime access)
-3. **Python 3.10+**: Required for running the example
+1. **Stream account**: Get API credentials from [Stream Dashboard](https://dashboard.getstream.io)
+2. **Google account**: Get a `GOOGLE_API_KEY` with Gemini Live access
+3. **Python 3.10+**: Required to run the example
 
-## Installation
+### Installation
 
-You can use your preferred package manager, but we recommend [`uv`](https://docs.astral.sh/uv/).
+You can use your preferred package manager, but we recommend `uv`.
 
 1. **Navigate to this directory:**
    ```bash
-   cd examples/openai_realtime_speech_to_speech
+   cd examples/gemini_live
    ```
 
 2. **Install dependencies:**
@@ -31,11 +31,18 @@ You can use your preferred package manager, but we recommend [`uv`](https://docs
    ```
 
 3. **Set up environment variables:**
-   Rename `env.example` to `.env` and fill in your actual credentials.
+   - Copy `env.example` to `.env`
+   - Set at least the following:
+     - `STREAM_API_KEY`: your Stream key
+     - `STREAM_API_SECRET`: your Stream secret
+     - `GOOGLE_API_KEY`: your Gemini API key
+     - `EXAMPLE_BASE_URL`: base URL for the example UI
 
-## Usage
+### Usage
 
 Run the example:
 ```bash
 uv run main.py
 ```
+
+The script creates a user and a bot user, starts a call, and opens a browser link. Join the call in the browser, then speak; the agent listens and responds with synthesized speech.

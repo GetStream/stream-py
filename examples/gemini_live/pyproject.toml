@@ -1,7 +1,7 @@
 [project]
-name = "openapi-realtime-speech-to-speech-example"
+name = "gemini-live-example"
 version = "0.1.0"
-description = "Example project showing how to use OpenAI's realitme speech-to-speech model with the Stream Python SDK."
+description = "Example project showing how to use Google's Gemini Live model with the Stream Python SDK."
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
