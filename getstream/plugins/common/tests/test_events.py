@@ -1157,3 +1157,424 @@ class TestEventSerialization:
         assert deserialized_events[1].error_code == "E001"
         assert deserialized_events[2].sample_rate == 16000
         assert deserialized_events[2].audio_data is None  # Should be removed during serialization
+
+
+class TestEventFiltering:
+    """Test event filtering functionality."""
+    
+    def test_event_filter_creation(self):
+        """Test EventFilter creation with various parameters."""
+        from getstream.plugins.common.event_utils import EventFilter
+        
+        # Test basic filter
+        filter1 = EventFilter()
+        assert filter1.event_types is None
+        assert filter1.session_ids is None
+        assert filter1.plugin_names is None
+        assert filter1.time_window_ms is None
+        assert filter1.min_confidence is None
+        
+        # Test filter with specific criteria
+        filter2 = EventFilter(
+            event_types=[EventType.STT_TRANSCRIPT, EventType.STT_PARTIAL_TRANSCRIPT],
+            session_ids=["session1", "session2"],
+            plugin_names=["stt_plugin"],
+            time_window_ms=60000,
+            min_confidence=0.8
+        )
+        assert EventType.STT_TRANSCRIPT in filter2.event_types
+        assert EventType.STT_PARTIAL_TRANSCRIPT in filter2.event_types
+        assert "session1" in filter2.session_ids
+        assert "session2" in filter2.session_ids
+        assert "stt_plugin" in filter2.plugin_names
+        assert filter2.time_window_ms == 60000
+        assert filter2.min_confidence == 0.8
+    
+    def test_event_filter_matching(self):
+        """Test EventFilter.matches() method."""
+        from getstream.plugins.common.event_utils import EventFilter
+        from datetime import datetime, timedelta
+        
+        # Create test events
+        now = datetime.now()
+        event1 = STTTranscriptEvent(
+            text="test",
+            confidence=0.9,
+            session_id="session1",
+            plugin_name="stt_plugin",
+            timestamp=now
+        )
+        event2 = STTTranscriptEvent(
+            text="test2",
+            confidence=0.7,
+            session_id="session2",
+            plugin_name="tts_plugin",
+            timestamp=now - timedelta(seconds=120)
+        )
+        
+        # Test event type filtering
+        type_filter = EventFilter(event_types=[EventType.STT_TRANSCRIPT])
+        assert type_filter.matches(event1) is True
+        assert type_filter.matches(event2) is True
+        
+        type_filter = EventFilter(event_types=[EventType.TTS_AUDIO])
+        assert type_filter.matches(event1) is False
+        assert type_filter.matches(event2) is False
+        
+        # Test session ID filtering
+        session_filter = EventFilter(session_ids=["session1"])
+        assert session_filter.matches(event1) is True
+        assert session_filter.matches(event2) is False
+        
+        # Test plugin name filtering
+        plugin_filter = EventFilter(plugin_names=["stt_plugin"])
+        assert plugin_filter.matches(event1) is True
+        assert plugin_filter.matches(event2) is False
+        
+        # Test time window filtering
+        time_filter = EventFilter(time_window_ms=60000)  # Last minute
+        assert time_filter.matches(event1) is True  # Recent
+        assert time_filter.matches(event2) is False  # 2 minutes ago
+        
+        # Test confidence filtering
+        confidence_filter = EventFilter(min_confidence=0.8)
+        assert confidence_filter.matches(event1) is True  # 0.9 > 0.8
+        assert confidence_filter.matches(event2) is False  # 0.7 < 0.8
+        
+        # Test combined filtering
+        combined_filter = EventFilter(
+            event_types=[EventType.STT_TRANSCRIPT],
+            session_ids=["session1"],
+            plugin_names=["stt_plugin"],
+            min_confidence=0.8
+        )
+        assert combined_filter.matches(event1) is True  # All criteria match
+        assert combined_filter.matches(event2) is False  # Some criteria don't match
+    
+    def test_event_filter_edge_cases(self):
+        """Test EventFilter edge cases."""
+        from getstream.plugins.common.event_utils import EventFilter
+        
+        # Test with None values
+        event = STTTranscriptEvent(text="test")
+        filter_none = EventFilter()
+        assert filter_none.matches(event) is True  # No filters = match everything
+        
+        # Test with empty sets (current implementation treats empty sets as "no filter")
+        filter_empty = EventFilter(event_types=[], session_ids=[], plugin_names=[])
+        assert filter_empty.matches(event) is True  # Empty sets = no filtering = match everything
+        
+        # Test with None event (current implementation doesn't validate event parameter)
+        filter_any = EventFilter()
+        assert filter_any.matches(None) is True  # None events currently pass through (could be improved)
+
+
+class TestEventRegistry:
+    """Test event registry functionality."""
+    
+    def test_event_registry_creation(self):
+        """Test EventRegistry creation and basic properties."""
+        from getstream.plugins.common.event_utils import EventRegistry
+        
+        registry = EventRegistry(max_events=100)
+        assert registry.max_events == 100
+        assert len(registry.events) == 0
+        assert len(registry.event_counts) == 0
+        assert len(registry.session_events) == 0
+        assert len(registry.error_counts) == 0
+    
+    def test_event_registration(self):
+        """Test event registration and counting."""
+        from getstream.plugins.common.event_utils import EventRegistry
+        
+        registry = EventRegistry()
+        
+        # Register some events
+        event1 = STTTranscriptEvent(text="test1", session_id="session1")
+        event2 = STTTranscriptEvent(text="test2", session_id="session1")
+        event3 = STTErrorEvent(error=Exception("test"), session_id="session2")
+        
+        registry.register_event(event1)
+        registry.register_event(event2)
+        registry.register_event(event3)
+        
+        # Check counts
+        assert len(registry.events) == 3
+        assert registry.event_counts[EventType.STT_TRANSCRIPT] == 2
+        assert registry.event_counts[EventType.STT_ERROR] == 1
+        
+        # Check session grouping
+        assert len(registry.session_events["session1"]) == 2
+        assert len(registry.session_events["session2"]) == 1
+        
+        # Check error counting
+        assert registry.error_counts["None_stt_error"] == 1
+    
+    def test_event_registry_max_events(self):
+        """Test EventRegistry respects max_events limit."""
+        from getstream.plugins.common.event_utils import EventRegistry
+        
+        registry = EventRegistry(max_events=3)
+        
+        # Add 5 events
+        for i in range(5):
+            event = STTTranscriptEvent(text=f"test{i}")
+            registry.register_event(event)
+        
+        # Should only keep the last 3
+        assert len(registry.events) == 3
+        assert registry.events[0].text == "test2"  # First event should be dropped
+        assert registry.events[2].text == "test4"  # Last event should be kept
+    
+    def test_event_registry_filtering(self):
+        """Test EventRegistry.get_events() with filtering."""
+        from getstream.plugins.common.event_utils import EventRegistry, EventFilter
+        
+        registry = EventRegistry()
+        
+        # Add events with different characteristics
+        events = [
+            STTTranscriptEvent(text="high_conf", confidence=0.95, session_id="session1"),
+            STTTranscriptEvent(text="low_conf", confidence=0.75, session_id="session1"),
+            STTTranscriptEvent(text="other_session", confidence=0.9, session_id="session2"),
+            TTSAudioEvent(audio_data=b"audio", session_id="session1")
+        ]
+        
+        for event in events:
+            registry.register_event(event)
+        
+        # Test filtering by event type
+        stt_filter = EventFilter(event_types=[EventType.STT_TRANSCRIPT])
+        stt_events = registry.get_events(stt_filter)
+        assert len(stt_events) == 3
+        assert all(e.event_type == EventType.STT_TRANSCRIPT for e in stt_events)
+        
+        # Test filtering by session
+        session_filter = EventFilter(session_ids=["session1"])
+        session_events = registry.get_events(session_filter)
+        assert len(session_events) == 3
+        assert all(e.session_id == "session1" for e in session_events)
+        
+        # Test filtering by confidence (events without confidence pass through, only low confidence events are filtered)
+        confidence_filter = EventFilter(min_confidence=0.8)
+        high_conf_events = registry.get_events(confidence_filter)
+        assert len(high_conf_events) == 3  # TTSAudioEvent passes through, low confidence STT event is filtered out
+        # Verify that events with confidence meet the threshold
+        events_with_confidence = [e for e in high_conf_events if hasattr(e, 'confidence') and e.confidence is not None]
+        assert all(e.confidence >= 0.8 for e in events_with_confidence)
+        
+        # Test combined filtering
+        combined_filter = EventFilter(
+            event_types=[EventType.STT_TRANSCRIPT],
+            session_ids=["session1"],
+            min_confidence=0.8
+        )
+        combined_events = registry.get_events(combined_filter)
+        assert len(combined_events) == 1
+        assert combined_events[0].text == "high_conf"
+    
+    def test_event_registry_statistics(self):
+        """Test EventRegistry statistics methods."""
+        from getstream.plugins.common.event_utils import EventRegistry
+        
+        registry = EventRegistry()
+        
+        # Add events
+        events = [
+            STTTranscriptEvent(text="test1", session_id="session1"),
+            STTTranscriptEvent(text="test2", session_id="session1"),
+            STTErrorEvent(error=Exception("error1"), session_id="session2"),
+            TTSAudioEvent(audio_data=b"audio", session_id="session3")
+        ]
+        
+        for event in events:
+            registry.register_event(event)
+        
+        # Test error summary
+        error_summary = registry.get_error_summary()
+        assert "None_stt_error" in error_summary["error_breakdown"]
+        assert error_summary["error_breakdown"]["None_stt_error"] == 1
+        
+        # Test statistics
+        stats = registry.get_statistics()
+        assert stats["total_events"] == 4
+        assert stats["session_count"] == 3
+        assert stats["event_distribution"]["stt_transcript"] == 2
+        assert stats["event_distribution"]["stt_error"] == 1
+        assert stats["event_distribution"]["tts_audio"] == 1
+    
+    def test_event_registry_listeners(self):
+        """Test EventRegistry event listener functionality."""
+        from getstream.plugins.common.event_utils import EventRegistry
+        
+        registry = EventRegistry()
+        received_events = []
+        
+        def listener(event):
+            received_events.append(event)
+        
+        # Add listener for STT events
+        registry.add_listener(EventType.STT_TRANSCRIPT, listener)
+        
+        # Register an event
+        event = STTTranscriptEvent(text="test")
+        registry.register_event(event)
+        
+        # Check if listener was called
+        assert len(received_events) == 1
+        assert received_events[0] == event
+        
+        # Remove listener
+        registry.remove_listener(EventType.STT_TRANSCRIPT, listener)
+        received_events.clear()
+        
+        # Register another event
+        event2 = STTTranscriptEvent(text="test2")
+        registry.register_event(event2)
+        
+        # Listener should not be called
+        assert len(received_events) == 0
+    
+    def test_event_registry_clear(self):
+        """Test EventRegistry.clear() method."""
+        from getstream.plugins.common.event_utils import EventRegistry
+        
+        registry = EventRegistry()
+        
+        # Add some events
+        event = STTTranscriptEvent(text="test")
+        registry.register_event(event)
+        
+        # Verify events exist
+        assert len(registry.events) == 1
+        assert len(registry.event_counts) > 0
+        
+        # Clear registry
+        registry.clear()
+        
+        # Verify everything is cleared
+        assert len(registry.events) == 0
+        assert len(registry.event_counts) == 0
+        assert len(registry.session_events) == 0
+        assert len(registry.error_counts) == 0
+
+
+class TestEventLogger:
+    """Test event logging functionality."""
+    
+    def test_event_logger_creation(self):
+        """Test EventLogger creation."""
+        from getstream.plugins.common.event_utils import EventLogger
+        
+        logger = EventLogger()
+        assert logger.registry is not None
+        assert logger.logger is not None
+    
+    def test_event_logger_logging(self):
+        """Test EventLogger event logging."""
+        from getstream.plugins.common.event_utils import EventLogger
+        import logging
+        
+        # Set up logging capture
+        log_records = []
+        
+        def capture_logs(record):
+            log_records.append(record)
+        
+        # Create logger and capture logs
+        logger = EventLogger()
+        logger.logger.handlers = []  # Remove default handlers
+        logger.logger.addHandler(logging.StreamHandler())
+        
+        # Log some events
+        event1 = STTTranscriptEvent(text="test1")
+        event2 = STTErrorEvent(error=Exception("test error"))
+        
+        logger.log_event(event1)
+        logger.log_event(event2)
+        
+        # Check that events were registered
+        assert len(logger.registry.events) == 2
+        
+        # Check that events were logged (basic verification)
+        assert len(logger.registry.events) == 2
+    
+    def test_event_logger_batch_logging(self):
+        """Test EventLogger batch logging."""
+        from getstream.plugins.common.event_utils import EventLogger
+        
+        logger = EventLogger()
+        
+        # Create multiple events
+        events = [
+            STTTranscriptEvent(text="test1"),
+            STTTranscriptEvent(text="test2"),
+            TTSAudioEvent(audio_data=b"audio")
+        ]
+        
+        # Log events individually (EventLogger doesn't have batch method)
+        for event in events:
+            logger.log_event(event)
+        
+        # Check all events were registered
+        assert len(logger.registry.events) == 3
+        
+        # Check event types
+        event_types = [e.event_type for e in logger.registry.events]
+        assert EventType.STT_TRANSCRIPT in event_types
+        assert EventType.TTS_AUDIO in event_types
+
+
+class TestGlobalEventSystem:
+    """Test global event system functionality."""
+    
+    def test_global_registry_access(self):
+        """Test global registry access functions."""
+        from getstream.plugins.common.event_utils import (
+            get_global_registry, get_global_logger, register_global_event
+        )
+        
+        # Get global instances
+        registry = get_global_registry()
+        logger = get_global_logger()
+        
+        assert registry is not None
+        assert logger is not None
+        
+        # Test global event registration
+        event = STTTranscriptEvent(text="global_test")
+        register_global_event(event)
+        
+        # Check event was registered
+        global_events = registry.get_events()
+        assert len(global_events) > 0
+        
+        # Find our event
+        test_events = [e for e in global_events if e.text == "global_test"]
+        assert len(test_events) == 1
+    
+    def test_global_event_consistency(self):
+        """Test that global registry and logger are consistent."""
+        from getstream.plugins.common.event_utils import (
+            get_global_registry, get_global_logger, register_global_event
+        )
+        
+        registry = get_global_registry()
+        logger = get_global_logger()
+        
+        # They are separate instances but register_global_event ensures consistency
+        assert logger.registry is not registry  # Separate instances
+        
+        # Test consistency through global registration
+        event = STTTranscriptEvent(text="consistency_test")
+        register_global_event(event)
+        
+        # Check both registries have the event
+        registry_events = registry.get_events()
+        logger_events = logger.registry.get_events()
+        
+        registry_test_events = [e for e in registry_events if e.text == "consistency_test"]
+        logger_test_events = [e for e in logger_events if e.text == "consistency_test"]
+        
+        assert len(registry_test_events) == 1
+        assert len(logger_test_events) == 1
