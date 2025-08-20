@@ -1,6 +1,6 @@
 from getstream.plugins.common import TTS
 from getstream.video.rtc.audio_track import AudioStreamTrack
-from typing import Iterator, Optional
+from typing import AsyncIterator, Optional
 import os
 
 
@@ -21,13 +21,13 @@ class ElevenLabsTTS(TTS):
             model_id: The model ID to use for synthesis
         """
         super().__init__()
-        from elevenlabs.client import ElevenLabs
+        from elevenlabs.client import AsyncElevenLabs
 
         # elevenlabs sdk does not always load the env correctly (default kwarg)
         if not api_key:
             api_key = os.environ.get("ELEVENLABS_API_KEY")
 
-        self.client = ElevenLabs(api_key=api_key)
+        self.client = AsyncElevenLabs(api_key=api_key)
         self.voice_id = voice_id
         self.model_id = model_id
         self.output_format = "pcm_16000"
@@ -37,7 +37,7 @@ class ElevenLabsTTS(TTS):
             raise TypeError("Invalid framerate, audio track only supports 16000")
         super().set_output_track(track)
 
-    async def synthesize(self, text: str, *args, **kwargs) -> Iterator[bytes]:
+    async def synthesize(self, text: str, *args, **kwargs) -> AsyncIterator[bytes]:
         """
         Convert text to speech using ElevenLabs API.
 
@@ -45,7 +45,7 @@ class ElevenLabsTTS(TTS):
             text: The text to convert to speech
 
         Returns:
-            An iterator of audio chunks as bytes
+            An async iterator of audio chunks as bytes
         """
         audio_stream = self.client.text_to_speech.stream(
             text=text,
