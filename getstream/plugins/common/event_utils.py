@@ -66,11 +66,12 @@ class EventFilter:
             if current_time_ms - event_time_ms > self.time_window_ms:
                 return False
 
-        # Check confidence (for events that have confidence)
+        # Check confidence (strict filtering - events without confidence are excluded)
         if self.min_confidence is not None:
-            if hasattr(event, 'confidence') and event.confidence is not None:
-                if event.confidence < self.min_confidence:
-                    return False
+            if not hasattr(event, 'confidence') or event.confidence is None:
+                return False  # Exclude events without confidence data
+            if event.confidence < self.min_confidence:
+                return False  # Exclude low confidence events
 
         return True
 

@@ -1355,13 +1355,12 @@ class TestEventRegistry:
         assert len(session_events) == 3
         assert all(e.session_id == "session1" for e in session_events)
         
-        # Test filtering by confidence (events without confidence pass through, only low confidence events are filtered)
+        # Test filtering by confidence (strict filtering - events without confidence are excluded)
         confidence_filter = EventFilter(min_confidence=0.8)
         high_conf_events = registry.get_events(confidence_filter)
-        assert len(high_conf_events) == 3  # TTSAudioEvent passes through, low confidence STT event is filtered out
-        # Verify that events with confidence meet the threshold
-        events_with_confidence = [e for e in high_conf_events if hasattr(e, 'confidence') and e.confidence is not None]
-        assert all(e.confidence >= 0.8 for e in events_with_confidence)
+        assert len(high_conf_events) == 2  # Only STT events with confidence >= 0.8, TTSAudioEvent excluded
+        # Verify all returned events meet the confidence threshold
+        assert all(e.confidence >= 0.8 for e in high_conf_events)
         
         # Test combined filtering
         combined_filter = EventFilter(
