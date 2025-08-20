@@ -107,6 +107,7 @@ class ModerationRestClient(BaseClient):
         rule_builder_config: Optional[RuleBuilderConfig] = None,
         user: Optional[UserRequest] = None,
         velocity_filter_config: Optional[VelocityFilterConfig] = None,
+        video_call_rule_config: Optional[VideoCallRuleConfig] = None,
     ) -> StreamResponse[UpsertConfigResponse]:
         json = build_body_dict(
             key=key,
@@ -126,6 +127,7 @@ class ModerationRestClient(BaseClient):
             rule_builder_config=rule_builder_config,
             user=user,
             velocity_filter_config=velocity_filter_config,
+            video_call_rule_config=video_call_rule_config,
         )
 
         return self.post("/api/v2/moderation/config", UpsertConfigResponse, json=json)
