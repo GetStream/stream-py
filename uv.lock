@@ -1036,7 +1036,6 @@ source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
     { name = "aiortc" },
-    { name = "assemblyai" },
     { name = "dataclasses-json" },
     { name = "httpx" },
     { name = "marshmallow" },
@@ -1097,7 +1096,6 @@ requires-dist = [
     { name = "aiohttp", specifier = ">=3.11.16" },
     { name = "aiortc", specifier = ">=1.13.0" },
     { name = "aiortc", marker = "extra == 'webrtc'", specifier = ">=1.10.1" },
-    { name = "assemblyai", specifier = ">=0.43.1" },
     { name = "dataclasses-json", specifier = ">=0.6.0,<0.7" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "marshmallow", specifier = ">=3.21.0,<4" },

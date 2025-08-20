@@ -10,20 +10,16 @@ import time
 try:
     import assemblyai as aai
     from assemblyai.streaming.v3 import (
-        BeginEvent,
         StreamingClient,
         StreamingClientOptions,
-        StreamingError,
         StreamingEvents,
         StreamingParameters,
-        StreamingSessionParameters,
-        TerminationEvent,
-        TurnEvent,
     )
     _assemblyai_available = True
 except ImportError:
     aai = None  # type: ignore
     StreamingClient = None  # type: ignore
+    StreamingClientOptions = None  # type: ignore
     StreamingEvents = None  # type: ignore
     StreamingParameters = None  # type: ignore
     _assemblyai_available = False
@@ -163,11 +159,11 @@ class AssemblyAISTT(STT):
             # Emit error immediately
             self._emit_error_event(e, "AssemblyAI connection setup")
 
-    def _on_begin(self, client, event: BeginEvent):
+    def _on_begin(self, client, event):
         """Handler for session begin event."""
         logger.info(f"AssemblyAI session started: {event.id}")
 
-    def _on_turn(self, client, event: TurnEvent):
+    def _on_turn(self, client, event):
         """Handler for transcript results."""
         try:
             # Get the transcript text from the response
@@ -207,13 +203,13 @@ class AssemblyAISTT(STT):
             # Emit error immediately
             self._emit_error_event(e, "AssemblyAI transcript processing")
 
-    def _on_terminated(self, client, event: TerminationEvent):
+    def _on_terminated(self, client, event):
         """Handler for session termination event."""
         logger.info(
             f"AssemblyAI session terminated: {event.audio_duration_seconds} seconds of audio processed"
         )
 
-    def _on_error(self, client, error: StreamingError):
+    def _on_error(self, client, error):
         """Handler for error events."""
         error_text = str(error) if error is not None else "Unknown error"
         logger.error(f"AssemblyAI error received: {error_text}")
