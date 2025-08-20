@@ -22,10 +22,11 @@ import time
 import uuid
 import webbrowser
 from urllib.parse import urlencode
+from typing import Any
 
 from dotenv import load_dotenv
 
-from getstream.models import UserRequest
+from getstream.models import CallRequest, UserRequest
 from getstream.stream import Stream
 from getstream.video import rtc
 from getstream.video.rtc.track_util import PcmData
@@ -103,7 +104,7 @@ async def main():
 
     # Create the call
     call = client.video.call("default", call_id)
-    call.get_or_create(data={"created_by_id": bot_user_id})
+    call.get_or_create(data=CallRequest(created_by_id=bot_user_id))
     print(f"📞 Call created: {call_id}")
 
     # Open browser for users to join with the user token
@@ -128,7 +129,7 @@ async def main():
                 await stt.process_audio(pcm, user)
 
             @stt.on("transcript")
-            async def on_transcript(text: str, user: any, metadata: dict):
+            async def on_transcript(text: str, user: Any, metadata: dict):
                 timestamp = time.strftime("%H:%M:%S")
                 user_info = user.name if user and hasattr(user, "name") else "unknown"
                 print(f"[{timestamp}] {user_info}: {text}")
@@ -136,7 +137,7 @@ async def main():
                     print(f"    └─ confidence: {metadata['confidence']:.2%}")
 
             @stt.on("partial_transcript")
-            async def on_partial_transcript(text: str, user: any, metadata: dict):
+            async def on_partial_transcript(text: str, user: Any, metadata: dict):
                 if text.strip():  # Only show non-empty partial transcripts
                     user_info = (
                         user.name if user and hasattr(user, "name") else "unknown"

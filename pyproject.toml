@@ -28,6 +28,7 @@ dependencies = [
     "pydantic>=2.10.6",
     "tenacity>=9.1.2",
     "ping3>=4.0.8",
+    "google-genai>=1.30.0",
 ]
 
 [project.optional-dependencies]
