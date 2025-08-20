@@ -9,8 +9,7 @@ from pyee.asyncio import AsyncIOEventEmitter
 from getstream.video.rtc.track_util import PcmData
 
 from .events import (
-    STTTranscriptEvent, STTPartialTranscriptEvent, STTErrorEvent, STTConnectionEvent,
-    PluginInitializedEvent, PluginClosedEvent, ConnectionState
+    STTTranscriptEvent, STTPartialTranscriptEvent, STTErrorEvent, PluginInitializedEvent, PluginClosedEvent
 )
 from .event_utils import register_global_event
 
@@ -164,7 +163,7 @@ class STT(AsyncIOEventEmitter, abc.ABC):
             model_name=metadata.get("model_name"),
             words=metadata.get("words"),
         )
-        
+
         logger.info(
             "Emitting final transcript",
             extra={
@@ -175,7 +174,7 @@ class STT(AsyncIOEventEmitter, abc.ABC):
                 "confidence": event.confidence,
             },
         )
-        
+
         # Register in global registry and emit structured event
         register_global_event(event)
         self.emit("transcript", event)  # Structured event
@@ -206,7 +205,7 @@ class STT(AsyncIOEventEmitter, abc.ABC):
             model_name=metadata.get("model_name"),
             words=metadata.get("words"),
         )
-        
+
         logger.debug(
             "Emitting partial transcript",
             extra={
@@ -216,7 +215,7 @@ class STT(AsyncIOEventEmitter, abc.ABC):
                 "confidence": event.confidence,
             },
         )
-        
+
         # Register in global registry and emit structured event
         register_global_event(event)
         self.emit("partial_transcript", event)  # Structured event
@@ -239,7 +238,7 @@ class STT(AsyncIOEventEmitter, abc.ABC):
             error_code=getattr(error, 'error_code', None),
             is_recoverable=not isinstance(error, (SystemExit, KeyboardInterrupt))
         )
-        
+
         logger.error(
             f"STT error{' in ' + context if context else ''}",
             extra={
@@ -249,7 +248,7 @@ class STT(AsyncIOEventEmitter, abc.ABC):
             },
             exc_info=error,
         )
-        
+
         # Register in global registry and emit structured event
         register_global_event(event)
         self.emit("error", event)  # Structured event
@@ -356,7 +355,7 @@ class STT(AsyncIOEventEmitter, abc.ABC):
         """
         if not self._is_closed:
             self._is_closed = True
-            
+
             # Emit closure event
             close_event = PluginClosedEvent(
                 session_id=self.session_id,
@@ -367,5 +366,5 @@ class STT(AsyncIOEventEmitter, abc.ABC):
             )
             register_global_event(close_event)
             self.emit("closed", close_event)
-        
+
         # Subclasses should call super().close() after their cleanup

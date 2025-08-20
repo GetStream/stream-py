@@ -12,7 +12,7 @@ from getstream.audio.pcm_utils import pcm_to_numpy_array, numpy_array_to_bytes
 
 from .events import (
     VADSpeechStartEvent, VADSpeechEndEvent, VADAudioEvent, VADPartialEvent, VADErrorEvent,
-    PluginInitializedEvent, PluginClosedEvent, AudioFormat
+    PluginInitializedEvent, PluginClosedEvent
 )
 from .event_utils import register_global_event
 
@@ -219,29 +219,24 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
                 current_samples = np.frombuffer(
                     self.speech_buffer, dtype=np.int16
                 ).copy()
-                
+
                 # Calculate current duration
                 current_duration_ms = (len(current_samples) / self.sample_rate) * 1000
 
-                # Create a PcmData object and emit the partial event
-                partial_pcm_data = PcmData(
-                    sample_rate=self.sample_rate, samples=current_samples, format="s16"
-                )
-                
                 # Emit structured partial event
                 partial_event = VADPartialEvent(
                     session_id=self.session_id,
                     plugin_name=self.provider_name,
-                    audio_data=numpy_array_to_bytes(current_samples),
-                    sample_rate=self.sample_rate,
+                    plugin_type="VAD",
+                    provider=self.provider_name,
+                    audio_data=current_samples,
                     duration_ms=current_duration_ms,
-                    speech_probability=speech_prob,
-                    frame_count=self.total_speech_frames,
+                    frame_count=len(current_samples) // self.frame_size,
                     user_metadata=user
                 )
                 register_global_event(partial_event)
                 self.emit("partial", partial_event)  # Structured event
-                
+
                 logger.debug(
                     f"Emitted partial event with {len(current_samples)} samples"
                 )
@@ -310,30 +305,25 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
 
         # Convert bytearray to numpy array
         speech_data = np.frombuffer(self.speech_buffer, dtype=np.int16).copy()
-        
+
         # Calculate speech duration
         speech_duration_ms = (len(speech_data) / self.sample_rate) * 1000
 
         if len(speech_data) >= min_speech_frames * self.frame_size:
-            # Create a PcmData object for legacy compatibility
-            pcm_data = PcmData(
-                sample_rate=self.sample_rate, samples=speech_data, format="s16"
-            )
-            
             # Emit structured audio event
             audio_event = VADAudioEvent(
                 session_id=self.session_id,
                 plugin_name=self.provider_name,
-                audio_data=numpy_array_to_bytes(speech_data),
-                sample_rate=self.sample_rate,
+                plugin_type="VAD",
+                provider=self.provider_name,
+                audio_data=speech_data,
                 duration_ms=speech_duration_ms,
-                speech_probability=1.0,  # Assume high probability for flushed speech
-                frame_count=self.total_speech_frames,
+                frame_count=len(speech_data) // self.frame_size,
                 user_metadata=user
             )
             register_global_event(audio_event)
             self.emit("audio", audio_event)  # Structured event
-            
+
             logger.debug(f"Emitted audio event with {len(speech_data)} samples")
 
         # Emit speech end event if we were actively detecting speech
@@ -377,7 +367,7 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
         self.partial_counter = 0
         self._leftover = np.empty(0, np.int16)
         self._speech_start_time = None
-    
+
     def _emit_error_event(self, error: Exception, context: str = "", user_metadata: Optional[Dict[str, Any]] = None):
         """Emit a structured error event."""
         error_event = VADErrorEvent(
@@ -390,13 +380,13 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
         )
         register_global_event(error_event)
         self.emit("error", error_event)  # Structured event
-    
+
     async def close(self):
         """Close the VAD service and release any resources."""
         # Flush any remaining speech before closing
         if self.is_speech_active:
             await self.flush()
-        
+
         # Emit closure event
         close_event = PluginClosedEvent(
             session_id=self.session_id,

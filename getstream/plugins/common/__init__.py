@@ -4,45 +4,89 @@ Moving forward, provider wheels (`stream-plugins-deepgram`, …) should depend o
 this package for the canonical definitions of STT, TTS, VAD, …
 """
 
-from .stt import STT  # noqa: F401
-from .tts import TTS  # noqa: F401
-from .sts import STS  # noqa: F401
-from .vad import VAD  # noqa: F401
+from .stt import STT
+from .tts import TTS
+from .vad import VAD
+from .sts import STS
+from .events import (
+    EventType,
+    ConnectionState,
+    AudioFormat,
+    BaseEvent,
 
-# Event system exports
-from .events import *  # noqa: F401, F403
-from .event_utils import (  # noqa: F401
-    EventFilter, EventRegistry, EventSerializer, EventLogger, EventMetrics,
-    global_event_registry, global_event_logger, register_global_event,
-    get_global_registry, get_global_logger
+    # STT Events
+    STTTranscriptEvent,
+    STTPartialTranscriptEvent,
+    STTErrorEvent,
+    STTConnectionEvent,
+
+    # TTS Events
+    TTSAudioEvent,
+    TTSSynthesisStartEvent,
+    TTSSynthesisCompleteEvent,
+    TTSErrorEvent,
+    TTSConnectionEvent,
+
+    # STS Events
+    STSConnectedEvent,
+    STSDisconnectedEvent,
+    STSAudioInputEvent,
+    STSAudioOutputEvent,
+    STSTranscriptEvent,
+    STSResponseEvent,
+    STSConversationItemEvent,
+    STSErrorEvent,
+
+    # VAD Events
+    VADSpeechStartEvent,
+    VADSpeechEndEvent,
+    VADAudioEvent,
+    VADPartialEvent,
+    VADErrorEvent,
+
+    # Generic Events
+    PluginInitializedEvent,
+    PluginClosedEvent,
+    PluginErrorEvent,
+)
+from .event_utils import (
+    EventFilter,
+    EventRegistry,
+    EventSerializer,
+    EventLogger,
+    EventMetrics,
+    register_global_event,
+    get_global_registry,
+    get_global_logger,
+    create_event,
 )
 
 __all__ = [
-    # Base plugin classes
+    # Base classes
     "STT",
-    "TTS", 
-    "STS",
+    "TTS",
     "VAD",
-    
+    "STS",
+
     # Event system
     "EventType",
     "ConnectionState",
     "AudioFormat",
     "BaseEvent",
-    
+
     # STT Events
     "STTTranscriptEvent",
     "STTPartialTranscriptEvent",
-    "STTErrorEvent", 
+    "STTErrorEvent",
     "STTConnectionEvent",
-    
+
     # TTS Events
     "TTSAudioEvent",
     "TTSSynthesisStartEvent",
     "TTSSynthesisCompleteEvent",
     "TTSErrorEvent",
     "TTSConnectionEvent",
-    
+
     # STS Events
     "STSConnectedEvent",
     "STSDisconnectedEvent",
@@ -52,27 +96,25 @@ __all__ = [
     "STSResponseEvent",
     "STSConversationItemEvent",
     "STSErrorEvent",
-    
+
     # VAD Events
     "VADSpeechStartEvent",
-    "VADSpeechEndEvent", 
+    "VADSpeechEndEvent",
     "VADAudioEvent",
     "VADPartialEvent",
     "VADErrorEvent",
-    
+
     # Generic Events
     "PluginInitializedEvent",
     "PluginClosedEvent",
     "PluginErrorEvent",
-    
+
     # Event utilities
     "EventFilter",
     "EventRegistry",
-    "EventSerializer", 
+    "EventSerializer",
     "EventLogger",
     "EventMetrics",
-    "global_event_registry",
-    "global_event_logger",
     "register_global_event",
     "get_global_registry",
     "get_global_logger",

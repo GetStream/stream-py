@@ -13,7 +13,6 @@ Key Features:
 - Rich debugging information
 """
 
-import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -23,20 +22,20 @@ from enum import Enum
 
 class EventType(Enum):
     """Enumeration of all event types across plugin systems."""
-    
+
     # STT Events
     STT_TRANSCRIPT = "stt_transcript"
     STT_PARTIAL_TRANSCRIPT = "stt_partial_transcript"
     STT_ERROR = "stt_error"
     STT_CONNECTION = "stt_connection"
-    
+
     # TTS Events
     TTS_AUDIO = "tts_audio"
     TTS_SYNTHESIS_START = "tts_synthesis_start"
     TTS_SYNTHESIS_COMPLETE = "tts_synthesis_complete"
     TTS_ERROR = "tts_error"
     TTS_CONNECTION = "tts_connection"
-    
+
     # STS Events
     STS_CONNECTED = "sts_connected"
     STS_DISCONNECTED = "sts_disconnected"
@@ -46,14 +45,14 @@ class EventType(Enum):
     STS_RESPONSE = "sts_response"
     STS_ERROR = "sts_error"
     STS_CONVERSATION_ITEM = "sts_conversation_item"
-    
+
     # VAD Events
     VAD_SPEECH_START = "vad_speech_start"
     VAD_SPEECH_END = "vad_speech_end"
     VAD_AUDIO = "vad_audio"
     VAD_PARTIAL = "vad_partial"
     VAD_ERROR = "vad_error"
-    
+
     # Generic Plugin Events
     PLUGIN_INITIALIZED = "plugin_initialized"
     PLUGIN_CLOSED = "plugin_closed"
@@ -88,7 +87,7 @@ class BaseEvent:
     user_metadata: Optional[Dict[str, Any]] = None
     plugin_name: Optional[str] = None
     plugin_version: Optional[str] = None
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert event to dictionary for serialization."""
         result = {}
@@ -116,7 +115,7 @@ class STTTranscriptEvent(BaseEvent):
     model_name: Optional[str] = None
     words: Optional[List[Dict[str, Any]]] = None
     is_final: bool = True
-    
+
     def __post_init__(self):
         if not self.text:
             raise ValueError("Transcript text cannot be empty")
@@ -145,7 +144,7 @@ class STTErrorEvent(BaseEvent):
     context: Optional[str] = None
     retry_count: int = 0
     is_recoverable: bool = True
-    
+
     @property
     def error_message(self) -> str:
         return str(self.error) if self.error else "Unknown error"
@@ -213,7 +212,7 @@ class TTSErrorEvent(BaseEvent):
     text_source: Optional[str] = None
     synthesis_id: Optional[str] = None
     is_recoverable: bool = True
-    
+
     @property
     def error_message(self) -> str:
         return str(self.error) if self.error else "Unknown error"
@@ -310,7 +309,7 @@ class STSErrorEvent(BaseEvent):
     error_code: Optional[str] = None
     context: Optional[str] = None
     is_recoverable: bool = True
-    
+
     @property
     def error_message(self) -> str:
         return str(self.error) if self.error else "Unknown error"
@@ -374,7 +373,7 @@ class VADErrorEvent(BaseEvent):
     error_code: Optional[str] = None
     context: Optional[str] = None
     frame_data_available: bool = False
-    
+
     @property
     def error_message(self) -> str:
         return str(self.error) if self.error else "Unknown error"
@@ -414,7 +413,7 @@ class PluginErrorEvent(BaseEvent):
     error_code: Optional[str] = None
     context: Optional[str] = None
     is_fatal: bool = False
-    
+
     @property
     def error_message(self) -> str:
         return str(self.error) if self.error else "Unknown error"
@@ -430,13 +429,13 @@ EVENT_CLASS_MAP = {
     EventType.STT_PARTIAL_TRANSCRIPT: STTPartialTranscriptEvent,
     EventType.STT_ERROR: STTErrorEvent,
     EventType.STT_CONNECTION: STTConnectionEvent,
-    
+
     EventType.TTS_AUDIO: TTSAudioEvent,
     EventType.TTS_SYNTHESIS_START: TTSSynthesisStartEvent,
     EventType.TTS_SYNTHESIS_COMPLETE: TTSSynthesisCompleteEvent,
     EventType.TTS_ERROR: TTSErrorEvent,
     EventType.TTS_CONNECTION: TTSConnectionEvent,
-    
+
     EventType.STS_CONNECTED: STSConnectedEvent,
     EventType.STS_DISCONNECTED: STSDisconnectedEvent,
     EventType.STS_AUDIO_INPUT: STSAudioInputEvent,
@@ -445,13 +444,13 @@ EVENT_CLASS_MAP = {
     EventType.STS_RESPONSE: STSResponseEvent,
     EventType.STS_CONVERSATION_ITEM: STSConversationItemEvent,
     EventType.STS_ERROR: STSErrorEvent,
-    
+
     EventType.VAD_SPEECH_START: VADSpeechStartEvent,
     EventType.VAD_SPEECH_END: VADSpeechEndEvent,
     EventType.VAD_AUDIO: VADAudioEvent,
     EventType.VAD_PARTIAL: VADPartialEvent,
     EventType.VAD_ERROR: VADErrorEvent,
-    
+
     EventType.PLUGIN_INITIALIZED: PluginInitializedEvent,
     EventType.PLUGIN_CLOSED: PluginClosedEvent,
     EventType.PLUGIN_ERROR: PluginErrorEvent,
@@ -463,20 +462,20 @@ EVENT_CLASS_MAP = {
 def create_event(event_type: EventType, **kwargs) -> BaseEvent:
     """
     Create an event instance of the appropriate type.
-    
+
     Args:
         event_type: The type of event to create
         **kwargs: Event-specific parameters
-        
+
     Returns:
         An instance of the appropriate event class
-        
+
     Raises:
         ValueError: If the event type is not recognized
     """
     if event_type not in EVENT_CLASS_MAP:
         raise ValueError(f"No event class defined for type: {event_type}")
-    
+
     event_class = EVENT_CLASS_MAP[event_type]
     return event_class(**kwargs)
 
@@ -484,47 +483,47 @@ def create_event(event_type: EventType, **kwargs) -> BaseEvent:
 __all__ = [
     # Enums
     "EventType",
-    "ConnectionState", 
+    "ConnectionState",
     "AudioFormat",
-    
+
     # Base classes
     "BaseEvent",
-    
+
     # STT Events
     "STTTranscriptEvent",
-    "STTPartialTranscriptEvent", 
+    "STTPartialTranscriptEvent",
     "STTErrorEvent",
     "STTConnectionEvent",
-    
+
     # TTS Events
     "TTSAudioEvent",
     "TTSSynthesisStartEvent",
     "TTSSynthesisCompleteEvent",
     "TTSErrorEvent",
     "TTSConnectionEvent",
-    
+
     # STS Events
     "STSConnectedEvent",
     "STSDisconnectedEvent",
     "STSAudioInputEvent",
-    "STSAudioOutputEvent", 
+    "STSAudioOutputEvent",
     "STSTranscriptEvent",
     "STSResponseEvent",
     "STSConversationItemEvent",
     "STSErrorEvent",
-    
+
     # VAD Events
     "VADSpeechStartEvent",
     "VADSpeechEndEvent",
     "VADAudioEvent",
     "VADPartialEvent",
     "VADErrorEvent",
-    
+
     # Generic Events
     "PluginInitializedEvent",
     "PluginClosedEvent",
     "PluginErrorEvent",
-    
+
     # Utilities
     "EVENT_CLASS_MAP",
     "create_event",

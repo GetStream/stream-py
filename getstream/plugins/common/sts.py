@@ -7,7 +7,7 @@ from pyee.asyncio import AsyncIOEventEmitter
 from .events import (
     STSConnectedEvent, STSDisconnectedEvent, STSAudioInputEvent, STSAudioOutputEvent,
     STSTranscriptEvent, STSResponseEvent, STSConversationItemEvent, STSErrorEvent,
-    PluginInitializedEvent, PluginClosedEvent, AudioFormat
+    PluginInitializedEvent, PluginClosedEvent
 )
 from .event_utils import register_global_event
 
@@ -61,7 +61,7 @@ class STS(AsyncIOEventEmitter, abc.ABC):
     def is_connected(self) -> bool:
         """Return True if the realtime session is currently active."""
         return self._is_connected
-    
+
     def _emit_connected_event(self, session_config=None, capabilities=None):
         """Emit a structured connected event."""
         self._is_connected = True
@@ -74,7 +74,7 @@ class STS(AsyncIOEventEmitter, abc.ABC):
         )
         register_global_event(event)
         self.emit("connected", event)  # Structured event
-    
+
     def _emit_disconnected_event(self, reason=None, was_clean=True):
         """Emit a structured disconnected event."""
         self._is_connected = False
@@ -87,24 +87,32 @@ class STS(AsyncIOEventEmitter, abc.ABC):
         )
         register_global_event(event)
         self.emit("disconnected", event)  # Structured event
-    
-    def _emit_audio_input_event(self, audio_data, sample_rate=16000, user_metadata=None):
+
+    def _emit_audio_input_event(
+        self, audio_data, sample_rate=16000, user_metadata=None
+    ):
         """Emit a structured audio input event."""
         event = STSAudioInputEvent(
             session_id=self.session_id,
             plugin_name=self.provider_name,
+            plugin_type="STS",
+            provider=self.provider_name,
             audio_data=audio_data,
             sample_rate=sample_rate,
             user_metadata=user_metadata
         )
         register_global_event(event)
         self.emit("audio_input", event)
-    
-    def _emit_audio_output_event(self, audio_data, sample_rate=16000, response_id=None, user_metadata=None):
+
+    def _emit_audio_output_event(
+        self, audio_data, sample_rate=16000, response_id=None, user_metadata=None
+    ):
         """Emit a structured audio output event."""
         event = STSAudioOutputEvent(
             session_id=self.session_id,
             plugin_name=self.provider_name,
+            plugin_type="STS",
+            provider=self.provider_name,
             audio_data=audio_data,
             sample_rate=sample_rate,
             response_id=response_id,
@@ -112,12 +120,17 @@ class STS(AsyncIOEventEmitter, abc.ABC):
         )
         register_global_event(event)
         self.emit("audio_output", event)
-    
-    def _emit_transcript_event(self, text, is_user=True, confidence=None, conversation_item_id=None, user_metadata=None):
+
+    def _emit_transcript_event(
+        self, text, is_user=True, confidence=None,
+        conversation_item_id=None, user_metadata=None
+    ):
         """Emit a structured transcript event."""
         event = STSTranscriptEvent(
             session_id=self.session_id,
             plugin_name=self.provider_name,
+            plugin_type="STS",
+            provider=self.provider_name,
             text=text,
             is_user=is_user,
             confidence=confidence,
@@ -126,26 +139,36 @@ class STS(AsyncIOEventEmitter, abc.ABC):
         )
         register_global_event(event)
         self.emit("transcript", event)
-    
-    def _emit_response_event(self, text, response_id=None, is_complete=True, conversation_item_id=None, user_metadata=None):
+
+    def _emit_response_event(
+        self, text, response_id=None, is_complete=True,
+        conversation_item_id=None, user_metadata=None
+    ):
         """Emit a structured response event."""
         event = STSResponseEvent(
             session_id=self.session_id,
             plugin_name=self.provider_name,
+            plugin_type="STS",
+            provider=self.provider_name,
             text=text,
-            response_id=response_id or str(uuid.uuid4()),
+            response_id=response_id,
             is_complete=is_complete,
             conversation_item_id=conversation_item_id,
             user_metadata=user_metadata
         )
         register_global_event(event)
         self.emit("response", event)
-    
-    def _emit_conversation_item_event(self, item_id, item_type, status, role, content=None, user_metadata=None):
+
+    def _emit_conversation_item_event(
+        self, item_id, item_type, status, role,
+        content=None, user_metadata=None
+    ):
         """Emit a structured conversation item event."""
         event = STSConversationItemEvent(
             session_id=self.session_id,
             plugin_name=self.provider_name,
+            plugin_type="STS",
+            provider=self.provider_name,
             item_id=item_id,
             item_type=item_type,
             status=status,
@@ -155,7 +178,7 @@ class STS(AsyncIOEventEmitter, abc.ABC):
         )
         register_global_event(event)
         self.emit("conversation_item", event)
-    
+
     def _emit_error_event(self, error, context="", user_metadata=None):
         """Emit a structured error event."""
         event = STSErrorEvent(
@@ -167,12 +190,12 @@ class STS(AsyncIOEventEmitter, abc.ABC):
         )
         register_global_event(event)
         self.emit("error", event)  # Structured event
-    
+
     async def close(self):
         """Close the STS service and release any resources."""
         if self._is_connected:
             self._emit_disconnected_event("service_closed", True)
-        
+
         # Emit closure event
         close_event = PluginClosedEvent(
             session_id=self.session_id,

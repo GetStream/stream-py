@@ -10,7 +10,7 @@ from getstream.video.rtc.audio_track import AudioStreamTrack
 
 from .events import (
     TTSAudioEvent, TTSSynthesisStartEvent, TTSSynthesisCompleteEvent, TTSErrorEvent,
-    PluginInitializedEvent, PluginClosedEvent, AudioFormat
+    PluginInitializedEvent, PluginClosedEvent
 )
 from .event_utils import register_global_event
 
@@ -47,7 +47,7 @@ class TTS(AsyncIOEventEmitter, abc.ABC):
         self._track: Optional[AudioStreamTrack] = None
         self.session_id = str(uuid.uuid4())
         self.provider_name = provider_name or self.__class__.__name__
-        
+
         logger.debug(
             "Initialized TTS base class",
             extra={
@@ -121,7 +121,7 @@ class TTS(AsyncIOEventEmitter, abc.ABC):
             # Log start of synthesis
             start_time = time.time()
             synthesis_id = str(uuid.uuid4())
-            
+
             logger.debug(
                 "Starting text-to-speech synthesis", extra={"text_length": len(text)}
             )
@@ -151,7 +151,7 @@ class TTS(AsyncIOEventEmitter, abc.ABC):
                 total_audio_bytes = len(audio_data)
                 audio_chunks = 1
                 await self._track.write(audio_data)
-                
+
                 # Emit structured audio event
                 audio_event = TTSAudioEvent(
                     session_id=self.session_id,
@@ -170,7 +170,7 @@ class TTS(AsyncIOEventEmitter, abc.ABC):
                         total_audio_bytes += len(chunk)
                         audio_chunks += 1
                         await self._track.write(chunk)
-                        
+
                         # Emit structured audio event
                         audio_event = TTSAudioEvent(
                             session_id=self.session_id,
@@ -189,7 +189,7 @@ class TTS(AsyncIOEventEmitter, abc.ABC):
                         total_audio_bytes += len(chunk.data)
                         audio_chunks += 1
                         await self._track.write(chunk.data)
-                        
+
                         # Emit structured audio event
                         audio_event = TTSAudioEvent(
                             session_id=self.session_id,
@@ -211,7 +211,7 @@ class TTS(AsyncIOEventEmitter, abc.ABC):
                     total_audio_bytes += len(chunk)
                     audio_chunks += 1
                     await self._track.write(chunk)
-                    
+
                     # Emit structured audio event
                     audio_event = TTSAudioEvent(
                         session_id=self.session_id,
@@ -240,7 +240,7 @@ class TTS(AsyncIOEventEmitter, abc.ABC):
             sample_rate = self._track.framerate if self._track else 16000
             # For s16 format (16-bit samples), each byte is half a sample
             estimated_audio_duration_ms = (total_audio_bytes / 2) / (sample_rate / 1000)
-            
+
             real_time_factor = (
                 (synthesis_time * 1000) / estimated_audio_duration_ms
                 if estimated_audio_duration_ms > 0 else None
@@ -293,7 +293,7 @@ class TTS(AsyncIOEventEmitter, abc.ABC):
             self.emit("error_legacy", e)  # Backward compatibility
             # Re-raise to allow the caller to handle the error
             raise
-    
+
     async def close(self):
         """Close the TTS service and release any resources."""
         # Emit closure event
