@@ -52,14 +52,14 @@ from .events import (
 from .event_utils import (
     EventFilter,
     EventRegistry,
-    EventSerializer,
     EventLogger,
     EventMetrics,
     register_global_event,
     get_global_registry,
     get_global_logger,
-    create_event,
 )
+from .event_serialization import serialize_event, serialize_events, deserialize_event
+from .events import create_event
 
 __all__ = [
     # Base classes
@@ -112,11 +112,15 @@ __all__ = [
     # Event utilities
     "EventFilter",
     "EventRegistry",
-    "EventSerializer",
     "EventLogger",
     "EventMetrics",
     "register_global_event",
     "get_global_registry",
     "get_global_logger",
     "create_event",
+
+    # Event serialization
+    "serialize_event",
+    "serialize_events",
+    "deserialize_event",
 ]
