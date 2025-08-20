@@ -8,7 +8,7 @@ from __future__ import annotations
 import logging
 import asyncio
 import os
-from typing import Optional
+from typing import Optional, Any, Dict, List
 import contextlib
 from google.genai import Client
 from google.genai.types import (
@@ -43,34 +43,40 @@ class GeminiLive(STS):
         self,
         api_key: Optional[str] = None,
         model: str = "gemini-live-2.5-flash-preview",
-        config: Optional[LiveConnectConfigDict] = LiveConnectConfigDict(
-            response_modalities=[Modality.AUDIO],
-            input_audio_transcription=AudioTranscriptionConfigDict(),
-            output_audio_transcription=AudioTranscriptionConfigDict(),
-            speech_config=SpeechConfigDict(
-                voice_config=VoiceConfigDict(
-                    prebuilt_voice_config=PrebuiltVoiceConfigDict(voice_name="Puck")
-                )
-            ),
-            realtime_input_config=RealtimeInputConfigDict(
-                turn_coverage=TurnCoverage.TURN_INCLUDES_ONLY_ACTIVITY
-            ),
-            context_window_compression=ContextWindowCompressionConfigDict(
-                trigger_tokens=25600,
-                sliding_window=SlidingWindowDict(target_tokens=12800),
-            ),
-        ),
+        *,
+        instructions: Optional[str] = None,
+        temperature: Optional[float] = None,
+        response_modalities: Optional[List[Any]] = None,
+        voice: Optional[str] = None,
+        barge_in: bool = True,
+        activity_threshold: int = 1000,
+        silence_timeout_ms: int = 1000,
+        provider_config: Optional[LiveConnectConfigDict] = None,
     ):
         """Create a new Gemini Live wrapper.
 
         Args:
             api_key: Gemini API key. Falls back to ``GOOGLE_API_KEY`` or ``GEMINI_API_KEY`` env var.
             model: Model ID to use when connecting.
-            config: Provider config to pass through unchanged. Prefer passing a
+            instructions: Optional system instructions passed to the session.
+            temperature: Optional temperature passed to the session.
+            voice: Optional voice selection passed to the session.
+            response_modalities: Optional response modalities passed to the session.
+            barge_in: Whether to interrupt current playback when the user starts speaking.
+            activity_threshold: Minimum audio activity threshold for barge-in. Range is 0-32767.
+            silence_timeout_ms: Time to wait for silence after user stops speaking.
+            provider_config: Provider config to pass through unchanged. Pass a
                 ``LiveConnectConfigDict`` from ``google.genai.types``.
         """
 
-        super().__init__()
+        super().__init__(
+            model=model,
+            instructions=instructions,
+            temperature=temperature,
+            voice=voice,
+            provider_config=provider_config,
+            response_modalities=response_modalities,
+        )
 
         self.api_key = (
             api_key or os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
@@ -90,19 +96,23 @@ class GeminiLive(STS):
             api_key=self.api_key, http_options={"api_version": "v1beta"}
         )
         self.model = model
-        # Prefer explicit config passed to constructor; can be overridden per-call
-        self.config: Optional[LiveConnectConfigDict] = config
+        # Build a default config if none provided, and apply simple overrides
+        self.config: Optional[LiveConnectConfigDict] = self._compose_config(
+            base_config=provider_config,
+            response_modalities=response_modalities,
+            voice=voice,
+        )
         self._session: Optional[AsyncSession] = None
         self._audio_receiver_task: Optional[asyncio.Task] = None
         self._connect_task: Optional[asyncio.Task] = None
         self._playback_enabled: bool = True
         # Barge-in control
-        self._barge_in_enabled: bool = True
-        self._silence_timeout_ms: int = 500
+        self._barge_in_enabled: bool = barge_in
+        self._silence_timeout_ms: int = silence_timeout_ms
         self._user_speaking: bool = False
         self._eos_timer_task: Optional[asyncio.Task] = None
         # Simple energy-based activity detection (int16 amplitude threshold)
-        self._activity_threshold: int = 500
+        self._activity_threshold: int = activity_threshold
         self._stop_event = asyncio.Event()
         self._ready_event = asyncio.Event()
 
@@ -113,6 +123,50 @@ class GeminiLive(STS):
         # Kick off background connect if we are in an event loop
         loop = asyncio.get_running_loop()
         self._connect_task = loop.create_task(self._run_connection())
+
+    def _default_config(self) -> LiveConnectConfigDict:
+        return LiveConnectConfigDict(
+            response_modalities=[Modality.AUDIO],
+            input_audio_transcription=AudioTranscriptionConfigDict(),
+            output_audio_transcription=AudioTranscriptionConfigDict(),
+            speech_config=SpeechConfigDict(
+                voice_config=VoiceConfigDict(
+                    prebuilt_voice_config=PrebuiltVoiceConfigDict(voice_name="Puck")
+                )
+            ),
+            realtime_input_config=RealtimeInputConfigDict(
+                turn_coverage=TurnCoverage.TURN_INCLUDES_ONLY_ACTIVITY
+            ),
+            context_window_compression=ContextWindowCompressionConfigDict(
+                trigger_tokens=25600,
+                sliding_window=SlidingWindowDict(target_tokens=12800),
+            ),
+        )
+
+    def _compose_config(
+        self,
+        *,
+        base_config: Optional[LiveConnectConfigDict],
+        response_modalities: Optional[List[Any]],
+        voice: Optional[str],
+    ) -> LiveConnectConfigDict:
+        # Start from provided provider_config (preferred) or defaults
+        cfg: Dict[str, Any] = dict(base_config or self._default_config())
+
+        # Apply response modality override if given
+        if response_modalities is not None:
+            cfg["response_modalities"] = response_modalities
+
+        # Voice mapping: allow simple voice string
+        speech_cfg: Dict[str, Any] = dict(cfg.get("speech_config") or {})
+        if voice is not None:
+            speech_cfg["voice_config"] = VoiceConfigDict(
+                prebuilt_voice_config=PrebuiltVoiceConfigDict(voice_name=voice)
+            )
+        if speech_cfg:
+            cfg["speech_config"] = speech_cfg
+
+        return LiveConnectConfigDict(**cfg)
 
     async def _run_connection(self) -> None:
         """Background task that connects and holds the session open until stopped."""

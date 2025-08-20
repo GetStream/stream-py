@@ -234,6 +234,15 @@ wheels = [
 ]
 
 [[package]]
+name = "cachetools"
+version = "5.5.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/6c/81/3747dad6b14fa2cf53fcf10548cf5aea6913e96fab41a3c198676f8948a5/cachetools-5.5.2.tar.gz", hash = "sha256:1a661caa9175d26759571b2e19580f9d6393969e5dfca11fdb1f947a23e640d4", size = 28380, upload-time = "2025-02-20T21:01:19.524Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/72/76/20fa66124dbe6be5cafeb312ece67de6b61dd91a0247d1ea13db4ebb33c2/cachetools-5.5.2-py3-none-any.whl", hash = "sha256:d26a22bcc62eb95c3beabd9f1ee5e820d3d2704fe2967cbe350e20c8ffcd3f0a", size = 10080, upload-time = "2025-02-20T21:01:16.647Z" },
+]
+
+[[package]]
 name = "certifi"
 version = "2025.7.9"
 source = { registry = "https://pypi.org/simple" }
@@ -573,11 +582,11 @@ wheels = [
 
 [[package]]
 name = "getstream"
-version = "2.3.0a4"
-source = { registry = "https://pypi.org/simple" }
+source = { editable = "../../" }
 dependencies = [
     { name = "aiohttp" },
     { name = "dataclasses-json" },
+    { name = "google-genai" },
     { name = "httpx" },
     { name = "marshmallow" },
     { name = "ping3" },
@@ -587,9 +596,6 @@ dependencies = [
     { name = "pytest-timeout" },
     { name = "python-dateutil" },
     { name = "tenacity" },
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/f0/bd/ace1598d48dc593fb0c6a72024e3ebb980f385018e9a0ab19f4bf4bc6c30/getstream-2.3.0a4-py3-none-any.whl", hash = "sha256:f2afc051887c958bf6a587972cd233ccc778a6e58acc2d18f506074d9a402179", size = 262801, upload-time = "2025-08-01T14:32:32.641Z" },
 ]
 
 [package.optional-dependencies]
@@ -609,28 +615,102 @@ webrtc = [
     { name = "websockets" },
 ]
 
+[package.metadata]
+requires-dist = [
+    { name = "aiohttp", specifier = ">=3.11.16" },
+    { name = "aiortc", marker = "extra == 'webrtc'", specifier = ">=1.10.1" },
+    { name = "dataclasses-json", specifier = ">=0.6.0,<0.7" },
+    { name = "google-genai", specifier = ">=1.30.0" },
+    { name = "httpx", specifier = ">=0.28.1" },
+    { name = "marshmallow", specifier = ">=3.21.0,<4" },
+    { name = "numpy", marker = "extra == 'webrtc'", specifier = ">=2.2.6,<2.3" },
+    { name = "openai", extras = ["realtime"], marker = "extra == 'openai-realtime'", specifier = ">=1.93.0" },
+    { name = "ping3", specifier = ">=4.0.8" },
+    { name = "protobuf", marker = "extra == 'webrtc'", specifier = ">=4.25.1" },
+    { name = "pydantic", specifier = ">=2.10.6" },
+    { name = "pydantic-settings", specifier = ">=2.9.1" },
+    { name = "pyee", marker = "extra == 'webrtc'", specifier = ">=13.0.0" },
+    { name = "pyjwt", specifier = ">=2.8.0,<3" },
+    { name = "pytest-timeout", specifier = ">=2.3.1" },
+    { name = "python-dateutil", specifier = ">=2.8.2" },
+    { name = "python-dateutil", marker = "extra == 'webrtc'", specifier = ">=2.8.2" },
+    { name = "scipy", marker = "extra == 'webrtc'", specifier = ">=1.15.3,<1.16" },
+    { name = "soundfile", marker = "extra == 'webrtc'", specifier = ">=0.13.1" },
+    { name = "structlog", marker = "extra == 'webrtc'", specifier = "<24" },
+    { name = "tenacity", specifier = ">=9.1.2" },
+    { name = "torch", marker = "extra == 'webrtc'", specifier = ">=2.7.1" },
+    { name = "torchaudio", marker = "extra == 'webrtc'", specifier = ">=2.7.1" },
+    { name = "twirp", marker = "extra == 'webrtc'", specifier = ">=0.0.7" },
+    { name = "websocket-client", marker = "extra == 'webrtc'", specifier = ">=1.8.0" },
+    { name = "websockets", marker = "extra == 'webrtc'", specifier = ">=15.0.1,<16" },
+]
+provides-extras = ["openai-realtime", "webrtc"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "grpcio-tools", specifier = ">=1.73.1" },
+    { name = "mypy-protobuf", specifier = "==3.5.0" },
+    { name = "pre-commit", specifier = ">=4.2.0" },
+    { name = "pytest", specifier = ">=8.4.1" },
+    { name = "pytest-asyncio", specifier = ">=1.0.0" },
+    { name = "pytest-timeout", specifier = ">=2.4.0" },
+    { name = "python-dateutil", specifier = ">=2.8.2,<3" },
+    { name = "python-dotenv", specifier = ">=1.1.1,<2" },
+    { name = "ruff", specifier = ">=0.12.1" },
+]
+
 [[package]]
 name = "getstream-plugins-common"
-version = "0.1.0"
-source = { registry = "https://pypi.org/simple" }
+version = "0.1.1"
+source = { editable = "../../getstream/plugins/common" }
 dependencies = [
     { name = "getstream", extra = ["webrtc"] },
 ]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/cc/4d/5db28256b3d570259cec735deb23e1a2e49cf7c16f518a37a511fcff7f9d/getstream_plugins_common-0.1.0-py3-none-any.whl", hash = "sha256:9688aab298b2d07e124216843b72c92960619f9568b2d4d8571bff8906404fb4", size = 14085, upload-time = "2025-07-04T13:42:31.11Z" },
+
+[package.metadata]
+requires-dist = [{ name = "getstream", extras = ["webrtc"], editable = "../../" }]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=8.4.1" },
+    { name = "pytest-asyncio", specifier = ">=1.0.0" },
 ]
 
 [[package]]
 name = "getstream-plugins-openai"
 version = "0.1.1"
-source = { registry = "https://pypi.org/simple" }
+source = { directory = "../../getstream/plugins/openai" }
 dependencies = [
     { name = "getstream", extra = ["webrtc"] },
     { name = "getstream-plugins-common" },
     { name = "openai", extra = ["realtime"] },
 ]
+
+[package.metadata]
+requires-dist = [
+    { name = "getstream", extras = ["webrtc"], editable = "../../" },
+    { name = "getstream-plugins-common", editable = "../../getstream/plugins/common" },
+    { name = "openai", extras = ["realtime"], specifier = ">=1.97.1" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=8.4.1" },
+    { name = "pytest-asyncio", specifier = ">=1.0.0" },
+]
+
+[[package]]
+name = "google-auth"
+version = "2.40.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cachetools" },
+    { name = "pyasn1-modules" },
+    { name = "rsa" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/9e/9b/e92ef23b84fa10a64ce4831390b7a4c2e53c0132568d99d4ae61d04c8855/google_auth-2.40.3.tar.gz", hash = "sha256:500c3a29adedeb36ea9cf24b8d10858e152f2412e3ca37829b3fa18e33d63b77", size = 281029, upload-time = "2025-06-04T18:04:57.577Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0c/7e/c3f18ddb15e587e8e43496799fd6cb1d4a3b4c7381825e477325e4cc7bfd/getstream_plugins_openai-0.1.1-py3-none-any.whl", hash = "sha256:2fb665286402dc631f1d36fb6761416b6310f1a984b76152eda90348556259a0", size = 7473, upload-time = "2025-07-23T15:57:14.164Z" },
+    { url = "https://files.pythonhosted.org/packages/17/63/b19553b658a1692443c62bd07e5868adaa0ad746a0751ba62c59568cd45b/google_auth-2.40.3-py2.py3-none-any.whl", hash = "sha256:1370d4593e86213563547f97a92752fc658456fe4514c809544f330fed45a7ca", size = 216137, upload-time = "2025-06-04T18:04:55.573Z" },
 ]
 
 [[package]]
@@ -666,6 +746,25 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/eb/f3/8b84cd4e0ad111e63e30eb89453f8dd308e3ad36f42305cf8c202461cdf0/google_crc32c-1.7.1-pp310-pypy310_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:fa8136cc14dd27f34a3221c0f16fd42d8a40e4778273e61a3c19aedaa44daf6b", size = 28049, upload-time = "2025-03-26T14:41:44.651Z" },
     { url = "https://files.pythonhosted.org/packages/16/1b/1693372bf423ada422f80fd88260dbfd140754adb15cbc4d7e9a68b1cb8e/google_crc32c-1.7.1-pp311-pypy311_pp73-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:85fef7fae11494e747c9fd1359a527e5970fc9603c90764843caabd3a16a0a48", size = 28241, upload-time = "2025-03-26T14:41:45.898Z" },
     { url = "https://files.pythonhosted.org/packages/fd/3c/2a19a60a473de48717b4efb19398c3f914795b64a96cf3fbe82588044f78/google_crc32c-1.7.1-pp311-pypy311_pp73-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:6efb97eb4369d52593ad6f75e7e10d053cf00c48983f7a973105bc70b0ac4d82", size = 28048, upload-time = "2025-03-26T14:41:46.696Z" },
+]
+
+[[package]]
+name = "google-genai"
+version = "1.31.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "anyio" },
+    { name = "google-auth" },
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "requests" },
+    { name = "tenacity" },
+    { name = "typing-extensions" },
+    { name = "websockets" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e0/1b/da30fa6e2966942d7028a58eb7aa7d04544dcc3aa66194365b2e0adac570/google_genai-1.31.0.tar.gz", hash = "sha256:8572b47aa684357c3e5e10d290ec772c65414114939e3ad2955203e27cd2fcbc", size = 233482, upload-time = "2025-08-18T23:40:21.733Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/41/27/1525bc9cbec58660f0842ebcbfe910a1dde908c2672373804879666e0bb8/google_genai-1.31.0-py3-none-any.whl", hash = "sha256:5c6959bcf862714e8ed0922db3aaf41885bacf6318751b3421bf1e459f78892f", size = 231876, upload-time = "2025-08-18T23:40:20.385Z" },
 ]
 
 [[package]]
@@ -1263,7 +1362,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "getstream", extras = ["webrtc"], specifier = ">=2.3.0a1" },
-    { name = "getstream-plugins-openai", specifier = ">=0.1.1" },
+    { name = "getstream-plugins-openai", directory = "../../getstream/plugins/openai" },
     { name = "python-dotenv", specifier = ">=1.1.1" },
 ]
 
@@ -1395,6 +1494,27 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/76/a1/7a5a94032c83375e4fe7e7f56e3976ea6ac90c5e85fac8576409e25c39c3/protobuf-6.31.1-cp39-abi3-manylinux2014_aarch64.whl", hash = "sha256:a40fc12b84c154884d7d4c4ebd675d5b3b5283e155f324049ae396b95ddebc39", size = 322115, upload-time = "2025-05-28T19:25:47.128Z" },
     { url = "https://files.pythonhosted.org/packages/fa/b1/b59d405d64d31999244643d88c45c8241c58f17cc887e73bcb90602327f8/protobuf-6.31.1-cp39-abi3-manylinux2014_x86_64.whl", hash = "sha256:4ee898bf66f7a8b0bd21bce523814e6fbd8c6add948045ce958b73af7e8878c6", size = 321070, upload-time = "2025-05-28T19:25:50.036Z" },
     { url = "https://files.pythonhosted.org/packages/f7/af/ab3c51ab7507a7325e98ffe691d9495ee3d3aa5f589afad65ec920d39821/protobuf-6.31.1-py3-none-any.whl", hash = "sha256:720a6c7e6b77288b85063569baae8536671b39f15cc22037ec7045658d80489e", size = 168724, upload-time = "2025-05-28T19:25:53.926Z" },
+]
+
+[[package]]
+name = "pyasn1"
+version = "0.6.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ba/e9/01f1a64245b89f039897cb0130016d79f77d52669aae6ee7b159a6c4c018/pyasn1-0.6.1.tar.gz", hash = "sha256:6f580d2bdd84365380830acf45550f2511469f673cb4a5ae3857a3170128b034", size = 145322, upload-time = "2024-09-10T22:41:42.55Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c8/f1/d6a797abb14f6283c0ddff96bbdd46937f64122b8c925cab503dd37f8214/pyasn1-0.6.1-py3-none-any.whl", hash = "sha256:0d632f46f2ba09143da3a8afe9e33fb6f92fa2320ab7e886e2d0f7672af84629", size = 83135, upload-time = "2024-09-11T16:00:36.122Z" },
+]
+
+[[package]]
+name = "pyasn1-modules"
+version = "0.4.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pyasn1" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e9/e6/78ebbb10a8c8e4b61a59249394a4a594c1a7af95593dc933a349c8d00964/pyasn1_modules-0.4.2.tar.gz", hash = "sha256:677091de870a80aae844b1ca6134f54652fa2c8c5a52aa396440ac3106e941e6", size = 307892, upload-time = "2025-03-28T02:41:22.17Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/47/8d/d529b5d697919ba8c11ad626e835d4039be708a35b0d22de83a269a6682c/pyasn1_modules-0.4.2-py3-none-any.whl", hash = "sha256:29253a9207ce32b64c3ac6600edc75368f98473906e8fd1043bd6b5b1de2c14a", size = 181259, upload-time = "2025-03-28T02:41:19.028Z" },
 ]
 
 [[package]]
@@ -1650,6 +1770,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/e1/0a/929373653770d8a0d7ea76c37de6e41f11eb07559b103b1c02cafb3f7cf8/requests-2.32.4.tar.gz", hash = "sha256:27d0316682c8a29834d3264820024b62a36942083d52caf2f14c0591336d3422", size = 135258, upload-time = "2025-06-09T16:43:07.34Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7c/e4/56027c4a6b4ae70ca9de302488c5ca95ad4a39e190093d6c1a8ace08341b/requests-2.32.4-py3-none-any.whl", hash = "sha256:27babd3cda2a6d50b30443204ee89830707d396671944c998b5975b031ac2b2c", size = 64847, upload-time = "2025-06-09T16:43:05.728Z" },
+]
+
+[[package]]
+name = "rsa"
+version = "4.9.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pyasn1" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/da/8a/22b7beea3ee0d44b1916c0c1cb0ee3af23b700b6da9f04991899d0c555d4/rsa-4.9.1.tar.gz", hash = "sha256:e7bdbfdb5497da4c07dfd35530e1a902659db6ff241e39d9953cad06ebd0ae75", size = 29034, upload-time = "2025-04-16T09:51:18.218Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/64/8d/0133e4eb4beed9e425d9a98ed6e081a55d195481b7632472be1af08d2f6b/rsa-4.9.1-py3-none-any.whl", hash = "sha256:68635866661c6836b8d39430f97a996acbd61bfa49406748ea243539fe239762", size = 34696, upload-time = "2025-04-16T09:51:17.142Z" },
 ]
 
 [[package]]

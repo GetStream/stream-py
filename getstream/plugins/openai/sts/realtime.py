@@ -113,7 +113,7 @@ class OpenAIRealtime(STS):
         if self._is_connected:
             raise RuntimeError("AI agent already connected")
 
-        # 1. Build session presets
+        # Build session presets
         session_payload: Dict[str, Any] = {}
         if self.instructions:
             session_payload["instructions"] = self.instructions
@@ -122,7 +122,7 @@ class OpenAIRealtime(STS):
         if extra_session:
             session_payload.update(extra_session)
 
-        # 2. Open connection manager through the SDK helper
+        # Open connection manager through the SDK helper
         logger.info(
             "Connecting OpenAI agent to call %s/%s using model %s",
             call.call_type,

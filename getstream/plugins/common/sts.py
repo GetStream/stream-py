@@ -1,5 +1,6 @@
 import abc
 import logging
+from typing import Any, Dict, List, Optional
 
 from pyee.asyncio import AsyncIOEventEmitter
 
@@ -26,9 +27,44 @@ class STS(AsyncIOEventEmitter, abc.ABC):
     4. Implement any provider-specific helper methods
     """
 
-    def __init__(self):
+    def __init__(
+        self,
+        *,
+        model: Optional[str] = None,
+        instructions: Optional[str] = None,
+        temperature: Optional[float] = None,
+        voice: Optional[str] = None,
+        provider_config: Optional[Any] = None,
+        response_modalities: Optional[List[str]] = None,
+        tools: Optional[List[Dict[str, Any]]] = None,
+        **_: Any,
+    ):
+        """Initialize base STS with common, provider-agnostic preferences.
+
+        These fields are optional hints that concrete providers may choose to map
+        to their own session/config structures. They are not enforced here.
+
+        Args:
+            model: Model ID to use when connecting.
+            instructions: Optional system instructions passed to the session.
+            temperature: Optional temperature passed to the session.
+            voice: Optional voice selection passed to the session.
+            provider_config: Provider-specific configuration (e.g., Gemini Live config, OpenAI session prefs).
+            response_modalities: Optional response modalities passed to the session.
+            tools: Optional tools passed to the session.
+        """
         super().__init__()
         self._is_connected = False
+
+        # Common, optional preferences (not all providers will use all of these)
+        self.model = model
+        self.instructions = instructions
+        self.temperature = temperature
+        self.voice = voice
+        # Provider-specific configuration (e.g., Gemini Live config, OpenAI session prefs)
+        self.provider_config = provider_config
+        self.response_modalities = response_modalities
+        self.tools = tools
 
     @property
     def is_connected(self) -> bool:

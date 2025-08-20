@@ -127,7 +127,7 @@ async def test_connect_emits_events_and_forwards_audio_and_text(monkeypatch):
 
     events = {"connected": False, "audio": [], "text": []}
 
-    sts = GeminiLive(api_key="key", model="model", config=None)
+    sts = GeminiLive(api_key="key", model="model", provider_config=None)
 
     @sts.on("connected")  # type: ignore[arg-type]
     async def _on_connected():
@@ -169,7 +169,7 @@ async def test_send_text_calls_underlying_session(monkeypatch):
     client.aio.live = _DummyLive([])
     monkeypatch.setattr(gemini_live, "Client", lambda *a, **k: client)
 
-    sts = GeminiLive(api_key="key", model="model", config=None)
+    sts = GeminiLive(api_key="key", model="model", provider_config=None)
     await sts.wait_until_ready(timeout=1.0)
 
     # Access dummy session to inspect sent calls
@@ -194,12 +194,17 @@ async def test_send_audio_pcm_resample_barge_in_and_silence_timeout(monkeypatch)
     # Avoid doing real resampling; return the provided array unchanged
     monkeypatch.setattr(gemini_live, "resample_audio", lambda arr, src, dst: arr)
 
-    sts = GeminiLive(api_key="key", model="model", config=None)
+    sts = GeminiLive(
+        api_key="key",
+        model="model",
+        provider_config=None,
+        activity_threshold=10,
+        silence_timeout_ms=20,
+        barge_in=True,
+    )
     await sts.wait_until_ready(timeout=1.0)
 
-    # Lower threshold to guarantee activity detection and faster timeout
-    sts._activity_threshold = 10
-    sts._silence_timeout_ms = 20
+    # Threshold and timeout configured via constructor
 
     # Spy on flush
     flush_spy = AsyncMock()
@@ -238,7 +243,7 @@ async def test_interrupt_and_resume_playback(monkeypatch):
     client.aio.live = _DummyLive([])
     monkeypatch.setattr(gemini_live, "Client", lambda *a, **k: client)
 
-    sts = GeminiLive(api_key="key", model="model", config=None)
+    sts = GeminiLive(api_key="key", model="model", provider_config=None)
     await sts.wait_until_ready(timeout=1.0)
 
     flush_spy = AsyncMock()
@@ -262,7 +267,7 @@ async def test_stop_response_listener_cancels_task(monkeypatch):
     client.aio.live = _DummyLive(responses)
     monkeypatch.setattr(gemini_live, "Client", lambda *a, **k: client)
 
-    sts = GeminiLive(api_key="key", model="model", config=None)
+    sts = GeminiLive(api_key="key", model="model", provider_config=None)
     await sts.wait_until_ready(timeout=1.0)
 
     # Ensure listener task exists
