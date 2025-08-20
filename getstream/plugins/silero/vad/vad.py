@@ -368,11 +368,6 @@ class SileroVAD(VAD):
         speech_data = np.frombuffer(self.speech_buffer, dtype=np.int16).copy()
 
         if len(speech_data) >= min_speech_frames * self.frame_size:
-            # Create a PcmData object and emit the audio event
-            pcm_data = PcmData(
-                sample_rate=self.sample_rate, samples=speech_data, format="s16"
-            )
-
             # Log turn emission at DEBUG level with duration and samples
             duration_ms = len(speech_data) / self.sample_rate * 1000
             logger.debug(
