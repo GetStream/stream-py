@@ -240,8 +240,7 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
                     user_metadata=user
                 )
                 register_global_event(partial_event)
-                self.emit("partial", partial_event)  # New structured event
-                self.emit("partial_legacy", partial_pcm_data, user)  # Backward compatibility
+                self.emit("partial", partial_event)  # Structured event
                 
                 logger.debug(
                     f"Emitted partial event with {len(current_samples)} samples"
@@ -333,8 +332,7 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
                 user_metadata=user
             )
             register_global_event(audio_event)
-            self.emit("audio", audio_event)  # New structured event
-            self.emit("audio_legacy", pcm_data, user)  # Backward compatibility
+            self.emit("audio", audio_event)  # Structured event
             
             logger.debug(f"Emitted audio event with {len(speech_data)} samples")
 
@@ -391,8 +389,7 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
             frame_data_available=len(self.speech_buffer) > 0
         )
         register_global_event(error_event)
-        self.emit("error", error_event)  # New structured event
-        self.emit("error_legacy", error)  # Backward compatibility
+        self.emit("error", error_event)  # Structured event
     
     async def close(self):
         """Close the VAD service and release any resources."""

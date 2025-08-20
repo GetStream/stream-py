@@ -393,10 +393,7 @@ class SileroVAD(VAD):
                 user_metadata=user
             )
             register_global_event(audio_event)
-            self.emit("audio", audio_event)  # New structured event
-            
-            # Also emit legacy format for backward compatibility
-            self.emit("audio_legacy", pcm_data, user)
+            self.emit("audio", audio_event)  # Structured event
 
         # Reset state variables
         self.speech_buffer = bytearray()

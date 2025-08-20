@@ -176,10 +176,9 @@ class STT(AsyncIOEventEmitter, abc.ABC):
             },
         )
         
-        # Register in global registry and emit both structured and legacy events
+        # Register in global registry and emit structured event
         register_global_event(event)
-        self.emit("transcript", event)  # New structured event
-        self.emit("transcript_legacy", text, user_metadata, metadata)  # Backward compatibility
+        self.emit("transcript", event)  # Structured event
 
     def _emit_partial_transcript_event(
         self,
@@ -218,10 +217,9 @@ class STT(AsyncIOEventEmitter, abc.ABC):
             },
         )
         
-        # Register in global registry and emit both structured and legacy events
+        # Register in global registry and emit structured event
         register_global_event(event)
-        self.emit("partial_transcript", event)  # New structured event
-        self.emit("partial_transcript_legacy", text, user_metadata, metadata)  # Backward compatibility
+        self.emit("partial_transcript", event)  # Structured event
 
     def _emit_error_event(self, error: Exception, context: str = "", user_metadata: Optional[Dict[str, Any]] = None):
         """
@@ -252,10 +250,9 @@ class STT(AsyncIOEventEmitter, abc.ABC):
             exc_info=error,
         )
         
-        # Register in global registry and emit both structured and legacy events
+        # Register in global registry and emit structured event
         register_global_event(event)
-        self.emit("error", event)  # New structured event
-        self.emit("error_legacy", error)  # Backward compatibility
+        self.emit("error", event)  # Structured event
 
     async def process_audio(
         self, pcm_data: PcmData, user_metadata: Optional[Dict[str, Any]] = None

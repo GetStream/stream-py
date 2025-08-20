@@ -163,8 +163,7 @@ class TTS(AsyncIOEventEmitter, abc.ABC):
                     sample_rate=self._track.framerate if self._track else 16000
                 )
                 register_global_event(audio_event)
-                self.emit("audio", audio_event)  # New structured event
-                self.emit("audio_legacy", audio_data, user)  # Backward compatibility
+                self.emit("audio", audio_event)  # Structured event
             elif inspect.isasyncgen(audio_data):
                 async for chunk in audio_data:
                     if isinstance(chunk, bytes):
@@ -185,8 +184,7 @@ class TTS(AsyncIOEventEmitter, abc.ABC):
                             sample_rate=self._track.framerate if self._track else 16000
                         )
                         register_global_event(audio_event)
-                        self.emit("audio", audio_event)  # New structured event
-                        self.emit("audio_legacy", chunk, user)  # Backward compatibility
+                        self.emit("audio", audio_event)  # Structured event
                     else:  # assume it's a Cartesia TTS chunk object
                         total_audio_bytes += len(chunk.data)
                         audio_chunks += 1
@@ -205,8 +203,7 @@ class TTS(AsyncIOEventEmitter, abc.ABC):
                             sample_rate=self._track.framerate if self._track else 16000
                         )
                         register_global_event(audio_event)
-                        self.emit("audio", audio_event)  # New structured event
-                        self.emit("audio_legacy", chunk.data, user)  # Backward compatibility
+                        self.emit("audio", audio_event)  # Structured event
             elif hasattr(audio_data, "__iter__") and not isinstance(
                 audio_data, (str, bytes, bytearray)
             ):
@@ -228,8 +225,7 @@ class TTS(AsyncIOEventEmitter, abc.ABC):
                         sample_rate=self._track.framerate if self._track else 16000
                     )
                     register_global_event(audio_event)
-                    self.emit("audio", audio_event)  # New structured event
-                    self.emit("audio_legacy", chunk, user)  # Backward compatibility
+                    self.emit("audio", audio_event)  # Structured event
             else:
                 raise TypeError(
                     f"Unsupported return type from synthesize: {type(audio_data)}"

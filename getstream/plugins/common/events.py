@@ -17,7 +17,7 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional, Dict, Any, List, Union
+from typing import Optional, Dict, Any, List
 from enum import Enum
 
 
@@ -457,19 +457,10 @@ EVENT_CLASS_MAP = {
     EventType.PLUGIN_ERROR: PluginErrorEvent,
 }
 
-# Legacy event name mappings for backward compatibility
-LEGACY_EVENT_NAMES = {
-    "transcript": EventType.STT_TRANSCRIPT,
-    "partial_transcript": EventType.STT_PARTIAL_TRANSCRIPT,
-    "error": EventType.PLUGIN_ERROR,  # Generic error fallback
-    "audio": EventType.VAD_AUDIO,  # VAD audio events
-    "partial": EventType.VAD_PARTIAL,  # VAD partial events
-    "connected": EventType.STS_CONNECTED,
-    "disconnected": EventType.STS_DISCONNECTED,
-}
 
 
-def create_event(event_type: Union[EventType, str], **kwargs) -> BaseEvent:
+
+def create_event(event_type: EventType, **kwargs) -> BaseEvent:
     """
     Create an event instance of the appropriate type.
     
@@ -483,16 +474,6 @@ def create_event(event_type: Union[EventType, str], **kwargs) -> BaseEvent:
     Raises:
         ValueError: If the event type is not recognized
     """
-    if isinstance(event_type, str):
-        # Handle legacy event names
-        if event_type in LEGACY_EVENT_NAMES:
-            event_type = LEGACY_EVENT_NAMES[event_type]
-        else:
-            try:
-                event_type = EventType(event_type)
-            except ValueError:
-                raise ValueError(f"Unknown event type: {event_type}")
-    
     if event_type not in EVENT_CLASS_MAP:
         raise ValueError(f"No event class defined for type: {event_type}")
     
@@ -546,6 +527,5 @@ __all__ = [
     
     # Utilities
     "EVENT_CLASS_MAP",
-    "LEGACY_EVENT_NAMES",
     "create_event",
 ]

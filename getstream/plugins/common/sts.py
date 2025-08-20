@@ -73,8 +73,7 @@ class STS(AsyncIOEventEmitter, abc.ABC):
             capabilities=capabilities
         )
         register_global_event(event)
-        self.emit("connected", event)  # New structured event
-        self.emit("connected_legacy")  # Backward compatibility
+        self.emit("connected", event)  # Structured event
     
     def _emit_disconnected_event(self, reason=None, was_clean=True):
         """Emit a structured disconnected event."""
@@ -87,8 +86,7 @@ class STS(AsyncIOEventEmitter, abc.ABC):
             was_clean=was_clean
         )
         register_global_event(event)
-        self.emit("disconnected", event)  # New structured event
-        self.emit("disconnected_legacy")  # Backward compatibility
+        self.emit("disconnected", event)  # Structured event
     
     def _emit_audio_input_event(self, audio_data, sample_rate=16000, user_metadata=None):
         """Emit a structured audio input event."""
@@ -168,8 +166,7 @@ class STS(AsyncIOEventEmitter, abc.ABC):
             user_metadata=user_metadata
         )
         register_global_event(event)
-        self.emit("error", event)  # New structured event
-        self.emit("error_legacy", error)  # Backward compatibility
+        self.emit("error", event)  # Structured event
     
     async def close(self):
         """Close the STS service and release any resources."""
