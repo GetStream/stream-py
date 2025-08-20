@@ -2,7 +2,7 @@
 
 ## Overview
 
-The GetStream AI Plugins Event System provides a structured, type-safe approach to event handling across all plugin types (STT, TTS, STS, VAD). This system replaces the previous loose dictionary-based events with strongly-typed data classes that provide better debugging, logging, and integration capabilities.
+The Plugins Event System provides a structured, type-safe approach to event handling across all plugin types (STT, TTS, STS, VAD). This system replaces the previous loose dictionary-based events with strongly-typed data classes that provide better debugging, logging, and integration capabilities.
 
 ## Key Features
 
@@ -207,36 +207,6 @@ restored_events = [
 ]
 ```
 
-## Migration Guide
-
-### From Legacy Events to Structured Events
-
-**Before (Legacy):**
-```python
-@stt.on("transcript")
-async def on_transcript(text: str, user_metadata: dict, metadata: dict):
-    confidence = metadata.get("confidence", 1.0)
-    processing_time = metadata.get("processing_time_ms")
-    print(f"Transcript: {text} (confidence: {confidence})")
-```
-
-**After (Structured):**
-```python
-@stt.on("transcript")
-async def on_transcript(event: STTTranscriptEvent):
-    print(f"Transcript: {event.text} (confidence: {event.confidence})")
-    print(f"Event ID: {event.event_id}")
-    print(f"Session: {event.session_id}")
-    print(f"Processing time: {event.processing_time_ms}ms")
-```
-
-### Gradual Migration Strategy
-
-1. **Phase 1**: Update event handlers to use structured events
-2. **Phase 2**: Start using event registry and analysis tools
-3. **Phase 3**: Remove legacy event handlers
-4. **Phase 4**: Full adoption of structured event system
-
 ## Plugin Implementation Guidelines
 
 ### For Plugin Authors
@@ -322,76 +292,3 @@ registry.add_listener(EventType.STT_ERROR, on_any_error)
 registry.add_listener(EventType.TTS_ERROR, on_any_error)
 registry.add_listener(EventType.VAD_ERROR, on_any_error)
 ```
-
-## Best Practices
-
-### 1. Always Use Structured Events
-- Prefer structured events over legacy events for new code
-- Include rich metadata in events
-- Use appropriate event types for different scenarios
-
-### 2. Session Management
-- Use consistent session IDs across related plugins
-- Track user context through session metadata
-
-### 3. Error Handling
-- Emit detailed error events with context
-- Include recovery suggestions when possible
-- Log errors with structured data
-
-### 4. Performance Monitoring
-- Include timing information in events
-- Monitor real-time factors for TTS
-- Track confidence scores for STT
-
-### 5. Event Filtering
-- Use event filters for efficient event processing
-- Implement time-based filtering for recent events
-- Filter by confidence thresholds for quality control
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Missing Events**: Ensure plugins call `super().__init__()` and `super().close()`
-2. **Duplicate Events**: Check that plugins don't both return results AND emit events
-3. **Performance Issues**: Use event filtering to limit event processing scope
-4. **Memory Usage**: Configure appropriate max_events limits for registries
-
-### Debugging Tips
-
-```python
-# Enable detailed event logging
-import logging
-logging.getLogger("getstream.plugins.events").setLevel(logging.DEBUG)
-
-# Monitor event flow
-from getstream.plugins.common import get_global_logger
-
-logger = get_global_logger()
-registry = logger.get_registry()
-
-# Print recent events
-recent_events = registry.get_events(limit=10)
-for event in recent_events:
-    print(f"{event.timestamp}: {event.event_type.value} - {event.plugin_name}")
-```
-
-## Future Enhancements
-
-- **Event Streaming**: Real-time event streaming to external systems
-- **Event Persistence**: Long-term storage of events in databases
-- **Advanced Analytics**: ML-based event pattern analysis
-- **Distributed Events**: Event synchronization across multiple instances
-- **Custom Event Types**: Plugin-specific event type registration
-
-## API Reference
-
-See the individual module documentation for complete API details:
-
-- `getstream.plugins.common.events` - Event class definitions
-- `getstream.plugins.common.event_utils` - Event utilities and registry
-- `getstream.plugins.common.stt` - STT base class with events
-- `getstream.plugins.common.tts` - TTS base class with events
-- `getstream.plugins.common.vad` - VAD base class with events
-- `getstream.plugins.common.sts` - STS base class with events
