@@ -91,11 +91,14 @@ class BaseEvent:
     def to_dict(self) -> Dict[str, Any]:
         """Convert event to dictionary for serialization."""
         result = {}
-        for field_name, field_value in self.__dict__.items():
+        
+        import dataclasses
+        for field in dataclasses.fields(self):
+            field_value = getattr(self, field.name)
             if isinstance(field_value, (datetime, Enum)):
-                result[field_name] = str(field_value)
+                result[field.name] = field_value.value if isinstance(field_value, Enum) else str(field_value)
             else:
-                result[field_name] = field_value
+                result[field.name] = field_value
         return result
 
 
