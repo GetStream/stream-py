@@ -1,8 +1,9 @@
 import pytest
 import asyncio
 import numpy as np
-from unittest.mock import Mock, patch, AsyncMock, MagicMock
+from unittest.mock import Mock, patch
 from getstream.video.rtc.track_util import PcmData
+from getstream.plugins.assemblyai.stt import AssemblyAISTT
 
 
 @pytest.fixture
@@ -63,12 +64,10 @@ class TestAssemblyAISTTInitialization:
 
     def test_import_success(self):
         """Test that the plugin can be imported successfully."""
-        from getstream.plugins.assemblyai import AssemblyAISTT
         assert AssemblyAISTT is not None
 
     def test_init_with_api_key(self, assemblyai_api_key, mock_assemblyai_dependencies):
         """Test initialization with API key."""
-        from getstream.plugins.assemblyai import AssemblyAISTT
         stt = AssemblyAISTT(api_key=assemblyai_api_key)
         
         assert stt.sample_rate == 48000
@@ -80,7 +79,6 @@ class TestAssemblyAISTTInitialization:
 
     def test_init_with_custom_config(self, mock_assemblyai_dependencies):
         """Test initialization with custom configuration."""
-        from getstream.plugins.assemblyai import AssemblyAISTT
         stt = AssemblyAISTT(
             sample_rate=16000,
             language="es",
@@ -99,7 +97,6 @@ class TestAssemblyAISTTInitialization:
 
     def test_init_without_api_key_logs_warning(self, mock_assemblyai_dependencies):
         """Test that initialization without API key logs a warning."""
-        from getstream.plugins.assemblyai import AssemblyAISTT
         
         with patch('getstream.plugins.assemblyai.stt.stt.logger') as mock_logger:
             stt = AssemblyAISTT()
@@ -112,7 +109,6 @@ class TestAssemblyAISTTInitialization:
 
     def test_provider_name_setting(self, assemblyai_api_key, mock_assemblyai_dependencies):
         """Test that the provider name is set correctly."""
-        from getstream.plugins.assemblyai import AssemblyAISTT
         stt = AssemblyAISTT(api_key=assemblyai_api_key)
         assert stt.provider_name == "assemblyai"
 
@@ -129,7 +125,6 @@ class TestAssemblyAISTTConfiguration:
     ])
     def test_sample_rate_configuration(self, sample_rate, expected, mock_assemblyai_dependencies):
         """Test different sample rate configurations."""
-        from getstream.plugins.assemblyai import AssemblyAISTT
         stt = AssemblyAISTT(sample_rate=sample_rate)
         assert stt.sample_rate == expected
 
@@ -142,13 +137,11 @@ class TestAssemblyAISTTConfiguration:
     ])
     def test_language_configuration(self, language, expected, mock_assemblyai_dependencies):
         """Test different language configurations."""
-        from getstream.plugins.assemblyai import AssemblyAISTT
         stt = AssemblyAISTT(language=language)
         assert stt.language == expected
 
     def test_invalid_sample_rate_handling(self, mock_assemblyai_dependencies):
         """Test that invalid sample rate is handled gracefully."""
-        from getstream.plugins.assemblyai import AssemblyAISTT
         
         # The current implementation doesn't validate sample rate, so it should accept any value
         stt = AssemblyAISTT(sample_rate=9999)
@@ -160,8 +153,8 @@ class TestAssemblyAISTTDataValidation:
 
     def test_pcm_data_validation(self, assemblyai_api_key, mock_assemblyai_dependencies, sample_pcm_data):
         """Test that PCM data validation works correctly."""
-        from getstream.plugins.assemblyai import AssemblyAISTT
-        stt = AssemblyAISTT(api_key=assemblyai_api_key)
+        # Create instance to test initialization
+        _ = AssemblyAISTT(api_key=assemblyai_api_key)
         
         # Should not raise an exception
         assert sample_pcm_data.samples is not None
@@ -170,8 +163,8 @@ class TestAssemblyAISTTDataValidation:
 
     def test_empty_pcm_data_handling(self, assemblyai_api_key, mock_assemblyai_dependencies):
         """Test handling of empty PCM data."""
-        from getstream.plugins.assemblyai import AssemblyAISTT
-        stt = AssemblyAISTT(api_key=assemblyai_api_key)
+        # Create instance to test initialization
+        _ = AssemblyAISTT(api_key=assemblyai_api_key)
         
         # Create empty PCM data
         empty_samples = np.array([], dtype=np.int16)
@@ -182,8 +175,8 @@ class TestAssemblyAISTTDataValidation:
 
     def test_pcm_data_with_different_dtypes(self, assemblyai_api_key, mock_assemblyai_dependencies):
         """Test PCM data with different numpy dtypes."""
-        from getstream.plugins.assemblyai import AssemblyAISTT
-        stt = AssemblyAISTT(api_key=assemblyai_api_key)
+        # Create instance to test initialization
+        _ = AssemblyAISTT(api_key=assemblyai_api_key)
         
         # Test with float32
         float_samples = np.array([0.5, -0.5, 0.25, -0.25], dtype=np.float32)
@@ -202,7 +195,6 @@ class TestAssemblyAISTTConnectionManagement:
     @pytest.mark.asyncio
     async def test_close_method(self, assemblyai_api_key, mock_assemblyai_dependencies, mock_streaming_client):
         """Test that the close method works correctly."""
-        from getstream.plugins.assemblyai import AssemblyAISTT
         stt = AssemblyAISTT(api_key=assemblyai_api_key)
         
         # Mock the streaming client
@@ -217,7 +209,6 @@ class TestAssemblyAISTTConnectionManagement:
     @pytest.mark.asyncio
     async def test_async_context_manager(self, assemblyai_api_key, mock_assemblyai_dependencies):
         """Test that the plugin can be used as an async context manager."""
-        from getstream.plugins.assemblyai import AssemblyAISTT
         
         async with AssemblyAISTT(api_key=assemblyai_api_key) as stt:
             assert stt is not None
@@ -228,7 +219,6 @@ class TestAssemblyAISTTConnectionManagement:
 
     def test_connection_status_check(self, assemblyai_api_key, mock_assemblyai_dependencies, mock_streaming_client):
         """Test connection status checking."""
-        from getstream.plugins.assemblyai import AssemblyAISTT
         stt = AssemblyAISTT(api_key=assemblyai_api_key)
         
         # Initially no connection
@@ -249,7 +239,6 @@ class TestAssemblyAISTTAudioProcessing:
     @pytest.mark.asyncio
     async def test_process_audio_sample_rate_mismatch(self, assemblyai_api_key, mock_assemblyai_dependencies, sample_pcm_data_16k):
         """Test that sample rate mismatch warning is logged."""
-        from getstream.plugins.assemblyai import AssemblyAISTT
         stt = AssemblyAISTT(api_key=assemblyai_api_key, sample_rate=48000)
         
         # Mock the streaming client
@@ -263,7 +252,6 @@ class TestAssemblyAISTTAudioProcessing:
     @pytest.mark.asyncio
     async def test_process_audio_connection_not_ready(self, assemblyai_api_key, mock_assemblyai_dependencies, sample_pcm_data):
         """Test that audio processing fails when connection is not ready."""
-        from getstream.plugins.assemblyai import AssemblyAISTT
         stt = AssemblyAISTT(api_key=assemblyai_api_key)
         
         # Should raise exception when no connection
@@ -273,7 +261,6 @@ class TestAssemblyAISTTAudioProcessing:
     @pytest.mark.asyncio
     async def test_process_audio_success(self, assemblyai_api_key, mock_assemblyai_dependencies, sample_pcm_data, mock_streaming_client):
         """Test successful audio processing."""
-        from getstream.plugins.assemblyai import AssemblyAISTT
         stt = AssemblyAISTT(api_key=assemblyai_api_key)
         
         # Mock the streaming client
@@ -288,7 +275,6 @@ class TestAssemblyAISTTAudioProcessing:
     @pytest.mark.asyncio
     async def test_process_audio_with_large_data(self, assemblyai_api_key, mock_assemblyai_dependencies, mock_streaming_client):
         """Test audio processing with large PCM data."""
-        from getstream.plugins.assemblyai import AssemblyAISTT
         stt = AssemblyAISTT(api_key=assemblyai_api_key)
         
         # Create large PCM data
@@ -308,7 +294,6 @@ class TestAssemblyAISTTEventHandling:
 
     def test_event_emitter_inheritance(self, assemblyai_api_key, mock_assemblyai_dependencies):
         """Test that the plugin inherits from the correct base classes."""
-        from getstream.plugins.assemblyai import AssemblyAISTT
         stt = AssemblyAISTT(api_key=assemblyai_api_key)
         
         # Check that it has the expected methods
@@ -319,7 +304,6 @@ class TestAssemblyAISTTEventHandling:
 
     def test_event_emission(self, assemblyai_api_key, mock_assemblyai_dependencies):
         """Test that events can be emitted and listened to."""
-        from getstream.plugins.assemblyai import AssemblyAISTT
         stt = AssemblyAISTT(api_key=assemblyai_api_key)
         
         # Test event emission
@@ -336,7 +320,6 @@ class TestAssemblyAISTTEventHandling:
 
     def test_multiple_event_listeners(self, assemblyai_api_key, mock_assemblyai_dependencies):
         """Test multiple event listeners."""
-        from getstream.plugins.assemblyai import AssemblyAISTT
         stt = AssemblyAISTT(api_key=assemblyai_api_key)
         
         events_received = []
@@ -362,7 +345,6 @@ class TestAssemblyAISTTErrorHandling:
     @pytest.mark.asyncio
     async def test_network_error_handling(self, assemblyai_api_key, mock_assemblyai_dependencies, sample_pcm_data):
         """Test handling of network errors during audio processing."""
-        from getstream.plugins.assemblyai import AssemblyAISTT
         stt = AssemblyAISTT(api_key=assemblyai_api_key)
         
         # Mock streaming client that raises network error
@@ -375,7 +357,6 @@ class TestAssemblyAISTTErrorHandling:
 
     def test_empty_api_key_handling(self, mock_assemblyai_dependencies):
         """Test handling of empty API key."""
-        from getstream.plugins.assemblyai import AssemblyAISTT
         
         # The current implementation accepts empty API keys without logging a warning
         # (only logs warning when api_key is None)
@@ -386,7 +367,6 @@ class TestAssemblyAISTTErrorHandling:
     @pytest.mark.asyncio
     async def test_streaming_client_disconnect_error(self, assemblyai_api_key, mock_assemblyai_dependencies):
         """Test handling of errors during client disconnection."""
-        from getstream.plugins.assemblyai import AssemblyAISTT
         stt = AssemblyAISTT(api_key=assemblyai_api_key)
         
         # Mock streaming client that raises error on disconnect
@@ -405,7 +385,6 @@ class TestAssemblyAISTTPerformance:
     @pytest.mark.asyncio
     async def test_audio_processing_performance(self, assemblyai_api_key, mock_assemblyai_dependencies, mock_streaming_client):
         """Test audio processing performance with timing."""
-        from getstream.plugins.assemblyai import AssemblyAISTT
         import time
         
         stt = AssemblyAISTT(api_key=assemblyai_api_key)
@@ -426,11 +405,11 @@ class TestAssemblyAISTTPerformance:
 
     def test_memory_usage_with_large_data(self, assemblyai_api_key, mock_assemblyai_dependencies):
         """Test memory usage with large PCM data."""
-        from getstream.plugins.assemblyai import AssemblyAISTT
         import psutil
         import os
         
-        stt = AssemblyAISTT(api_key=assemblyai_api_key)
+        # Create instance to test initialization
+        _ = AssemblyAISTT(api_key=assemblyai_api_key)
         
         # Get initial memory usage
         process = psutil.Process(os.getpid())
@@ -460,7 +439,6 @@ class TestAssemblyAISTTIntegration:
     @pytest.mark.asyncio
     async def test_full_audio_processing_workflow(self, assemblyai_api_key, mock_assemblyai_dependencies):
         """Test the complete audio processing workflow."""
-        from getstream.plugins.assemblyai import AssemblyAISTT
         
         async with AssemblyAISTT(api_key=assemblyai_api_key) as stt:
             # Mock streaming client with realistic behavior
@@ -486,7 +464,6 @@ class TestAssemblyAISTTIntegration:
     @pytest.mark.asyncio
     async def test_concurrent_audio_processing(self, assemblyai_api_key, mock_assemblyai_dependencies):
         """Test concurrent audio processing."""
-        from getstream.plugins.assemblyai import AssemblyAISTT
         
         async with AssemblyAISTT(api_key=assemblyai_api_key) as stt:
             mock_client = Mock()
