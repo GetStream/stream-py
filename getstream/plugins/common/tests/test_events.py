@@ -818,13 +818,12 @@ class TestEventMetrics:
         assert metrics["total_speech_segments"] == 3
         assert metrics["total_partial_events"] == 1
         
-        # Note: VADAudioEvent has default values (duration_ms=0.0, speech_probability=0.0)
-        # So all events contribute to averages, but with their actual values
-        assert pytest.approx(metrics["avg_speech_duration_ms"], 0.01) == 833.33  # (1000+0+1500)/3
-        assert metrics["total_speech_duration_ms"] == 2500.0  # 1000+0+1500
+        # Only events with duration_ms should be included in duration calculations
+        assert metrics["avg_speech_duration_ms"] == 1250.0  # (1000+1500)/2
+        assert metrics["total_speech_duration_ms"] == 2500.0  # 1000+1500
         
-        # Only events with non-zero speech_probability should be included
-        assert pytest.approx(metrics["avg_speech_probability"], 0.001) == 0.567  # (0.9+0.8+0.0)/3
+        # Only VADAudioEvent events with speech_probability are included (VADPartialEvent is ignored)
+        assert pytest.approx(metrics["avg_speech_probability"], 0.001) == 0.85  # (0.9+0.8)/2 = 1.7/2 = 0.85
     
     def test_calculate_metrics_with_realistic_event_sequence(self):
         """Test metrics calculation with a realistic sequence of events."""

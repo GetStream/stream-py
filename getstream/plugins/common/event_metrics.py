@@ -105,13 +105,24 @@ def calculate_vad_metrics(events: List[BaseEvent]) -> Dict[str, Any]:
     }
 
     if audio_events:
-        durations = [e.duration_ms for e in audio_events]
-        probabilities = [e.speech_probability for e in audio_events]
+        durations = [
+            e.duration_ms for e in audio_events
+            if e.duration_ms is not None
+        ]
+        probabilities = [
+            e.speech_probability for e in audio_events
+            if e.speech_probability is not None
+        ]
 
-        metrics.update({
-            "avg_speech_duration_ms": sum(durations) / len(durations),
-            "total_speech_duration_ms": sum(durations),
-            "avg_speech_probability": sum(probabilities) / len(probabilities),
-        })
+        if durations:
+            metrics.update({
+                "avg_speech_duration_ms": sum(durations) / len(durations),
+                "total_speech_duration_ms": sum(durations),
+            })
+
+        if probabilities:
+            metrics.update({
+                "avg_speech_probability": sum(probabilities) / len(probabilities),
+            })
 
     return metrics

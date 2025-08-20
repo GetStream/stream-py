@@ -349,8 +349,8 @@ class VADAudioEvent(BaseEvent):
     sample_rate: int = 16000
     audio_format: AudioFormat = AudioFormat.PCM_S16
     channels: int = 1
-    duration_ms: float = 0.0
-    speech_probability: float = 0.0
+    duration_ms: Optional[float] = None
+    speech_probability: Optional[float] = None
     frame_count: int = 0
 
 
@@ -362,8 +362,8 @@ class VADPartialEvent(BaseEvent):
     sample_rate: int = 16000
     audio_format: AudioFormat = AudioFormat.PCM_S16
     channels: int = 1
-    duration_ms: float = 0.0
-    speech_probability: float = 0.0
+    duration_ms: Optional[float] = None
+    speech_probability: Optional[float] = None
     frame_count: int = 0
     is_speech_active: bool = True
 
