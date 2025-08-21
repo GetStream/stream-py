@@ -90,25 +90,28 @@ async def process_audio_file(
 
     # Setup event handlers
     @vad.on("audio")
-    async def on_audio(pcm_data: PcmData, user):
-        # Use the duration property instead of calling it as a method
-        duration = pcm_data.duration
-        detected_segments.append({"duration": duration, "bytes": len(pcm_data.samples)})
+    async def on_audio(event):
+        # Extract duration and samples from the event
+        duration = event.duration_ms / 1000.0 if event.duration_ms else 0.0
+        samples = event.audio_data if event.audio_data is not None else b""
+        detected_segments.append({"duration": duration, "bytes": len(samples)})
         logger.info(
-            f"Detected speech segment: {duration:.2f} seconds ({len(pcm_data.samples)} bytes)"
+            f"Detected speech segment: {duration:.2f} seconds ({len(samples)} bytes)"
         )
 
     # Add handler for partial events if tracking them
     if partial_segments is not None:
 
         @vad.on("partial")
-        async def on_partial(pcm_data: PcmData, user):
-            duration = pcm_data.duration
+        async def on_partial(event):
+            # Extract duration and samples from the event
+            duration = event.duration_ms / 1000.0 if event.duration_ms else 0.0
+            samples = event.audio_data if event.audio_data is not None else b""
             partial_segments.append(
-                {"duration": duration, "bytes": len(pcm_data.samples)}
+                {"duration": duration, "bytes": len(samples)}
             )
             logger.info(
-                f"Partial speech data: {duration:.2f} seconds ({len(pcm_data.samples)} bytes)"
+                f"Partial speech data: {duration:.2f} seconds ({len(samples)} bytes)"
             )
 
     # Resample if needed
@@ -145,25 +148,28 @@ async def process_audio_in_chunks(
 
     # Setup event handlers
     @vad.on("audio")
-    async def on_audio(pcm_data: PcmData, user):
-        # Use the duration property instead of calling it as a method
-        duration = pcm_data.duration
-        detected_segments.append({"duration": duration, "bytes": len(pcm_data.samples)})
+    async def on_audio(event):
+        # Extract duration and samples from the event
+        duration = event.duration_ms / 1000.0 if event.duration_ms else 0.0
+        samples = event.audio_data if event.audio_data is not None else b""
+        detected_segments.append({"duration": duration, "bytes": len(samples)})
         logger.info(
-            f"Detected speech segment: {duration:.2f} seconds ({len(pcm_data.samples)} bytes)"
+            f"Detected speech segment: {duration:.2f} seconds ({len(samples)} bytes)"
         )
 
     # Add handler for partial events if tracking them
     if partial_segments is not None:
 
         @vad.on("partial")
-        async def on_partial(pcm_data: PcmData, user):
-            duration = pcm_data.duration
+        async def on_partial(event):
+            # Extract duration and samples from the event
+            duration = event.duration_ms / 1000.0 if event.duration_ms else 0.0
+            samples = event.audio_data if event.audio_data is not None else b""
             partial_segments.append(
-                {"duration": duration, "bytes": len(pcm_data.samples)}
+                {"duration": duration, "bytes": len(samples)}
             )
             logger.info(
-                f"Partial speech data: {duration:.2f} seconds ({len(pcm_data.samples)} bytes)"
+                f"Partial speech data: {duration:.2f} seconds ({len(samples)} bytes)"
             )
 
     # Resample if needed
@@ -361,20 +367,23 @@ async def test_vad_with_connection_manager_format(audio_data, vad_setup):
     pcm_bytes = (data * 32768.0).astype(np.int16).tobytes()
 
     @vad.on("audio")
-    async def on_audio(pcm_data, user):
-        # Use the duration property instead of calling it as a method
-        duration = pcm_data.duration
-        detected_segments.append({"duration": duration, "bytes": len(pcm_data.samples)})
+    async def on_audio(event):
+        # Extract duration and samples from the event
+        duration = event.duration_ms / 1000.0 if event.duration_ms else 0.0
+        samples = event.audio_data if event.audio_data is not None else b""
+        detected_segments.append({"duration": duration, "bytes": len(samples)})
         logger.info(
-            f"Detected speech segment: {duration:.2f} seconds ({len(pcm_data.samples)} bytes)"
+            f"Detected speech segment: {duration:.2f} seconds ({len(samples)} bytes)"
         )
 
     @vad.on("partial")
-    async def on_partial(pcm_data, user):
-        duration = pcm_data.duration
-        partial_segments.append({"duration": duration, "bytes": len(pcm_data.samples)})
+    async def on_partial(event):
+        # Extract duration and samples from the event
+        duration = event.duration_ms / 1000.0 if event.duration_ms else 0.0
+        samples = event.audio_data if event.audio_data is not None else b""
+        partial_segments.append({"duration": duration, "bytes": len(samples)})
         logger.info(
-            f"Partial speech data: {duration:.2f} seconds ({len(pcm_data.samples)} bytes)"
+            f"Partial speech data: {duration:.2f} seconds ({len(samples)} bytes)"
         )
 
     # Process the audio data as bytes
@@ -419,19 +428,19 @@ async def test_silence_no_turns():
     partial_event_fired = False
 
     @vad.on("audio")
-    async def on_audio(pcm_data, user):
+    async def on_audio(event):
         nonlocal audio_event_fired
         audio_event_fired = True
         logger.info(
-            f"Audio event detected on silence! Duration: {pcm_data.duration:.2f}s"
+            f"Audio event detected on silence! Duration: {event.duration_ms/1000.0:.2f}s"
         )
 
     @vad.on("partial")
-    async def on_partial(pcm_data, user):
+    async def on_partial(event):
         nonlocal partial_event_fired
         partial_event_fired = True
         logger.info(
-            f"Partial event detected on silence! Duration: {pcm_data.duration:.2f}s"
+            f"Partial event detected on silence! Duration: {event.duration_ms/1000.0:.2f}s"
         )
 
     # Process the silence in chunks to simulate streaming
@@ -484,15 +493,19 @@ class TestSileroVAD:
         @vad.on("audio")
         def on_audio(event, user=None):
             detected_speech.append(event)
+            duration = event.duration_ms / 1000.0 if event.duration_ms else 0.0
+            samples = event.audio_data if event.audio_data is not None else b""
             logger.info(
-                f"Audio event: {event.duration:.2f}s ({len(event.samples)} samples)"
+                f"Audio event: {duration:.2f}s ({len(samples)} samples)"
             )
 
         @vad.on("partial")
         def on_partial(event, user=None):
             partial_events.append(event)
+            duration = event.duration_ms / 1000.0 if event.duration_ms else 0.0
+            samples = event.audio_data if event.audio_data is not None else b""
             logger.info(
-                f"Partial event: {event.duration:.2f}s ({len(event.samples)} samples)"
+                f"Partial event: {duration:.2f}s ({len(samples)} samples)"
             )
 
         # Process the audio data

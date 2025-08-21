@@ -81,6 +81,23 @@ class AudioStreamTrack(aiortc.mediastreams.MediaStreamTrack):
             extra={"data_size": len(data), "queue_size": self._queue.qsize()},
         )
 
+    async def flush(self) -> None:
+        """
+        Clear any pending audio from the internal queue and buffer so playback stops immediately.
+        """
+        # Drain queue
+        cleared = 0
+        while not self._queue.empty():
+            try:
+                self._queue.get_nowait()
+                self._queue.task_done()
+                cleared += 1
+            except asyncio.QueueEmpty:
+                break
+        # Reset any pending bytes not yet consumed
+        self._pending_data = bytearray()
+        logger.debug("Flushed audio queue", extra={"cleared_items": cleared})
+
     async def recv(self) -> Frame:
         """
         Receive the next audio frame.
@@ -105,7 +122,9 @@ class AudioStreamTrack(aiortc.mediastreams.MediaStreamTrack):
             self._timestamp = 0
         else:
             self._timestamp += samples
-            wait = self._start + (self._timestamp / self.framerate) - time.time()
+            # Guard against None for type-checkers
+            start_ts = self._start or time.time()
+            wait = start_ts + (self._timestamp / self.framerate) - time.time()
             if wait > 0:
                 await asyncio.sleep(wait)
 

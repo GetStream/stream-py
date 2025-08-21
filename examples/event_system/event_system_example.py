@@ -19,11 +19,24 @@ import logging
 # Import the common plugin system
 from getstream.plugins.common import (
     # Base classes
-    STT, TTS, VAD, EventType, STTTranscriptEvent, VADAudioEvent,
-
+    STT,
+    TTS,
+    VAD,
+    EventType,
+    STTTranscriptEvent,
+    VADAudioEvent,
     # Event utilities
-    EventFilter, EventRegistry, EventMetrics, EventSerializer,
-    get_global_registry
+    EventFilter,
+    EventRegistry,
+    get_global_registry,
+)
+from getstream.plugins.common.event_metrics import (
+    calculate_stt_metrics,
+    calculate_tts_metrics,
+)
+from getstream.plugins.common.event_serialization import (
+    serialize_events,
+    deserialize_event,
 )
 
 # Set up logging
@@ -54,7 +67,7 @@ class ExampleSTTPlugin(STT):
             "confidence": confidence,
             "processing_time_ms": 100.0,
             "model_name": "example_model_v1",
-            "language": "en-US"
+            "language": "en-US",
         }
 
         # Return results for synchronous mode
@@ -62,7 +75,9 @@ class ExampleSTTPlugin(STT):
         return [(True, text, metadata)]
 
     async def close(self):
-        logger.info(f"Closing STT plugin after {self.transcription_count} transcriptions")
+        logger.info(
+            f"Closing STT plugin after {self.transcription_count} transcriptions"
+        )
         await super().close()
 
 
@@ -83,7 +98,7 @@ class ExampleTTSPlugin(TTS):
 
         # Generate fake audio data
         audio_size = len(text) * 100  # Simulate audio size based on text length
-        fake_audio = b'\x00' * audio_size
+        fake_audio = b"\x00" * audio_size
 
         return fake_audio
 
@@ -119,7 +134,7 @@ def analyze_stt_performance(registry: EventRegistry):
     # Get STT events
     stt_filter = EventFilter(
         event_types=[EventType.STT_TRANSCRIPT, EventType.STT_PARTIAL_TRANSCRIPT],
-        time_window_ms=60000  # Last minute
+        time_window_ms=60000,  # Last minute
     )
 
     stt_events = registry.get_events(stt_filter)
@@ -129,19 +144,19 @@ def analyze_stt_performance(registry: EventRegistry):
         return
 
     # Calculate metrics
-    metrics = EventMetrics.calculate_stt_metrics(stt_events)
+    metrics = calculate_stt_metrics(stt_events)
 
     print("\n=== STT Performance Analysis ===")
     print(f"Total transcripts: {metrics['total_transcripts']}")
     print(f"Final transcripts: {metrics['final_transcripts']}")
     print(f"Partial transcripts: {metrics['partial_transcripts']}")
 
-    if 'avg_processing_time_ms' in metrics:
+    if "avg_processing_time_ms" in metrics:
         print(f"Average processing time: {metrics['avg_processing_time_ms']:.2f}ms")
         print(f"Min processing time: {metrics['min_processing_time_ms']:.2f}ms")
         print(f"Max processing time: {metrics['max_processing_time_ms']:.2f}ms")
 
-    if 'avg_confidence' in metrics:
+    if "avg_confidence" in metrics:
         print(f"Average confidence: {metrics['avg_confidence']:.2f}")
         print(f"Min confidence: {metrics['min_confidence']:.2f}")
         print(f"Max confidence: {metrics['max_confidence']:.2f}")
@@ -150,8 +165,7 @@ def analyze_stt_performance(registry: EventRegistry):
 def analyze_tts_performance(registry: EventRegistry):
     """Analyze TTS performance from events."""
     tts_filter = EventFilter(
-        event_types=[EventType.TTS_SYNTHESIS_COMPLETE],
-        time_window_ms=60000
+        event_types=[EventType.TTS_SYNTHESIS_COMPLETE], time_window_ms=60000
     )
 
     tts_events = registry.get_events(tts_filter)
@@ -160,18 +174,18 @@ def analyze_tts_performance(registry: EventRegistry):
         print("No TTS completion events found")
         return
 
-    metrics = EventMetrics.calculate_tts_metrics(registry.get_events())
+    metrics = calculate_tts_metrics(registry.get_events())
 
     print("\n=== TTS Performance Analysis ===")
     print(f"Total syntheses: {metrics['completed_syntheses']}")
     print(f"Total audio chunks: {metrics['total_audio_chunks']}")
 
-    if 'avg_synthesis_time_ms' in metrics:
+    if "avg_synthesis_time_ms" in metrics:
         print(f"Average synthesis time: {metrics['avg_synthesis_time_ms']:.2f}ms")
         print(f"Min synthesis time: {metrics['min_synthesis_time_ms']:.2f}ms")
         print(f"Max synthesis time: {metrics['max_synthesis_time_ms']:.2f}ms")
 
-    if 'avg_real_time_factor' in metrics:
+    if "avg_real_time_factor" in metrics:
         print(f"Average real-time factor: {metrics['avg_real_time_factor']:.2f}")
 
 
@@ -180,19 +194,16 @@ def demonstrate_event_filtering(registry: EventRegistry):
     print("\n=== Event Filtering Examples ===")
 
     # Filter by event type
-    error_filter = EventFilter(event_types=[
-        EventType.STT_ERROR,
-        EventType.TTS_ERROR,
-        EventType.VAD_ERROR
-    ])
+    error_filter = EventFilter(
+        event_types=[EventType.STT_ERROR, EventType.TTS_ERROR, EventType.VAD_ERROR]
+    )
 
     error_events = registry.get_events(error_filter)
     print(f"Total error events: {len(error_events)}")
 
     # Filter by confidence threshold
     high_confidence_filter = EventFilter(
-        event_types=[EventType.STT_TRANSCRIPT],
-        min_confidence=0.9
+        event_types=[EventType.STT_TRANSCRIPT], min_confidence=0.9
     )
 
     high_confidence_events = registry.get_events(high_confidence_filter)
@@ -221,7 +232,7 @@ def demonstrate_event_serialization(registry: EventRegistry):
         return
 
     # Serialize events
-    events_json = EventSerializer.serialize_events(recent_events)
+    events_json = serialize_events(recent_events)
     print(f"Serialized {len(recent_events)} events")
     print(f"JSON size: {len(events_json)} characters")
 
@@ -236,16 +247,15 @@ def demonstrate_event_serialization(registry: EventRegistry):
         loaded_json = f.read()
 
     events_data = json.loads(loaded_json)
-    restored_events = [
-        EventSerializer.deserialize_event(event_data)
-        for event_data in events_data
-    ]
+    restored_events = [deserialize_event(event_data) for event_data in events_data]
 
     print(f"Restored {len(restored_events)} events")
 
     # Verify restoration
     for original, restored in zip(recent_events, restored_events):
-        print(f"Original: {original.event_type.value} - Restored: {restored.event_type.value}")
+        print(
+            f"Original: {original.event_type.value} - Restored: {restored.event_type.value}"
+        )
 
 
 async def simulate_plugin_usage():
@@ -264,7 +274,9 @@ async def simulate_plugin_usage():
 
     @tts_plugin.on("synthesis_complete")
     async def on_tts_complete(event):
-        print(f"🔊 TTS Complete: {event.total_audio_bytes} bytes in {event.synthesis_time_ms:.1f}ms")
+        print(
+            f"🔊 TTS Complete: {event.total_audio_bytes} bytes in {event.synthesis_time_ms:.1f}ms"
+        )
 
     @vad_plugin.on("speech_start")
     async def on_speech_start(event):
@@ -304,7 +316,7 @@ async def simulate_plugin_usage():
     texts_to_synthesize = [
         "Hello, this is a test.",
         "The event system is working great!",
-        "This is the final synthesis test."
+        "This is the final synthesis test.",
     ]
 
     for text in texts_to_synthesize:

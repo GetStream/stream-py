@@ -235,8 +235,12 @@ class EventLogger:
         if hasattr(event, 'processing_time_ms'):
             log_data["processing_time_ms"] = event.processing_time_ms
 
-        if hasattr(event, 'audio_data') and event.audio_data:
-            log_data["audio_bytes"] = len(event.audio_data)
+        if hasattr(event, 'audio_data') and event.audio_data is not None:
+            # Handle numpy arrays and other array-like objects
+            if hasattr(event.audio_data, '__len__'):
+                log_data["audio_bytes"] = len(event.audio_data)
+            else:
+                log_data["audio_bytes"] = 0
 
         if hasattr(event, 'error'):
             log_data["error_message"] = str(event.error)

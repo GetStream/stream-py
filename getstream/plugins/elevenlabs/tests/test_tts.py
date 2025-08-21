@@ -1,7 +1,7 @@
 import os
 import pytest
 import asyncio
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
 
 from getstream.plugins.elevenlabs.tts import ElevenLabsTTS
 from getstream.video.rtc.audio_track import AudioStreamTrack
@@ -18,19 +18,21 @@ class MockAudioTrack(AudioStreamTrack):
         return True
 
 
-# Mock ElevenLabs client for testing
-class MockElevenLabsClient:
+# Mock AsyncElevenLabs client for testing
+class MockAsyncElevenLabsClient:
     def __init__(self, api_key=None):
         self.api_key = api_key
         self.text_to_speech = MagicMock()
 
         # Create a mock audio stream that returns a few chunks of audio
         mock_audio = [b"\x00\x00" * 1000, b"\x00\x00" * 1000]
-        self.text_to_speech.stream = MagicMock(return_value=iter(mock_audio))
+
+        # Mock the async stream method to return an iterable directly
+        self.text_to_speech.stream = AsyncMock(return_value=mock_audio)
 
 
 @pytest.mark.asyncio
-@patch("elevenlabs.client.ElevenLabs", MockElevenLabsClient)
+@patch("elevenlabs.client.AsyncElevenLabs", MockAsyncElevenLabsClient)
 async def test_elevenlabs_tts_initialization():
     """Test that the ElevenLabs TTS initializes correctly with explicit API key."""
     tts = ElevenLabsTTS(api_key="test-api-key")
@@ -39,7 +41,7 @@ async def test_elevenlabs_tts_initialization():
 
 
 @pytest.mark.asyncio
-@patch("elevenlabs.client.ElevenLabs", MockElevenLabsClient)
+@patch("elevenlabs.client.AsyncElevenLabs", MockAsyncElevenLabsClient)
 @patch.dict(os.environ, {"ELEVENLABS_API_KEY": "env-var-api-key"})
 async def test_elevenlabs_tts_initialization_with_env_var():
     """ElevenLabsTTS should use ELEVENLABS_API_KEY when no key argument is given."""
@@ -50,7 +52,7 @@ async def test_elevenlabs_tts_initialization_with_env_var():
 
 
 @pytest.mark.asyncio
-@patch("elevenlabs.client.ElevenLabs", MockElevenLabsClient)
+@patch("elevenlabs.client.AsyncElevenLabs", MockAsyncElevenLabsClient)
 async def test_elevenlabs_tts_synthesize():
     """Test that synthesize returns an audio stream."""
     tts = ElevenLabsTTS(api_key="test-api-key")
@@ -69,7 +71,7 @@ async def test_elevenlabs_tts_synthesize():
 
 
 @pytest.mark.asyncio
-@patch("elevenlabs.client.ElevenLabs", MockElevenLabsClient)
+@patch("elevenlabs.client.AsyncElevenLabs", MockAsyncElevenLabsClient)
 async def test_elevenlabs_tts_send():
     """Test that send writes audio to the track and emits events."""
     tts = ElevenLabsTTS(api_key="test-api-key")
@@ -82,8 +84,8 @@ async def test_elevenlabs_tts_send():
     emitted_audio = []
 
     @tts.on("audio")
-    def on_audio(audio_data, user):
-        emitted_audio.append(audio_data)
+    def on_audio(event):
+        emitted_audio.append(event.audio_data)
 
     # Send text to the TTS
     text = "Hello, world!"
@@ -98,7 +100,7 @@ async def test_elevenlabs_tts_send():
 
 
 @pytest.mark.asyncio
-@patch("elevenlabs.client.ElevenLabs", MockElevenLabsClient)
+@patch("elevenlabs.client.AsyncElevenLabs", MockAsyncElevenLabsClient)
 async def test_elevenlabs_tts_send_without_track():
     """Test that sending without setting a track raises an error."""
     tts = ElevenLabsTTS(api_key="test-api-key")
@@ -109,7 +111,7 @@ async def test_elevenlabs_tts_send_without_track():
 
 
 @pytest.mark.asyncio
-@patch("elevenlabs.client.ElevenLabs", MockElevenLabsClient)
+@patch("elevenlabs.client.AsyncElevenLabs", MockAsyncElevenLabsClient)
 async def test_elevenlabs_tts_invalid_framerate():
     """Test that setting a track with invalid framerate raises an error."""
     tts = ElevenLabsTTS(api_key="test-api-key")
@@ -128,7 +130,8 @@ async def test_elevenlabs_with_real_api():
     """
     Integration test with the real ElevenLabs API.
 
-    This test uses the actual ElevenLabs API with the ELEVENLABS_API_KEY environment variable.
+    This test uses the actual ElevenLabs API with the
+    ELEVENLABS_API_KEY environment variable.
     It will be skipped if the environment variable is not set.
 
     To set up the ELEVENLABS_API_KEY:
@@ -142,7 +145,8 @@ async def test_elevenlabs_with_real_api():
     # Skip the test if the ELEVENLABS_API_KEY environment variable is not set
     if not api_key:
         pytest.skip(
-            "ELEVENLABS_API_KEY environment variable not set. Add it to your .env file."
+            "ELEVENLABS_API_KEY environment variable not set. "
+            "Add it to your .env file."
         )
 
     # Create a real ElevenLabs TTS instance with the API key explicitly set
