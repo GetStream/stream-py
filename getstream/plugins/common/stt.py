@@ -1,11 +1,17 @@
 import abc
 import logging
 import time
+import uuid
 from typing import Optional, Dict, Any, Tuple, List
 import asyncio
 from asyncio import AbstractEventLoop
 from pyee.asyncio import AsyncIOEventEmitter
 from getstream.video.rtc.track_util import PcmData
+
+from .events import (
+    STTTranscriptEvent, STTPartialTranscriptEvent, STTErrorEvent, PluginInitializedEvent, PluginClosedEvent
+)
+from .event_utils import register_global_event
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +47,7 @@ class STT(AsyncIOEventEmitter, abc.ABC):
         sample_rate: int = 16000,
         *,
         loop: Optional[AbstractEventLoop] = None,
+        provider_name: Optional[str] = None,
     ):
         """
         Initialize the STT service.
@@ -49,6 +56,7 @@ class STT(AsyncIOEventEmitter, abc.ABC):
             sample_rate: The sample rate of the audio to process, in Hz.
             loop: The asyncio event loop that should be used by the underlying
                   ``AsyncIOEventEmitter`` when scheduling coroutine callbacks.
+            provider_name: Name of the STT provider (e.g., "deepgram", "moonshine")
 
         Providing an explicit event loop is critical when callbacks may be
         emitted from background threads (for example, SDK-managed listening
@@ -79,14 +87,29 @@ class STT(AsyncIOEventEmitter, abc.ABC):
         self._track = None
         self.sample_rate = sample_rate
         self._is_closed = False
+        self.session_id = str(uuid.uuid4())
+        self.provider_name = provider_name or self.__class__.__name__
 
         logger.debug(
             "Initialized STT base class",
             extra={
                 "sample_rate": sample_rate,
                 "loop": str(_loop),
+                "session_id": self.session_id,
+                "provider": self.provider_name,
             },
         )
+
+        # Emit initialization event
+        init_event = PluginInitializedEvent(
+            session_id=self.session_id,
+            plugin_name=self.provider_name,
+            plugin_type="STT",
+            provider=self.provider_name,
+            configuration={"sample_rate": sample_rate}
+        )
+        register_global_event(init_event)
+        self.emit("initialized", init_event)
 
     def _validate_pcm_data(self, pcm_data: PcmData) -> bool:
         """
@@ -121,23 +144,40 @@ class STT(AsyncIOEventEmitter, abc.ABC):
         metadata: Dict[str, Any],
     ):
         """
-        Emit a final transcript event with consistent logging.
+        Emit a final transcript event with structured data.
 
         Args:
             text: The transcribed text.
             user_metadata: User-specific metadata.
             metadata: Transcription metadata (processing time, confidence, etc.).
         """
+        event = STTTranscriptEvent(
+            session_id=self.session_id,
+            plugin_name=self.provider_name,
+            text=text,
+            user_metadata=user_metadata,
+            confidence=metadata.get("confidence"),
+            language=metadata.get("language"),
+            processing_time_ms=metadata.get("processing_time_ms"),
+            audio_duration_ms=metadata.get("audio_duration_ms"),
+            model_name=metadata.get("model_name"),
+            words=metadata.get("words"),
+        )
+
         logger.info(
             "Emitting final transcript",
             extra={
+                "event_id": event.event_id,
                 "text_length": len(text),
                 "has_user_metadata": user_metadata is not None,
-                "processing_time_ms": metadata.get("processing_time_ms"),
-                "confidence": metadata.get("confidence"),
+                "processing_time_ms": event.processing_time_ms,
+                "confidence": event.confidence,
             },
         )
-        self.emit("transcript", text, user_metadata, metadata)
+
+        # Register in global registry and emit structured event
+        register_global_event(event)
+        self.emit("transcript", event)  # Structured event
 
     def _emit_partial_transcript_event(
         self,
@@ -146,36 +186,72 @@ class STT(AsyncIOEventEmitter, abc.ABC):
         metadata: Dict[str, Any],
     ):
         """
-        Emit a partial transcript event with consistent logging.
+        Emit a partial transcript event with structured data.
 
         Args:
             text: The partial transcribed text.
             user_metadata: User-specific metadata.
             metadata: Transcription metadata (processing time, confidence, etc.).
         """
+        event = STTPartialTranscriptEvent(
+            session_id=self.session_id,
+            plugin_name=self.provider_name,
+            text=text,
+            user_metadata=user_metadata,
+            confidence=metadata.get("confidence"),
+            language=metadata.get("language"),
+            processing_time_ms=metadata.get("processing_time_ms"),
+            audio_duration_ms=metadata.get("audio_duration_ms"),
+            model_name=metadata.get("model_name"),
+            words=metadata.get("words"),
+        )
+
         logger.debug(
             "Emitting partial transcript",
             extra={
+                "event_id": event.event_id,
                 "text_length": len(text),
                 "has_user_metadata": user_metadata is not None,
-                "confidence": metadata.get("confidence"),
+                "confidence": event.confidence,
             },
         )
-        self.emit("partial_transcript", text, user_metadata, metadata)
 
-    def _emit_error_event(self, error: Exception, context: str = ""):
+        # Register in global registry and emit structured event
+        register_global_event(event)
+        self.emit("partial_transcript", event)  # Structured event
+
+    def _emit_error_event(self, error: Exception, context: str = "", user_metadata: Optional[Dict[str, Any]] = None):
         """
-        Emit an error event with consistent logging.
+        Emit an error event with structured data.
 
         Args:
             error: The exception that occurred.
             context: Additional context about where the error occurred.
+            user_metadata: User-specific metadata.
         """
+        event = STTErrorEvent(
+            session_id=self.session_id,
+            plugin_name=self.provider_name,
+            error=error,
+            context=context,
+            user_metadata=user_metadata,
+            error_code=getattr(error, 'error_code', None),
+            is_recoverable=not isinstance(error, (SystemExit, KeyboardInterrupt))
+        )
+
         logger.error(
             f"STT error{' in ' + context if context else ''}",
+            extra={
+                "event_id": event.event_id,
+                "error_code": event.error_code,
+                "is_recoverable": event.is_recoverable,
+            },
             exc_info=error,
         )
-        self.emit("error", error)
+
+        # Register in global registry and emit structured event
+        register_global_event(event)
+        self.emit("error", event)  # Structured event
 
     async def process_audio(
         self, pcm_data: PcmData, user_metadata: Optional[Dict[str, Any]] = None
@@ -237,7 +313,7 @@ class STT(AsyncIOEventEmitter, abc.ABC):
 
         except Exception as e:
             # Emit any errors that occur during processing
-            self._emit_error_event(e, "audio processing")
+            self._emit_error_event(e, "audio processing", user_metadata)
 
     @abc.abstractmethod
     async def _process_audio_impl(
@@ -277,4 +353,18 @@ class STT(AsyncIOEventEmitter, abc.ABC):
         - Release any allocated resources
         - Log the closure appropriately
         """
-        pass
+        if not self._is_closed:
+            self._is_closed = True
+
+            # Emit closure event
+            close_event = PluginClosedEvent(
+                session_id=self.session_id,
+                plugin_name=self.provider_name,
+                plugin_type="STT",
+                provider=self.provider_name,
+                cleanup_successful=True
+            )
+            register_global_event(close_event)
+            self.emit("closed", close_event)
+
+        # Subclasses should call super().close() after their cleanup

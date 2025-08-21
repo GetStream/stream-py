@@ -39,7 +39,7 @@ async def test_connect_updates_state_and_emits_event(mock_call, mock_connection)
     events = []
 
     @sts.on("connected")  # type: ignore[arg-type]
-    async def _on_connected():
+    async def _on_connected(event):
         events.append("connected")
 
     async with await sts.connect(mock_call, agent_user_id="assistant") as connection:

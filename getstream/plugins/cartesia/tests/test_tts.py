@@ -105,8 +105,8 @@ async def test_cartesia_send_writes_to_track_and_emits_event():
     received = []
 
     @tts.on("audio")
-    def _on_audio(chunk, _user):
-        received.append(chunk)
+    def _on_audio(event):
+        received.append(event.audio_data)
 
     await tts.send("Hello world")
 
@@ -160,7 +160,7 @@ async def test_cartesia_with_real_api():
     audio_received = asyncio.Event()
 
     @tts.on("audio")
-    def _on_audio(chunk, _user):
+    def _on_audio(event):
         audio_received.set()
 
     try:

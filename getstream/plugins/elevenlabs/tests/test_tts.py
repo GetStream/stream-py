@@ -1,7 +1,7 @@
 import os
 import pytest
 import asyncio
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
 
 from getstream.plugins.elevenlabs.tts import ElevenLabsTTS
 from getstream.video.rtc.audio_track import AudioStreamTrack
@@ -27,11 +27,8 @@ class MockAsyncElevenLabsClient:
         # Create a mock audio stream that returns a few chunks of audio
         mock_audio = [b"\x00\x00" * 1000, b"\x00\x00" * 1000]
 
-        # Mock the async stream method
-        async def mock_stream(*args, **kwargs):
-            return iter(mock_audio)
-
-        self.text_to_speech.stream = mock_stream
+        # Mock the async stream method to return an iterable directly
+        self.text_to_speech.stream = AsyncMock(return_value=mock_audio)
 
 
 @pytest.mark.asyncio
@@ -87,8 +84,8 @@ async def test_elevenlabs_tts_send():
     emitted_audio = []
 
     @tts.on("audio")
-    def on_audio(audio_data, user):
-        emitted_audio.append(audio_data)
+    def on_audio(event):
+        emitted_audio.append(event.audio_data)
 
     # Send text to the TTS
     text = "Hello, world!"

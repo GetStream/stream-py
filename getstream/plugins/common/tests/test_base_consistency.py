@@ -77,8 +77,8 @@ async def test_emit_transcript_event(mock_stt):
     # Set up event listener
     transcript_events = []
 
-    def on_transcript(text, user_metadata, metadata):
-        transcript_events.append((text, user_metadata, metadata))
+    def on_transcript(event):
+        transcript_events.append(event)
 
     mock_stt.on("transcript", on_transcript)
 
@@ -91,7 +91,11 @@ async def test_emit_transcript_event(mock_stt):
 
     # Verify event was emitted
     assert len(transcript_events) == 1
-    assert transcript_events[0] == (text, user_metadata, metadata)
+    event = transcript_events[0]
+    assert event.text == text
+    assert event.user_metadata == user_metadata
+    assert event.confidence == metadata["confidence"]
+    assert event.processing_time_ms == metadata["processing_time_ms"]
 
 
 @pytest.mark.asyncio
@@ -100,8 +104,8 @@ async def test_emit_partial_transcript_event(mock_stt):
     # Set up event listener
     partial_events = []
 
-    def on_partial_transcript(text, user_metadata, metadata):
-        partial_events.append((text, user_metadata, metadata))
+    def on_partial_transcript(event):
+        partial_events.append(event)
 
     mock_stt.on("partial_transcript", on_partial_transcript)
 
@@ -114,7 +118,10 @@ async def test_emit_partial_transcript_event(mock_stt):
 
     # Verify event was emitted
     assert len(partial_events) == 1
-    assert partial_events[0] == (text, user_metadata, metadata)
+    event = partial_events[0]
+    assert event.text == text
+    assert event.user_metadata == user_metadata
+    assert event.confidence == metadata["confidence"]
 
 
 @pytest.mark.asyncio
@@ -123,8 +130,8 @@ async def test_emit_error_event(mock_stt):
     # Set up event listener
     error_events = []
 
-    def on_error(error):
-        error_events.append(error)
+    def on_error(event):
+        error_events.append(event)
 
     mock_stt.on("error", on_error)
 
@@ -134,7 +141,9 @@ async def test_emit_error_event(mock_stt):
 
     # Verify event was emitted
     assert len(error_events) == 1
-    assert error_events[0] == test_error
+    event = error_events[0]
+    assert event.error == test_error
+    assert event.context == "test context"
 
 
 @pytest.mark.asyncio
@@ -156,8 +165,8 @@ async def test_process_audio_with_valid_data(mock_stt, valid_pcm_data):
     # Set up event listener
     transcript_events = []
 
-    def on_transcript(text, user_metadata, metadata):
-        transcript_events.append((text, user_metadata, metadata))
+    def on_transcript(event):
+        transcript_events.append(event)
 
     mock_stt.on("transcript", on_transcript)
 
@@ -170,11 +179,11 @@ async def test_process_audio_with_valid_data(mock_stt, valid_pcm_data):
 
     # Verify that transcript event was emitted
     assert len(transcript_events) == 1
-    text, emitted_user_metadata, emitted_metadata = transcript_events[0]
-    assert text == "Hello world"
-    assert emitted_user_metadata == user_metadata
-    assert emitted_metadata["confidence"] == 0.95
-    assert "processing_time_ms" in emitted_metadata  # Should be added by base class
+    event = transcript_events[0]
+    assert event.text == "Hello world"
+    assert event.user_metadata == user_metadata
+    assert event.confidence == 0.95
+    assert event.processing_time_ms is not None  # Should be added by base class
 
 
 @pytest.mark.asyncio
@@ -214,4 +223,5 @@ async def test_process_audio_handles_exceptions(mock_stt, valid_pcm_data):
 
     # Verify that error event was emitted
     assert len(error_events) == 1
-    assert str(error_events[0]) == "Test exception"
+    event = error_events[0]
+    assert str(event.error) == "Test exception"
