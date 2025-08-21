@@ -1,4 +1,3 @@
-import asyncio
 import logging
 
 from getstream.plugins.common import TTS
@@ -28,7 +27,6 @@ class ElevenLabsTTS(TTS):
         """
         super().__init__()
 
-
         # elevenlabs sdk does not always load the env correctly (default kwarg)
         if not api_key:
             api_key = os.environ.get("ELEVENLABS_API_KEY")
@@ -53,19 +51,18 @@ class ElevenLabsTTS(TTS):
         Returns:
             An async iterator of audio chunks as bytes
         """
-        
-        audio_stream = self.client.text_to_speech.stream_audio(
+
+        audio_stream = self.client.text_to_speech.stream(
             text=text,
             voice_id=self.voice_id,
             output_format=self.output_format,
             model_id=self.model_id,
             request_options={"chunk_size": 64000},
             *args,
-            **kwargs
+            **kwargs,
         )
 
         return audio_stream
-
 
     async def stop_audio(self) -> None:
         """
@@ -75,10 +72,11 @@ class ElevenLabsTTS(TTS):
         Returns:
             None
         """
-        try:
-            await self.track.flush(),
-            logging.info("🎤 Stopping audio track for TTS")
-            return
-        except Exception as e:
-            logging.error(f"Error flushing audio track: {e}")
-
+        if self.track is not None:
+            try:
+                await self.track.flush()
+                logging.info("🎤 Stopping audio track for TTS")
+            except Exception as e:
+                logging.error(f"Error flushing audio track: {e}")
+        else:
+            logging.warning("No audio track to stop")
