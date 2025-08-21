@@ -56,6 +56,7 @@ class FalWizperSTT(STT):
         task: str = "transcribe",
         target_language: str | None = None,
         sample_rate: int = 48000,
+        client: Optional[fal_client.AsyncClient] = None,
     ):
         """
         Initialize FalWizperSTT.
@@ -70,7 +71,7 @@ class FalWizperSTT(STT):
         self.target_language = target_language
         self.last_activity_time = time.time()
         self._is_closed = False
-        self._fal_client = fal_client.AsyncClient()
+        self._fal_client = client if client is not None else fal_client.AsyncClient()
 
     def _pcm_to_wav_bytes(self, pcm_data: PcmData) -> bytes:
         """
