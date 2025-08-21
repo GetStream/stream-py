@@ -1,3 +1,6 @@
+import asyncio
+import logging
+
 from getstream.plugins.common import TTS
 from getstream.video.rtc.audio_track import AudioStreamTrack
 from typing import AsyncIterator, Optional
@@ -37,7 +40,7 @@ class ElevenLabsTTS(TTS):
             raise TypeError("Invalid framerate, audio track only supports 16000")
         super().set_output_track(track)
 
-    async def synthesize(self, text: str, *args, **kwargs) -> AsyncIterator[bytes]:
+    async def stream(self, text: str, *args, **kwargs) -> AsyncIterator[bytes]:
         """
         Convert text to speech using ElevenLabs API.
 
@@ -53,6 +56,25 @@ class ElevenLabsTTS(TTS):
             output_format=self.output_format,
             model_id=self.model_id,
             request_options={"chunk_size": 64000},
+            *args,
+            **kwargs
         )
 
         return audio_stream
+
+
+    async def stop(self) -> None:
+        """
+        Clears the queue and stops playing audio.
+        This method can be used manually or under the hood in response to turn events.
+
+        Returns:
+            None
+        """
+        try:
+            await self.track.flush(),
+            logging.info("🎤 Stopping audio track for TTS")
+            return
+        except Exception as e:
+            logging.error(f"Error flushing audio track: {e}")
+
