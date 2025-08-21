@@ -71,6 +71,20 @@ class TTS(AsyncIOEventEmitter, abc.ABC):
         """
         pass
 
+    @abc.abstractmethod
+    async def stop(self) -> None:
+        """
+        Clears the queue and stops playing audio.
+        This method can be used manually or under the hood in response to turn events.
+
+        This method must be implemented by subclasses.
+
+
+        Returns:
+            None
+        """
+        pass
+
     async def send(
         self, text: str, user: Optional[Dict[str, Any]] = None, *args, **kwargs
     ):
