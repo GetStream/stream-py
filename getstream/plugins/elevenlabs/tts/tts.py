@@ -2,6 +2,7 @@ import asyncio
 import logging
 
 from getstream.plugins.common import TTS
+from elevenlabs.client import AsyncElevenLabs
 from getstream.video.rtc.audio_track import AudioStreamTrack
 from typing import AsyncIterator, Optional
 import os
@@ -13,6 +14,7 @@ class ElevenLabsTTS(TTS):
         api_key: Optional[str] = None,
         voice_id: str = "VR6AewLTigWG4xSOukaG",  # Default ElevenLabs voice
         model_id: str = "eleven_multilingual_v2",
+        client: Optional[AsyncElevenLabs] = None,
     ):
         """
         Initialize the ElevenLabs TTS service.
@@ -22,15 +24,16 @@ class ElevenLabsTTS(TTS):
                     environment variable will be used automatically.
             voice_id: The voice ID to use for synthesis
             model_id: The model ID to use for synthesis
+            client: Optionally pass in your own instance of the ElvenLabs Client. 
         """
         super().__init__()
-        from elevenlabs.client import AsyncElevenLabs
+
 
         # elevenlabs sdk does not always load the env correctly (default kwarg)
         if not api_key:
             api_key = os.environ.get("ELEVENLABS_API_KEY")
 
-        self.client = AsyncElevenLabs(api_key=api_key)
+        self.client = client if client is not None else AsyncElevenLabs(api_key=api_key)
         self.voice_id = voice_id
         self.model_id = model_id
         self.output_format = "pcm_16000"
