@@ -24,7 +24,7 @@ class ElevenLabsTTS(TTS):
                     environment variable will be used automatically.
             voice_id: The voice ID to use for synthesis
             model_id: The model ID to use for synthesis
-            client: Optionally pass in your own instance of the ElvenLabs Client. 
+            client: Optionally pass in your own instance of the ElvenLabs Client.
         """
         super().__init__()
 

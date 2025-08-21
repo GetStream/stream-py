@@ -25,6 +25,7 @@ class KokoroTTS(TTS):
         speed: float = 1.0,
         sample_rate: int = 24_000,
         device: Optional[str] = None,
+        client: Optional[KPipeline] = None,
     ) -> None:
         super().__init__()
 
@@ -41,7 +42,7 @@ class KokoroTTS(TTS):
         self.voice = voice
         self.speed = speed
         self.sample_rate = sample_rate
-        self.client = self._pipeline,
+        self.client = client if client is not None else self._pipeline,
 
     def set_output_track(self, track: AudioStreamTrack) -> None:  # noqa: D401
         if track.framerate != self.sample_rate:
