@@ -108,16 +108,16 @@ async def test_real_time_transcript_emission():
 
     # Register event handlers
     @stt.on("transcript")
-    def on_transcript(text, user, metadata):
-        transcript_events.append((text, user, metadata))
+    def on_transcript(event):
+        transcript_events.append((event.text, event.user_metadata, {"is_final": True}))
 
     @stt.on("partial_transcript")
-    def on_partial_transcript(text, user, metadata):
-        partial_transcript_events.append((text, user, metadata))
+    def on_partial_transcript(event):
+        partial_transcript_events.append((event.text, event.user_metadata, {"is_final": False}))
 
     @stt.on("error")
-    def on_error(error):
-        error_events.append(error)
+    def on_error(event):
+        error_events.append(event.error)
 
     # Send some audio data to ensure the connection is active
     pcm_data = PcmData(samples=b"\x00\x00" * 800, sample_rate=48000, format="s16")
@@ -157,12 +157,12 @@ async def test_real_time_partial_transcript_emission():
 
     # Register event handlers
     @stt.on("transcript")
-    def on_transcript(text, user, metadata):
-        transcript_events.append((text, user, metadata))
+    def on_transcript(event):
+        transcript_events.append((event.text, event.user_metadata, {"is_final": True}))
 
     @stt.on("partial_transcript")
-    def on_partial_transcript(text, user, metadata):
-        partial_transcript_events.append((text, user, metadata))
+    def on_partial_transcript(event):
+        partial_transcript_events.append((event.text, event.user_metadata, {"is_final": False}))
 
     # Send some audio data to ensure the connection is active
     pcm_data = PcmData(samples=b"\x00\x00" * 800, sample_rate=48000, format="s16")
@@ -265,8 +265,8 @@ async def test_close_cleanup():
     transcript_events = []
 
     @stt.on("transcript")
-    def on_transcript(text, user, metadata):
-        transcript_events.append((text, user, metadata))
+    def on_transcript(event):
+        transcript_events.append((event.text, event.user_metadata, {"is_final": True}))
 
     # Process audio after close should be ignored
     pcm_data = PcmData(samples=b"\x00\x00" * 800, sample_rate=48000, format="s16")
@@ -295,8 +295,8 @@ async def test_asynchronous_mode_behavior():
 
     # Register event handler
     @stt.on("transcript")
-    def on_transcript(text, user, metadata):
-        transcript_events.append((text, user, metadata))
+    def on_transcript(event):
+        transcript_events.append((event.text, event.user_metadata, {"is_final": True}))
 
     # Send some audio data
     pcm_data = PcmData(samples=b"\x00\x00" * 800, sample_rate=48000, format="s16")

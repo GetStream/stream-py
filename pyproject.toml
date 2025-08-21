@@ -39,6 +39,10 @@ dependencies = [
     "websockets>=15.0.1",
     "websocket-client>=1.8.0",
     "structlog>=23.3.0",
+    "cartesia>=2.0.5",
+    "fal-client>=0.7.0",
+    "deepgram-sdk>=4.7.0",
+    "elevenlabs>=2.8.0",
 ]
 
 [project.optional-dependencies]
