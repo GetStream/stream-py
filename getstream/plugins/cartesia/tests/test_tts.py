@@ -82,7 +82,7 @@ async def test_cartesia_tts_initialization_with_env_var():
 async def test_cartesia_synthesize_returns_async_iterator():
     """synthesize() should yield an async iterator of PCM byte chunks."""
     tts = CartesiaTTS(api_key="test")
-    stream = await tts.stream("Hello")
+    stream = await tts.stream_audio("Hello")
 
     # Must be async iterable
     assert hasattr(stream, "__aiter__")

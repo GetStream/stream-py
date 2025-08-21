@@ -22,7 +22,7 @@ class Call:
         from .openai import get_openai_realtime_client, ConnectionManagerWrapper
 
         client = get_openai_realtime_client(openai_api_key, self.client.base_url)
-        token = self.client.stream.create_token(agent_user_id)
+        token = self.client.stream_audio.create_token(agent_user_id)
         connection_manager = client.beta.realtime.connect(
             extra_query={
                 "call_type": self.call_type,

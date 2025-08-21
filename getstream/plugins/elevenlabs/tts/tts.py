@@ -43,7 +43,7 @@ class ElevenLabsTTS(TTS):
             raise TypeError("Invalid framerate, audio track only supports 16000")
         super().set_output_track(track)
 
-    async def stream(self, text: str, *args, **kwargs) -> AsyncIterator[bytes]:
+    async def stream_audio(self, text: str, *args, **kwargs) -> AsyncIterator[bytes]:
         """
         Convert text to speech using ElevenLabs API.
 
@@ -53,7 +53,7 @@ class ElevenLabsTTS(TTS):
         Returns:
             An async iterator of audio chunks as bytes
         """
-        audio_stream = self.client.text_to_speech.stream(
+        audio_stream = self.client.text_to_speech.stream_audio(
             text=text,
             voice_id=self.voice_id,
             output_format=self.output_format,

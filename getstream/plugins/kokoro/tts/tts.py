@@ -51,7 +51,7 @@ class KokoroTTS(TTS):
             )
         super().set_output_track(track)
 
-    async def stream(self, text: str, *_, **__) -> AsyncIterator[bytes]:  # noqa: D401
+    async def stream_audio(self, text: str, *_, **__) -> AsyncIterator[bytes]:  # noqa: D401
         loop = asyncio.get_event_loop()
         chunks: List[bytes] = await loop.run_in_executor(
             None, lambda: list(self._generate_chunks(text))

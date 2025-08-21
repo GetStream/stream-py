@@ -49,7 +49,7 @@ class CartesiaTTS(TTS):
             )
         super().set_output_track(track)
 
-    async def stream(self, text: str, *_, **__) -> bytes:  # noqa: D401
+    async def stream_audio(self, text: str, *_, **__) -> bytes:  # noqa: D401
         """Generate speech and yield raw PCM chunks."""
 
         output_format: OutputFormat_Raw = {

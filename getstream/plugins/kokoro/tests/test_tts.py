@@ -52,7 +52,7 @@ async def test_kokoro_tts_initialization():
 @patch("getstream.plugins.kokoro.tts.tts.KPipeline", _MockKPipeline)
 async def test_kokoro_synthesize_returns_iterator():
     tts = KokoroTTS()
-    stream = await tts.stream("Hello")
+    stream = await tts.stream_audio("Hello")
 
     # Should be iterable (list of bytes)
     chunks = list(stream)
