@@ -69,8 +69,12 @@ async def test_kokoro_send_writes_and_emits():
     received = []
 
     @tts.on("audio")
-    def _on_audio(chunk, _user):
-        received.append(chunk)
+    def _on_audio(event):
+        # Extract the audio data from the event
+        if hasattr(event, 'audio_data') and event.audio_data is not None:
+            received.append(event.audio_data)
+        else:
+            received.append(b"")
 
     await tts.send("Hello world")
 

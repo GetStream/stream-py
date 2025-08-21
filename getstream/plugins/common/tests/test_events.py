@@ -1548,8 +1548,8 @@ class TestGlobalEventSystem:
         global_events = registry.get_events()
         assert len(global_events) > 0
         
-        # Find our event
-        test_events = [e for e in global_events if e.text == "global_test"]
+        # Find our event - filter by event type and text to avoid issues with other event types
+        test_events = [e for e in global_events if hasattr(e, 'text') and e.text == "global_test"]
         assert len(test_events) == 1
     
     def test_global_event_consistency(self):
@@ -1572,8 +1572,8 @@ class TestGlobalEventSystem:
         registry_events = registry.get_events()
         logger_events = logger.registry.get_events()
         
-        registry_test_events = [e for e in registry_events if e.text == "consistency_test"]
-        logger_test_events = [e for e in logger_events if e.text == "consistency_test"]
+        registry_test_events = [e for e in registry_events if hasattr(e, 'text') and e.text == "consistency_test"]
+        logger_test_events = [e for e in logger_events if hasattr(e, 'text') and e.text == "consistency_test"]
         
         assert len(registry_test_events) == 1
         assert len(logger_test_events) == 1

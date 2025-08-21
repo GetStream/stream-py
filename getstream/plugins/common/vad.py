@@ -227,8 +227,6 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
                 partial_event = VADPartialEvent(
                     session_id=self.session_id,
                     plugin_name=self.provider_name,
-                    plugin_type="VAD",
-                    provider=self.provider_name,
                     audio_data=current_samples,
                     duration_ms=current_duration_ms,
                     frame_count=len(current_samples) // self.frame_size,
@@ -314,8 +312,6 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
             audio_event = VADAudioEvent(
                 session_id=self.session_id,
                 plugin_name=self.provider_name,
-                plugin_type="VAD",
-                provider=self.provider_name,
                 audio_data=speech_data,
                 duration_ms=speech_duration_ms,
                 frame_count=len(speech_data) // self.frame_size,
