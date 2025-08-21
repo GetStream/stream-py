@@ -22,10 +22,11 @@ import time
 import uuid
 import webbrowser
 from urllib.parse import urlencode
+from typing import Any
 
 from dotenv import load_dotenv
 
-from getstream.models import UserRequest
+from getstream.models import CallRequest, UserRequest
 from getstream.stream import Stream
 from getstream.video import rtc
 from getstream.video.rtc.track_util import PcmData
@@ -103,7 +104,7 @@ async def main():
 
     # Create the call
     call = client.video.call("default", call_id)
-    call.get_or_create(data={"created_by_id": bot_user_id})
+    call.get_or_create(data=CallRequest(created_by_id=bot_user_id))
     print(f"📞 Call created: {call_id}")
 
     # Open browser for users to join with the user token

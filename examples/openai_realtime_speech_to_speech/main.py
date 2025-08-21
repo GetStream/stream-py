@@ -8,7 +8,7 @@ from urllib.parse import urlencode
 from dotenv import load_dotenv
 
 from getstream import Stream
-from getstream.models import StartClosedCaptionsResponse, UserRequest
+from getstream.models import CallRequest, StartClosedCaptionsResponse, UserRequest
 from getstream.plugins.openai.sts import OpenAIRealtime
 
 
@@ -85,7 +85,7 @@ async def main():
     logging.info("📞 Call ID: %s", call_id)
 
     call = client.video.call("default", call_id)
-    call.get_or_create(data={"created_by_id": bot_user_id})
+    call.get_or_create(data=CallRequest(created_by_id=bot_user_id))
     logging.info("📞 Call created: %s", call_id)
 
     # Open demo browser so you can join from the UI
@@ -93,7 +93,7 @@ async def main():
 
     sts_bot = OpenAIRealtime(
         api_key=os.getenv("OPENAI_API_KEY"),
-        model=os.getenv("OPENAI_REALTIME_MODEL"),
+        model=os.getenv("OPENAI_REALTIME_MODEL") or "gpt-4o-realtime-preview",
         instructions="You are a friendly assistant; reply verbally in a short sentence of maximum 5 words.",
         voice="alloy",
     )
