@@ -66,7 +66,7 @@ class ElevenLabsTTS(TTS):
         return audio_stream
 
 
-    async def stop(self) -> None:
+    async def stop_audio(self) -> None:
         """
         Clears the queue and stops playing audio.
         This method can be used manually or under the hood in response to turn events.

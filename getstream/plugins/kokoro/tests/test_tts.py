@@ -125,7 +125,7 @@ async def test_kokoro_tts_stop_method():
     tts.set_output_track(track)
     
     # Call stop method
-    await tts.stop()
+    await tts.stop_audio()
     
     # Verify that flush was called on the track
     track.flush.assert_called_once()
@@ -144,7 +144,7 @@ async def test_kokoro_tts_stop_method_handles_exceptions():
     tts.set_output_track(track)
     
     # Call stop method - should not raise an exception
-    await tts.stop()
+    await tts.stop_audio()
     
     # Verify that flush was called on the track
     track.flush.assert_called_once()

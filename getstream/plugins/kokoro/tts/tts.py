@@ -58,7 +58,7 @@ class KokoroTTS(TTS):
         )
         return chunks
 
-    async def stop(self) -> None:
+    async def stop_audio(self) -> None:
         """
         Clears the queue and stops playing audio.
 
