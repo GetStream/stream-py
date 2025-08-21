@@ -307,9 +307,9 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         self.twirp_context = Context(headers={"authorization": token})
 
         # Step 5: Create coordinator websocket (temporarily disabled to test)
-        user_token = self.call.client.stream.create_token(user_id=self.user_id)
+        user_token = self.call.client.stream_audio.create_token(user_id=self.user_id)
         self._coordinator_ws_client = StreamAPIWS(
-            api_key=self.call.client.stream.api_key,
+            api_key=self.call.client.stream_audio.api_key,
             token=user_token,
             user_details={"id": self.user_id},
         )
