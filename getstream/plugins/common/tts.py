@@ -53,7 +53,7 @@ class TTS(AsyncIOEventEmitter, abc.ABC):
         return self._track
 
     @abc.abstractmethod
-    async def synthesize(
+    async def stream(
         self, text: str, *args, **kwargs
     ) -> Union[bytes, Iterator[bytes], AsyncIterator[bytes]]:
         """
@@ -97,7 +97,7 @@ class TTS(AsyncIOEventEmitter, abc.ABC):
             )
 
             # Synthesize audio
-            audio_data = await self.synthesize(text, *args, **kwargs)
+            audio_data = await self.stream(text, *args, **kwargs)
 
             # Calculate synthesis time
             synthesis_time = time.time() - start_time
