@@ -83,9 +83,13 @@ class TestFalWizperSTT:
             assert subscribe_args["arguments"]["task"] == "transcribe"
             assert "language" not in subscribe_args["arguments"]
 
-            transcript_handler.assert_called_once_with(
-                "This is a test.", {"user": "test_user"}, {"chunks": []}
-            )
+            # Check that the transcript handler was called with an event object
+            transcript_handler.assert_called_once()
+            call_args = transcript_handler.call_args[0]
+            assert len(call_args) == 1
+            event = call_args[0]
+            assert event.text == "This is a test."
+            assert event.user_metadata == {"user": "test_user"}
             mock_unlink.assert_called_once()
 
     @pytest.mark.asyncio
@@ -189,10 +193,13 @@ class TestFalWizperSTT:
             await stt._process_audio_impl(pcm_data)
             await asyncio.sleep(0)  # Allow event loop to run
 
+        # Check that the error handler was called with an event object
         error_handler.assert_called_once()
-        error_args = error_handler.call_args[0]
-        assert isinstance(error_args[0], Exception)
-        assert str(error_args[0]) == "API Error"
+        call_args = error_handler.call_args[0]
+        assert len(call_args) == 1
+        event = call_args[0]
+        assert isinstance(event.error, Exception)
+        assert str(event.error) == "API Error"
 
     @pytest.mark.asyncio
     async def test_process_audio_impl_empty_audio(self, stt):

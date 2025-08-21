@@ -318,7 +318,7 @@ class MoonshineSTT(STT):
                     "model_name": self.model_name,
                     "audio_duration_ms": (len(audio_array) / self.sample_rate) * 1000,
                     "processing_time_ms": processing_time_ms,
-                    "confidence": 1.0,  # Moonshine doesn't provide confidence scores
+                    # Moonshine doesn't provide confidence scores, so we don't set it
                     "original_sample_rate": pcm_data.sample_rate,
                     "target_sample_rate": self.sample_rate,
                     "resampled": pcm_data.sample_rate != self.sample_rate,

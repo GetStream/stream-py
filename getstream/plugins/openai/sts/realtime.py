@@ -136,7 +136,8 @@ class OpenAIRealtime(STS):
             model=self.model,
         )
         self._is_connected = True
-        self.emit("connected")
+        # Use the parent class's structured event emission
+        self._emit_connected_event()
 
         logger.info(
             f"Connected OpenAI agent to call {call.call_type}/{call.id} using model {self.model}"

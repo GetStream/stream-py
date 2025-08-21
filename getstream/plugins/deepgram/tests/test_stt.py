@@ -265,8 +265,8 @@ async def test_deepgram_stt_transcript_events(mia_metadata):
     transcripts = []
 
     @stt.on("transcript")
-    def on_transcript(text, user, metadata):
-        transcripts.append((text, user, metadata))
+    def on_transcript(event):
+        transcripts.append((event.text, event.user_metadata, {"is_final": True}))
 
     # Emit a transcript using the mock connection
     stt.dg_connection.emit_transcript("This is a final transcript")
@@ -329,12 +329,12 @@ async def test_deepgram_end_to_end(audio_data, mia_metadata):
     errors = []
 
     @stt.on("transcript")
-    def on_transcript(text, user, metadata):
-        transcripts.append((text, user, metadata))
+    def on_transcript(event):
+        transcripts.append((event.text, event.user_metadata, {"is_final": True}))
 
     @stt.on("error")
-    def on_error(error):
-        errors.append(error)
+    def on_error(event):
+        errors.append(event.error)
 
     # Emit a transcript using the mock connection
     stt.dg_connection.emit_transcript("This is the final result")
@@ -391,16 +391,16 @@ async def test_deepgram_with_real_api(
     errors = []
 
     @stt.on("transcript")
-    def on_transcript(text, user, metadata):
-        transcripts.append((text, user, metadata))
+    def on_transcript(event):
+        transcripts.append((event.text, event.user_metadata, {"is_final": True}))
 
     @stt.on("partial_transcript")
-    def on_partial(text, user, metadata):
-        partial_transcripts.append((text, user, metadata))
+    def on_partial(event):
+        partial_transcripts.append((event.text, event.user_metadata, {"is_final": False}))
 
     @stt.on("error")
-    def on_error(error):
-        errors.append(error)
+    def on_error(event):
+        errors.append(event.error)
 
     # Process audio
     # Print debug info about the audio
@@ -485,16 +485,16 @@ async def test_deepgram_with_real_api(
 
                 # Re-register event handlers
                 @stt.on("transcript")
-                def on_transcript(text, user, metadata):
-                    transcripts.append((text, user, metadata))
+                def on_transcript(event):
+                    transcripts.append((event.text, event.user_metadata, {"is_final": True}))
 
                 @stt.on("partial_transcript")
-                def on_partial(text, user, metadata):
-                    partial_transcripts.append((text, user, metadata))
+                def on_partial(event):
+                    partial_transcripts.append((event.text, event.user_metadata, {"is_final": False}))
 
                 @stt.on("error")
-                def on_error(error):
-                    errors.append(error)
+                def on_error(event):
+                    errors.append(event.error)
             else:
                 # Final attempt failed
                 print(f"All retry attempts failed: {e}")
@@ -705,16 +705,16 @@ async def test_deepgram_with_real_api_keep_alive():
     errors = []
 
     @stt.on("transcript")
-    def on_transcript(text, user, metadata):
-        transcripts.append((text, user, metadata))
+    def on_transcript(event):
+        transcripts.append((event.text, event.user_metadata, {"is_final": True}))
 
     @stt.on("partial_transcript")
-    def on_partial_transcript(text, user, metadata):
-        partial_transcripts.append((text, user, metadata))
+    def on_partial_transcript(event):
+        partial_transcripts.append((event.text, event.user_metadata, {"is_final": False}))
 
     @stt.on("error")
-    def on_error(error):
-        errors.append(error)
+    def on_error(event):
+        errors.append(event.error)
 
     try:
         print("Waiting for keep-alive timeout (3 seconds)...")
@@ -810,19 +810,21 @@ async def test_deepgram_real_integration():
     errors = []
 
     @stt.on("transcript")
-    def on_transcript(text, user, metadata):
-        transcripts.append((text, user, metadata))
-        print(f"Final transcript: {text}")
+    def on_transcript(event):
+        # Extract words from the text for metadata
+        words = event.text.lower().split() if event.text else []
+        transcripts.append((event.text, event.user_metadata, {"is_final": True, "confidence": 0.9, "words": words}))
+        print(f"Final transcript: {event.text}")
 
     @stt.on("partial_transcript")
-    def on_partial_transcript(text, user, metadata):
-        partial_transcripts.append((text, user, metadata))
-        print(f"Partial transcript: {text}")
+    def on_partial_transcript(event):
+        partial_transcripts.append((event.text, event.user_metadata, {"is_final": False}))
+        print(f"Partial transcript: {event.text}")
 
     @stt.on("error")
-    def on_error(error):
-        errors.append(error)
-        print(f"Error: {error}")
+    def on_error(event):
+        errors.append(event.error)
+        print(f"Error: {event.error}")
 
     try:
         # Process the audio in chunks to simulate real-time streaming

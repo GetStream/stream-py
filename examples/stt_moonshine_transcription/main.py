@@ -131,14 +131,20 @@ async def main() -> None:  # noqa: D401
                 await stt.process_audio(pcm, user)
 
             @stt.on("transcript")
-            async def _on_transcript(text: str, user: any, metadata: dict):
+            async def _on_transcript(event):
                 ts = time.strftime("%H:%M:%S")
                 who = user if user else "unknown"
-                print(f"[{ts}] {who}: {text}")
+                print(f"[{ts}] {who}: {event.text}")
+                if hasattr(event, 'confidence') and event.confidence:
+                    print(f"    └─ confidence: {event.confidence:.2%}")
+                if hasattr(event, 'processing_time_ms') and event.processing_time_ms:
+                    print(f"    └─ processing time: {event.processing_time_ms:.1f}ms")
 
             @stt.on("error")
-            async def _on_error(err):
-                print(f"\n❌ STT Error: {err}")
+            async def _on_error(event):
+                print(f"\n❌ STT Error: {event.error_message}")
+                if hasattr(event, 'context') and event.context:
+                    print(f"    └─ context: {event.context}")
 
             print("🎧 Listening for audio… (Press Ctrl+C to stop)")
             await connection.wait()
