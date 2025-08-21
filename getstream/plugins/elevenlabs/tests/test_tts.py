@@ -129,6 +129,60 @@ async def test_elevenlabs_tts_invalid_framerate():
 
 
 @pytest.mark.asyncio
+@patch("elevenlabs.client.AsyncElevenLabs", MockAsyncElevenLabsClient)
+async def test_elevenlabs_tts_with_custom_client():
+    """Test that ElevenLabs TTS can be initialized with a custom client."""
+    # Create a custom mock client
+    custom_client = MockAsyncElevenLabsClient(api_key="custom-api-key")
+    
+    # Initialize TTS with the custom client
+    tts = ElevenLabsTTS(client=custom_client)
+    
+    # Verify that the custom client is used
+    assert tts.client is custom_client
+    assert tts.client.api_key == "custom-api-key"
+
+
+@pytest.mark.asyncio
+@patch("elevenlabs.client.AsyncElevenLabs", MockAsyncElevenLabsClient)
+async def test_elevenlabs_tts_stop_method():
+    """Test that the stop method properly flushes the audio track."""
+    tts = ElevenLabsTTS(api_key="test-api-key")
+    
+    # Create a mock audio track with flush method
+    track = MockAudioTrack()
+    track.flush = MagicMock(return_value=asyncio.Future())
+    track.flush.return_value.set_result(None)
+    
+    tts.set_output_track(track)
+    
+    # Call stop method
+    await tts.stop()
+    
+    # Verify that flush was called on the track
+    track.flush.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch("elevenlabs.client.AsyncElevenLabs", MockAsyncElevenLabsClient)
+async def test_elevenlabs_tts_stop_method_handles_exceptions():
+    """Test that the stop method handles flush exceptions gracefully."""
+    tts = ElevenLabsTTS(api_key="test-api-key")
+    
+    # Create a mock audio track with flush method that raises an exception
+    track = MockAudioTrack()
+    track.flush = MagicMock(side_effect=Exception("Flush error"))
+    
+    tts.set_output_track(track)
+    
+    # Call stop method - should not raise an exception
+    await tts.stop()
+    
+    # Verify that flush was called on the track
+    track.flush.assert_called_once()
+
+
+@pytest.mark.asyncio
 async def test_elevenlabs_with_real_api():
     """
     Integration test with the real ElevenLabs API.
