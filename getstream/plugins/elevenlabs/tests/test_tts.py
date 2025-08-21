@@ -62,7 +62,7 @@ async def test_elevenlabs_tts_synthesize():
 
     # Test that synthesize returns an iterator
     text = "Hello, world!"
-    audio_stream = await tts.synthesize(text)
+    audio_stream = await tts.stream(text)
 
     # Check that it's an iterator
     assert hasattr(audio_stream, "__iter__")

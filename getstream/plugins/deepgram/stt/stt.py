@@ -210,7 +210,7 @@ class DeepgramSTT(STT):
 
             # Start the connection
             logger.info("Starting Deepgram connection with options %s", self.options)
-            self.dg_connection.start(self.options)
+            self.dg_connection.stream(self.options)
 
             # Start the keep-alive task
             self._running = True
