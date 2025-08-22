@@ -28,7 +28,6 @@ from getstream.models import (
     VoteData,
     SortParamRequest,
     ActivityRequest,
-    GetOrCreateFeedRequest,
 )
 from getstream.stream_response import StreamResponse
 
