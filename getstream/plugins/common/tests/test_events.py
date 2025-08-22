@@ -1,7 +1,6 @@
 import pytest
 import json
 from datetime import datetime
-from typing import Dict, Any
 
 from getstream.plugins.common.events import (
     # Base events
@@ -1097,7 +1096,7 @@ class TestEventSerialization:
             deserialized = deserialize_event(serialized)
             
             # Verify type and basic properties
-            assert type(deserialized) == type(original_event)
+            assert isinstance(deserialized, type(original_event))
             assert deserialized.event_type == original_event.event_type
             
             # Verify specific properties based on event type

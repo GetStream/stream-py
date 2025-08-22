@@ -141,13 +141,17 @@ async def main(client: Stream):
             # Set up transcription handler
             @connection.on("audio")
             async def on_audio(pcm: PcmData, user):
-                # Process audio through Deepgram STT
-                await stt.process_audio(pcm, user)
+                # Process audio through Deepgram STT with user metadata
+                user_metadata = {"user": user} if user else None
+                await stt.process_audio(pcm, user_metadata)
 
             @stt.on("transcript")
             async def on_transcript(event):
                 timestamp = time.strftime("%H:%M:%S")
-                user_info = user.name if user and hasattr(user, "name") else "unknown"
+                user_info = "unknown"
+                if event.user_metadata and "user" in event.user_metadata:
+                    user = event.user_metadata["user"]
+                    user_info = user.name if hasattr(user, "name") else str(user)
                 print(f"[{timestamp}] {user_info}: {event.text}")
                 if hasattr(event, 'confidence') and event.confidence:
                     print(f"    └─ confidence: {event.confidence:.2%}")

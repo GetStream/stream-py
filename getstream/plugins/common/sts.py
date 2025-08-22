@@ -38,6 +38,7 @@ class STS(AsyncIOEventEmitter, abc.ABC):
     def __init__(
         self,
         *,
+        provider_name: Optional[str] = None,
         model: Optional[str] = None,
         instructions: Optional[str] = None,
         temperature: Optional[float] = None,
@@ -53,6 +54,7 @@ class STS(AsyncIOEventEmitter, abc.ABC):
         to their own session/config structures. They are not enforced here.
 
         Args:
+            provider_name: Optional provider name override. Defaults to class name.
             model: Model ID to use when connecting.
             instructions: Optional system instructions passed to the session.
             temperature: Optional temperature passed to the session.
