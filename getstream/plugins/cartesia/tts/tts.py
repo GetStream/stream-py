@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 from typing import Optional
 
@@ -19,6 +20,7 @@ class CartesiaTTS(TTS):
         model_id: str = "sonic-2",
         voice_id: str | None = "f9836c6e-a0bd-460e-9d3c-f7299fa60f94",
         sample_rate: int = 16000,
+        client: Optional[AsyncCartesia] = None,
     ) -> None:
         """Create a new Cartesia TTS instance.
 
@@ -35,7 +37,7 @@ class CartesiaTTS(TTS):
         if not self.api_key:
             raise ValueError("CARTESIA_API_KEY env var or api_key parameter required")
 
-        self.client = AsyncCartesia(api_key=self.api_key)
+        self.client = client if client is not None else AsyncCartesia(api_key=self.api_key)
         self.model_id = model_id
         self.voice_id = voice_id
         self.sample_rate = sample_rate
@@ -47,7 +49,7 @@ class CartesiaTTS(TTS):
             )
         super().set_output_track(track)
 
-    async def synthesize(self, text: str, *_, **__) -> bytes:  # noqa: D401
+    async def stream_audio(self, text: str, *_, **__) -> bytes:  # noqa: D401
         """Generate speech and yield raw PCM chunks."""
 
         output_format: OutputFormat_Raw = {
@@ -72,3 +74,19 @@ class CartesiaTTS(TTS):
                 yield bytes(chunk)
 
         return _audio_chunk_stream()
+
+    async def stop_audio(self) -> None:
+        """
+        Clears the queue and stops playing audio.
+        This method can be used manually or under the hood in response to turn events.
+
+        Returns:
+            None
+        """
+        try:
+            await self.track.flush(),
+            logging.info("🎤 Stopping audio track for TTS")
+            return
+        except Exception as e:
+            logging.error(f"Error flushing audio track: {e}")
+

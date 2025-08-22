@@ -81,7 +81,7 @@ class TTS(AsyncIOEventEmitter, abc.ABC):
         return self._track
 
     @abc.abstractmethod
-    async def synthesize(
+    async def stream_audio(
         self, text: str, *args, **kwargs
     ) -> Union[bytes, Iterator[bytes], AsyncIterator[bytes]]:
         """
@@ -96,6 +96,20 @@ class TTS(AsyncIOEventEmitter, abc.ABC):
 
         Returns:
             Audio data as bytes, an iterator of audio chunks, or an async iterator of audio chunks
+        """
+        pass
+
+    @abc.abstractmethod
+    async def stop_audio(self) -> None:
+        """
+        Clears the queue and stops playing audio.
+        This method can be used manually or under the hood in response to turn events.
+
+        This method must be implemented by subclasses.
+
+
+        Returns:
+            None
         """
         pass
 
@@ -138,7 +152,7 @@ class TTS(AsyncIOEventEmitter, abc.ABC):
             self.emit("synthesis_start", start_event)
 
             # Synthesize audio
-            audio_data = await self.synthesize(text, *args, **kwargs)
+            audio_data = await self.stream_audio(text, *args, **kwargs)
 
             # Calculate synthesis time
             synthesis_time = time.time() - start_time

@@ -1,4 +1,5 @@
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
+import asyncio
 
 import numpy as np
 import pytest
@@ -51,7 +52,7 @@ async def test_kokoro_tts_initialization():
 @patch("getstream.plugins.kokoro.tts.tts.KPipeline", _MockKPipeline)
 async def test_kokoro_synthesize_returns_iterator():
     tts = KokoroTTS()
-    stream = await tts.synthesize("Hello")
+    stream = await tts.stream_audio("Hello")
 
     # Should be iterable (list of bytes)
     chunks = list(stream)
@@ -98,3 +99,56 @@ async def test_kokoro_send_without_track():
     tts = KokoroTTS()
     with pytest.raises(ValueError):
         await tts.send("Hi")
+
+
+@pytest.mark.asyncio
+@patch("getstream.plugins.kokoro.tts.tts.KPipeline", _MockKPipeline)
+async def test_kokoro_tts_with_custom_client():
+    """Test that Kokoro TTS can be initialized with a custom client."""
+    # Create a custom mock client
+    custom_client = _MockKPipeline()
+    
+    # Initialize TTS with the custom client
+    tts = KokoroTTS(client=custom_client)
+    
+    # Verify that the custom client is used
+    assert tts.client is custom_client
+
+
+@pytest.mark.asyncio
+@patch("getstream.plugins.kokoro.tts.tts.KPipeline", _MockKPipeline)
+async def test_kokoro_tts_stop_method():
+    """Test that the stop method properly flushes the audio track."""
+    tts = KokoroTTS()
+    
+    # Create a mock audio track with flush method
+    track = MockAudioTrack()
+    track.flush = MagicMock(return_value=asyncio.Future())
+    track.flush.return_value.set_result(None)
+    
+    tts.set_output_track(track)
+    
+    # Call stop method
+    await tts.stop_audio()
+    
+    # Verify that flush was called on the track
+    track.flush.assert_called_once()
+
+
+@pytest.mark.asyncio
+@patch("getstream.plugins.kokoro.tts.tts.KPipeline", _MockKPipeline)
+async def test_kokoro_tts_stop_method_handles_exceptions():
+    """Test that the stop method handles flush exceptions gracefully."""
+    tts = KokoroTTS()
+    
+    # Create a mock audio track with flush method that raises an exception
+    track = MockAudioTrack()
+    track.flush = MagicMock(side_effect=Exception("Flush error"))
+    
+    tts.set_output_track(track)
+    
+    # Call stop method - should not raise an exception
+    await tts.stop_audio()
+    
+    # Verify that flush was called on the track
+    track.flush.assert_called_once()

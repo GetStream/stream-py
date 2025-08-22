@@ -128,13 +128,18 @@ async def main() -> None:  # noqa: D401
                 print(
                     f"🎤 Speech detected from user: {user.name}, duration: {pcm.duration:.2f}s"
                 )
-                await stt.process_audio(pcm, user)
+                # Process audio through STT with user metadata
+                user_metadata = {"user": user} if user else None
+                await stt.process_audio(pcm, user_metadata)
 
             @stt.on("transcript")
             async def _on_transcript(event):
                 ts = time.strftime("%H:%M:%S")
-                who = user if user else "unknown"
-                print(f"[{ts}] {who}: {event.text}")
+                user_info = "unknown"
+                if event.user_metadata and "user" in event.user_metadata:
+                    user = event.user_metadata["user"]
+                    user_info = str(user)
+                print(f"[{ts}] {user_info}: {event.text}")
                 if hasattr(event, 'confidence') and event.confidence:
                     print(f"    └─ confidence: {event.confidence:.2%}")
                 if hasattr(event, 'processing_time_ms') and event.processing_time_ms:

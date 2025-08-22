@@ -48,6 +48,7 @@ class DeepgramSTT(STT):
         language: str = "en-US",
         keep_alive_interval: float = 3.0,
         interim_results: bool = False,
+        client: Optional[DeepgramClient] = None,
     ):
         """
         Initialize the Deepgram STT service.
@@ -78,7 +79,7 @@ class DeepgramSTT(STT):
 
         # Initialize DeepgramClient with the API key
         logger.info("Initializing Deepgram client")
-        self.deepgram = DeepgramClient(api_key)
+        self.deepgram = client if client is not None else DeepgramClient(api_key)
         self.dg_connection = None
         self.options = options or LiveOptions(
             model="nova-2",

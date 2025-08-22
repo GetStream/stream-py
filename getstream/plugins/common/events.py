@@ -93,12 +93,12 @@ class BaseEvent:
         result = {}
         
         import dataclasses
-        for field in dataclasses.fields(self):
-            field_value = getattr(self, field.name)
+        for field_info in dataclasses.fields(self):
+            field_value = getattr(self, field_info.name)
             if isinstance(field_value, (datetime, Enum)):
-                result[field.name] = field_value.value if isinstance(field_value, Enum) else str(field_value)
+                result[field_info.name] = field_value.value if isinstance(field_value, Enum) else str(field_value)
             else:
-                result[field.name] = field_value
+                result[field_info.name] = field_value
         return result
 
 

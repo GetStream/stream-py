@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import logging
+
 import numpy as np
 from typing import AsyncIterator, List, Optional
 
@@ -23,6 +25,7 @@ class KokoroTTS(TTS):
         speed: float = 1.0,
         sample_rate: int = 24_000,
         device: Optional[str] = None,
+        client: Optional[KPipeline] = None,
     ) -> None:
         super().__init__()
 
@@ -39,6 +42,7 @@ class KokoroTTS(TTS):
         self.voice = voice
         self.speed = speed
         self.sample_rate = sample_rate
+        self.client = client if client is not None else self._pipeline
 
     def set_output_track(self, track: AudioStreamTrack) -> None:  # noqa: D401
         if track.framerate != self.sample_rate:
@@ -47,12 +51,24 @@ class KokoroTTS(TTS):
             )
         super().set_output_track(track)
 
-    async def synthesize(self, text: str, *_, **__) -> AsyncIterator[bytes]:  # noqa: D401
+    async def stream_audio(self, text: str, *_, **__) -> AsyncIterator[bytes]:  # noqa: D401
         loop = asyncio.get_event_loop()
         chunks: List[bytes] = await loop.run_in_executor(
             None, lambda: list(self._generate_chunks(text))
         )
         return chunks
+
+    async def stop_audio(self) -> None:
+        """
+        Clears the queue and stops playing audio.
+
+        """
+        try:
+            await self.track.flush()
+            return
+        except Exception as e:
+            logging.error(f"Error flushing audio track: {e}")
+
 
     def _generate_chunks(self, text: str):
         for _gs, _ps, audio in self._pipeline(
