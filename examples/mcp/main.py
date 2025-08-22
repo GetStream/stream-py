@@ -82,11 +82,17 @@ async def run_bot(call: Call, bot_user_id: str):
                 @connection.on("audio")
                 async def on_audio(pcm: PcmData, user):
                     """Pipe raw PCM into the STT engine."""
-                    await stt.process_audio(pcm, user)
+                    # Process audio through STT with user metadata
+                    user_metadata = {"user": user} if user else None
+                    await stt.process_audio(pcm, user_metadata)
 
                 @stt.on("transcript")
                 async def on_transcript(event):
-                    logging.info("🗣️  %s: %s", user or "unknown", event.text)
+                    user_info = "unknown"
+                    if event.user_metadata and "user" in event.user_metadata:
+                        user = event.user_metadata["user"]
+                        user_info = str(user)
+                    logging.info("🗣️  %s: %s", user_info, event.text)
 
                     # Ask the LLM; it may decide to call an MCP tool.
                     answer = await chat_with_tools(event.text, mcp_client)
