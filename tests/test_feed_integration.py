@@ -28,6 +28,7 @@ from getstream.models import (
     VoteData,
     SortParamRequest,
     ActivityRequest,
+    GetOrCreateFeedRequest,
 )
 from getstream.stream_response import StreamResponse
 
@@ -91,8 +92,11 @@ class TestFeedIntegration:
 
             # Create feeds
             # snippet-start: GetOrCreateFeed
-            feed_response_1 = self.test_feed.get_or_create(user_id=self.test_user_id)
-            feed_response_2 = self.test_feed_2.get_or_create(
+
+            feed_response_1 = self.test_feed.get_or_create_feed(
+                user_id=self.test_user_id
+            )
+            feed_response_2 = self.test_feed_2.get_or_create_feed(
                 user_id=self.test_user_id_2
             )
             # snippet-end: GetOrCreateFeed
@@ -167,7 +171,7 @@ class TestFeedIntegration:
         # snippet-start: AddActivity
         response = self.client.feeds.add_activity(
             type="post",
-            fids=[self.test_feed.get_feed_identifier()],
+            feeds=[self.test_feed.get_feed_identifier()],
             text="This is a test activity from Python SDK",
             user_id=self.test_user_id,
             custom={
@@ -202,7 +206,7 @@ class TestFeedIntegration:
         # snippet-start: AddActivityWithImageAttachment
         response = self.client.feeds.add_activity(
             type="post",
-            fids=[self.test_feed.get_feed_identifier()],
+            feeds=[self.test_feed.get_feed_identifier()],
             text="Look at this amazing view of NYC!",
             user_id=self.test_user_id,
             attachments=[
@@ -232,7 +236,7 @@ class TestFeedIntegration:
         # snippet-start: AddVideoActivity
         response = self.client.feeds.add_activity(
             type="video",
-            fids=[self.test_feed.get_feed_identifier()],
+            feeds=[self.test_feed.get_feed_identifier()],
             text="Check out this amazing video!",
             user_id=self.test_user_id,
             attachments=[
@@ -263,7 +267,7 @@ class TestFeedIntegration:
         tomorrow = datetime.now() + timedelta(days=1)
         response = self.client.feeds.add_activity(
             type="story",
-            fids=[self.test_feed.get_feed_identifier()],
+            feeds=[self.test_feed.get_feed_identifier()],
             text="My daily story - expires tomorrow!",
             user_id=self.test_user_id,
             expires_at=tomorrow.strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -298,7 +302,7 @@ class TestFeedIntegration:
         # snippet-start: AddActivityToMultipleFeeds
         response = self.client.feeds.add_activity(
             type="post",
-            fids=[
+            feeds=[
                 self.test_feed.get_feed_identifier(),
                 self.test_feed_2.get_feed_identifier(),
             ],
@@ -341,7 +345,7 @@ class TestFeedIntegration:
             type="post",
             text="Activity for retrieval test",
             user_id=self.test_user_id,
-            fids=[self.test_feed.get_feed_identifier()],
+            feeds=[self.test_feed.get_feed_identifier()],
         )
         self._assert_response_success(
             create_response, "create activity for retrieval test"
@@ -371,7 +375,7 @@ class TestFeedIntegration:
             type="post",
             text="Activity for update test",
             user_id=self.test_user_id,
-            fids=[self.test_feed.get_feed_identifier()],
+            feeds=[self.test_feed.get_feed_identifier()],
         )
         self._assert_response_success(
             create_response, "create activity for update test"
@@ -406,7 +410,7 @@ class TestFeedIntegration:
             type="post",
             text="Activity for reaction test",
             user_id=self.test_user_id,
-            fids=[self.test_feed.get_feed_identifier()],
+            feeds=[self.test_feed.get_feed_identifier()],
         )
         self._assert_response_success(
             create_response, "create activity for reaction test"
@@ -434,7 +438,7 @@ class TestFeedIntegration:
             type="post",
             text="Activity for query reactions test",
             user_id=self.test_user_id,
-            fids=[self.test_feed.get_feed_identifier()],
+            feeds=[self.test_feed.get_feed_identifier()],
         )
         self._assert_response_success(
             create_response, "create activity for query reactions test"
@@ -473,7 +477,7 @@ class TestFeedIntegration:
         # First create an activity to comment on
         create_response = self.client.feeds.add_activity(
             type="post",
-            fids=[self.test_feed.get_feed_identifier()],
+            feeds=[self.test_feed.get_feed_identifier()],
             text="Activity for comment test",
             user_id=self.test_user_id,
         )
@@ -513,7 +517,7 @@ class TestFeedIntegration:
             type="post",
             text="Activity for query comments test",
             user_id=self.test_user_id,
-            fids=[self.test_feed.get_feed_identifier()],
+            feeds=[self.test_feed.get_feed_identifier()],
         )
         self._assert_response_success(
             create_response, "create activity for query comments test"
@@ -550,7 +554,7 @@ class TestFeedIntegration:
             type="post",
             text="Activity for update comment test",
             user_id=self.test_user_id,
-            fids=[self.test_feed.get_feed_identifier()],
+            feeds=[self.test_feed.get_feed_identifier()],
         )
         self._assert_response_success(
             create_response, "create activity for update comment test"
@@ -598,7 +602,7 @@ class TestFeedIntegration:
             type="post",
             text="Activity for bookmark test",
             user_id=self.test_user_id,
-            fids=[self.test_feed.get_feed_identifier()],
+            feeds=[self.test_feed.get_feed_identifier()],
         )
         self._assert_response_success(
             create_response, "create activity for bookmark test"
@@ -645,7 +649,7 @@ class TestFeedIntegration:
         # Create an activity and bookmark it first
         create_response = self.client.feeds.add_activity(
             type="post",
-            fids=[self.test_feed.get_feed_identifier()],
+            feeds=[self.test_feed.get_feed_identifier()],
             text="Activity for update bookmark test",
             user_id=self.test_user_id,
         )
@@ -723,13 +727,13 @@ class TestFeedIntegration:
                 type="post",
                 text="Batch activity 1",
                 user_id=self.test_user_id,
-                fids=[self.test_feed.get_feed_identifier()],
+                feeds=[self.test_feed.get_feed_identifier()],
             ),
             ActivityRequest(
                 type="post",
                 text="Batch activity 2",
                 user_id=self.test_user_id,
-                fids=[self.test_feed.get_feed_identifier()],
+                feeds=[self.test_feed.get_feed_identifier()],
             ),
         ]
 
@@ -759,7 +763,7 @@ class TestFeedIntegration:
         # Create an activity to pin
         create_response = self.client.feeds.add_activity(
             type="post",
-            fids=[self.test_feed.get_feed_identifier()],
+            feeds=[self.test_feed.get_feed_identifier()],
             text="Activity for pin test",
             user_id=self.test_user_id,
         )
@@ -783,7 +787,7 @@ class TestFeedIntegration:
         # Create an activity, pin it, then unpin it
         create_response = self.client.feeds.add_activity(
             type="post",
-            fids=[self.test_feed.get_feed_identifier()],
+            feeds=[self.test_feed.get_feed_identifier()],
             text="Activity for unpin test",
             user_id=self.test_user_id,
         )
@@ -819,7 +823,7 @@ class TestFeedIntegration:
             type="post",
             text="Activity for delete bookmark test",
             user_id=self.test_user_id,
-            fids=[self.test_feed.get_feed_identifier()],
+            feeds=[self.test_feed.get_feed_identifier()],
         )
         self._assert_response_success(
             create_response, "create activity for delete bookmark test"
@@ -857,7 +861,7 @@ class TestFeedIntegration:
             type="post",
             text="Activity for delete reaction test",
             user_id=self.test_user_id,
-            fids=[self.test_feed.get_feed_identifier()],
+            feeds=[self.test_feed.get_feed_identifier()],
         )
         self._assert_response_success(
             create_response, "create activity for delete reaction test"
@@ -891,7 +895,7 @@ class TestFeedIntegration:
             type="post",
             text="Activity for delete comment test",
             user_id=self.test_user_id,
-            fids=[self.test_feed.get_feed_identifier()],
+            feeds=[self.test_feed.get_feed_identifier()],
         )
         self._assert_response_success(
             create_response, "create activity for delete comment test"
@@ -964,7 +968,7 @@ class TestFeedIntegration:
                 type="post",
                 text=f"Activity {i} for delete test",
                 user_id=self.test_user_id,
-                fids=[self.test_feed.get_feed_identifier()],
+                feeds=[self.test_feed.get_feed_identifier()],
             )
             self._assert_response_success(
                 create_response, f"create activity {i} for delete test"
@@ -1009,7 +1013,7 @@ class TestFeedIntegration:
 
             poll_activity_response = self.client.feeds.add_activity(
                 type="poll",
-                fids=[self.test_feed.get_feed_identifier()],
+                feeds=[self.test_feed.get_feed_identifier()],
                 poll_id=poll_id,
                 text=self.POLL_QUESTION,
                 user_id=self.test_user_id,
@@ -1052,7 +1056,7 @@ class TestFeedIntegration:
             # Create activity with the poll
             create_response = self.client.feeds.add_activity(
                 type="poll",
-                fids=[self.test_feed.get_feed_identifier()],
+                feeds=[self.test_feed.get_feed_identifier()],
                 text="Vote for your favorite color",
                 user_id=self.test_user_id,
                 poll_id=poll_id,
@@ -1105,7 +1109,7 @@ class TestFeedIntegration:
             type="post",
             text="This content might need moderation",
             user_id=self.test_user_id,
-            fids=[self.test_feed.get_feed_identifier()],
+            feeds=[self.test_feed.get_feed_identifier()],
         )
         self._assert_response_success(create_response, "create activity for moderation")
 
@@ -1167,7 +1171,7 @@ class TestFeedIntegration:
                 type=activity_type,
                 text=f"Test {activity_type} activity for filtering",
                 user_id=self.test_user_id,
-                fids=[self.test_feed.get_feed_identifier()],
+                feeds=[self.test_feed.get_feed_identifier()],
                 custom={
                     "category": activity_type,
                     "priority": 3,  # Random priority between 1-5
@@ -1227,7 +1231,7 @@ class TestFeedIntegration:
                 type="post",
                 text=f"Pagination test activity {i}",
                 user_id=self.test_user_id,
-                fids=[self.test_feed.get_feed_identifier()],
+                feeds=[self.test_feed.get_feed_identifier()],
             )
             self._assert_response_success(
                 create_response, f"create pagination activity {i}"
@@ -1289,7 +1293,7 @@ class TestFeedIntegration:
                 type="post",
                 text="",  # Empty text
                 user_id=self.test_user_id,
-                fids=[self.test_feed.get_feed_identifier()],
+                feeds=[self.test_feed.get_feed_identifier()],
             )
             # snippet-end: HandleEmptyActivityText
 
@@ -1305,7 +1309,7 @@ class TestFeedIntegration:
                 type="post",
                 text="Test with invalid user",
                 user_id="",  # Empty user ID
-                fids=[self.test_feed.get_feed_identifier()],
+                feeds=[self.test_feed.get_feed_identifier()],
             )
             # snippet-end: HandleInvalidUserId
 
@@ -1327,7 +1331,7 @@ class TestFeedIntegration:
             type="post",
             text="Activity with proper authentication",
             user_id=self.test_user_id,
-            fids=[self.test_feed.get_feed_identifier()],
+            feeds=[self.test_feed.get_feed_identifier()],
         )
         # snippet-end: ValidUserAuthentication
 
@@ -1365,7 +1369,7 @@ class TestFeedIntegration:
             type="post",
             text="Just visited the most amazing coffee shop! ☕️",
             user_id=self.test_user_id,
-            fids=[self.test_feed.get_feed_identifier()],
+            feeds=[self.test_feed.get_feed_identifier()],
             attachments=[
                 Attachment(
                     custom={},

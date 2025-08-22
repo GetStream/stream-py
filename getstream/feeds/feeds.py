@@ -13,7 +13,7 @@ class Feed:
         self.custom_data = custom_data or {}
 
     def _sync_from_response(self, data):
-        if hasattr(data, "feed"):
+        if hasattr(data, "feed") and isinstance(data.feed, FeedResponse):
             self.custom_data = data.feed.custom
 
     def connect_openai(
@@ -40,7 +40,7 @@ class Feed:
         # Wrap the connection manager to check for errors in the first message
         return ConnectionManagerWrapper(connection_manager, self.feed_group, self.id)
 
-    def delete(
+    def delete_feed(
         self, hard_delete: Optional[bool] = None
     ) -> StreamResponse[DeleteFeedResponse]:
         response = self.client.delete_feed(
@@ -49,7 +49,7 @@ class Feed:
         self._sync_from_response(response.data)
         return response
 
-    def get_or_create(
+    def get_or_create_feed(
         self,
         limit: Optional[int] = None,
         next: Optional[str] = None,
@@ -68,9 +68,8 @@ class Feed:
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[GetOrCreateFeedResponse]:
         response = self.client.get_or_create_feed(
-            # type=self.feed_group,
+            feed_group_id=self.feed_group,
             feed_id=self.id,
-            feed_group_id='user',
             limit=limit,
             next=next,
             prev=prev,
@@ -90,7 +89,7 @@ class Feed:
         self._sync_from_response(response.data)
         return response
 
-    def update(
+    def update_feed(
         self,
         created_by_id: Optional[str] = None,
         custom: Optional[Dict[str, object]] = None,
@@ -141,8 +140,8 @@ class Feed:
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[PinActivityResponse]:
         response = self.client.pin_activity(
-            feed_group_id=self.feed_group,
-            feed_id=self.id,
+            type=self.feed_group,
+            id=self.id,
             activity_id=activity_id,
             user_id=user_id,
             user=user,
@@ -208,10 +207,7 @@ class Feed:
         self._sync_from_response(response.data)
         return response
 
-    create = get_or_create
+    def get_feed_identifier(self):
+        return self.feed_group+":"+self.id
 
-    def get_feed_identifier(self) -> str:
-        """
-        Get the full feed identifier (feed_group:feed_id)
-        """
-        return f"{self.feed_group}:{self.id}"
+

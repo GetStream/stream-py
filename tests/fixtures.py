@@ -65,9 +65,12 @@ def test_feed(client: Stream):
 @pytest.fixture
 def get_feed(client: Stream):
     """Factory fixture for creating feeds"""
-    def inner(feed_type: str = "user", feed_id: str = None, custom_data: Dict = None) -> Feed:
+
+    def inner(
+        feed_type: str = "user", feed_id: str = None, custom_data: Dict = None
+    ) -> Feed:
         if feed_id is None:
             feed_id = f"test-{feed_type}-{uuid.uuid4()}"
         return client.feeds.feed(feed_type, feed_id, custom_data)
-    
+
     return inner

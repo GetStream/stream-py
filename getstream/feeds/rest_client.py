@@ -24,7 +24,7 @@ class FeedsRestClient(BaseClient):
     def add_activity(
         self,
         type: str,
-        fids: List[str],
+        feeds: List[str],
         expires_at: Optional[str] = None,
         id: Optional[str] = None,
         parent_id: Optional[str] = None,
@@ -43,7 +43,7 @@ class FeedsRestClient(BaseClient):
     ) -> StreamResponse[AddActivityResponse]:
         json = build_body_dict(
             type=type,
-            fids=fids,
+            feeds=feeds,
             expires_at=expires_at,
             id=id,
             parent_id=parent_id,
@@ -1012,16 +1012,24 @@ class FeedsRestClient(BaseClient):
         self,
         id: str,
         default_visibility: Optional[str] = None,
+        activity_processors: Optional[List[ActivityProcessorConfig]] = None,
+        activity_selectors: Optional[List[ActivitySelectorConfig]] = None,
+        aggregation: Optional[AggregationConfig] = None,
         custom: Optional[Dict[str, object]] = None,
         notification: Optional[NotificationConfig] = None,
+        ranking: Optional[RankingConfig] = None,
     ) -> StreamResponse[GetOrCreateFeedGroupResponse]:
         path_params = {
             "id": id,
         }
         json = build_body_dict(
             default_visibility=default_visibility,
+            activity_processors=activity_processors,
+            activity_selectors=activity_selectors,
+            aggregation=aggregation,
             custom=custom,
             notification=notification,
+            ranking=ranking,
         )
 
         return self.post(
@@ -1268,6 +1276,82 @@ class FeedsRestClient(BaseClient):
             path_params=path_params,
         )
 
+    def create_membership_level(
+        self,
+        id: str,
+        name: str,
+        description: Optional[str] = None,
+        priority: Optional[int] = None,
+        tags: Optional[List[str]] = None,
+        custom: Optional[Dict[str, object]] = None,
+    ) -> StreamResponse[CreateMembershipLevelResponse]:
+        json = build_body_dict(
+            id=id,
+            name=name,
+            description=description,
+            priority=priority,
+            tags=tags,
+            custom=custom,
+        )
+
+        return self.post(
+            "/api/v2/feeds/membership_levels", CreateMembershipLevelResponse, json=json
+        )
+
+    def query_membership_levels(
+        self,
+        limit: Optional[int] = None,
+        next: Optional[str] = None,
+        prev: Optional[str] = None,
+        sort: Optional[List[SortParamRequest]] = None,
+        filter: Optional[Dict[str, object]] = None,
+    ) -> StreamResponse[QueryMembershipLevelsResponse]:
+        json = build_body_dict(
+            limit=limit, next=next, prev=prev, sort=sort, filter=filter
+        )
+
+        return self.post(
+            "/api/v2/feeds/membership_levels/query",
+            QueryMembershipLevelsResponse,
+            json=json,
+        )
+
+    def delete_membership_level(self, id: str) -> StreamResponse[Response]:
+        path_params = {
+            "id": id,
+        }
+
+        return self.delete(
+            "/api/v2/feeds/membership_levels/{id}", Response, path_params=path_params
+        )
+
+    def update_membership_level(
+        self,
+        id: str,
+        description: Optional[str] = None,
+        name: Optional[str] = None,
+        priority: Optional[int] = None,
+        tags: Optional[List[str]] = None,
+        custom: Optional[Dict[str, object]] = None,
+    ) -> StreamResponse[UpdateMembershipLevelResponse]:
+        path_params = {
+            "id": id,
+        }
+        json = build_body_dict(
+            description=description,
+            name=name,
+            priority=priority,
+            tags=tags,
+            custom=custom,
+        )
+
+        return self.patch(
+            "/api/v2/feeds/membership_levels/{id}",
+            UpdateMembershipLevelResponse,
+            path_params=path_params,
+            json=json,
+        )
+
     def unfollow_batch(
         self, follows: List[FollowPair]
     ) -> StreamResponse[UnfollowBatchResponse]:
@@ -1291,38 +1375,14 @@ class FeedsRestClient(BaseClient):
         )
 
     def export_feed_user_data(
-        self,
-        user_id: str,
-        id: str,
-        image: Optional[str] = None,
-        invisible: Optional[bool] = None,
-        language: Optional[str] = None,
-        name: Optional[str] = None,
-        role: Optional[str] = None,
-        teams: Optional[List[str]] = None,
-        custom: Optional[Dict[str, object]] = None,
-        privacy_settings: Optional[PrivacySettingsResponse] = None,
-        teams_role: Optional[Dict[str, str]] = None,
+        self, user_id: str
     ) -> StreamResponse[ExportFeedUserDataResponse]:
         path_params = {
             "user_id": user_id,
         }
-        json = build_body_dict(
-            id=id,
-            image=image,
-            invisible=invisible,
-            language=language,
-            name=name,
-            role=role,
-            teams=teams,
-            custom=custom,
-            privacy_settings=privacy_settings,
-            teams_role=teams_role,
-        )
 
         return self.post(
             "/api/v2/feeds/users/{user_id}/export",
             ExportFeedUserDataResponse,
             path_params=path_params,
-            json=json,
         )
