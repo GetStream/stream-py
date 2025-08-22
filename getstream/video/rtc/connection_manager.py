@@ -355,7 +355,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         await self._network_monitor.stop_monitoring()
         await self._peer_manager.close()
         if self._ws_client:
-            await self._ws_client.close()
+            self._ws_client.close()
             self._ws_client = None
         if self._coordinator_ws_client:
             await self._coordinator_ws_client.disconnect()
