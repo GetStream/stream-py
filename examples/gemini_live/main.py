@@ -116,6 +116,23 @@ async def main():
                 except Exception as e:
                     logging.error("❌ Failed to send audio to Gemini: %s", e)
 
+            @connection.on("track_added")
+            async def on_track_added(track_id, kind, user):
+                try:
+                    if kind == "video":
+                        if connection.subscriber_pc is None:
+                            return
+                        video_track = connection.subscriber_pc.add_track_subscriber(
+                            track_id
+                        )
+                        if video_track is not None:
+                            await gemini_live.start_video_sender(video_track, fps=1)
+                            logging.info(
+                                "🎥 Started forwarding video for user %s", user
+                            )
+                except Exception as e:
+                    logging.error("❌ Failed to start video sender: %s", e)
+
             await gemini_live.send_text("Give a greeting to the user.")
 
             logging.info("🎧 Listening for responses... (Press Ctrl+C to stop)")
@@ -131,6 +148,7 @@ async def main():
     finally:
         logging.info("Cleaning up...")
         client.delete_users([user_id, bot_user_id])
+        await gemini_live.stop_video_sender()
         await gemini_live.close()
         logging.info("Cleanup complete")
 
