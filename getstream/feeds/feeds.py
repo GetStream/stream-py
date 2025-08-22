@@ -40,16 +40,16 @@ class Feed:
         # Wrap the connection manager to check for errors in the first message
         return ConnectionManagerWrapper(connection_manager, self.feed_group, self.id)
 
-    def delete_feed(
+    def delete(
         self, hard_delete: Optional[bool] = None
     ) -> StreamResponse[DeleteFeedResponse]:
         response = self.client.delete_feed(
-            type=self.feed_group, id=self.id, hard_delete=hard_delete
+            feed_group_id=self.feed_group, feed_id=self.id, hard_delete=hard_delete
         )
         self._sync_from_response(response.data)
         return response
 
-    def get_or_create_feed(
+    def get_or_create(
         self,
         limit: Optional[int] = None,
         next: Optional[str] = None,
@@ -89,13 +89,16 @@ class Feed:
         self._sync_from_response(response.data)
         return response
 
-    def update_feed(
+    def update(
         self,
         created_by_id: Optional[str] = None,
         custom: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[UpdateFeedResponse]:
         response = self.client.update_feed(
-            type=self.feed_group, id=self.id, created_by_id=created_by_id, custom=custom
+            feed_group_id=self.feed_group,
+            feed_id=self.id,
+            created_by_id=created_by_id,
+            custom=custom,
         )
         self._sync_from_response(response.data)
         return response
@@ -111,8 +114,8 @@ class Feed:
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[Response]:
         response = self.client.mark_activity(
-            type=self.feed_group,
-            id=self.id,
+            feed_group_id=self.feed_group,
+            feed_id=self.id,
             mark_all_read=mark_all_read,
             mark_all_seen=mark_all_seen,
             user_id=user_id,
@@ -128,7 +131,10 @@ class Feed:
         self, activity_id: str, user_id: Optional[str] = None
     ) -> StreamResponse[UnpinActivityResponse]:
         response = self.client.unpin_activity(
-            type=self.feed_group, id=self.id, activity_id=activity_id, user_id=user_id
+            feed_group_id=self.feed_group,
+            feed_id=self.id,
+            activity_id=activity_id,
+            user_id=user_id,
         )
         self._sync_from_response(response.data)
         return response
@@ -140,8 +146,8 @@ class Feed:
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[PinActivityResponse]:
         response = self.client.pin_activity(
-            type=self.feed_group,
-            id=self.id,
+            feed_group_id=self.feed_group,
+            feed_id=self.id,
             activity_id=activity_id,
             user_id=user_id,
             user=user,
@@ -158,8 +164,8 @@ class Feed:
         members: Optional[List[FeedMemberRequest]] = None,
     ) -> StreamResponse[UpdateFeedMembersResponse]:
         response = self.client.update_feed_members(
-            type=self.feed_group,
-            id=self.id,
+            feed_group_id=self.feed_group,
+            feed_id=self.id,
             operation=operation,
             limit=limit,
             next=next,
@@ -173,7 +179,7 @@ class Feed:
         self, user_id: Optional[str] = None, user: Optional[UserRequest] = None
     ) -> StreamResponse[AcceptFeedMemberInviteResponse]:
         response = self.client.accept_feed_member_invite(
-            type=self.feed_group, id=self.id, user_id=user_id, user=user
+            feed_group_id=self.feed_group, feed_id=self.id, user_id=user_id, user=user
         )
         self._sync_from_response(response.data)
         return response
@@ -187,8 +193,8 @@ class Feed:
         filter: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[QueryFeedMembersResponse]:
         response = self.client.query_feed_members(
-            type=self.feed_group,
-            id=self.id,
+            feed_group_id=self.feed_group,
+            feed_id=self.id,
             limit=limit,
             next=next,
             prev=prev,
@@ -202,12 +208,12 @@ class Feed:
         self, user_id: Optional[str] = None, user: Optional[UserRequest] = None
     ) -> StreamResponse[RejectFeedMemberInviteResponse]:
         response = self.client.reject_feed_member_invite(
-            type=self.feed_group, id=self.id, user_id=user_id, user=user
+            feed_group_id=self.feed_group, feed_id=self.id, user_id=user_id, user=user
         )
         self._sync_from_response(response.data)
         return response
 
     def get_feed_identifier(self):
-        return self.feed_group+":"+self.id
+        return self.feed_group + ":" + self.id
 
-
+    create = get_or_create
