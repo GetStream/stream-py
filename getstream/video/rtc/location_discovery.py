@@ -5,11 +5,11 @@ This module provides functionality to discover the optimal location for video st
 connections based on CloudFront POP headers.
 """
 
-import logging
-import http.client
 import functools
-from typing import Optional, Protocol, ContextManager
+import http.client
+import logging
 from contextlib import contextmanager
+from typing import ContextManager, Optional, Protocol
 
 # Constants matching the Go implementation
 HEADER_CLOUDFRONT_POP = "X-Amz-Cf-Pop"
