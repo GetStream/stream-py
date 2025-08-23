@@ -5,40 +5,40 @@ This module provides a wrapper around Google's Gemini Live API.
 
 from __future__ import annotations
 
-import logging
 import asyncio
-import os
-import io
-from typing import Optional, Any, Dict, List
 import contextlib
+import io
+import logging
+import os
+from typing import Any, Dict, List, Optional
+
 from aiortc.mediastreams import MediaStreamTrack
 
 try:
     from PIL import Image  # type: ignore
 except Exception:  # pragma: no cover
     Image = None  # type: ignore
-from google.genai import Client
-from google.genai.types import (
-    LiveConnectConfigDict,
-    Blob,
-    Modality,
-    AudioTranscriptionConfigDict,
-    RealtimeInputConfigDict,
-    TurnCoverage,
-    SpeechConfigDict,
-    VoiceConfigDict,
-    PrebuiltVoiceConfigDict,
-    ContextWindowCompressionConfigDict,
-    SlidingWindowDict,
-)
-from google.genai.live import AsyncSession
 import numpy as np
+from google.genai import Client
+from google.genai.live import AsyncSession
+from google.genai.types import (
+    AudioTranscriptionConfigDict,
+    Blob,
+    ContextWindowCompressionConfigDict,
+    LiveConnectConfigDict,
+    Modality,
+    PrebuiltVoiceConfigDict,
+    RealtimeInputConfigDict,
+    SlidingWindowDict,
+    SpeechConfigDict,
+    TurnCoverage,
+    VoiceConfigDict,
+)
 
-from getstream.plugins.common import STS
 from getstream.audio.utils import resample_audio
-from getstream.video.rtc.track_util import PcmData
+from getstream.plugins.common import STS
 from getstream.video.rtc.audio_track import AudioStreamTrack
-
+from getstream.video.rtc.track_util import PcmData
 
 logger = logging.getLogger(__name__)
 
@@ -206,8 +206,7 @@ class GeminiLive(STS):
         if self._ready_event.is_set():
             return True
         try:
-            await asyncio.wait_for(self._ready_event.wait(), timeout=timeout)
-            return True
+            return await asyncio.wait_for(self._ready_event.wait(), timeout=timeout)
         except asyncio.TimeoutError:
             return False
 
