@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 
 from getstream.video.call import Call
 from getstream.video.rtc.connection_manager import ConnectionManager
@@ -46,7 +45,7 @@ async def discover_location():
 
 async def join(
     call: Call,
-    user_id: Optional[str] = None,
+    user_id: str = None,
     create=True,
     **kwargs,
 ) -> ConnectionManager:
