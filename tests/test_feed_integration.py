@@ -1431,3 +1431,170 @@ class TestFeedIntegration:
         # snippet-end: RealWorldScenario
 
         print("✅ Completed real-world usage scenario demonstration")
+
+    def test33_feed_group_crud(self):
+        """Test 33: Feed Group CRUD Operations"""
+        print("\n📁 Testing Feed Group CRUD operations...")
+
+        feed_group_id = f"test-feed-group-{uuid.uuid4().hex[:8]}"
+
+        # Test 1: List Feed Groups
+        print("\n📋 Testing list feed groups...")
+        # snippet-start: ListFeedGroups
+        list_response = self.client.feeds.list_feed_groups()
+        # snippet-end: ListFeedGroups
+        
+        self._assert_response_success(list_response, "list feed groups")
+        print(f"✅ Listed {len(list_response.data.groups)} existing feed groups")
+
+        # Test 2: Create Feed Group
+        print("\n➕ Testing create feed group...")
+        # snippet-start: CreateFeedGroup
+        create_response = self.client.feeds.create_feed_group({
+            "id": feed_group_id,
+            "default_visibility": "public",
+            "activity_processors": [
+                {"type": "default"}
+            ]
+        })
+        # snippet-end: CreateFeedGroup
+
+        self._assert_response_success(create_response, "create feed group")
+        assert create_response.data.feed_group.id == feed_group_id
+        print(f"✅ Created feed group: {feed_group_id}")
+
+        # Test 3: Get Feed Group
+        print("\n🔍 Testing get feed group...")
+        # snippet-start: GetFeedGroup
+        get_response = self.client.feeds.get_feed_group("feed_group_id")
+        # snippet-end: GetFeedGroup
+
+        self._assert_response_success(get_response, "get feed group")
+        assert get_response.data.feed_group.id == "feed_group_id"
+        print(f"✅ Retrieved feed group: {feed_group_id}")
+
+        # Test 4: Update Feed Group
+        print("\n✏️ Testing update feed group...")
+        # snippet-start: UpdateFeedGroup
+        update_response = self.client.feeds.update_feed_group("feed_group_id", {
+            "activity_processors": [
+                {"type": "default"}
+            ],
+            "aggregation": {
+                "format": "time_based"
+            }
+        })
+        # snippet-end: UpdateFeedGroup
+
+        self._assert_response_success(update_response, "update feed group")
+        print(f"✅ Updated feed group: {feed_group_id}")
+
+        # Test 5: Get or Create Feed Group (should get existing)
+        print("\n🔄 Testing get or create feed group (existing)...")
+        # snippet-start: GetOrCreateFeedGroupExisting
+        get_or_create_response = self.client.feeds.get_or_create_feed_group("feed_group_id", {
+            "default_visibility": "public"
+        })
+        # snippet-end: GetOrCreateFeedGroupExisting
+
+        self._assert_response_success(get_or_create_response, "get or create existing feed group")
+        assert not get_or_create_response.data.was_created, "Should not create new feed group"
+        print(f"✅ Got existing feed group: {feed_group_id}")
+
+        # Test 6: Delete Feed Group
+        print("\n🗑️ Testing delete feed group...")
+        # snippet-start: DeleteFeedGroup
+        self.client.feeds.delete_feed_group("groupID-123", {
+            "hard_delete": False  # soft delete
+        })
+        # snippet-end: DeleteFeedGroup
+
+        print("✅ Completed Feed Group CRUD operations")
+
+    def test34_feed_view_crud(self):
+        """Test 34: Feed View CRUD Operations"""
+        print("\n👁️ Testing Feed View CRUD operations...")
+
+        feed_view_id = f"test-feed-view-{uuid.uuid4().hex[:8]}"
+
+        # Test 1: List Feed Views
+        print("\n📋 Testing list feed views...")
+        # snippet-start: ListFeedViews
+        list_response = self.client.feeds.list_feed_views()
+        # snippet-end: ListFeedViews
+
+        self._assert_response_success(list_response, "list feed views")
+        print(f"✅ Listed {len(list_response.data.views)} existing feed views")
+
+        # Test 2: Create Feed View
+        print("\n➕ Testing create feed view...")
+        # snippet-start: CreateFeedView
+        create_response = self.client.feeds.create_feed_view({
+            "id": feed_view_id,
+            "activity_selectors": [
+                {
+                    "type": "recent"
+                }
+            ],
+            "activity_processors": [
+                {"type": "default"}
+            ],
+            "aggregation": {
+                "format": "time_based"
+            }
+        })
+        # snippet-end: CreateFeedView
+
+        self._assert_response_success(create_response, "create feed view")
+        assert create_response.data.feed_view.id == feed_view_id
+        print(f"✅ Created feed view: {feed_view_id}")
+
+        # Test 3: Get Feed View
+        print("\n🔍 Testing get feed view...")
+        # snippet-start: GetFeedView
+        get_response = self.client.feeds.get_feed_view("feedViewID")
+        # snippet-end: GetFeedView
+
+        self._assert_response_success(get_response, "get feed view")
+        assert get_response.data.feed_view.id == "feedViewID"
+        print(f"✅ Retrieved feed view: {feed_view_id}")
+
+        # Test 4: Update Feed View
+        print("\n✏️ Testing update feed view...")
+        # snippet-start: UpdateFeedView
+        update_response = self.client.feeds.update_feed_view("feedViewID", {
+            "activity_selectors": [
+                {
+                    "type": "popular",
+                    "min_popularity": 10
+                }
+            ],
+            "aggregation": {
+                "format": "popularity_based"
+            }
+        })
+        # snippet-end: UpdateFeedView
+
+        self._assert_response_success(update_response, "update feed view")
+        print(f"✅ Updated feed view: {feed_view_id}")
+
+        # Test 5: Get or Create Feed View (should get existing)
+        print("\n🔄 Testing get or create feed view (existing)...")
+        # snippet-start: GetOrCreateFeedViewExisting
+        get_or_create_response = self.client.feeds.get_or_create_feed_view(feed_view_id, {
+            "activity_selectors": [
+                {"type": "recent"}
+            ]
+        })
+        # snippet-end: GetOrCreateFeedViewExisting
+
+        self._assert_response_success(get_or_create_response, "get or create existing feed view")
+        print(f"✅ Got existing feed view: {feed_view_id}")
+
+        # Test 6: Delete Feed View
+        print("\n🗑️ Testing delete feed view...")
+        # snippet-start: DeleteFeedView
+        self.client.feeds.delete_feed_view("viewID-123")
+        # snippet-end: DeleteFeedView
+
+        print("✅ Completed Feed View CRUD operations")
