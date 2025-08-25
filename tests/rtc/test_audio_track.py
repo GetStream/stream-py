@@ -111,6 +111,36 @@ async def test_audio_track_more_than_20ms(audio_track):
 
 
 @pytest.mark.asyncio
+async def test_audio_track_flush_clears_queue_and_pending(audio_track):
+    """Test that flush() clears queued data and any pending bytes so next frame is silence."""
+    # Prepare 25ms of non-uniform data to force pending bytes after first recv
+    samples_for_25ms = int(0.025 * 8000)  # 25ms at 8000Hz = 200 samples
+    bytes_per_sample = 2  # s16 mono = 2 bytes/sample
+    total_bytes = samples_for_25ms * bytes_per_sample  # 400 bytes
+
+    # Create non-uniform payload (avoid the uniform fast-path in implementation)
+    pattern = bytes(list(range(256)) + list(range(total_bytes - 256)))
+
+    # Queue data and perform one recv to leave pending bytes internally
+    await audio_track.write(pattern)
+    _ = await audio_track.recv()
+
+    # Now flush; this should clear both the queue and any pending bytes
+    await audio_track.flush()
+
+    # Next frame should be pure silence of 20ms
+    frame = await audio_track.recv()
+
+    samples_for_20ms = int(0.02 * 8000)
+    assert frame.samples == samples_for_20ms
+
+    for plane in frame.planes:
+        buffer_view = memoryview(plane)
+        buffer_bytes = bytes(buffer_view)
+        assert all(b == 0 for b in buffer_bytes)
+
+
+@pytest.mark.asyncio
 async def test_audio_track_multiple_chunks(audio_track):
     """Test that the track correctly accumulates multiple chunks to reach 20ms."""
     # Calculate how many bytes for 10ms of audio

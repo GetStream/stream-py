@@ -7,6 +7,7 @@ on:
   pull_request:
     branches:
       - main
+      - webrtc
 
 jobs:
   test:
@@ -28,11 +29,10 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install the project
-      run: |
-          uv sync --all-packages --all-groups --all-extras
+      run: uv sync --all-extras --dev --all-packages
     - name: Run tests
       env:
         STREAM_BASE_URL: ${{ vars.STREAM_BASE_URL }}
         STREAM_API_KEY: ${{ vars.STREAM_API_KEY }}
         STREAM_API_SECRET: ${{ secrets.STREAM_API_SECRET }}
-      run: uv run pytest
+      run: uv run pytest -v

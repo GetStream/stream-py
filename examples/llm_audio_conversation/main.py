@@ -21,7 +21,6 @@ Requirements:
 import asyncio
 import os
 import time
-from typing import Any
 from uuid import uuid4
 import webbrowser
 from urllib.parse import urlencode
@@ -147,18 +146,24 @@ async def main():
                 print(
                     f"{time.time()} Speech detected from user: {user} duration {pcm.duration}"
                 )
-                await stt.process_audio(pcm, user)
+                # Process audio through STT with user metadata
+                user_metadata = {"user": user} if user else None
+                await stt.process_audio(pcm, user_metadata)
 
             @stt.on("transcript")
-            async def on_transcript(text: str, user: Any, metadata: dict[str, Any]):
+            async def on_transcript(event):
+                user_info = "unknown"
+                if event.user_metadata and "user" in event.user_metadata:
+                    user = event.user_metadata["user"]
+                    user_info = str(user)
                 print(
-                    f"{time.time()} got text from user {user}, with metadata {metadata}"
-                    f"will send the transcript to the LLM: {text}"
+                    f"{time.time()} got text from user {user_info}, with metadata {event.to_dict()}"
+                    f"will send the transcript to the LLM: {event.text}"
                 )
 
                 response = openai_client.responses.create(
                     model="gpt-4o",
-                    input=f"You are a helpful and friendly assistant. Respond to the user's message in a conversational way. Here's the message: {text}",
+                    input=f"You are a helpful and friendly assistant. Respond to the user's message in a conversational way. Here's the message: {event.text}",
                 )
 
                 llm_response = response.output_text

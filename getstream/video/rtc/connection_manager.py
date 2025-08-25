@@ -385,13 +385,6 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         """Add multiple audio and video tracks in a single negotiation."""
         await self._peer_manager.add_tracks(audio, video)
 
-    async def addTrack(self, track, track_info=None):
-        """Add a single track (backward compatibility)."""
-        if track.kind == "video":
-            await self.add_tracks(video=track)
-        else:
-            await self.add_tracks(audio=track)
-
     async def start_recording(
         self, recording_types, user_ids=None, output_dir="recordings"
     ):

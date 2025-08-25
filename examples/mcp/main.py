@@ -82,21 +82,29 @@ async def run_bot(call: Call, bot_user_id: str):
                 @connection.on("audio")
                 async def on_audio(pcm: PcmData, user):
                     """Pipe raw PCM into the STT engine."""
-                    await stt.process_audio(pcm, user)
+                    # Process audio through STT with user metadata
+                    user_metadata = {"user": user} if user else None
+                    await stt.process_audio(pcm, user_metadata)
 
                 @stt.on("transcript")
-                async def on_transcript(text: str, user: any, metadata: dict):
-                    logging.info("🗣️  %s: %s", user or "unknown", text)
+                async def on_transcript(event):
+                    user_info = "unknown"
+                    if event.user_metadata and "user" in event.user_metadata:
+                        user = event.user_metadata["user"]
+                        user_info = str(user)
+                    logging.info("🗣️  %s: %s", user_info, event.text)
 
                     # Ask the LLM; it may decide to call an MCP tool.
-                    answer = await chat_with_tools(text, mcp_client)
+                    answer = await chat_with_tools(event.text, mcp_client)
                     if answer:
                         logging.info("🤖 Bot reply: %s", answer)
                         await tts.send(answer)
 
                 @stt.on("error")
-                async def on_stt_error(error):
-                    logging.error("STT error: %s", error)
+                async def on_stt_error(event):
+                    logging.error("STT error: %s", event.error_message)
+                    if hasattr(event, 'context') and event.context:
+                        logging.error("Context: %s", event.context)
 
                 logging.info("🎧 Bot is listening… (Ctrl-C to stop)")
                 await connection.wait()  # run until the program is stopped

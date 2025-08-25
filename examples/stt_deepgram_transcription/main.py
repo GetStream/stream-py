@@ -25,7 +25,7 @@ from urllib.parse import urlencode
 
 from dotenv import load_dotenv
 
-from getstream.models import UserRequest
+from getstream.models import CallRequest, UserRequest
 from getstream.stream import Stream
 from getstream.video import rtc
 from getstream.video.rtc.track_util import PcmData
@@ -103,7 +103,7 @@ async def main():
 
     # Create the call
     call = client.video.call("default", call_id)
-    call.get_or_create(data={"created_by_id": bot_user_id})
+    call.get_or_create(data=CallRequest(created_by_id=bot_user_id))
     print(f"📞 Call created: {call_id}")
 
     # Open browser for users to join with the user token
@@ -124,30 +124,39 @@ async def main():
             # Set up transcription handlers
             @connection.on("audio")
             async def on_audio(pcm: PcmData, user):
-                # Process audio through Deepgram STT
-                await stt.process_audio(pcm, user)
+                # Process audio through Deepgram STT with user metadata
+                user_metadata = {"user": user} if user else None
+                await stt.process_audio(pcm, user_metadata)
 
             @stt.on("transcript")
-            async def on_transcript(text: str, user: any, metadata: dict):
+            async def on_transcript(event):
                 timestamp = time.strftime("%H:%M:%S")
-                user_info = user.name if user and hasattr(user, "name") else "unknown"
-                print(f"[{timestamp}] {user_info}: {text}")
-                if metadata.get("confidence"):
-                    print(f"    └─ confidence: {metadata['confidence']:.2%}")
+                user_info = "unknown"
+                if event.user_metadata and "user" in event.user_metadata:
+                    user = event.user_metadata["user"]
+                    user_info = user.name if hasattr(user, "name") else str(user)
+                print(f"[{timestamp}] {user_info}: {event.text}")
+                if hasattr(event, 'confidence') and event.confidence:
+                    print(f"    └─ confidence: {event.confidence:.2%}")
+                if hasattr(event, 'processing_time_ms') and event.processing_time_ms:
+                    print(f"    └─ processing time: {event.processing_time_ms:.1f}ms")
 
             @stt.on("partial_transcript")
-            async def on_partial_transcript(text: str, user: any, metadata: dict):
-                if text.strip():  # Only show non-empty partial transcripts
-                    user_info = (
-                        user.name if user and hasattr(user, "name") else "unknown"
-                    )
+            async def on_partial_transcript(event):
+                if event.text.strip():  # Only show non-empty partial transcripts
+                    user_info = "unknown"
+                    if event.user_metadata and "user" in event.user_metadata:
+                        user = event.user_metadata["user"]
+                        user_info = user.name if hasattr(user, "name") else str(user)
                     print(
-                        f"    {user_info} (partial): {text}", end="\r"
+                        f"    {user_info} (partial): {event.text}", end="\r"
                     )  # Overwrite line
 
             @stt.on("error")
-            async def on_stt_error(error):
-                print(f"\n❌ STT Error: {error}")
+            async def on_stt_error(event):
+                print(f"\n❌ STT Error: {event.error_message}")
+                if hasattr(event, 'context') and event.context:
+                    print(f"    └─ context: {event.context}")
 
             # Keep the connection alive and wait for audio
             print("🎧 Listening for audio... (Press Ctrl+C to stop)")

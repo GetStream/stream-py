@@ -110,4 +110,5 @@ exclude = [
 ]
 
 [tool.ruff.lint]
+extend-select = ["I"]
 ignore = ["F405", "F403"]
