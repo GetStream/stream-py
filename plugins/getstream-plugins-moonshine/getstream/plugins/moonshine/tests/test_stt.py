@@ -5,7 +5,6 @@ from unittest.mock import patch
 
 from getstream.plugins.moonshine.stt import MoonshineSTT
 from getstream.video.rtc.track_util import PcmData
-from getstream.plugins.test_utils import get_audio_asset, get_json_metadata
 
 # Skip all tests in this module if moonshine_onnx is not installed
 try:

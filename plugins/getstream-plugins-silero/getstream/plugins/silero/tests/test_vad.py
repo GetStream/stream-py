@@ -10,7 +10,7 @@ import torchaudio
 
 from getstream.plugins.silero.vad import SileroVAD
 from getstream.video.rtc.track_util import PcmData
-from getstream.plugins.test_utils import get_audio_asset, get_json_metadata
+from plugins.test_utils import get_audio_asset, get_json_metadata
 
 # Setup logging for the test
 logging.basicConfig(level=logging.INFO)

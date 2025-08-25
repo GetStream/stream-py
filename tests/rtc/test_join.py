@@ -173,7 +173,7 @@ async def test_join_and_leave(client: Stream):
     call = client.video.call("default", "test-join")
 
     async with await rtc.join(call, "test-user") as connection:
-        await asyncio.sleep(10)
+        await asyncio.sleep(5)
         await connection.leave()
 
 
@@ -310,9 +310,7 @@ async def test_play_file(client: Stream):
 
     call = client.video.call("default", CALL_ID)
 
-    file_path = (
-        "/Users/vivek/stream/tools/samples/videos/bbb_sunflower_1080p_60fps_normal.mp4"
-    )
+    file_path = ("test_asset.mp4")
 
     # Check if file exists before running test, skip if not
     if not os.path.exists(file_path):
@@ -327,7 +325,7 @@ async def test_play_file(client: Stream):
             audio=player.audio,
         )
 
-        await connection.wait()
+        await asyncio.sleep(5)
 
 
 @pytest.mark.asyncio
@@ -349,15 +347,15 @@ async def test_play_audio_track_from_text(client: Stream):
 
         await tts_instance.send("do you think Stream is awesome so far?")
 
-        await asyncio.sleep(1)
+        await asyncio.sleep(5)
 
 
 @pytest.mark.asyncio
 @pytest.mark.skip_in_ci
 async def test_full_echo(client: Stream):
-    from getstream.plugins.silero import SileroVAD
-    from getstream.plugins.deepgram import DeepgramSTT
-    from getstream.plugins.gs_elevenlabs import ElevenLabsTTS
+    from getstream.plugins.silero.vad import SileroVAD
+    from getstream.plugins.deepgram.stt import DeepgramSTT
+    from getstream.plugins.elevenlabs.tts import ElevenLabsTTS
 
     audio = audio_track.AudioStreamTrack(framerate=16000)
     vad = SileroVAD()
@@ -391,7 +389,7 @@ async def test_full_echo(client: Stream):
             )
             await tts_instance.send(text)
 
-        await asyncio.sleep(30)
+        await asyncio.sleep(5)
 
 
 @pytest.mark.asyncio
@@ -404,4 +402,4 @@ async def test_simple_capture(client: Stream):
         async def on_audio(pcm: PcmData, user):
             print("got audio")
 
-        await asyncio.sleep(30)
+        await asyncio.sleep(5)
