@@ -3,6 +3,7 @@ from getstream.base import BaseClient
 from getstream.models import *
 from getstream.stream_response import StreamResponse
 from getstream.utils import build_query_param, build_body_dict
+from getstream.feeds.feeds import Feed
 
 
 class FeedsRestClient(BaseClient):
@@ -20,6 +21,19 @@ class FeedsRestClient(BaseClient):
             timeout=timeout,
             token=token,
         )
+
+    def feed(
+        self, feed_type: str, feed_id: str, custom_data: Optional[Dict] = None
+    ) -> Feed:
+        """
+        Create a Feed instance for the given feed type and ID.
+
+        :param feed_type: The type of feed (e.g., 'user', 'timeline')
+        :param feed_id: The unique identifier for the feed
+        :param custom_data: Optional custom data for the feed
+        :return: Feed instance
+        """
+        return Feed(self, feed_type, feed_id, custom_data)
 
     def add_activity(
         self,
