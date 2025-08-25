@@ -92,9 +92,7 @@ class TestFeedIntegration:
             # Create feeds
             # snippet-start: GetOrCreateFeed
 
-            feed_response_1 = self.test_feed.get_or_create(
-                user_id=self.test_user_id
-            )
+            feed_response_1 = self.test_feed.get_or_create(user_id=self.test_user_id)
             feed_response_2 = self.test_feed_2.get_or_create(
                 user_id=self.test_user_id_2
             )

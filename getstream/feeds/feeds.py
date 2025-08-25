@@ -4,9 +4,7 @@ from getstream.stream_response import StreamResponse
 
 
 class Feed:
-    def __init__(
-        self, client, feed_group: str, feed_id: str = None, custom_data: Dict = None
-    ):
+    def __init__(self, client, feed_group: str, feed_id: str, custom_data: Dict = None):
         self.id = feed_id
         self.feed_group = feed_group
         self.client = client
@@ -15,30 +13,6 @@ class Feed:
     def _sync_from_response(self, data):
         if hasattr(data, "feed") and isinstance(data.feed, FeedResponse):
             self.custom_data = data.feed.custom
-
-    def connect_openai(
-        self, openai_api_key, agent_user_id, model="gpt-4o-realtime-preview"
-    ):
-        from .openai import get_openai_realtime_client, ConnectionManagerWrapper
-
-        client = get_openai_realtime_client(openai_api_key, self.client.base_url)
-        token = self.client.stream.create_token(agent_user_id)
-        connection_manager = client.beta.realtime.connect(
-            extra_query={
-                "feed_group": self.feed_group,
-                "feed_id": self.id,
-                "api_key": self.client.api_key,
-            },
-            model=model,
-            extra_headers={
-                "Authorization": f"Bearer {openai_api_key}",
-                "OpenAI-Beta": "realtime=v1",
-                "Stream-Authorization": token,
-            },
-        )
-
-        # Wrap the connection manager to check for errors in the first message
-        return ConnectionManagerWrapper(connection_manager, self.feed_group, self.id)
 
     def delete(
         self, hard_delete: Optional[bool] = None

@@ -255,6 +255,7 @@ class FeedsRestClient(BaseClient):
         activity_id: str,
         type: str,
         create_notification_activity: Optional[bool] = None,
+        skip_push: Optional[bool] = None,
         user_id: Optional[str] = None,
         custom: Optional[Dict[str, object]] = None,
         user: Optional[UserRequest] = None,
@@ -265,6 +266,7 @@ class FeedsRestClient(BaseClient):
         json = build_body_dict(
             type=type,
             create_notification_activity=create_notification_activity,
+            skip_push=skip_push,
             user_id=user_id,
             custom=custom,
             user=user,
@@ -501,6 +503,7 @@ class FeedsRestClient(BaseClient):
         object_type: str,
         create_notification_activity: Optional[bool] = None,
         parent_id: Optional[str] = None,
+        skip_push: Optional[bool] = None,
         user_id: Optional[str] = None,
         attachments: Optional[List[Attachment]] = None,
         mentioned_user_ids: Optional[List[str]] = None,
@@ -513,6 +516,7 @@ class FeedsRestClient(BaseClient):
             object_type=object_type,
             create_notification_activity=create_notification_activity,
             parent_id=parent_id,
+            skip_push=skip_push,
             user_id=user_id,
             attachments=attachments,
             mentioned_user_ids=mentioned_user_ids,
@@ -575,12 +579,13 @@ class FeedsRestClient(BaseClient):
         self,
         id: str,
         comment: Optional[str] = None,
+        skip_push: Optional[bool] = None,
         custom: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[UpdateCommentResponse]:
         path_params = {
             "id": id,
         }
-        json = build_body_dict(comment=comment, custom=custom)
+        json = build_body_dict(comment=comment, skip_push=skip_push, custom=custom)
 
         return self.patch(
             "/api/v2/feeds/comments/{id}",
@@ -594,6 +599,7 @@ class FeedsRestClient(BaseClient):
         id: str,
         type: str,
         create_notification_activity: Optional[bool] = None,
+        skip_push: Optional[bool] = None,
         user_id: Optional[str] = None,
         custom: Optional[Dict[str, object]] = None,
         user: Optional[UserRequest] = None,
@@ -604,6 +610,7 @@ class FeedsRestClient(BaseClient):
         json = build_body_dict(
             type=type,
             create_notification_activity=create_notification_activity,
+            skip_push=skip_push,
             user_id=user_id,
             custom=custom,
             user=user,
@@ -696,6 +703,7 @@ class FeedsRestClient(BaseClient):
         aggregation: Optional[AggregationConfig] = None,
         custom: Optional[Dict[str, object]] = None,
         notification: Optional[NotificationConfig] = None,
+        push_notification: Optional[PushNotificationConfig] = None,
         ranking: Optional[RankingConfig] = None,
     ) -> StreamResponse[CreateFeedGroupResponse]:
         json = build_body_dict(
@@ -706,6 +714,7 @@ class FeedsRestClient(BaseClient):
             aggregation=aggregation,
             custom=custom,
             notification=notification,
+            push_notification=push_notification,
             ranking=ranking,
         )
 
@@ -1017,6 +1026,7 @@ class FeedsRestClient(BaseClient):
         aggregation: Optional[AggregationConfig] = None,
         custom: Optional[Dict[str, object]] = None,
         notification: Optional[NotificationConfig] = None,
+        push_notification: Optional[PushNotificationConfig] = None,
         ranking: Optional[RankingConfig] = None,
     ) -> StreamResponse[GetOrCreateFeedGroupResponse]:
         path_params = {
@@ -1029,6 +1039,7 @@ class FeedsRestClient(BaseClient):
             aggregation=aggregation,
             custom=custom,
             notification=notification,
+            push_notification=push_notification,
             ranking=ranking,
         )
 
@@ -1047,6 +1058,7 @@ class FeedsRestClient(BaseClient):
         aggregation: Optional[AggregationConfig] = None,
         custom: Optional[Dict[str, object]] = None,
         notification: Optional[NotificationConfig] = None,
+        push_notification: Optional[PushNotificationConfig] = None,
         ranking: Optional[RankingConfig] = None,
     ) -> StreamResponse[UpdateFeedGroupResponse]:
         path_params = {
@@ -1058,6 +1070,7 @@ class FeedsRestClient(BaseClient):
             aggregation=aggregation,
             custom=custom,
             notification=notification,
+            push_notification=push_notification,
             ranking=ranking,
         )
 
@@ -1192,6 +1205,7 @@ class FeedsRestClient(BaseClient):
         create_notification_activity: Optional[bool] = None,
         follower_role: Optional[str] = None,
         push_preference: Optional[str] = None,
+        skip_push: Optional[bool] = None,
         custom: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[UpdateFollowResponse]:
         json = build_body_dict(
@@ -1200,6 +1214,7 @@ class FeedsRestClient(BaseClient):
             create_notification_activity=create_notification_activity,
             follower_role=follower_role,
             push_preference=push_preference,
+            skip_push=skip_push,
             custom=custom,
         )
 
@@ -1211,6 +1226,7 @@ class FeedsRestClient(BaseClient):
         target: str,
         create_notification_activity: Optional[bool] = None,
         push_preference: Optional[str] = None,
+        skip_push: Optional[bool] = None,
         custom: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[SingleFollowResponse]:
         json = build_body_dict(
@@ -1218,6 +1234,7 @@ class FeedsRestClient(BaseClient):
             target=target,
             create_notification_activity=create_notification_activity,
             push_preference=push_preference,
+            skip_push=skip_push,
             custom=custom,
         )
 
