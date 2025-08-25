@@ -356,3 +356,22 @@ class AssemblyAISTT(STT):
                 self.streaming_client = None
             except Exception as e:
                 logger.error("Error closing AssemblyAI connection", exc_info=e)
+
+    async def __aenter__(self):
+        """Async context manager entry."""
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Async context manager exit."""
+        await self.close()
+
+    def flush_buffer(self):
+        """Flush the current audio buffer immediately (for testing purposes)."""
+        if self.streaming_client and self._audio_buffer:
+            try:
+                self.streaming_client.stream(bytes(self._audio_buffer))
+                self._audio_buffer.clear()
+                self._buffer_start_time = None
+            except Exception as e:
+                logger.error("Error flushing audio buffer", exc_info=e)
+                raise Exception(f"AssemblyAI buffer flush error: {e}")

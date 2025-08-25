@@ -15,6 +15,12 @@ def assemblyai_api_key():
     return api_key
 
 
+@pytest.fixture
+def mock_assemblyai_api_key():
+    """Provide a mock API key for unit tests that don't need real API access."""
+    return "test_api_key_12345"
+
+
 @pytest.fixture(scope="session")
 def assemblyai_language():
     """Get the AssemblyAI language from environment variables."""
@@ -38,7 +44,7 @@ def sample_audio_data():
     t = np.linspace(0, duration, int(sample_rate * duration), False)
     samples = (np.sin(2 * np.pi * frequency * t) * 16384).astype(np.int16)
     
-    return PcmData(samples=samples, sample_rate=sample_rate)
+    return PcmData(format="s16", samples=samples, sample_rate=sample_rate)
 
 
 @pytest.fixture
@@ -52,7 +58,7 @@ def sample_audio_data_16k():
     t = np.linspace(0, duration, int(sample_rate * duration), False)
     samples = (np.sin(2 * np.pi * frequency * t) * 16384).astype(np.int16)
     
-    return PcmData(samples=samples, sample_rate=sample_rate)
+    return PcmData(format="s16", samples=samples, sample_rate=sample_rate)
 
 
 @pytest.fixture
