@@ -1,18 +1,21 @@
 import uuid
 
-from getstream.models import (
-    UpdateUserPartialRequest,
-    QueryUsersPayload,
-)
-from getstream.models import UserRequest
 from getstream import Stream
+from getstream.models import (
+    QueryUsersPayload,
+    UpdateUserPartialRequest,
+    UserRequest,
+)
 
 
 def test_upsert_users(client: Stream):
     users = {}
     user_id = str(uuid.uuid4())
     users[user_id] = UserRequest(
-        id=user_id, role="admin", custom={"premium": True}, name=user_id
+        id=user_id,
+        role="admin",
+        custom={"premium": True},
+        name=user_id,
     )
 
     client.update_users(users=users)
@@ -27,8 +30,11 @@ def test_update_users_partial(client: Stream):
     user_id = str(uuid.uuid4())
     users = {
         user_id: UserRequest(
-            id=user_id, role="admin", custom={"premium": True}, name=user_id
-        )
+            id=user_id,
+            role="admin",
+            custom={"premium": True},
+            name=user_id,
+        ),
     }
     client.update_users(users=users)
     response = client.update_users_partial(
@@ -37,8 +43,8 @@ def test_update_users_partial(client: Stream):
                 id=user_id,
                 set={"role": "admin", "color": "blue"},
                 unset=["name"],
-            )
-        ]
+            ),
+        ],
     )
     assert user_id in response.data.users
     assert not response.data.users[user_id].name
@@ -50,8 +56,11 @@ def test_deactivate_and_reactivate_users(client: Stream):
     user_id = str(uuid.uuid4())
     users = {
         user_id: UserRequest(
-            id=user_id, role="admin", custom={"premium": True}, name=user_id
-        )
+            id=user_id,
+            role="admin",
+            custom={"premium": True},
+            name=user_id,
+        ),
     }
 
     client.update_users(users=users)
@@ -66,8 +75,11 @@ def test_delete_user(client: Stream):
     user_id = str(uuid.uuid4())
     users = {
         user_id: UserRequest(
-            id=user_id, role="admin", custom={"premium": True}, name=user_id
-        )
+            id=user_id,
+            role="admin",
+            custom={"premium": True},
+            name=user_id,
+        ),
     }
     client.update_users(users=users)
     client.delete_users(user_ids=[user_id])

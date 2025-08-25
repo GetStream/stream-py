@@ -7,8 +7,8 @@ from getstream.video.rtc.pb.stream.video.sfu.signal_rpc.signal_pb2 import (
     SetPublisherResponse,
 )
 from getstream.video.rtc.pb.stream.video.sfu.signal_rpc.signal_twirp import (
-    SignalServerServer,
     SignalServerClient,
+    SignalServerServer,
 )
 
 

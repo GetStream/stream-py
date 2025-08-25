@@ -1,11 +1,10 @@
+import logging
 from typing import Optional
 
 from pyee.asyncio import AsyncIOEventEmitter
 
 from getstream.video.rtc.pb.stream.video.sfu.event import events_pb2
 from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
-
-import logging
 
 logger = logging.getLogger(__name__)
 

@@ -1,14 +1,13 @@
-"""
-Performance tests for Silero VAD implementation.
+"""Performance tests for Silero VAD implementation.
 
 This module contains performance tests for the Silero VAD implementation,
 measuring CPU time to ensure that changes don't significantly impact performance.
 """
 
-import time
 import asyncio
-import numpy as np
+import time
 
+import numpy as np
 import pytest
 
 from getstream.plugins.silero.vad import SileroVAD
@@ -46,7 +45,10 @@ async def test_performance():
         end = start + segment_length
         if end <= total_samples:
             audio_data[start:end] = np.random.randint(
-                -10000, 10000, size=(end - start), dtype=np.int16
+                -10000,
+                10000,
+                size=(end - start),
+                dtype=np.int16,
             )
 
     # Create PCM data
@@ -71,7 +73,7 @@ async def test_performance():
     elapsed_time = time.time() - start_time
 
     print(
-        f"Processing time: {elapsed_time:.3f} seconds for {duration_sec} seconds of audio"
+        f"Processing time: {elapsed_time:.3f} seconds for {duration_sec} seconds of audio",
     )
     print(f"Detected {len(audio_events)} audio events")
 

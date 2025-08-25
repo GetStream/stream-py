@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Example demonstrating the GetStream AI Plugins Event System.
+"""Example demonstrating the GetStream AI Plugins Event System.
 
 This example shows how to:
 1. Use structured events with different plugin types
@@ -22,12 +21,12 @@ from getstream.plugins.common import (
     STT,
     TTS,
     VAD,
-    EventType,
-    STTTranscriptEvent,
-    VADAudioEvent,
     # Event utilities
     EventFilter,
     EventRegistry,
+    EventType,
+    STTTranscriptEvent,
+    VADAudioEvent,
     get_global_registry,
 )
 from getstream.plugins.common.event_metrics import (
@@ -35,8 +34,8 @@ from getstream.plugins.common.event_metrics import (
     calculate_tts_metrics,
 )
 from getstream.plugins.common.event_serialization import (
-    serialize_events,
     deserialize_event,
+    serialize_events,
 )
 
 # Set up logging
@@ -76,7 +75,7 @@ class ExampleSTTPlugin(STT):
 
     async def close(self):
         logger.info(
-            f"Closing STT plugin after {self.transcription_count} transcriptions"
+            f"Closing STT plugin after {self.transcription_count} transcriptions",
         )
         await super().close()
 
@@ -165,7 +164,8 @@ def analyze_stt_performance(registry: EventRegistry):
 def analyze_tts_performance(registry: EventRegistry):
     """Analyze TTS performance from events."""
     tts_filter = EventFilter(
-        event_types=[EventType.TTS_SYNTHESIS_COMPLETE], time_window_ms=60000
+        event_types=[EventType.TTS_SYNTHESIS_COMPLETE],
+        time_window_ms=60000,
     )
 
     tts_events = registry.get_events(tts_filter)
@@ -195,7 +195,7 @@ def demonstrate_event_filtering(registry: EventRegistry):
 
     # Filter by event type
     error_filter = EventFilter(
-        event_types=[EventType.STT_ERROR, EventType.TTS_ERROR, EventType.VAD_ERROR]
+        event_types=[EventType.STT_ERROR, EventType.TTS_ERROR, EventType.VAD_ERROR],
     )
 
     error_events = registry.get_events(error_filter)
@@ -203,7 +203,8 @@ def demonstrate_event_filtering(registry: EventRegistry):
 
     # Filter by confidence threshold
     high_confidence_filter = EventFilter(
-        event_types=[EventType.STT_TRANSCRIPT], min_confidence=0.9
+        event_types=[EventType.STT_TRANSCRIPT],
+        min_confidence=0.9,
     )
 
     high_confidence_events = registry.get_events(high_confidence_filter)
@@ -243,7 +244,7 @@ def demonstrate_event_serialization(registry: EventRegistry):
     print(f"Saved events to {filename}")
 
     # Load and deserialize
-    with open(filename, "r") as f:
+    with open(filename) as f:
         loaded_json = f.read()
 
     events_data = json.loads(loaded_json)
@@ -254,7 +255,7 @@ def demonstrate_event_serialization(registry: EventRegistry):
     # Verify restoration
     for original, restored in zip(recent_events, restored_events):
         print(
-            f"Original: {original.event_type.value} - Restored: {restored.event_type.value}"
+            f"Original: {original.event_type.value} - Restored: {restored.event_type.value}",
         )
 
 
@@ -275,7 +276,7 @@ async def simulate_plugin_usage():
     @tts_plugin.on("synthesis_complete")
     async def on_tts_complete(event):
         print(
-            f"🔊 TTS Complete: {event.total_audio_bytes} bytes in {event.synthesis_time_ms:.1f}ms"
+            f"🔊 TTS Complete: {event.total_audio_bytes} bytes in {event.synthesis_time_ms:.1f}ms",
         )
 
     @vad_plugin.on("speech_start")
@@ -300,8 +301,9 @@ async def simulate_plugin_usage():
 
     # Simulate STT processing
     print("--- STT Processing ---")
-    from getstream.video.rtc.track_util import PcmData
     import numpy as np
+
+    from getstream.video.rtc.track_util import PcmData
 
     for i in range(3):
         # Create mock audio data

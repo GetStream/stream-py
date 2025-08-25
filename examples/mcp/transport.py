@@ -1,5 +1,5 @@
-from fastmcp import FastMCP
 import httpx
+from fastmcp import FastMCP
 
 mcp = FastMCP("Stream MCP Server")
 

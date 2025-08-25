@@ -1,11 +1,11 @@
-import time
 import asyncio
+import fractions
 import logging
+import time
 
 import aiortc
 from av import AudioFrame
 from av.frame import Frame
-import fractions
 
 logger = logging.getLogger(__name__)
 
@@ -14,16 +14,20 @@ class AudioStreamTrack(aiortc.mediastreams.MediaStreamTrack):
     kind = "audio"
 
     def __init__(
-        self, framerate=8000, stereo=False, format="s16", max_queue_size=10000
+        self,
+        framerate=8000,
+        stereo=False,
+        format="s16",
+        max_queue_size=10000,
     ):
-        """
-        Initialize an AudioStreamTrack that reads data from a queue.
+        """Initialize an AudioStreamTrack that reads data from a queue.
 
         Args:
             framerate: Sample rate in Hz (default: 8000)
             stereo: Whether to use stereo output (default: False)
             format: Audio format (default: "s16")
             max_queue_size: Maximum number of frames to keep in queue (default: 100)
+
         """
         super().__init__()
         self.framerate = framerate
@@ -51,11 +55,11 @@ class AudioStreamTrack(aiortc.mediastreams.MediaStreamTrack):
         self._pending_data = bytearray()
 
     async def write(self, data):
-        """
-        Add audio data to the queue.
+        """Add audio data to the queue.
 
         Args:
             data: Audio data bytes to be played
+
         """
         # Check if queue is getting too large and trim if necessary
         if self._queue.qsize() >= self.max_queue_size:
@@ -82,9 +86,7 @@ class AudioStreamTrack(aiortc.mediastreams.MediaStreamTrack):
         )
 
     async def flush(self) -> None:
-        """
-        Clear any pending audio from the internal queue and buffer so playback stops immediately.
-        """
+        """Clear any pending audio from the internal queue and buffer so playback stops immediately."""
         # Drain queue
         cleared = 0
         while not self._queue.empty():
@@ -99,8 +101,7 @@ class AudioStreamTrack(aiortc.mediastreams.MediaStreamTrack):
         logger.debug("Flushed audio queue", extra={"cleared_items": cleared})
 
     async def recv(self) -> Frame:
-        """
-        Receive the next audio frame.
+        """Receive the next audio frame.
         If queue has data, use that; otherwise return silence.
         """
         if self.readyState != "live":
@@ -174,19 +175,25 @@ class AudioStreamTrack(aiortc.mediastreams.MediaStreamTrack):
                     # Use a variable size frame to handle more than 20ms
                     actual_samples = len(data_to_play) // bytes_per_sample
                     frame = AudioFrame(
-                        format=self.format, layout=self.layout, samples=actual_samples
+                        format=self.format,
+                        layout=self.layout,
+                        samples=actual_samples,
                     )
                 else:
                     # For real data, use fixed size and store excess
                     frame = AudioFrame(
-                        format=self.format, layout=self.layout, samples=samples
+                        format=self.format,
+                        layout=self.layout,
+                        samples=samples,
                     )
                     self._pending_data = data_to_play[bytes_per_frame:]
                     data_to_play = data_to_play[:bytes_per_frame]
             else:
                 # Standard 20ms frame
                 frame = AudioFrame(
-                    format=self.format, layout=self.layout, samples=samples
+                    format=self.format,
+                    layout=self.layout,
+                    samples=samples,
                 )
 
             # Update the frame with the data we have

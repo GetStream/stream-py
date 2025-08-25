@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 
-import asyncio
-import os
-import logging
 import argparse
+import asyncio
+import logging
+import os
 from uuid import uuid4
-from dotenv import load_dotenv
+
 from aiortc.contrib.media import MediaPlayer
+from dotenv import load_dotenv
 
 from examples.utils import create_user
 from getstream.stream import Stream
@@ -182,7 +183,8 @@ async def main():
         ):
             # Add all audio tracks
             for connection, player in zip(
-                [bot1_connection, bot2_connection, bot3_connection], players
+                [bot1_connection, bot2_connection, bot3_connection],
+                players,
             ):
                 if player.audio:
                     await connection.add_tracks(audio=player.audio)
@@ -225,10 +227,10 @@ if __name__ == "__main__":
     print("Before running this example:")
     print("   1. Update the AUDIO_FILES list with paths to your actual audio files")
     print(
-        "   2. Make sure you have a .env file with STREAM_API_KEY and STREAM_API_SECRET"
+        "   2. Make sure you have a .env file with STREAM_API_KEY and STREAM_API_SECRET",
     )
     print(
-        "   3. Audio files should be in a format supported by aiortc (WAV, MP3, MP4, etc.)"
+        "   3. Audio files should be in a format supported by aiortc (WAV, MP3, MP4, etc.)",
     )
     print("   4. Run with --type composite or --type track to specify recording type")
     print()

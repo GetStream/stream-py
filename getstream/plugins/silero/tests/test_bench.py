@@ -1,23 +1,23 @@
-"""
-Benchmark tests for Silero VAD performance.
+"""Benchmark tests for Silero VAD performance.
 
 This module provides tests for benchmarking the Silero VAD implementation,
 processing 10 seconds of audio and reporting RTF (Real-Time Factor) and other metrics.
 """
 
-import time
-import numpy as np
 import logging
+import time
+
+import numpy as np
 import pytest
 import soundfile as sf
+
 from getstream.plugins.silero.vad import SileroVAD
-from getstream.video.rtc.track_util import PcmData
 from getstream.plugins.test_utils import get_audio_asset
+from getstream.video.rtc.track_util import PcmData
 
 
 async def benchmark_vad(use_onnx=False, device="cpu"):
-    """
-    Benchmark the Silero VAD implementation.
+    """Benchmark the Silero VAD implementation.
 
     Args:
         use_onnx: Whether to use ONNX runtime
@@ -25,6 +25,7 @@ async def benchmark_vad(use_onnx=False, device="cpu"):
 
     Returns:
         Dictionary with benchmark results
+
     """
     logging.basicConfig(level=logging.ERROR)  # Suppress logs during benchmark
 
@@ -56,7 +57,7 @@ async def benchmark_vad(use_onnx=False, device="cpu"):
 
         for formant, amplitude in [(600, 1.0), (1200, 0.5), (2400, 0.2)]:
             audio_data += (amplitude * 32767 * np.sin(2 * np.pi * formant * t)).astype(
-                np.int16
+                np.int16,
             )
 
     # Ensure we have 10 seconds of audio
@@ -87,7 +88,7 @@ async def benchmark_vad(use_onnx=False, device="cpu"):
     # Process audio chunks
     for chunk in chunks:
         await vad.process_audio(
-            PcmData(samples=chunk, sample_rate=sample_rate, format="s16")
+            PcmData(samples=chunk, sample_rate=sample_rate, format="s16"),
         )
 
     # Flush any remaining speech
@@ -161,6 +162,6 @@ async def test_vad_benchmark_onnx():
     print(f"  Speech segments detected: {results['speech_segments']}")
 
     # Verify that the ONNX implementation is reasonably efficient
-    assert (
-        results["rtf"] < 2.0
-    ), f"ONNX VAD performance too slow: RTF = {results['rtf']:.3f}"
+    assert results["rtf"] < 2.0, (
+        f"ONNX VAD performance too slow: RTF = {results['rtf']:.3f}"
+    )

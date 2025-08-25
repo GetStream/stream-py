@@ -1,6 +1,7 @@
 import asyncio
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 
 
 # Create a simple mock version of the WebSocketClient that doesn't rely on protobuf

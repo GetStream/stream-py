@@ -1,5 +1,4 @@
-"""
-Connection utilities for video streaming.
+"""Connection utilities for video streaming.
 
 This module provides core connection-related functionality including:
 - Connection state management
@@ -11,11 +10,12 @@ This module provides core connection-related functionality including:
 
 import asyncio
 import logging
-from enum import Enum
 from dataclasses import dataclass
-from typing import Any, Tuple, Optional
+from enum import Enum
+from typing import Any, Optional, Tuple
 
 import aiortc
+
 from getstream.base import StreamResponse
 from getstream.models import CallRequest
 from getstream.utils import build_body_dict
@@ -23,14 +23,14 @@ from getstream.video.call import Call
 from getstream.video.rtc.models import JoinCallResponse
 from getstream.video.rtc.pb.stream.video.sfu.event import events_pb2
 from getstream.video.rtc.pb.stream.video.sfu.models.models_pb2 import (
-    TrackInfo,
-    TRACK_TYPE_VIDEO,
     TRACK_TYPE_AUDIO,
-    VideoLayer,
+    TRACK_TYPE_VIDEO,
+    TrackInfo,
     VideoDimension,
+    VideoLayer,
 )
+from getstream.video.rtc.signaling import SignalingError, WebSocketClient
 from getstream.video.rtc.track_util import BufferedMediaTrack, detect_video_properties
-from getstream.video.rtc.signaling import WebSocketClient, SignalingError
 
 logger = logging.getLogger(__name__)
 
@@ -106,14 +106,18 @@ async def join_call(
     """Join call via coordinator API."""
     try:
         join_response = await join_call_coordinator_request(
-            call, user_id, location=location, create=create, **kwargs
+            call,
+            user_id,
+            location=location,
+            create=create,
+            **kwargs,
         )
         if local_sfu:
             join_response.data.credentials.server.url = "http://127.0.0.1:3031/twirp"
             join_response.data.credentials.server.ws_endpoint = "ws://127.0.0.1:3031/ws"
 
         logger.debug(
-            f"Received SFU credentials: {join_response.data.credentials.server}"
+            f"Received SFU credentials: {join_response.data.credentials.server}",
         )
 
         return join_response
@@ -147,6 +151,7 @@ async def join_call_coordinator_request(
 
     Returns:
         A response containing the call information and credentials
+
     """
     # Create a token for this user
     token = call.client.stream_audio.create_token(user_id=user_id)
@@ -197,6 +202,7 @@ def create_join_request(join_response, session_id: str) -> events_pb2.JoinReques
 
     Returns:
         A JoinRequest protobuf message configured with data from the coordinator response
+
     """
     # Get credentials from the coordinator response
     credentials = join_response.data.credentials
@@ -221,6 +227,7 @@ async def prepare_video_track_info(
 
     Raises:
         Exception: If video property detection fails
+
     """
     buffered_video = None
 
@@ -230,7 +237,8 @@ async def prepare_video_track_info(
 
         # Detect video properties - with timeout to avoid hanging
         video_props = await asyncio.wait_for(
-            detect_video_properties(buffered_video), timeout=3.0
+            detect_video_properties(buffered_video),
+            timeout=3.0,
         )
 
         video_info = TrackInfo(
@@ -293,6 +301,7 @@ def create_audio_track_info(audio: aiortc.mediastreams.MediaStreamTrack) -> Trac
 
     Returns:
         A TrackInfo object for the audio track
+
     """
     return TrackInfo(
         track_id=audio.id,
@@ -309,6 +318,7 @@ def get_websocket_url(join_response, local_sfu: bool = False) -> str:
 
     Returns:
         The WebSocket URL to connect to
+
     """
     if local_sfu:
         return "ws://127.0.0.1:3031/ws"
@@ -321,8 +331,7 @@ async def connect_websocket(
     session_id: str,
     options: ConnectionOptions,
 ) -> Tuple[WebSocketClient, events_pb2.SfuEvent]:
-    """
-    Connect to the WebSocket server.
+    """Connect to the WebSocket server.
 
     Args:
         token: Authentication token
@@ -335,6 +344,7 @@ async def connect_websocket(
 
     Raises:
         SignalingError: If connection fails
+
     """
     logger.info(f"Connecting to WebSocket at {ws_url}")
 
@@ -375,6 +385,7 @@ def _is_retryable(retry_state: Any) -> bool:
 
     Returns:
         True if the error should be retried, False otherwise
+
     """
     # Extract the actual exception from the retry state
     if hasattr(retry_state, "outcome") and retry_state.outcome.failed:

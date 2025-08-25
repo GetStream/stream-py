@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Example: Real-time Call Transcription with Moonshine STT
+"""Example: Real-time Call Transcription with Moonshine STT
 
 Uses the local Moonshine model via the Moonshine plugin in this repo.
 
@@ -27,32 +26,30 @@ from urllib.parse import urlencode
 from dotenv import load_dotenv
 
 from getstream.models import UserRequest
+from getstream.plugins.moonshine.stt import MoonshineSTT
+from getstream.plugins.silero.vad import SileroVAD
 from getstream.stream import Stream
 from getstream.video import rtc
 from getstream.video.rtc.track_util import PcmData
-from getstream.plugins.moonshine.stt import MoonshineSTT
-from getstream.plugins.silero.vad import SileroVAD
-
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
 
 def create_user(client: Stream, id: str, name: str) -> None:
-    """
-    Create a user with a unique Stream ID.
+    """Create a user with a unique Stream ID.
 
     Args:
         client: Stream client instance
         id: Unique user ID
         name: Display name for the user
+
     """
     user_request = UserRequest(id=id, name=name)
     client.upsert_users(user_request)
 
 
 def open_browser(api_key: str, token: str, call_id: str) -> str:
-    """
-    Helper function to open browser with Stream call link.
+    """Helper function to open browser with Stream call link.
 
     Args:
         api_key: Stream API key
@@ -61,6 +58,7 @@ def open_browser(api_key: str, token: str, call_id: str) -> str:
 
     Returns:
         The URL that was opened
+
     """
     base_url = f"{os.getenv('EXAMPLE_BASE_URL')}/join/"
     params = {"api_key": api_key, "token": token, "skip_lobby": "true"}
@@ -126,7 +124,7 @@ async def main() -> None:  # noqa: D401
             @vad.on("audio")
             async def _on_speech_detected(pcm: PcmData, user):
                 print(
-                    f"🎤 Speech detected from user: {user.name}, duration: {pcm.duration:.2f}s"
+                    f"🎤 Speech detected from user: {user.name}, duration: {pcm.duration:.2f}s",
                 )
                 # Process audio through STT with user metadata
                 user_metadata = {"user": user} if user else None
@@ -140,15 +138,15 @@ async def main() -> None:  # noqa: D401
                     user = event.user_metadata["user"]
                     user_info = str(user)
                 print(f"[{ts}] {user_info}: {event.text}")
-                if hasattr(event, 'confidence') and event.confidence:
+                if hasattr(event, "confidence") and event.confidence:
                     print(f"    └─ confidence: {event.confidence:.2%}")
-                if hasattr(event, 'processing_time_ms') and event.processing_time_ms:
+                if hasattr(event, "processing_time_ms") and event.processing_time_ms:
                     print(f"    └─ processing time: {event.processing_time_ms:.1f}ms")
 
             @stt.on("error")
             async def _on_error(event):
                 print(f"\n❌ STT Error: {event.error_message}")
-                if hasattr(event, 'context') and event.context:
+                if hasattr(event, "context") and event.context:
                     print(f"    └─ context: {event.context}")
 
             print("🎧 Listening for audio… (Press Ctrl+C to stop)")

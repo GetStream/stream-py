@@ -1,8 +1,7 @@
-"""
-Tests for exponential backoff utilities.
-"""
+"""Tests for exponential backoff utilities."""
 
 import pytest
+
 from getstream.video.rtc.coordinator.backoff import exp_backoff
 
 
@@ -16,9 +15,9 @@ async def test_exp_backoff_default_parameters():
     async for delay in exp_backoff(max_retries=max_retries):
         actual_delays.append(delay)
 
-    assert (
-        actual_delays == expected_delays
-    ), f"Expected delays {expected_delays}, but got {actual_delays}"
+    assert actual_delays == expected_delays, (
+        f"Expected delays {expected_delays}, but got {actual_delays}"
+    )
 
 
 @pytest.mark.asyncio
@@ -33,9 +32,9 @@ async def test_exp_backoff_custom_parameters():
     async for delay in exp_backoff(max_retries=max_retries, base=base, factor=factor):
         actual_delays.append(delay)
 
-    assert (
-        actual_delays == expected_delays
-    ), f"Expected delays {expected_delays}, but got {actual_delays}"
+    assert actual_delays == expected_delays, (
+        f"Expected delays {expected_delays}, but got {actual_delays}"
+    )
 
 
 @pytest.mark.asyncio
@@ -48,9 +47,9 @@ async def test_exp_backoff_zero_retries():
     async for delay in exp_backoff(max_retries=max_retries):
         actual_delays.append(delay)
 
-    assert (
-        actual_delays == expected_delays
-    ), f"Expected no delays for zero retries, but got {actual_delays}"
+    assert actual_delays == expected_delays, (
+        f"Expected no delays for zero retries, but got {actual_delays}"
+    )
 
 
 @pytest.mark.asyncio
@@ -64,9 +63,9 @@ async def test_exp_backoff_single_retry():
     async for delay in exp_backoff(max_retries=max_retries, base=base):
         actual_delays.append(delay)
 
-    assert (
-        actual_delays == expected_delays
-    ), f"Expected delays {expected_delays}, but got {actual_delays}"
+    assert actual_delays == expected_delays, (
+        f"Expected delays {expected_delays}, but got {actual_delays}"
+    )
 
 
 @pytest.mark.asyncio
@@ -81,6 +80,6 @@ async def test_exp_backoff_fractional_factor():
     async for delay in exp_backoff(max_retries=max_retries, base=base, factor=factor):
         actual_delays.append(delay)
 
-    assert (
-        actual_delays == expected_delays
-    ), f"Expected delays {expected_delays}, but got {actual_delays}"
+    assert actual_delays == expected_delays, (
+        f"Expected delays {expected_delays}, but got {actual_delays}"
+    )

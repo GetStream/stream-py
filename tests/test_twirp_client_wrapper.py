@@ -1,17 +1,17 @@
-# -*- coding: utf-8 -*-
 import unittest
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
-# Try importing the problematic module directly
-# import twirp.async_client # <-- REMOVE THIS DEBUG IMPORT
+from twirp.context import Context
 
-# Modules to test
-from getstream.video.rtc.twirp_client_wrapper import SignalClient, SfuRpcError
+from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
 
 # Protobufs needed for requests/responses and error codes
 from getstream.video.rtc.pb.stream.video.sfu.signal_rpc import signal_pb2
-from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
-from twirp.context import Context
+
+# Try importing the problematic module directly
+# import twirp.async_client # <-- REMOVE THIS DEBUG IMPORT
+# Modules to test
+from getstream.video.rtc.twirp_client_wrapper import SfuRpcError, SignalClient
 
 # No longer need to patch the base class path
 # ASYNC_CLIENT_PATH = "getstream.video.rtc.twirp_client_wrapper.AsyncSignalServerClient"
@@ -22,7 +22,7 @@ class TestSignalClientWrapper(unittest.IsolatedAsyncioTestCase):
         """Test RPC call succeeds when the response has no error field."""
         # Create a real instance of the wrapper
         wrapper_client = SignalClient(
-            address="http://mock_address"
+            address="http://mock_address",
         )  # Address needed for init
 
         # Create a MagicMock to simulate the response object
@@ -120,7 +120,9 @@ class TestSignalClientWrapper(unittest.IsolatedAsyncioTestCase):
         MAKE_REQUEST_PATH = "getstream.video.rtc.twirp_async_client_embed.AsyncTwirpClient._make_request"
 
         with patch(
-            MAKE_REQUEST_PATH, new_callable=AsyncMock, return_value=mock_response
+            MAKE_REQUEST_PATH,
+            new_callable=AsyncMock,
+            return_value=mock_response,
         ) as mock_make_request:
             ctx = Context()
             request = signal_pb2.UpdateSubscriptionsRequest(session_id="sid")

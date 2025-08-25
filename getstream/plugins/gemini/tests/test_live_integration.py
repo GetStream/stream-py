@@ -1,5 +1,5 @@
-import os
 import asyncio
+import os
 
 import pytest
 
@@ -14,8 +14,7 @@ except Exception:
 
 @pytest.mark.asyncio
 async def test_gemini_live_with_real_api():
-    """
-    Optional smoke test: requires GOOGLE_API_KEY and google-genai installed.
+    """Optional smoke test: requires GOOGLE_API_KEY and google-genai installed.
     Connects, sends a short text, and asserts we receive audio or text back.
     """
     api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
@@ -57,8 +56,8 @@ async def test_gemini_live_with_real_api():
         await asyncio.sleep(0.2)
 
     try:
-        assert (
-            events["audio"] or events["text"]
-        ), "No response received from Gemini Live"
+        assert events["audio"] or events["text"], (
+            "No response received from Gemini Live"
+        )
     finally:
         await sts.close()

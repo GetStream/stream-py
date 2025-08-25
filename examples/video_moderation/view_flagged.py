@@ -1,5 +1,6 @@
-from getstream import Stream
 from dotenv import load_dotenv
+
+from getstream import Stream
 from getstream.models import QueryReviewQueueResponse, ReviewQueueItemResponse
 
 load_dotenv()

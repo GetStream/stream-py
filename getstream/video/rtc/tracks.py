@@ -1,20 +1,19 @@
-"""
-Consolidated track management module for video streaming.
+"""Consolidated track management module for video streaming.
 Handles track publishing, subscription configuration, and subscription management.
 """
 
 import asyncio
 import logging
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
 from pyee.asyncio import AsyncIOEventEmitter
 
-from getstream.video.rtc.pb.stream.video.sfu.models.models_pb2 import VideoDimension
+from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
 from getstream.video.rtc.pb.stream.video.sfu.models.models_pb2 import (
     TrackType,
+    VideoDimension,
 )
-from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
 from getstream.video.rtc.pb.stream.video.sfu.signal_rpc import signal_pb2
 from getstream.video.rtc.twirp_client_wrapper import SfuRpcError
 
@@ -30,10 +29,10 @@ class TrackSubscriptionConfig:
 
     # Preferred dimensions
     video_dimension: VideoDimension = field(
-        default_factory=lambda: VideoDimension(width=1920, height=1080)
+        default_factory=lambda: VideoDimension(width=1920, height=1080),
     )
     screenshare_dimension: VideoDimension = field(
-        default_factory=lambda: VideoDimension(width=1920, height=1080)
+        default_factory=lambda: VideoDimension(width=1920, height=1080),
     )
 
 
@@ -49,10 +48,11 @@ class SubscriptionConfig:
         Mapping of role → rule.
     max_subscriptions : Optional[int]
         Global cap on active subscriptions.
+
     """
 
     default: TrackSubscriptionConfig = field(
-        default_factory=lambda: TrackSubscriptionConfig()
+        default_factory=lambda: TrackSubscriptionConfig(),
     )
     role_filters: Dict[str, TrackSubscriptionConfig] = field(default_factory=dict)
     max_subscriptions: Optional[int] = None
@@ -71,7 +71,8 @@ class SubscriptionManager(AsyncIOEventEmitter):
         self._subscription_config = subscription_config or SubscriptionConfig()
         self._subscribed_track_details: List[signal_pb2.TrackSubscriptionDetails] = []
         self._expected_tracks: Dict[
-            str, models_pb2.Participant
+            str,
+            models_pb2.Participant,
         ] = {}  # track_type:user_id:session_id -> participant
         self._received_track_order: List[
             str
@@ -79,7 +80,8 @@ class SubscriptionManager(AsyncIOEventEmitter):
         self._lock = asyncio.Lock()
 
     def _get_role_config(
-        self, participant: Optional[models_pb2.Participant]
+        self,
+        participant: Optional[models_pb2.Participant],
     ) -> Optional[TrackSubscriptionConfig]:
         """Determine which TrackSubscriptionConfig applies to the participant."""
         if not self._subscription_config:
@@ -94,7 +96,9 @@ class SubscriptionManager(AsyncIOEventEmitter):
         return self._subscription_config.default
 
     def _should_subscribe(
-        self, participant: Optional[models_pb2.Participant], track_type: int
+        self,
+        participant: Optional[models_pb2.Participant],
+        track_type: int,
     ) -> bool:
         """Check if a given track should be subscribed according to role config."""
         cfg = self._get_role_config(participant)
@@ -199,13 +203,13 @@ class SubscriptionManager(AsyncIOEventEmitter):
     async def handle_track_published(self, event):
         """Handle new remote track publications from the SFU."""
         logger.error(
-            f"Handling track published: {event.user_id} - {event.session_id} - {event.type}"
+            f"Handling track published: {event.user_id} - {event.session_id} - {event.type}",
         )
         try:
             # Keep participants state up-to-date
             if hasattr(event, "participant"):
                 self.connection_manager.participants_state.add_participant(
-                    event.participant
+                    event.participant,
                 )
 
                 # Register expected track for this user
@@ -220,7 +224,8 @@ class SubscriptionManager(AsyncIOEventEmitter):
                 return
 
             if not self._should_subscribe(
-                getattr(event, "participant", None), track_type
+                getattr(event, "participant", None),
+                track_type,
             ):
                 logger.error(f"Not subscribing to track: {event}")
                 return
@@ -243,7 +248,7 @@ class SubscriptionManager(AsyncIOEventEmitter):
                     >= self._subscription_config.max_subscriptions
                 ):
                     logger.error(
-                        "Max subscription limit reached, skipping new track subscription"
+                        "Max subscription limit reached, skipping new track subscription",
                     )
                     return
 

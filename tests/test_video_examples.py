@@ -1,21 +1,22 @@
-import pytest
-import uuid
 import asyncio
+import uuid
+from datetime import datetime, timedelta, timezone
+
+import pytest
 
 from getstream import Stream
 from getstream.base import StreamAPIException
 from getstream.models import (
+    BackstageSettingsRequest,
     CallRequest,
     CallSettingsRequest,
-    ScreensharingSettingsRequest,
-    OwnCapability,
-    LimitsSettingsRequest,
-    BackstageSettingsRequest,
-    SessionSettingsRequest,
     FrameRecordingSettingsRequest,
+    LimitsSettingsRequest,
+    OwnCapability,
+    ScreensharingSettingsRequest,
+    SessionSettingsRequest,
 )
 from getstream.video.call import Call
-from datetime import datetime, timezone, timedelta
 from tests.test_video_integration import get_openai_api_key_or_skip
 
 
@@ -34,10 +35,16 @@ def test_create_user(client: Stream):
 
     client.upsert_users(
         UserRequest(
-            id="tommaso-id", name="tommaso", role="admin", custom={"country": "NL"}
+            id="tommaso-id",
+            name="tommaso",
+            role="admin",
+            custom={"country": "NL"},
         ),
         UserRequest(
-            id="thierry-id", name="thierry", role="admin", custom={"country": "US"}
+            id="thierry-id",
+            name="thierry",
+            role="admin",
+            custom={"country": "US"},
         ),
     )
 
@@ -47,6 +54,7 @@ def test_create_user(client: Stream):
 
 def test_create_call_with_members(client: Stream):
     import uuid
+
     from getstream.models import (
         CallRequest,
         MemberRequest,
@@ -69,7 +77,7 @@ def test_block_unblock_user_from_calls(client: Stream, call: Call, get_user):
     call.get_or_create(
         data=CallRequest(
             created_by_id="tommaso-id",
-        )
+        ),
     )
     call.block_user(bad_user.id)
     response = call.get()
@@ -85,7 +93,7 @@ def test_send_custom_event(client: Stream, call: Call, get_user):
     call.get_or_create(
         data=CallRequest(
             created_by_id="tommaso-id",
-        )
+        ),
     )
     call.send_call_event(user_id=user.id, custom={"bananas": "good"})
 
@@ -96,13 +104,14 @@ def test_update_settings(call: Call):
     call.get_or_create(
         data=CallRequest(
             created_by_id=user_id,
-        )
+        ),
     )
 
     call.update(
         settings_override=CallSettingsRequest(
             screensharing=ScreensharingSettingsRequest(
-                enabled=True, access_request_enabled=True
+                enabled=True,
+                access_request_enabled=True,
             ),
         ),
     )
@@ -113,7 +122,7 @@ def test_mute_all(call: Call):
     call.get_or_create(
         data=CallRequest(
             created_by_id=user_id,
-        )
+        ),
     )
 
     call.mute_users(
@@ -131,7 +140,7 @@ def test_mute_some_users(call: Call, get_user):
     call.get_or_create(
         data=CallRequest(
             created_by_id=user_id,
-        )
+        ),
     )
 
     call.mute_users(
@@ -149,7 +158,7 @@ def test_update_user_permissions(call: Call, get_user):
     call.get_or_create(
         data=CallRequest(
             created_by_id=user_id,
-        )
+        ),
     )
 
     alice = get_user()
@@ -196,7 +205,7 @@ def test_create_call_with_session_timer(call: Call):
                     max_duration_seconds=3600,
                 ),
             ),
-        )
+        ),
     )
 
     assert response.data.call.settings.limits.max_duration_seconds == 3600
@@ -207,7 +216,7 @@ def test_create_call_with_session_timer(call: Call):
             limits=LimitsSettingsRequest(
                 max_duration_seconds=7200,
             ),
-        )
+        ),
     )
     assert response.data.call.settings.limits.max_duration_seconds == 7200
 
@@ -217,7 +226,7 @@ def test_create_call_with_session_timer(call: Call):
             limits=LimitsSettingsRequest(
                 max_duration_seconds=0,
             ),
-        )
+        ),
     )
     assert response.data.call.settings.limits.max_duration_seconds == 0
 
@@ -253,7 +262,7 @@ def test_create_call_with_backstage_and_join_ahead_set(client: Stream, call: Cal
                     join_ahead_time_seconds=300,
                 ),
             ),
-        )
+        ),
     )
 
     assert response.data.call.join_ahead_time_seconds == 300
@@ -264,7 +273,7 @@ def test_create_call_with_backstage_and_join_ahead_set(client: Stream, call: Cal
             backstage=BackstageSettingsRequest(
                 join_ahead_time_seconds=600,
             ),
-        )
+        ),
     )
     assert response.data.call.join_ahead_time_seconds == 600
 
@@ -274,7 +283,7 @@ def test_create_call_with_backstage_and_join_ahead_set(client: Stream, call: Cal
             backstage=BackstageSettingsRequest(
                 join_ahead_time_seconds=0,
             ),
-        )
+        ),
     )
     assert response.data.call.join_ahead_time_seconds == 0
 
@@ -291,7 +300,7 @@ def test_create_call_with_custom_session_inactivity_timeout(call: Call):
                     inactivity_timeout_seconds=5,
                 ),
             ),
-        )
+        ),
     )
 
     assert response.data.call.settings.session.inactivity_timeout_seconds == 5
@@ -343,18 +352,19 @@ def test_query_call_participants(client):
     call.get_or_create(
         data=CallRequest(
             created_by_id=str(uuid.uuid4()),
-        )
+        ),
     )
 
     call.query_call_participants(filter_conditions={"user_id": {"$eq": "user-id"}})
 
     # filter by published track
     call.query_call_participants(
-        filter_conditions={"published_tracks": {"$eq": "video"}}
+        filter_conditions={"published_tracks": {"$eq": "video"}},
     )
     # filter multiple users
     call.query_call_participants(
-        filter_conditions={"user_id": {"$in": ["user-id-1", "user-id-2"]}}, limit=100
+        filter_conditions={"user_id": {"$in": ["user-id-1", "user-id-2"]}},
+        limit=100,
     )
 
 
@@ -368,10 +378,12 @@ def test_create_call_with_custom_frame_recording_settings(client: Stream):
             created_by_id=user_id,
             settings_override=CallSettingsRequest(
                 frame_recording=FrameRecordingSettingsRequest(
-                    capture_interval_in_seconds=3, mode="auto-on", quality="1080p"
+                    capture_interval_in_seconds=3,
+                    mode="auto-on",
+                    quality="1080p",
                 ),
             ),
-        )
+        ),
     )
 
     assert response.data.call.settings.frame_recording.capture_interval_in_seconds == 3
@@ -386,7 +398,9 @@ def test_create_call_type_with_custom_frame_recording_settings(client: Stream):
         name="frame_recording_" + str(uuid.uuid4()),
         settings=CallSettingsRequest(
             frame_recording=FrameRecordingSettingsRequest(
-                capture_interval_in_seconds=5, mode="auto-on", quality="720p"
+                capture_interval_in_seconds=5,
+                mode="auto-on",
+                quality="720p",
             ),
         ),
     )
@@ -411,7 +425,7 @@ async def test_connect_openai(client: Stream, capsys):
                 call.connect_openai(openai_api_key, "lucy") as connection,
             ):
                 await connection.session.update(
-                    session={"instructions": "help the user with history questions"}
+                    session={"instructions": "help the user with history questions"},
                 )
                 await connection.session.update(session={"voice": "ballad"})
                 async for event in connection:
@@ -428,9 +442,9 @@ async def test_connect_openai(client: Stream, capsys):
                                     {
                                         "type": "input_text",
                                         "text": "Say hello to Kazuki in Japanese",
-                                    }
+                                    },
                                 ],
-                            }
+                            },
                         )
                         await connection.response.create()
         except asyncio.TimeoutError:

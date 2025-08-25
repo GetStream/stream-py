@@ -1,12 +1,12 @@
-"""
-Test the base STT class consistency improvements.
-"""
+"""Test the base STT class consistency improvements."""
 
-import pytest
 from unittest.mock import Mock
+
+import numpy as np
+import pytest
+
 from getstream.plugins.common import STT
 from getstream.video.rtc.track_util import PcmData
-import numpy as np
 
 
 class MockSTT(STT):

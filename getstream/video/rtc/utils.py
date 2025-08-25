@@ -3,8 +3,7 @@ from urllib.parse import urlencode
 
 
 def open_browser(api_key: str, token: str, call_id: str) -> str:
-    """
-    Helper function to open browser with Stream call link.
+    """Helper function to open browser with Stream call link.
 
     This utility function is useful for example projects and demos that need to
     provide a quick way for users to join a call via browser.
@@ -16,6 +15,7 @@ def open_browser(api_key: str, token: str, call_id: str) -> str:
 
     Returns:
         The URL that was opened
+
     """
     base_url = "https://pronto.getstream.io/bare/join/"
     params = {"api_key": api_key, "token": token, "skip_lobby": "true"}

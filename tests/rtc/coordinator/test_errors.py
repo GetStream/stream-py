@@ -1,12 +1,11 @@
-"""
-Tests for WebSocket coordinator exception hierarchy.
-"""
+"""Tests for WebSocket coordinator exception hierarchy."""
 
 import pytest
+
 from getstream.video.rtc.coordinator.errors import (
-    StreamWSException,
     StreamWSAuthError,
     StreamWSConnectionError,
+    StreamWSException,
     StreamWSMaxRetriesExceeded,
 )
 

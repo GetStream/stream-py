@@ -1,16 +1,16 @@
-import pytest
 import logging
 
+import pytest
+
 from getstream.video.rtc.location_discovery import (
-    HTTPHintLocationDiscovery,
     FALLBACK_LOCATION_NAME,
+    HTTPHintLocationDiscovery,
 )
 
 
 @pytest.mark.integration
 def test_real_discovery():
-    """
-    Integration test that connects to the real Stream hint URL.
+    """Integration test that connects to the real Stream hint URL.
 
     This test requires network access and will make a real HTTP request.
     It's marked with integration to make it easy to exclude from regular test runs.
@@ -29,8 +29,7 @@ def test_real_discovery():
 
 @pytest.mark.integration
 def test_cached_discovery():
-    """
-    Test that the discovery is cached and only makes one HTTP request.
+    """Test that the discovery is cached and only makes one HTTP request.
 
     This test requires network access and will make a real HTTP request.
     """
@@ -57,8 +56,7 @@ def test_cached_discovery():
 
 @pytest.mark.integration
 def test_fallback_with_invalid_url():
-    """
-    Test that discovery falls back to the default location with an invalid URL.
+    """Test that discovery falls back to the default location with an invalid URL.
 
     This test doesn't require network access since it should fail immediately.
     """

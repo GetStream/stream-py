@@ -1,9 +1,10 @@
 """Tests for the FalWizperSTT plugin."""
 
 import asyncio
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
 import numpy as np
+import pytest
 
 from getstream.plugins.fal.stt.stt import FalWizperSTT
 from getstream.video.rtc.track_util import PcmData
@@ -13,7 +14,7 @@ from getstream.video.rtc.track_util import PcmData
 def stt():
     """Provides a FalWizperSTT instance with a mocked fal_client."""
     with patch(
-        "getstream.plugins.fal.stt.stt.fal_client.AsyncClient"
+        "getstream.plugins.fal.stt.stt.fal_client.AsyncClient",
     ) as mock_fal_client:
         stt_instance = FalWizperSTT()
         stt_instance._fal_client = mock_fal_client.return_value
@@ -47,10 +48,10 @@ class TestFalWizperSTT:
     async def test_process_audio_impl_success_transcribe(self, stt):
         """Test successful transcription with a valid response."""
         stt._fal_client.upload_file = AsyncMock(
-            return_value="http://mock.url/audio.wav"
+            return_value="http://mock.url/audio.wav",
         )
         stt._fal_client.subscribe = AsyncMock(
-            return_value={"text": " This is a test. ", "chunks": []}
+            return_value={"text": " This is a test. ", "chunks": []},
         )
 
         transcript_handler = AsyncMock()
@@ -65,7 +66,8 @@ class TestFalWizperSTT:
 
         with (
             patch(
-                "tempfile.NamedTemporaryFile", new_callable=MagicMock
+                "tempfile.NamedTemporaryFile",
+                new_callable=MagicMock,
             ) as mock_temp_file,
             patch("os.unlink", new_callable=MagicMock) as mock_unlink,
         ):
@@ -98,14 +100,14 @@ class TestFalWizperSTT:
         with patch("getstream.plugins.fal.stt.stt.fal_client.AsyncClient"):
             stt = FalWizperSTT(task="translate", target_language="pt")
             stt._fal_client.upload_file = AsyncMock(
-                return_value="http://mock.url/audio.wav"
+                return_value="http://mock.url/audio.wav",
             )
             stt._fal_client.subscribe = AsyncMock(
-                return_value={"text": "This is a test.", "chunks": []}
+                return_value={"text": "This is a test.", "chunks": []},
             )
 
             samples = (np.sin(np.linspace(0, 440 * 2 * np.pi, 480)) * 32767).astype(
-                np.int16
+                np.int16,
             )
             pcm_data = PcmData(
                 samples=samples,
@@ -122,17 +124,17 @@ class TestFalWizperSTT:
     async def test_process_audio_impl_no_text(self, stt):
         """Test that no transcript is emitted if the API response lacks 'text'."""
         stt._fal_client.upload_file = AsyncMock(
-            return_value="http://mock.url/audio.wav"
+            return_value="http://mock.url/audio.wav",
         )
         stt._fal_client.subscribe = AsyncMock(
-            return_value={"chunks": []}
+            return_value={"chunks": []},
         )  # No 'text' field
 
         transcript_handler = AsyncMock()
         stt.on("transcript", transcript_handler)
 
         samples = (np.sin(np.linspace(0, 440 * 2 * np.pi, 480)) * 32767).astype(
-            np.int16
+            np.int16,
         )
         pcm_data = PcmData(
             samples=samples,
@@ -149,17 +151,17 @@ class TestFalWizperSTT:
     async def test_process_audio_impl_empty_text(self, stt):
         """Test that no transcript is emitted for empty or whitespace-only text."""
         stt._fal_client.upload_file = AsyncMock(
-            return_value="http://mock.url/audio.wav"
+            return_value="http://mock.url/audio.wav",
         )
         stt._fal_client.subscribe = AsyncMock(
-            return_value={"text": "  ", "chunks": []}
+            return_value={"text": "  ", "chunks": []},
         )  # Empty text
 
         transcript_handler = AsyncMock()
         stt.on("transcript", transcript_handler)
 
         samples = (np.sin(np.linspace(0, 440 * 2 * np.pi, 480)) * 32767).astype(
-            np.int16
+            np.int16,
         )
         pcm_data = PcmData(
             samples=samples,
@@ -181,7 +183,7 @@ class TestFalWizperSTT:
         stt.on("error", error_handler)
 
         samples = (np.sin(np.linspace(0, 440 * 2 * np.pi, 480)) * 32767).astype(
-            np.int16
+            np.int16,
         )
         pcm_data = PcmData(
             samples=samples,
@@ -217,7 +219,7 @@ class TestFalWizperSTT:
         """Test that audio is ignored if the STT service is closed."""
         await stt.close()
         samples = (np.sin(np.linspace(0, 440 * 2 * np.pi, 480)) * 32767).astype(
-            np.int16
+            np.int16,
         )
         pcm_data = PcmData(
             samples=samples,

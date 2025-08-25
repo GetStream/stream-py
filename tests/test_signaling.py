@@ -1,10 +1,11 @@
 import asyncio
-import pytest
 import threading
 from unittest.mock import patch
 
-from getstream.video.rtc.signaling import WebSocketClient, SignalingError
+import pytest
+
 from getstream.video.rtc.pb.stream.video.sfu.event import events_pb2
+from getstream.video.rtc.signaling import SignalingError, WebSocketClient
 
 
 class TestWebSocketClient:
@@ -43,7 +44,9 @@ class TestWebSocketClient:
         """Test successful connection flow."""
         # Create client
         client = WebSocketClient(
-            "wss://test.url", join_request, asyncio.get_running_loop()
+            "wss://test.url",
+            join_request,
+            asyncio.get_running_loop(),
         )
 
         # Prepare a successful response
@@ -99,7 +102,9 @@ class TestWebSocketClient:
         """Test connection with error response."""
         # Create client
         client = WebSocketClient(
-            "wss://test.url", join_request, asyncio.get_running_loop()
+            "wss://test.url",
+            join_request,
+            asyncio.get_running_loop(),
         )
 
         # Prepare an error response
@@ -134,7 +139,9 @@ class TestWebSocketClient:
         """Test WebSocket error during connection."""
         # Create client
         client = WebSocketClient(
-            "wss://test.url", join_request, asyncio.get_running_loop()
+            "wss://test.url",
+            join_request,
+            asyncio.get_running_loop(),
         )
 
         # Start connection
@@ -149,7 +156,8 @@ class TestWebSocketClient:
 
         # Verify connect throws an exception
         with pytest.raises(
-            SignalingError, match="Connection failed: Connection failed"
+            SignalingError,
+            match="Connection failed: Connection failed",
         ):
             await connect_task
 
@@ -161,7 +169,9 @@ class TestWebSocketClient:
         """Test event callbacks are executed correctly."""
         # Create client
         client = WebSocketClient(
-            "wss://test.url", join_request, asyncio.get_running_loop()
+            "wss://test.url",
+            join_request,
+            asyncio.get_running_loop(),
         )
 
         # Prepare a successful join response first
@@ -221,7 +231,9 @@ class TestWebSocketClient:
         """Test that thread is properly used and managed."""
         # Create client
         client = WebSocketClient(
-            "wss://test.url", join_request, asyncio.get_running_loop()
+            "wss://test.url",
+            join_request,
+            asyncio.get_running_loop(),
         )
 
         # Mock threading.Thread to capture usage
@@ -246,7 +258,8 @@ class TestWebSocketClient:
             join_response.join_response.reconnected = False
             on_message_callback = mock_websocket.call_args[1]["on_message"]
             on_message_callback(
-                mock_websocket.return_value, join_response.SerializeToString()
+                mock_websocket.return_value,
+                join_response.SerializeToString(),
             )
 
             # Complete the connect

@@ -4,9 +4,7 @@ import warnings
 
 
 class ConnectionManagerWrapper:
-    """
-    Wrapper for OpenAI's connection manager that adds error checking and better error messages.
-    """
+    """Wrapper for OpenAI's connection manager that adds error checking and better error messages."""
 
     def __init__(self, connection_manager, call_type, call_id):
         self.connection_manager = connection_manager
@@ -28,7 +26,7 @@ class ConnectionManagerWrapper:
     async def __anext__(self):
         if not hasattr(self, "connection"):
             raise RuntimeError(
-                "Connection not established. Use 'async with' to establish the connection first."
+                "Connection not established. Use 'async with' to establish the connection first.",
             )
 
         try:
@@ -40,7 +38,9 @@ class ConnectionManagerWrapper:
                 if hasattr(event, "type") and event.type == "error":
                     try:
                         error_json = json.dumps(
-                            event.__dict__ if hasattr(event, "__dict__") else str(event)
+                            event.__dict__
+                            if hasattr(event, "__dict__")
+                            else str(event),
                         )
                         raise Exception(error_json)
                     except TypeError:
@@ -74,7 +74,7 @@ def import_openai():
     except ImportError:
         raise ImportError(
             "failed to import openai, make sure to install this package like this: "
-            "getstream[openai-realtime]"
+            "getstream[openai-realtime]",
         )
     return openai
 
@@ -112,7 +112,7 @@ def patched_connection_manager_prepare_url(self):
     if not client_attr:
         raise RuntimeError(
             "Failed to patch OpenAI client: could not find client attribute on connection manager. "
-            "The OpenAI SDK structure may have changed."
+            "The OpenAI SDK structure may have changed.",
         )
 
     client = getattr(self, client_attr)
@@ -120,15 +120,14 @@ def patched_connection_manager_prepare_url(self):
     if not hasattr(client, "websocket_base_url"):
         raise RuntimeError(
             "Failed to patch OpenAI client: client does not have websocket_base_url attribute. "
-            "The OpenAI SDK structure may have changed."
+            "The OpenAI SDK structure may have changed.",
         )
 
     return httpx.URL(client.websocket_base_url)
 
 
 async def patched_recv(self):
-    """
-    Receive the next message from the connection and parses it into a `RealtimeServerEvent` object.
+    """Receive the next message from the connection and parses it into a `RealtimeServerEvent` object.
 
     Canceling this method is safe. There's no risk of losing data.
     """
@@ -136,7 +135,7 @@ async def patched_recv(self):
     if not hasattr(self, "recv_bytes") or not hasattr(self, "parse_event"):
         raise RuntimeError(
             "Failed to patch OpenAI client: connection object does not have expected methods. "
-            "The OpenAI SDK structure may have changed."
+            "The OpenAI SDK structure may have changed.",
         )
 
     try:
@@ -146,7 +145,7 @@ async def patched_recv(self):
         # Create a simple class for type checking, but warn that the SDK structure might have changed
         warnings.warn(
             "Could not import ErrorEvent from openai.types.beta.realtime.error_event. "
-            "The OpenAI SDK structure may have changed."
+            "The OpenAI SDK structure may have changed.",
         )
 
         class ErrorEvent:
@@ -164,7 +163,7 @@ def patch_realtime_connect(client):
     if not hasattr(client, "beta") or not hasattr(client.beta, "realtime"):
         raise RuntimeError(
             "Failed to patch OpenAI client: client does not have beta.realtime. "
-            "The OpenAI SDK structure may have changed."
+            "The OpenAI SDK structure may have changed.",
         )
 
     # Try to patch the AsyncRealtimeConnection.recv method directly
@@ -186,7 +185,7 @@ def patch_realtime_connect(client):
     except ImportError as e:
         warnings.warn(
             f"Could not directly patch AsyncRealtimeConnection.recv: {str(e)}. "
-            "Will attempt to patch at runtime."
+            "Will attempt to patch at runtime.",
         )
 
     # Try to patch the connection manager's _prepare_url method
@@ -205,7 +204,7 @@ def patch_realtime_connect(client):
 
             if not prepare_url_candidates:
                 raise ImportError(
-                    "AsyncRealtimeConnectionManager does not have a method that prepares URLs"
+                    "AsyncRealtimeConnectionManager does not have a method that prepares URLs",
                 )
 
             # Use the first candidate
@@ -215,7 +214,8 @@ def patch_realtime_connect(client):
 
         # Save the original method
         AsyncRealtimeConnectionManager._original_prepare_url = getattr(
-            AsyncRealtimeConnectionManager, prepare_url_method
+            AsyncRealtimeConnectionManager,
+            prepare_url_method,
         )
 
         # Replace with our patched version
@@ -227,7 +227,7 @@ def patch_realtime_connect(client):
     except ImportError as e:
         warnings.warn(
             f"Could not directly patch AsyncRealtimeConnectionManager._prepare_url: {str(e)}. "
-            "Will attempt to patch at runtime."
+            "Will attempt to patch at runtime.",
         )
 
     # Monkey patch the __aenter__ method of AsyncRealtimeConnectionManager to patch the connection's recv method
@@ -247,7 +247,8 @@ def patch_realtime_connect(client):
 
             # Patch the connection's recv method if it hasn't been patched already
             if hasattr(connection, "recv") and not hasattr(
-                connection, "_original_recv"
+                connection,
+                "_original_recv",
             ):
                 connection._original_recv = connection.recv
                 connection.recv = types.MethodType(patched_recv, connection)
@@ -259,19 +260,19 @@ def patch_realtime_connect(client):
     except (ImportError, AttributeError) as e:
         warnings.warn(
             f"Could not patch AsyncRealtimeConnectionManager.__aenter__: {str(e)}. "
-            "The recv method may not be patched correctly."
+            "The recv method may not be patched correctly.",
         )
 
 
 def dict_to_class(dictionary):
-    """
-    Convert a dictionary to a StreamEvent object with a nice string representation.
+    """Convert a dictionary to a StreamEvent object with a nice string representation.
 
     Args:
         dictionary: The dictionary to convert.
 
     Returns:
         A StreamEvent object with properties from the dictionary.
+
     """
 
     class StreamEvent:
@@ -294,7 +295,7 @@ def dict_to_class(dictionary):
                             # Convert snake_case to CamelCase
                             subparts = part.split("_")
                             camel_parts.append(
-                                "".join(subpart.capitalize() for subpart in subparts)
+                                "".join(subpart.capitalize() for subpart in subparts),
                             )
                         else:
                             camel_parts.append(part.capitalize())

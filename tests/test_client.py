@@ -1,5 +1,6 @@
-from getstream import Stream
 import pytest
+
+from getstream import Stream
 
 
 def test_incorrect_client_throws_exception():

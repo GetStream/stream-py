@@ -1,14 +1,12 @@
-"""
-Coordinator API functions for Stream Video RTC.
-"""
+"""Coordinator API functions for Stream Video RTC."""
 
 import logging
 from typing import Optional
 
 from getstream.base import StreamResponse
 from getstream.models import CallRequest
-from getstream.video.call import Call
 from getstream.utils import build_body_dict
+from getstream.video.call import Call
 
 # Import the types we need from __init__ without creating circular imports
 from getstream.video.rtc.models import JoinCallResponse
@@ -40,6 +38,7 @@ async def join_call_coordinator_request(
 
     Returns:
         A response containing the call information and credentials
+
     """
     # Create a token for this user
     token = call.client.stream_audio.create_token(user_id=user_id)

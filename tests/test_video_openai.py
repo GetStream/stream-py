@@ -1,5 +1,4 @@
-"""
-Tests for the OpenAI patching functionality in getstream.video.openai.
+"""Tests for the OpenAI patching functionality in getstream.video.openai.
 
 This test file is designed to verify that the patching of the OpenAI client works correctly
 and to detect regressions when upgrading to newer versions of the OpenAI SDK.
@@ -16,16 +15,17 @@ needs to be updated to accommodate changes in the SDK structure.
 """
 
 import json
-import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
 import os
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 from getstream.video.openai import (
-    import_openai,
-    get_openai_realtime_client,
-    patched_connection_manager_prepare_url,
-    patch_realtime_connect,
     dict_to_class,
+    get_openai_realtime_client,
+    import_openai,
+    patch_realtime_connect,
+    patched_connection_manager_prepare_url,
 )
 
 
@@ -46,7 +46,7 @@ class TestOpenAIPatching:
         with (
             patch("getstream.video.openai.import_openai") as mock_import_openai,
             patch(
-                "getstream.video.openai.patch_realtime_connect"
+                "getstream.video.openai.patch_realtime_connect",
             ) as mock_patch_realtime_connect,
         ):
             mock_openai = MagicMock()
@@ -65,7 +65,7 @@ class TestOpenAIPatching:
         with (
             patch("getstream.video.openai.import_openai") as mock_import_openai,
             patch(
-                "getstream.video.openai.patch_realtime_connect"
+                "getstream.video.openai.patch_realtime_connect",
             ) as mock_patch_realtime_connect,
         ):
             mock_openai = MagicMock()
@@ -89,11 +89,7 @@ class TestOpenAIPatching:
         # Set up the client attribute with a different name to test attribute discovery
         mock_client = MagicMock()
         mock_client.websocket_base_url = "wss://example.com/video/connect_agent"
-        setattr(
-            mock_connection_manager,
-            "_AsyncRealtimeConnectionManager__client",
-            mock_client,
-        )
+        mock_connection_manager._AsyncRealtimeConnectionManager__client = mock_client
 
         # Call the function
         result = patched_connection_manager_prepare_url(mock_connection_manager)
@@ -109,7 +105,7 @@ class TestOpenAIPatching:
         mock_connection = MagicMock()
         mock_connection.recv_bytes = AsyncMock()
         mock_connection.recv_bytes.return_value = json.dumps(
-            {"type": "error", "message": "test error"}
+            {"type": "error", "message": "test error"},
         ).encode()
 
         # Define a custom ErrorEvent class for testing
@@ -215,7 +211,7 @@ class TestOpenAIPatching:
         original_recv = AsyncMock(return_value="original")
         mock_connection.recv = original_recv
         mock_connection.recv_bytes = AsyncMock(
-            return_value=json.dumps({"type": "message"}).encode()
+            return_value=json.dumps({"type": "message"}).encode(),
         )
 
         # Create a mock connection manager
@@ -264,8 +260,8 @@ class TestOpenAIPatching:
         mock_connection = MagicMock()
         mock_connection.recv_bytes = AsyncMock(
             return_value=json.dumps(
-                {"type": "message", "content": "Hello, world!"}
-            ).encode()
+                {"type": "message", "content": "Hello, world!"},
+            ).encode(),
         )
         mock_connection.parse_event.return_value = MagicMock()
 
@@ -310,7 +306,7 @@ class TestOpenAIPatching:
         with (
             patch("getstream.video.openai.import_openai") as mock_import_openai,
             patch(
-                "getstream.video.openai.patch_realtime_connect"
+                "getstream.video.openai.patch_realtime_connect",
             ) as mock_patch_realtime_connect,
         ):
             mock_openai = MagicMock()

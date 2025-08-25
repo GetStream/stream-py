@@ -1,14 +1,15 @@
 import json
+from abc import ABC
 from typing import Any, Dict, Optional, Type, get_origin
+from urllib.parse import quote
 
+import httpx
+
+from getstream.config import BaseConfig
+from getstream.generic import T
 from getstream.models import APIError
 from getstream.rate_limit import extract_rate_limit
 from getstream.stream_response import StreamResponse
-from getstream.generic import T
-import httpx
-from getstream.config import BaseConfig
-from urllib.parse import quote
-from abc import ABC
 
 
 def build_path(path: str, path_params: dict) -> str:
@@ -47,7 +48,9 @@ class BaseClient(BaseConfig, ABC):
         self.close()
 
     def _parse_response(
-        self, response: httpx.Response, data_type: Type[T]
+        self,
+        response: httpx.Response,
+        data_type: Type[T],
     ) -> StreamResponse[T]:
         if response.status_code >= 399:
             raise StreamAPIException(
@@ -81,7 +84,10 @@ class BaseClient(BaseConfig, ABC):
         **kwargs,
     ) -> StreamResponse[T]:
         response = self.client.patch(
-            build_path(path, path_params), params=query_params, *args, **kwargs
+            build_path(path, path_params),
+            params=query_params,
+            *args,
+            **kwargs,
         )
         return self._parse_response(response, data_type or Dict[str, Any])
 
@@ -95,7 +101,10 @@ class BaseClient(BaseConfig, ABC):
         **kwargs,
     ) -> StreamResponse[T]:
         response = self.client.get(
-            build_path(path, path_params), params=query_params, *args, **kwargs
+            build_path(path, path_params),
+            params=query_params,
+            *args,
+            **kwargs,
         )
         return self._parse_response(response, data_type or Dict[str, Any])
 
@@ -109,7 +118,10 @@ class BaseClient(BaseConfig, ABC):
         **kwargs,
     ) -> StreamResponse[T]:
         response = self.client.post(
-            build_path(path, path_params), params=query_params, *args, **kwargs
+            build_path(path, path_params),
+            params=query_params,
+            *args,
+            **kwargs,
         )
 
         return self._parse_response(response, data_type or Dict[str, Any])
@@ -124,7 +136,10 @@ class BaseClient(BaseConfig, ABC):
         **kwargs,
     ) -> StreamResponse[T]:
         response = self.client.put(
-            build_path(path, path_params), params=query_params, *args, **kwargs
+            build_path(path, path_params),
+            params=query_params,
+            *args,
+            **kwargs,
         )
         return self._parse_response(response, data_type or Dict[str, Any])
 
@@ -138,20 +153,20 @@ class BaseClient(BaseConfig, ABC):
         **kwargs,
     ) -> StreamResponse[T]:
         response = self.client.delete(
-            build_path(path, path_params), params=query_params, *args, **kwargs
+            build_path(path, path_params),
+            params=query_params,
+            *args,
+            **kwargs,
         )
         return self._parse_response(response, data_type or Dict[str, Any])
 
     def close(self):
-        """
-        Close HTTPX client.
-        """
+        """Close HTTPX client."""
         self.client.close()
 
 
 class StreamAPIException(Exception):
-    """
-    A custom exception for handling errors from a Stream API response.
+    """A custom exception for handling errors from a Stream API response.
 
     This exception is raised when an API call encounters an issue, providing
     detailed information from the HTTP response. It attempts to parse the response
@@ -172,6 +187,7 @@ class StreamAPIException(Exception):
     Raises:
         ValueError: If the response content cannot be parsed into JSON, indicating
             that the server's response was not in the expected format.
+
     """
 
     def __init__(self, response: httpx.Response) -> None:
@@ -189,5 +205,4 @@ class StreamAPIException(Exception):
     def __str__(self) -> str:
         if self.api_error:
             return f'Stream error code {self.api_error.code}: {self.api_error.message}"'
-        else:
-            return f"Stream error HTTP code: {self.status_code}"
+        return f"Stream error HTTP code: {self.status_code}"

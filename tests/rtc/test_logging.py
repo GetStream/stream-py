@@ -1,5 +1,5 @@
-import logging
 import io
+import logging
 
 from getstream.utils import configure_logging
 from getstream.video.rtc import logger as rtc_logger

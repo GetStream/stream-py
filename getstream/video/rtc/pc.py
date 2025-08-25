@@ -1,20 +1,18 @@
 import asyncio
 import logging
-from typing import Optional, Any
+from typing import Any, Optional
 
 import aiortc
 from aiortc.contrib.media import MediaRelay
+from pyee.asyncio import AsyncIOEventEmitter
 
 from getstream.video.rtc.track_util import AudioTrackHandler
-from pyee.asyncio import AsyncIOEventEmitter
 
 logger = logging.getLogger(__name__)
 
 
 def parse_track_id(id: str) -> tuple[str, str]:
-    """
-    Parse the webRTC media track and returns a tuple including: the id of the participant, the type of track
-    """
+    """Parse the webRTC media track and returns a tuple including: the id of the participant, the type of track"""
     participant_id, track_type, _ = id.split(":")
     return participant_id, track_type
 
@@ -27,10 +25,10 @@ class PublisherPeerConnection(aiortc.RTCPeerConnection):
     ) -> None:
         if configuration is None:
             configuration = aiortc.RTCConfiguration(
-                iceServers=[aiortc.RTCIceServer(urls="stun:stun.l.google.com:19302")]
+                iceServers=[aiortc.RTCIceServer(urls="stun:stun.l.google.com:19302")],
             )
         logger.info(
-            f"Creating publisher peer connection with configuration: {configuration}"
+            f"Creating publisher peer connection with configuration: {configuration}",
         )
         super().__init__(configuration)
         self.manager = manager
@@ -39,7 +37,7 @@ class PublisherPeerConnection(aiortc.RTCPeerConnection):
         @self.on("icegatheringstatechange")
         def on_icegatheringstatechange():
             logger.info(
-                f"Publisher ICE gathering state changed to {self.iceGatheringState}"
+                f"Publisher ICE gathering state changed to {self.iceGatheringState}",
             )
             if self.iceGatheringState == "complete":
                 logger.info("Publisher: All ICE candidates have been gathered.")
@@ -47,7 +45,7 @@ class PublisherPeerConnection(aiortc.RTCPeerConnection):
         @self.on("iceconnectionstatechange")
         def on_iceconnectionstatechange():
             logger.info(
-                f"Publisher ICE connection state changed to {self.iceConnectionState}"
+                f"Publisher ICE connection state changed to {self.iceConnectionState}",
             )
 
         @self.on("connectionstatechange")
@@ -58,16 +56,16 @@ class PublisherPeerConnection(aiortc.RTCPeerConnection):
 
     async def handle_answer(self, response):
         """Handles the SDP answer received from the SFU for the publisher connection."""
-
         logger.info(f"Publisher received answer {response.sdp}")
 
         remote_description = aiortc.RTCSessionDescription(
-            type="answer", sdp=response.sdp
+            type="answer",
+            sdp=response.sdp,
         )
 
         await self.setRemoteDescription(remote_description)
         logger.info(
-            f"Publisher remote description set successfully. {self.localDescription}"
+            f"Publisher remote description set successfully. {self.localDescription}",
         )
 
     async def wait_for_connected(self, timeout: float = 15.0):
@@ -106,10 +104,10 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
     ) -> None:
         if configuration is None:
             configuration = aiortc.RTCConfiguration(
-                iceServers=[aiortc.RTCIceServer(urls="stun:stun.l.google.com:19302")]
+                iceServers=[aiortc.RTCIceServer(urls="stun:stun.l.google.com:19302")],
             )
         logger.info(
-            f"creating subscriber peer connection with configuration: {configuration}"
+            f"creating subscriber peer connection with configuration: {configuration}",
         )
         super().__init__(configuration)
         self.connection = connection
@@ -135,7 +133,8 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
             if track.kind == "audio":
                 # Add a new subscriber for AudioTrackHandler
                 handler = AudioTrackHandler(
-                    relay.subscribe(track), lambda pcm: self.emit("audio", pcm, user)
+                    relay.subscribe(track),
+                    lambda pcm: self.emit("audio", pcm, user),
                 )
                 asyncio.ensure_future(handler.start())
 
@@ -148,7 +147,8 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
                 logger.info("All ICE candidates have been gathered.")
 
     def add_track_subscriber(
-        self, track_id: str
+        self,
+        track_id: str,
     ) -> Optional[aiortc.mediastreams.MediaStreamTrack]:
         """Add a new subscriber to an existing track's MediaRelay."""
         track_data = self.track_map.get(track_id)

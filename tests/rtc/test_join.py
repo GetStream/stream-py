@@ -1,16 +1,17 @@
+import asyncio
+import logging
+import os  # Import os for path manipulation
+import time
+import uuid
+from multiprocessing import Process, Value
+from typing import Any, Callable
+
 import pytest
+from dotenv import load_dotenv
+
 from getstream.stream import Stream
 from getstream.video import rtc
 from getstream.video.rtc import audio_track
-import os  # Import os for path manipulation
-import asyncio
-import uuid
-from multiprocessing import Process, Value
-import time
-from dotenv import load_dotenv
-import logging
-from typing import Callable, Any
-
 from getstream.video.rtc.track_util import PcmData
 
 pytest.skip("Skipping RTC join tests during regular test runs", allow_module_level=True)
@@ -28,8 +29,7 @@ def run_process_with_stream_client(
     task_func: Callable[[Stream, Any, str, int, logging.Logger], Any],
     *args,
 ):
-    """
-    Common function to handle process setup for Stream client processes.
+    """Common function to handle process setup for Stream client processes.
 
     Args:
         process_type: String identifier for the process ('SENDER' or 'RECEIVER')
@@ -38,11 +38,13 @@ def run_process_with_stream_client(
         test_timeout: Timeout in seconds
         task_func: The specific task function to run in the process
         *args: Additional arguments to pass to the task function
+
     """
 
     async def _async_runner():
         import logging
         import sys
+
         from getstream.stream import Stream
 
         # Configure logging in this process
@@ -74,7 +76,7 @@ def run_process_with_stream_client(
                 flush=True,
             )
             raise ValueError(
-                "API credentials not found. Make sure STREAM_API_KEY and STREAM_API_SECRET are set."
+                "API credentials not found. Make sure STREAM_API_KEY and STREAM_API_SECRET are set.",
             )
 
         client = Stream(api_key=api_key, api_secret=api_secret)
@@ -110,7 +112,7 @@ async def receiver_task(
         @connection.on("audio")
         async def audio_handler(pcm: PcmData, participant):
             logger.info(
-                f"Audio event received: {len(pcm.samples)} bytes of PCM data from {participant}"
+                f"Audio event received: {len(pcm.samples)} bytes of PCM data from {participant}",
             )
             # Set the shared flag to indicate audio was received
             received_flag.value = 1
@@ -160,14 +162,23 @@ async def sender_task(
 # Function to run the receiver in a separate process - defined at module level
 def run_receiver(call_id, received_flag, file_path, test_timeout):
     run_process_with_stream_client(
-        "RECEIVER", call_id, file_path, test_timeout, receiver_task, received_flag
+        "RECEIVER",
+        call_id,
+        file_path,
+        test_timeout,
+        receiver_task,
+        received_flag,
     )
 
 
 # Function to run the sender in a separate process - defined at module level
 def run_sender(call_id, file_path, test_timeout):
     run_process_with_stream_client(
-        "SENDER", call_id, file_path, test_timeout, sender_task
+        "SENDER",
+        call_id,
+        file_path,
+        test_timeout,
+        sender_task,
     )
 
 
@@ -187,7 +198,6 @@ async def test_join_two_users(client: Stream):
 
     Uses separate processes for sender and receiver to ensure complete isolation.
     """
-
     # Configure logging in the main process
     logger = logging.getLogger("test_join_two_users")
 
@@ -258,9 +268,10 @@ async def test_join_two_users(client: Stream):
 @pytest.mark.asyncio
 async def test_detect_video_properties(client: Stream):
     from aiortc.contrib.media import MediaPlayer
+
     from getstream.video.rtc.track_util import (
-        detect_video_properties,
         BufferedMediaTrack,
+        detect_video_properties,
     )
 
     file_path = "/Users/tommaso/src/data-samples/video/SampleVideo_1280x720_30mb.mp4"
@@ -286,16 +297,16 @@ async def test_detect_video_properties(client: Stream):
         # Verify detected properties match expectations
         assert "width" in video_props, "Width not detected"
         assert "height" in video_props, "Height not detected"
-        assert (
-            video_props["width"] == 1280
-        ), f"Incorrect width detected: {video_props['width']}"
-        assert (
-            video_props["height"] == 720
-        ), f"Incorrect height detected: {video_props['height']}"
+        assert video_props["width"] == 1280, (
+            f"Incorrect width detected: {video_props['width']}"
+        )
+        assert video_props["height"] == 720, (
+            f"Incorrect height detected: {video_props['height']}"
+        )
         assert video_props["fps"] == 25, "Invalid FPS value"
-        assert (
-            1000 <= video_props["bitrate"] <= 2000
-        ), f"Unexpected bitrate: {video_props['bitrate']}"
+        assert 1000 <= video_props["bitrate"] <= 2000, (
+            f"Unexpected bitrate: {video_props['bitrate']}"
+        )
 
     finally:
         # Ensure player is properly closed
@@ -356,9 +367,9 @@ async def test_play_audio_track_from_text(client: Stream):
 
 @pytest.mark.asyncio
 async def test_full_echo(client: Stream):
-    from getstream.plugins.silero import SileroVAD
     from getstream.plugins.deepgram import DeepgramSTT
     from getstream.plugins.gs_elevenlabs import ElevenLabsTTS
+    from getstream.plugins.silero import SileroVAD
 
     audio = audio_track.AudioStreamTrack(framerate=16000)
     vad = SileroVAD()
@@ -381,14 +392,14 @@ async def test_full_echo(client: Stream):
         @vad.on("audio")
         async def on_speech_detected(pcm: PcmData, user):
             print(
-                f"{time.time()} Speech detected from user: {user} duration {pcm.duration}"
+                f"{time.time()} Speech detected from user: {user} duration {pcm.duration}",
             )
             await stt.process_audio(pcm, None)
 
         @stt.on("transcript")
         async def on_transcript(text: str, user: Any, metadata: dict[str, Any]):
             print(
-                f"{time.time()} got text from audio, will echo back the transcript {text}"
+                f"{time.time()} got text from audio, will echo back the transcript {text}",
             )
             await tts_instance.send(text)
 

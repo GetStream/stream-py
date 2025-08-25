@@ -1,10 +1,12 @@
 import logging
+import os
+from collections.abc import AsyncIterator
+from typing import Optional
+
+from elevenlabs.client import AsyncElevenLabs
 
 from getstream.plugins.common import TTS
-from elevenlabs.client import AsyncElevenLabs
 from getstream.video.rtc.audio_track import AudioStreamTrack
-from typing import AsyncIterator, Optional
-import os
 
 
 class ElevenLabsTTS(TTS):
@@ -15,8 +17,7 @@ class ElevenLabsTTS(TTS):
         model_id: str = "eleven_multilingual_v2",
         client: Optional[AsyncElevenLabs] = None,
     ):
-        """
-        Initialize the ElevenLabs TTS service.
+        """Initialize the ElevenLabs TTS service.
 
         Args:
             api_key: ElevenLabs API key. If not provided, the ELEVENLABS_API_KEY
@@ -24,6 +25,7 @@ class ElevenLabsTTS(TTS):
             voice_id: The voice ID to use for synthesis
             model_id: The model ID to use for synthesis
             client: Optionally pass in your own instance of the ElvenLabs Client.
+
         """
         super().__init__()
 
@@ -42,16 +44,15 @@ class ElevenLabsTTS(TTS):
         super().set_output_track(track)
 
     async def stream_audio(self, text: str, *args, **kwargs) -> AsyncIterator[bytes]:
-        """
-        Convert text to speech using ElevenLabs API.
+        """Convert text to speech using ElevenLabs API.
 
         Args:
             text: The text to convert to speech
 
         Returns:
             An async iterator of audio chunks as bytes
-        """
 
+        """
         audio_stream = self.client.text_to_speech.stream(
             text=text,
             voice_id=self.voice_id,
@@ -65,12 +66,12 @@ class ElevenLabsTTS(TTS):
         return audio_stream
 
     async def stop_audio(self) -> None:
-        """
-        Clears the queue and stops playing audio.
+        """Clears the queue and stops playing audio.
         This method can be used manually or under the hood in response to turn events.
 
         Returns:
             None
+
         """
         if self.track is not None:
             try:

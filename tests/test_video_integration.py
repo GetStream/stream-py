@@ -1,46 +1,45 @@
-import time
-
-import pytest
-import uuid
-import jwt
 import os
-from getstream.models import (
-    S3Request,
-    CallSettingsRequest,
-    OwnCapability,
-    AudioSettingsRequest,
-    ScreensharingSettingsRequest,
-    RecordSettingsRequest,
-    BackstageSettingsRequest,
-    GeofenceSettingsRequest,
-    CallRequest,
-    LayoutSettingsRequest,
-    NotificationSettings,
-    EventNotificationSettings,
-    APNS,
-    UserRequest,
-    QueryUsersPayload,
-)
+import time
+import uuid
+
+import jwt
+import pytest
 
 from getstream.base import StreamAPIException
+from getstream.models import (
+    APNS,
+    AudioSettingsRequest,
+    BackstageSettingsRequest,
+    CallRequest,
+    CallSettingsRequest,
+    EventNotificationSettings,
+    GeofenceSettingsRequest,
+    LayoutSettingsRequest,
+    NotificationSettings,
+    OwnCapability,
+    QueryUsersPayload,
+    RecordSettingsRequest,
+    S3Request,
+    ScreensharingSettingsRequest,
+    UserRequest,
+)
 from getstream.stream import Stream
 from getstream.video.call import Call
-from tests.base import VideoTestClass
-from tests.base import wait_for_task
+from tests.base import VideoTestClass, wait_for_task
 
 CALL_TYPE_NAME = f"calltype{uuid.uuid4()}"
 EXTERNAL_STORAGE_NAME = f"storage{uuid.uuid4()}"
 
 
 def get_openai_api_key_or_skip():
-    """
-    Get the OpenAI API key from environment variables or skip the test.
+    """Get the OpenAI API key from environment variables or skip the test.
 
     Returns:
         str: The OpenAI API key.
 
     Raises:
         pytest.skip: If the OpenAI API key is not set.
+
     """
     openai_api_key = os.environ.get("OPENAI_API_KEY")
     if not openai_api_key:
@@ -75,14 +74,14 @@ def test_teams(client: Stream):
         data=CallRequest(
             created_by_id=user_id,
             team="blue",
-        )
+        ),
     )
     assert response.data.call.team == "blue"
 
     response = client.query_users(
         QueryUsersPayload(
-            filter_conditions={"id": user_id, "teams": {"$in": ["red", "blue"]}}
-        )
+            filter_conditions={"id": user_id, "teams": {"$in": ["red", "blue"]}},
+        ),
     )
     assert len(response.data.users) > 0
     assert user_id in [u.id for u in response.data.users]
@@ -91,13 +90,13 @@ def test_teams(client: Stream):
         QueryUsersPayload(
             filter_conditions={
                 "teams": None,
-            }
-        )
+            },
+        ),
     )
     assert len([u for u in response.data.users if len(u.teams) > 0]) == 0
 
     response = client.video.query_calls(
-        filter_conditions={"id": call_id, "team": {"$eq": "blue"}}
+        filter_conditions={"id": call_id, "team": {"$eq": "blue"}},
     )
 
     assert len(response.data.calls) > 0
@@ -140,7 +139,8 @@ class TestCallTypes:
                 enabled=True,
                 call_notification=EventNotificationSettings(
                     apns=APNS(
-                        title="{{ user.display_name }} invites you to a call", body=""
+                        title="{{ user.display_name }} invites you to a call",
+                        body="",
                     ),
                     enabled=True,
                 ),
@@ -167,7 +167,8 @@ class TestCallTypes:
                 ),
                 call_missed=EventNotificationSettings(
                     apns=APNS(
-                        title="{{ user.display_name }} invites you to a call", body=""
+                        title="{{ user.display_name }} invites you to a call",
+                        body="",
                     ),
                     enabled=True,
                 ),
@@ -311,7 +312,7 @@ class TestCall(VideoTestClass):
                     geofencing=GeofenceSettingsRequest(
                         names=[
                             "canada",
-                        ]
+                        ],
                     ),
                     screensharing=ScreensharingSettingsRequest(
                         enabled=False,
@@ -352,7 +353,7 @@ class TestCall(VideoTestClass):
                 recording=RecordSettingsRequest(
                     mode="available",
                     audio_only=True,
-                )
+                ),
             ),
         )
         assert response.data.call.settings.recording.mode == "available"
@@ -382,7 +383,9 @@ class TestCall(VideoTestClass):
     def test_get_call_report_for_specified_session(self):
         with pytest.raises(StreamAPIException):
             self.client.video.get_call_report(
-                self.call.call_type, self.call.id, session_id="non_existent"
+                self.call.call_type,
+                self.call.id,
+                session_id="non_existent",
             )
 
 

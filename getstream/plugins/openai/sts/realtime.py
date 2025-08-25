@@ -11,9 +11,8 @@ Key Features:
 - Support for custom instructions and voice selection
 - Session management and updates
 
-Example
+Example:
 -------
-
 ```python
 from getstream.stream import Stream
 from getstream.plugins.sts.openai_realtime import OpenAIRealtime
@@ -50,6 +49,7 @@ The class handles all the complexity of:
 3. Forwarding all events from OpenAI/Stream
 4. Managing the connection lifecycle
 5. Providing helper methods for common operations
+
 """
 
 from __future__ import annotations
@@ -61,7 +61,6 @@ from typing import Any, Dict, Optional
 from getstream.plugins.common import STS
 from getstream.video.call import Call
 from getstream.video.openai import ConnectionManagerWrapper
-
 
 logger = logging.getLogger(__name__)
 
@@ -83,8 +82,8 @@ class OpenAIRealtime(STS):
             model: Model ID to use when connecting.
             voice: Optional voice selection passed to the session.
             instructions: Optional system instructions passed to the session.
-        """
 
+        """
         super().__init__()
 
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
@@ -109,7 +108,6 @@ class OpenAIRealtime(STS):
             • every event coming from OpenAI/Stream, verbatim
             • ``disconnected`` – after normal closure or error
         """
-
         if self._is_connected:
             raise RuntimeError("AI agent already connected")
 
@@ -140,7 +138,7 @@ class OpenAIRealtime(STS):
         self._emit_connected_event()
 
         logger.info(
-            f"Connected OpenAI agent to call {call.call_type}/{call.id} using model {self.model}"
+            f"Connected OpenAI agent to call {call.call_type}/{call.id} using model {self.model}",
         )
         return self._connection
 
@@ -161,7 +159,7 @@ class OpenAIRealtime(STS):
                 "type": "function_call_output",
                 "call_id": tool_call_id,
                 "output": output,
-            }
+            },
         )
 
     async def send_user_message(self, text: str):
@@ -177,9 +175,9 @@ class OpenAIRealtime(STS):
                     {
                         "type": "input_text",
                         "text": text,
-                    }
+                    },
                 ],
-            }
+            },
         )
         await self.request_assistant_response()
 

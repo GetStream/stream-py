@@ -2,26 +2,30 @@ import abc
 import logging
 import time
 import uuid
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 import numpy as np
 from pyee.asyncio import AsyncIOEventEmitter
 
+from getstream.audio.pcm_utils import numpy_array_to_bytes, pcm_to_numpy_array
 from getstream.video.rtc.track_util import PcmData
-from getstream.audio.pcm_utils import pcm_to_numpy_array, numpy_array_to_bytes
 
-from .events import (
-    VADSpeechStartEvent, VADSpeechEndEvent, VADAudioEvent, VADPartialEvent, VADErrorEvent,
-    PluginInitializedEvent, PluginClosedEvent
-)
 from .event_utils import register_global_event
+from .events import (
+    PluginClosedEvent,
+    PluginInitializedEvent,
+    VADAudioEvent,
+    VADErrorEvent,
+    VADPartialEvent,
+    VADSpeechEndEvent,
+    VADSpeechStartEvent,
+)
 
 logger = logging.getLogger(__name__)
 
 
 class VAD(AsyncIOEventEmitter, abc.ABC):
-    """
-    Voice Activity Detection base class.
+    """Voice Activity Detection base class.
 
     This abstract class provides the interface for voice activity detection
     implementations. It handles:
@@ -46,8 +50,7 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
         partial_frames: int = 10,
         provider_name: Optional[str] = None,
     ):
-        """
-        Initialize the VAD.
+        """Initialize the VAD.
 
         Args:
             sample_rate: Audio sample rate in Hz
@@ -60,6 +63,7 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
             max_speech_ms: Maximum milliseconds of speech before forced flush
             partial_frames: Number of frames to process before emitting a "partial" event
             provider_name: Name of the VAD provider (e.g., "silero")
+
         """
         super().__init__()
 
@@ -110,38 +114,39 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
                 "deactivation_threshold": deactivation_th,
                 "min_speech_ms": min_speech_ms,
                 "max_speech_ms": max_speech_ms,
-            }
+            },
         )
         register_global_event(init_event)
         self.emit("initialized", init_event)
 
     @abc.abstractmethod
     async def is_speech(self, frame: PcmData) -> float:
-        """
-        Determine if the audio frame contains speech.
+        """Determine if the audio frame contains speech.
 
         Args:
             frame: Audio frame data as PcmData
 
         Returns:
             Probability (0.0 to 1.0) that the frame contains speech
+
         """
         pass
 
     async def process_audio(
-        self, pcm_data: PcmData, user: Optional[Dict[str, Any]] = None
+        self,
+        pcm_data: PcmData,
+        user: Optional[Dict[str, Any]] = None,
     ) -> None:
-        """
-        Process raw PCM audio data for voice activity detection.
+        """Process raw PCM audio data for voice activity detection.
 
         Args:
             pcm_data: Raw PCM audio data
             user: User metadata to include with emitted audio events
-        """
 
+        """
         if pcm_data.sample_rate != self.sample_rate:
             raise TypeError(
-                f"vad is initialized with sample rate {self.sample_rate} but pcm data has sample rate {pcm_data.sample_rate}"
+                f"vad is initialized with sample rate {self.sample_rate} but pcm data has sample rate {pcm_data.sample_rate}",
             )
 
         # Convert samples to numpy array using shared utility
@@ -183,14 +188,16 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
             logger.debug(f"Keeping {len(self._leftover)} samples for next processing")
 
     async def _process_frame(
-        self, frame: PcmData, user: Optional[Dict[str, Any]] = None
+        self,
+        frame: PcmData,
+        user: Optional[Dict[str, Any]] = None,
     ) -> None:
-        """
-        Process a single audio frame.
+        """Process a single audio frame.
 
         Args:
             frame: Audio frame as PcmData
             user: User metadata to include with emitted audio events
+
         """
         speech_prob = await self.is_speech(frame)
 
@@ -217,7 +224,8 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
             if self.partial_counter >= self.partial_frames:
                 # Create a copy of the current speech data
                 current_samples = np.frombuffer(
-                    self.speech_buffer, dtype=np.int16
+                    self.speech_buffer,
+                    dtype=np.int16,
                 ).copy()
 
                 # Calculate current duration
@@ -230,13 +238,13 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
                     audio_data=current_samples,
                     duration_ms=current_duration_ms,
                     frame_count=len(current_samples) // self.frame_size,
-                    user_metadata=user
+                    user_metadata=user,
                 )
                 register_global_event(partial_event)
                 self.emit("partial", partial_event)  # Structured event
 
                 logger.debug(
-                    f"Emitted partial event with {len(current_samples)} samples"
+                    f"Emitted partial event with {len(current_samples)} samples",
                 )
                 self.partial_counter = 0
 
@@ -249,7 +257,7 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
 
                 # Calculate silence pad frames based on ms
                 speech_pad_frames = int(
-                    self.speech_pad_ms * self.sample_rate / 1000 / self.frame_size
+                    self.speech_pad_ms * self.sample_rate / 1000 / self.frame_size,
                 )
 
                 # If silence exceeds padding duration, emit audio and reset
@@ -258,7 +266,7 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
 
             # Calculate max speech frames based on ms
             max_speech_frames = int(
-                self.max_speech_ms * self.sample_rate / 1000 / self.frame_size
+                self.max_speech_ms * self.sample_rate / 1000 / self.frame_size,
             )
 
             # Force flush if speech duration exceeds maximum
@@ -280,7 +288,7 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
                 speech_probability=speech_prob,
                 activation_threshold=self.activation_th,
                 frame_count=1,
-                user_metadata=user
+                user_metadata=user,
             )
             register_global_event(speech_start_event)
             self.emit("speech_start", speech_start_event)
@@ -290,15 +298,15 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
             self.speech_buffer.extend(frame_bytes)
 
     async def _flush_speech_buffer(self, user: Optional[Dict[str, Any]] = None) -> None:
-        """
-        Flush the accumulated speech buffer if it meets minimum length requirements.
+        """Flush the accumulated speech buffer if it meets minimum length requirements.
 
         Args:
             user: User metadata to include with emitted audio events
+
         """
         # Calculate min speech frames based on ms
         min_speech_frames = int(
-            self.min_speech_ms * self.sample_rate / 1000 / self.frame_size
+            self.min_speech_ms * self.sample_rate / 1000 / self.frame_size,
         )
 
         # Convert bytearray to numpy array
@@ -315,7 +323,7 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
                 audio_data=speech_data,
                 duration_ms=speech_duration_ms,
                 frame_count=len(speech_data) // self.frame_size,
-                user_metadata=user
+                user_metadata=user,
             )
             register_global_event(audio_event)
             self.emit("audio", audio_event)  # Structured event
@@ -332,7 +340,7 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
                 deactivation_threshold=self.deactivation_th,
                 total_speech_duration_ms=total_speech_duration,
                 total_frames=self.total_speech_frames,
-                user_metadata=user
+                user_metadata=user,
             )
             register_global_event(speech_end_event)
             self.emit("speech_end", speech_end_event)
@@ -346,11 +354,11 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
         self._speech_start_time = None
 
     async def flush(self, user: Optional[Dict[str, Any]] = None) -> None:
-        """
-        Public method to flush any accumulated speech buffer.
+        """Public method to flush any accumulated speech buffer.
 
         Args:
             user: User metadata to include with emitted audio events
+
         """
         await self._flush_speech_buffer(user)
 
@@ -364,7 +372,12 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
         self._leftover = np.empty(0, np.int16)
         self._speech_start_time = None
 
-    def _emit_error_event(self, error: Exception, context: str = "", user_metadata: Optional[Dict[str, Any]] = None):
+    def _emit_error_event(
+        self,
+        error: Exception,
+        context: str = "",
+        user_metadata: Optional[Dict[str, Any]] = None,
+    ):
         """Emit a structured error event."""
         error_event = VADErrorEvent(
             session_id=self.session_id,
@@ -372,7 +385,7 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
             error=error,
             context=context,
             user_metadata=user_metadata,
-            frame_data_available=len(self.speech_buffer) > 0
+            frame_data_available=len(self.speech_buffer) > 0,
         )
         register_global_event(error_event)
         self.emit("error", error_event)  # Structured event
@@ -389,7 +402,7 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
             plugin_name=self.provider_name,
             plugin_type="VAD",
             provider=self.provider_name,
-            cleanup_successful=True
+            cleanup_successful=True,
         )
         register_global_event(close_event)
         self.emit("closed", close_event)

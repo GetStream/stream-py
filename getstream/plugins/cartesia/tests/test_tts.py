@@ -1,12 +1,11 @@
-import os
 import asyncio
-from unittest.mock import patch, MagicMock
+import os
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from getstream.plugins.cartesia.tts import CartesiaTTS
 from getstream.video.rtc.audio_track import AudioStreamTrack
-
 
 ############################
 # Test utilities & fixtures
@@ -39,7 +38,7 @@ class MockAsyncCartesia:
         mock_audio = [b"\x00\x00" * 1000, b"\x00\x00" * 1000]
 
         self.tts.bytes = MagicMock(
-            side_effect=lambda *_, **__: _AsyncBytesIterator(mock_audio.copy())
+            side_effect=lambda *_, **__: _AsyncBytesIterator(mock_audio.copy()),
         )
 
 

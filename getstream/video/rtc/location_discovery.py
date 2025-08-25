@@ -1,15 +1,14 @@
-"""
-Location discovery for video streaming.
+"""Location discovery for video streaming.
 
 This module provides functionality to discover the optimal location for video streaming
 connections based on CloudFront POP headers.
 """
 
-import logging
-import http.client
 import functools
-from typing import Optional, Protocol
+import http.client
+import logging
 from contextlib import contextmanager
+from typing import Optional, Protocol
 
 # Constants matching the Go implementation
 HEADER_CLOUDFRONT_POP = "X-Amz-Cf-Pop"
@@ -43,14 +42,14 @@ class HTTPHintLocationDiscovery:
         client: Optional[HTTPClient] = None,
         logger: Optional[logging.Logger] = None,
     ):
-        """
-        Initialize the location discovery service.
+        """Initialize the location discovery service.
 
         Args:
             url: The URL to use for discovery
             max_retries: Maximum number of retries for discovery
             client: HTTP client to use
             logger: Logger instance
+
         """
         self.url = url
         self.max_retries = max_retries
@@ -60,14 +59,14 @@ class HTTPHintLocationDiscovery:
 
     @functools.lru_cache(maxsize=1)
     def discover(self, context=None) -> str:
-        """
-        Discover the closest location based on CloudFront pop.
+        """Discover the closest location based on CloudFront pop.
 
         Args:
             context: Optional context (for compatibility with Go implementation)
 
         Returns:
             The 3-character location code (e.g. "IAD", "FRA")
+
         """
         parsed_url = self.url.split("://", 1)
         if len(parsed_url) != 2:
@@ -118,11 +117,11 @@ class HTTPHintLocationDiscovery:
 
 
 def create_default_http_client():
-    """
-    Create a default HTTP client with appropriate timeouts.
+    """Create a default HTTP client with appropriate timeouts.
 
     Returns:
         A simple HTTP client
+
     """
 
     class SimpleHTTPClient:

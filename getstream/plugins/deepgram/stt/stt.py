@@ -1,14 +1,15 @@
 import asyncio
 import json
 import logging
-from typing import Dict, Any, Optional, Tuple, List
-import numpy as np
 import os
 import time
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
 
 # Conditional imports with error handling
 try:
-    from deepgram import DeepgramClient, LiveTranscriptionEvents, LiveOptions
+    from deepgram import DeepgramClient, LiveOptions, LiveTranscriptionEvents
 
     _deepgram_available = True
 except ImportError:
@@ -24,8 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 class DeepgramSTT(STT):
-    """
-    Deepgram-based Speech-to-Text implementation.
+    """Deepgram-based Speech-to-Text implementation.
 
     This implementation operates in asynchronous mode - it receives streaming transcripts
     from Deepgram's WebSocket connection and emits events immediately as they arrive,
@@ -50,8 +50,7 @@ class DeepgramSTT(STT):
         interim_results: bool = False,
         client: Optional[DeepgramClient] = None,
     ):
-        """
-        Initialize the Deepgram STT service.
+        """Initialize the Deepgram STT service.
 
         Args:
             api_key: Deepgram API key. If not provided, the DEEPGRAM_API_KEY
@@ -62,6 +61,7 @@ class DeepgramSTT(STT):
             keep_alive_interval: Interval in seconds to send keep-alive messages.
                                 Default is 5.0 seconds (recommended value by Deepgram)
             interim_results: Whether to emit interim results (partial transcripts with the partial_transcript event).
+
         """
         super().__init__(sample_rate=sample_rate)
 
@@ -74,7 +74,7 @@ class DeepgramSTT(STT):
             api_key = os.environ.get("DEEPGRAM_API_KEY")
             if not api_key:
                 logger.warning(
-                    "No API key provided and DEEPGRAM_API_KEY environment variable not found."
+                    "No API key provided and DEEPGRAM_API_KEY environment variable not found.",
                 )
 
         # Initialize DeepgramClient with the API key
@@ -104,11 +104,12 @@ class DeepgramSTT(STT):
         self._setup_connection()
 
     def _handle_transcript_result(
-        self, is_final: bool, text: str, metadata: Dict[str, Any]
+        self,
+        is_final: bool,
+        text: str,
+        metadata: Dict[str, Any],
     ):
-        """
-        Handle a transcript result by emitting it immediately.
-        """
+        """Handle a transcript result by emitting it immediately."""
         # Emit immediately for real-time responsiveness
         if is_final:
             self._emit_transcript_event(text, self._current_user, metadata)
@@ -153,7 +154,8 @@ class DeepgramSTT(STT):
                         transcript = json.loads(result)
                     else:
                         logger.warning(
-                            "Unrecognized transcript format: %s", type(result)
+                            "Unrecognized transcript format: %s",
+                            type(result),
                         )
                         return
 
@@ -228,7 +230,8 @@ class DeepgramSTT(STT):
         """Start the background task that sends keep-alive messages."""
         if self.keep_alive_task is None and self._running:
             logger.debug(
-                "Starting keep-alive task with interval %ss", self.keep_alive_interval
+                "Starting keep-alive task with interval %ss",
+                self.keep_alive_interval,
             )
             self.keep_alive_task = asyncio.create_task(self._keep_alive_loop())
 
@@ -292,10 +295,11 @@ class DeepgramSTT(STT):
             return False
 
     async def _process_audio_impl(
-        self, pcm_data: PcmData, user_metadata: Optional[Dict[str, Any]] = None
+        self,
+        pcm_data: PcmData,
+        user_metadata: Optional[Dict[str, Any]] = None,
     ) -> Optional[List[Tuple[bool, str, Dict[str, Any]]]]:
-        """
-        Process audio data through Deepgram for transcription.
+        """Process audio data through Deepgram for transcription.
 
         Args:
             pcm_data: The PCM audio data to process.
@@ -304,6 +308,7 @@ class DeepgramSTT(STT):
         Returns:
             None - Deepgram operates in asynchronous mode and emits events directly
             when transcripts arrive from the streaming service.
+
         """
         if self._is_closed:
             logger.warning("Deepgram connection is closed, ignoring audio")

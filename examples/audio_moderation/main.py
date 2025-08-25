@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Example: Real-time Call Transcription with Deepgram STT
+"""Example: Real-time Call Transcription with Deepgram STT
 
 This example demonstrates how to:
 1. Join a Stream video call
@@ -18,46 +17,46 @@ Requirements:
 import argparse
 import asyncio
 import logging
-import warnings
 import os
 import time
 import uuid
+import warnings
 import webbrowser
 from urllib.parse import urlencode
 
 from dotenv import load_dotenv
 
-from getstream.models import UserRequest
+from getstream.models import CheckResponse, ModerationPayload, UserRequest
+from getstream.plugins.deepgram.stt import DeepgramSTT
 from getstream.stream import Stream
 from getstream.video import rtc
 from getstream.video.rtc.track_util import PcmData
-from getstream.models import CheckResponse, ModerationPayload
-from getstream.plugins.deepgram.stt import DeepgramSTT
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
 # Suppress dataclasses_json missing value RuntimeWarnings
 warnings.filterwarnings(
-    "ignore", category=RuntimeWarning, module="dataclasses_json.core"
+    "ignore",
+    category=RuntimeWarning,
+    module="dataclasses_json.core",
 )
 
 
 def create_user(client: Stream, id: str, name: str) -> None:
-    """
-    Create a user with a unique Stream ID.
+    """Create a user with a unique Stream ID.
 
     Args:
         client: Stream client instance
         id: Unique user ID
         name: Display name for the user
+
     """
     user_request = UserRequest(id=id, name=name)
     client.upsert_users(user_request)
 
 
 def open_browser(api_key: str, token: str, call_id: str) -> str:
-    """
-    Helper function to open browser with Stream call link.
+    """Helper function to open browser with Stream call link.
 
     Args:
         api_key: Stream API key
@@ -66,6 +65,7 @@ def open_browser(api_key: str, token: str, call_id: str) -> str:
 
     Returns:
         The URL that was opened
+
     """
     base_url = f"{os.getenv('EXAMPLE_BASE_URL')}/join/"
     params = {"api_key": api_key, "token": token, "skip_lobby": "true"}
@@ -90,7 +90,6 @@ def moderate(client: Stream, text: str, user_name: str) -> CheckResponse:
     thread with ``asyncio.to_thread`` from async code without blocking the event
     loop.
     """
-
     return client.moderation.check(
         config_key="custom:python-ai-test",  # your moderation config key
         entity_creator_id=user_name,
@@ -127,7 +126,7 @@ async def main(client: Stream):
     print("\n🤖 Starting moderation bot...")
     print("The bot will join the call and moderate all audio it receives.")
     print(
-        "Join the call in your browser and speak to see moderation results appear here!"
+        "Join the call in your browser and speak to see moderation results appear here!",
     )
     print("\nPress Ctrl+C to stop the moderation bot.\n")
 
@@ -153,21 +152,26 @@ async def main(client: Stream):
                     user = event.user_metadata["user"]
                     user_info = user.name if hasattr(user, "name") else str(user)
                 print(f"[{timestamp}] {user_info}: {event.text}")
-                if hasattr(event, 'confidence') and event.confidence:
+                if hasattr(event, "confidence") and event.confidence:
                     print(f"    └─ confidence: {event.confidence:.2%}")
-                if hasattr(event, 'processing_time_ms') and event.processing_time_ms:
+                if hasattr(event, "processing_time_ms") and event.processing_time_ms:
                     print(f"    └─ processing time: {event.processing_time_ms:.1f}ms")
 
                 # Moderation check (executed in a background thread to avoid blocking)
-                moderation = await asyncio.to_thread(moderate, client, event.text, user_info)
+                moderation = await asyncio.to_thread(
+                    moderate,
+                    client,
+                    event.text,
+                    user_info,
+                )
                 print(
-                    f"    └─ moderation recommended action: {moderation.recommended_action} for transcript: {event.text}"
+                    f"    └─ moderation recommended action: {moderation.recommended_action} for transcript: {event.text}",
                 )
 
             @stt.on("error")
             async def on_stt_error(event):
                 print(f"\n❌ STT Error: {event.error_message}")
-                if hasattr(event, 'context') and event.context:
+                if hasattr(event, "context") and event.context:
                     print(f"    └─ context: {event.context}")
 
             # Keep the connection alive and wait for audio
@@ -189,7 +193,7 @@ async def main(client: Stream):
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Stream Real-time Audio Moderation Example"
+        description="Stream Real-time Audio Moderation Example",
     )
     parser.add_argument("--setup", action="store_true", help="Setup moderation config")
     return parser.parse_args()

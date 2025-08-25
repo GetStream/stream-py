@@ -1,9 +1,9 @@
+import asyncio
+import importlib
 import sys
 import types
-import asyncio
-from unittest.mock import AsyncMock
 from typing import Any, cast
-import importlib
+from unittest.mock import AsyncMock
 
 import numpy as np
 import pytest
@@ -64,10 +64,9 @@ class _DummySession:
                 for data, text in self._responses:
                     obj = types.SimpleNamespace()
                     obj.data = data
-                    setattr(obj, "text", text)
+                    obj.text = text
                     yield obj
             self._receive_calls += 1
-            return
 
         return _gen()
 

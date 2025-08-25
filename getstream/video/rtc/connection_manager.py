@@ -2,39 +2,38 @@ import asyncio
 import json
 import logging
 import uuid
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 import aioice
 import aiortc
 from twirp.context import Context
 
 from getstream.utils import StreamAsyncIOEventEmitter
-from getstream.video.rtc.coordinator.ws import StreamAPIWS
-from getstream.video.rtc.pb.stream.video.sfu.event import events_pb2
-from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
-from getstream.video.rtc.pb.stream.video.sfu.signal_rpc import signal_pb2
-from getstream.video.rtc.twirp_client_wrapper import SfuRpcError, SignalClient
-
 from getstream.video.call import Call
 from getstream.video.rtc.connection_utils import (
+    ConnectionOptions,
     ConnectionState,
     SfuConnectionError,
-    ConnectionOptions,
     connect_websocket,
     join_call,
 )
+from getstream.video.rtc.coordinator.ws import StreamAPIWS
+from getstream.video.rtc.location_discovery import HTTPHintLocationDiscovery
+from getstream.video.rtc.models import JoinCallResponse
+from getstream.video.rtc.network_monitor import NetworkMonitor
+from getstream.video.rtc.participants import ParticipantsState
+from getstream.video.rtc.pb.stream.video.sfu.event import events_pb2
+from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
+from getstream.video.rtc.pb.stream.video.sfu.signal_rpc import signal_pb2
+from getstream.video.rtc.peer_connection import PeerConnectionManager
+from getstream.video.rtc.reconnection import ReconnectionManager
+from getstream.video.rtc.recording import RecordingManager
 from getstream.video.rtc.track_util import (
     fix_sdp_msid_semantic,
     parse_track_stream_mapping,
 )
-from getstream.video.rtc.network_monitor import NetworkMonitor
-from getstream.video.rtc.recording import RecordingManager
-from getstream.video.rtc.participants import ParticipantsState
 from getstream.video.rtc.tracks import SubscriptionConfig, SubscriptionManager
-from getstream.video.rtc.reconnection import ReconnectionManager
-from getstream.video.rtc.peer_connection import PeerConnectionManager
-from getstream.video.rtc.location_discovery import HTTPHintLocationDiscovery
-from getstream.video.rtc.models import JoinCallResponse
+from getstream.video.rtc.twirp_client_wrapper import SfuRpcError, SignalClient
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +78,8 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         self._network_monitor: NetworkMonitor = NetworkMonitor(self)
         self._reconnector: ReconnectionManager = ReconnectionManager(self)
         self._subscription_manager: SubscriptionManager = SubscriptionManager(
-            self, subscription_config
+            self,
+            subscription_config,
         )
         self._peer_manager: PeerConnectionManager = PeerConnectionManager(self)
 
@@ -115,7 +115,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                 return
 
             candidate = aiortc.rtcicetransport.candidate_from_aioice(
-                aioice.Candidate.from_sdp(candidate_sdp)
+                aioice.Candidate.from_sdp(candidate_sdp),
             )
             candidate.sdpMid = ice_candidate.get("sdpMid")
             candidate.sdpMLineIndex = ice_candidate.get("sdpMLineIndex")
@@ -140,13 +140,14 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             fixed_sdp = fix_sdp_msid_semantic(event.sdp)
             # Parse SDP to create track_id to stream_id mapping
             self.participants_state.set_track_stream_mapping(
-                parse_track_stream_mapping(fixed_sdp)
+                parse_track_stream_mapping(fixed_sdp),
             )
             # The SDP offer from the SFU might already contain candidates (trickled)
             # or have a different structure. We set it as the remote description.
             # The aiortc library handles merging and interpretation.
             remote_description = aiortc.RTCSessionDescription(
-                type="offer", sdp=fixed_sdp
+                type="offer",
+                sdp=fixed_sdp,
             )
             logger.debug(f"""Setting remote description with SDP:
             {remote_description.sdp}""")
@@ -159,7 +160,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
 
             logger.info(
                 f"""Sending answer with local description:
-            {self.subscriber_pc.localDescription.sdp}"""
+            {self.subscriber_pc.localDescription.sdp}""",
             )
 
             try:
@@ -215,8 +216,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         token: Optional[str] = None,
         session_id: Optional[str] = None,
     ) -> None:
-        """
-        Internal connection method that handles the core connection logic.
+        """Internal connection method that handles the core connection logic.
 
         Args:
             region: Optional region to connect to
@@ -226,6 +226,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
 
         Raises:
             SfuConnectionError: If connection fails
+
         """
         self.connection_state = ConnectionState.JOINING
 
@@ -273,10 +274,12 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
 
             # Connect track subscription events to subscription manager
             self._ws_client.on_event(
-                "track_published", self._subscription_manager.handle_track_published
+                "track_published",
+                self._subscription_manager.handle_track_published,
             )
             self._ws_client.on_event(
-                "track_unpublished", self._subscription_manager.handle_track_unpublished
+                "track_unpublished",
+                self._subscription_manager.handle_track_unpublished,
             )
 
             # Connect subscriber offer event to handle SDP negotiation
@@ -324,8 +327,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         logger.info("Successfully connected to SFU")
 
     async def connect(self):
-        """
-        Connect to SFU.
+        """Connect to SFU.
 
         This method automatically handles retry logic for transient errors
         like "server is full" and network issues.
@@ -334,8 +336,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         await self._connect_internal()
 
     async def wait(self):
-        """
-        Wait until the connection is over.
+        """Wait until the connection is over.
 
         This is useful for tests and examples where you want to wait for the
         connection to end rather than just sleeping for a fixed time.
@@ -393,12 +394,17 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             await self.add_tracks(audio=track)
 
     async def start_recording(
-        self, recording_types, user_ids=None, output_dir="recordings"
+        self,
+        recording_types,
+        user_ids=None,
+        output_dir="recordings",
     ):
         """Start recording."""
         logger.info("Starting recording")
         await self._recording_manager.start_recording(
-            recording_types, user_ids, output_dir
+            recording_types,
+            user_ids,
+            output_dir,
         )
 
     async def stop_recording(self, recording_types=None, user_ids=None):
@@ -452,7 +458,10 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         return self._peer_manager.subscriber_negotiation_lock
 
     async def _cleanup_connections(
-        self, ws_client=None, publisher_pc=None, subscriber_pc=None
+        self,
+        ws_client=None,
+        publisher_pc=None,
+        subscriber_pc=None,
     ):
         """Close provided connections safely; used by ReconnectionManager."""
         try:

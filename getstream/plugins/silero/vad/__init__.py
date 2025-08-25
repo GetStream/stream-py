@@ -1,5 +1,4 @@
-"""
-Silero Voice Activity Detection (VAD) implementation.
+"""Silero Voice Activity Detection (VAD) implementation.
 
 This module provides a high-performance speech detection implementation using the
 Silero VAD model (https://github.com/snakers4/silero-vad).

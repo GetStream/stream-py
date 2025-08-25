@@ -1,6 +1,4 @@
-"""
-Monitors network connectivity and manages network state.
-"""
+"""Monitors network connectivity and manages network state."""
 
 import asyncio
 import logging
@@ -26,8 +24,7 @@ class NetworkMonitor(AsyncIOEventEmitter):
         check_interval: float = 1.0,
         required_successful_pings: int = 1,
     ):
-        """
-        Initialize network monitor.
+        """Initialize network monitor.
 
         Args:
             connection_manager: The ConnectionManager instance
@@ -35,6 +32,7 @@ class NetworkMonitor(AsyncIOEventEmitter):
             connectivity_timeout: Timeout for ping checks
             check_interval: Seconds between connectivity checks
             required_successful_pings: Number of successful pings needed to consider network online
+
         """
         super().__init__()
 
@@ -97,11 +95,11 @@ class NetworkMonitor(AsyncIOEventEmitter):
                 await asyncio.sleep(self.check_interval)
 
     async def _check_connectivity(self) -> bool:
-        """
-        Check connectivity using ping3 package.
+        """Check connectivity using ping3 package.
 
         Returns:
             True if required number of pings succeed, False otherwise
+
         """
         successful_pings = 0
 
@@ -109,13 +107,14 @@ class NetworkMonitor(AsyncIOEventEmitter):
             try:
                 # Run ping in executor to avoid blocking
                 response_time = await asyncio.get_event_loop().run_in_executor(
-                    None, lambda: ping3.ping(host, timeout=self.connectivity_timeout)
+                    None,
+                    lambda: ping3.ping(host, timeout=self.connectivity_timeout),
                 )
 
                 if response_time is not None:
                     successful_pings += 1
                     self.logger.debug(
-                        f"Ping to {host} successful: {response_time:.2f}s"
+                        f"Ping to {host} successful: {response_time:.2f}s",
                     )
 
                     # If we've reached the required number of successful pings, we're online
@@ -130,11 +129,11 @@ class NetworkMonitor(AsyncIOEventEmitter):
         return False
 
     async def _handle_network_change(self, online: bool):
-        """
-        Handle network status changes and emit events.
+        """Handle network status changes and emit events.
 
         Args:
             online: True if network is now available, False if unavailable
+
         """
         status = "online" if online else "offline"
         self.logger.debug(f"Network status changed to {status}")
@@ -187,8 +186,9 @@ class NetworkMonitor(AsyncIOEventEmitter):
 
                 asyncio.create_task(
                     self.connection_manager.reconnector.reconnect(
-                        strategy, "Going online"
-                    )
+                        strategy,
+                        "Going online",
+                    ),
                 )
 
         @self.on("network_online")

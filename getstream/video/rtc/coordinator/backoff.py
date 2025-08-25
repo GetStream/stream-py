@@ -1,21 +1,21 @@
-"""
-Exponential backoff implementation for WebSocket reconnection.
+"""Exponential backoff implementation for WebSocket reconnection.
 
 This module provides utilities for implementing exponential backoff strategies
 when reconnecting to failed WebSocket connections.
 """
 
 import logging
-from typing import AsyncIterator
+from collections.abc import AsyncIterator
 
 logger = logging.getLogger(__name__)
 
 
 async def exp_backoff(
-    max_retries: int, base: float = 1.0, factor: float = 2.0
+    max_retries: int,
+    base: float = 1.0,
+    factor: float = 2.0,
 ) -> AsyncIterator[float]:
-    """
-    Generate exponential backoff delays for retry attempts.
+    """Generate exponential backoff delays for retry attempts.
 
     Args:
         max_retries: Maximum number of retry attempts
@@ -35,6 +35,7 @@ async def exp_backoff(
         >>> delays = asyncio.run(example())
         >>> delays
         [1.0, 2.0, 4.0]
+
     """
     for attempt in range(max_retries):
         delay = base * (factor**attempt)

@@ -1,11 +1,12 @@
-import pytest
 import asyncio
-import numpy as np
 from unittest.mock import patch
 
+import numpy as np
+import pytest
+
 from getstream.plugins.moonshine.stt import MoonshineSTT
-from getstream.video.rtc.track_util import PcmData
 from getstream.plugins.test_utils import get_audio_asset, get_json_metadata
+from getstream.video.rtc.track_util import PcmData
 
 # Skip all tests in this module if moonshine_onnx is not installed
 try:
@@ -25,8 +26,7 @@ class MockMoonshine:
         # Simulate different responses based on model name
         if "base" in model_name:
             return ["This is a high quality transcription from the base model."]
-        else:
-            return ["This is a transcription from the tiny model."]
+        return ["This is a transcription from the tiny model."]
 
 
 @pytest.fixture
@@ -76,7 +76,9 @@ def mia_audio_data(mia_mp3_path):
 
         # Return PCM data with the resampled rate
         return PcmData(
-            samples=pcm_samples, sample_rate=target_sample_rate, format="s16"
+            samples=pcm_samples,
+            sample_rate=target_sample_rate,
+            format="s16",
         )
     except Exception:
         # Fall back to synthetic data if file loading fails
@@ -223,7 +225,10 @@ async def test_moonshine_audio_resampling():
 
         # Test resampling from 48kHz to 16kHz using the shared utility
         original_data = np.random.randint(
-            -1000, 1000, 48000, dtype=np.int16
+            -1000,
+            1000,
+            48000,
+            dtype=np.int16,
         )  # 1 second at 48kHz
         resampled = resample_audio(original_data, 48000, 16000).astype(np.int16)
 
@@ -267,7 +272,10 @@ async def test_moonshine_immediate_processing():
 
         # Create test audio
         audio_array = np.random.randint(
-            -1000, 1000, 8000, dtype=np.int16
+            -1000,
+            1000,
+            8000,
+            dtype=np.int16,
         )  # 0.5 seconds
         pcm_data = PcmData(samples=audio_array, sample_rate=16000, format="s16")
 
@@ -551,7 +559,7 @@ async def test_moonshine_with_mia_audio_mocked(mia_audio_data, mia_metadata):
         # Extract expected text from mia.json metadata
         expected_segments = mia_metadata.get("segments", [])
         expected_full_text = " ".join(
-            [segment["text"] for segment in expected_segments]
+            [segment["text"] for segment in expected_segments],
         ).strip()
 
         # Mock the transcribe function to return the expected text
@@ -598,7 +606,9 @@ async def test_moonshine_with_mia_audio_mocked(mia_audio_data, mia_metadata):
 
         # Verify metadata structure
         assert metadata["model_name"] == "moonshine/base"
-        assert metadata["confidence"] is None  # Moonshine doesn't provide confidence scores
+        assert (
+            metadata["confidence"] is None
+        )  # Moonshine doesn't provide confidence scores
         assert metadata["target_sample_rate"] == 16000
         assert "processing_time_ms" in metadata
         assert "original_sample_rate" in metadata
@@ -616,8 +626,7 @@ async def test_moonshine_with_mia_audio_mocked(mia_audio_data, mia_metadata):
 # Integration test with real Moonshine (if available)
 @pytest.mark.asyncio
 async def test_moonshine_real_integration(mia_audio_data, mia_metadata):
-    """
-    Integration test with the real Moonshine library using the mia.mp3 test file.
+    """Integration test with the real Moonshine library using the mia.mp3 test file.
 
     This test processes the mia.mp3 audio file and compares the transcription results
     with the expected content from mia.json metadata.
@@ -629,19 +638,19 @@ async def test_moonshine_real_integration(mia_audio_data, mia_metadata):
         pytest.skip("Audio sample too short for meaningful integration test")
 
     print(
-        f"Testing with mia.mp3: {len(mia_audio_data.samples)} samples at {mia_audio_data.sample_rate}Hz"
+        f"Testing with mia.mp3: {len(mia_audio_data.samples)} samples at {mia_audio_data.sample_rate}Hz",
     )
     print(
-        f"Audio duration: {len(mia_audio_data.samples) / mia_audio_data.sample_rate:.2f} seconds"
+        f"Audio duration: {len(mia_audio_data.samples) / mia_audio_data.sample_rate:.2f} seconds",
     )
     print(
-        f"Audio range: {mia_audio_data.samples.min()} to {mia_audio_data.samples.max()}"
+        f"Audio range: {mia_audio_data.samples.min()} to {mia_audio_data.samples.max()}",
     )
 
     # Extract expected text from mia.json metadata
     expected_segments = mia_metadata.get("segments", [])
     expected_full_text = " ".join(
-        [segment["text"] for segment in expected_segments]
+        [segment["text"] for segment in expected_segments],
     ).strip()
     expected_words = expected_full_text.lower().split()
 
@@ -704,9 +713,9 @@ async def test_moonshine_real_integration(mia_audio_data, mia_metadata):
                 print(f"Error {i + 1}: {error}")
 
         # We should either get transcripts or errors, but not silence
-        assert (
-            len(transcripts) > 0 or len(errors) > 0
-        ), "No transcripts or errors received"
+        assert len(transcripts) > 0 or len(errors) > 0, (
+            "No transcripts or errors received"
+        )
 
         # If we got transcripts, verify they contain reasonable content
         if transcripts:
@@ -745,14 +754,14 @@ async def test_moonshine_real_integration(mia_audio_data, mia_metadata):
             print(f"Key words found: {found_key_words}")
 
             # We should find at least some key words from the story
-            assert (
-                len(found_key_words) >= 2
-            ), f"Expected to find at least 2 key words from {key_words}, but only found {found_key_words}"
+            assert len(found_key_words) >= 2, (
+                f"Expected to find at least 2 key words from {key_words}, but only found {found_key_words}"
+            )
 
             # Check that we got a reasonable amount of text
-            assert (
-                len(actual_words) >= 10
-            ), f"Expected at least 10 words, but got {len(actual_words)}: {combined_text}"
+            assert len(actual_words) >= 10, (
+                f"Expected at least 10 words, but got {len(actual_words)}: {combined_text}"
+            )
 
             # Verify metadata structure
             assert "processing_time_ms" in metadata

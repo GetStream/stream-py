@@ -13,6 +13,7 @@ try:
         StreamingEvents,
         StreamingParameters,
     )
+
     _assemblyai_available = True
 except ImportError:
     aai = None  # type: ignore
@@ -106,7 +107,7 @@ class AssemblyAISTT(STT):
         self._audio_buffer = bytearray()
         self._buffer_start_time = None
         self._min_chunk_duration_ms = 100  # Minimum 100ms chunks
-        self._max_chunk_duration_ms = 500   # Maximum 500ms chunks
+        self._max_chunk_duration_ms = 500  # Maximum 500ms chunks
 
         self._setup_connection()
 
@@ -171,7 +172,7 @@ class AssemblyAISTT(STT):
 
             # Check what attributes are available on the event
             logger.debug(f"TurnEvent attributes: {dir(event)}")
-            
+
             # AssemblyAI TurnEvent doesn't have is_final, it's always final
             # Partial results come through different events
             is_final = True
@@ -299,7 +300,9 @@ class AssemblyAISTT(STT):
         self._audio_buffer.extend(audio_data)
 
         # Calculate current buffer duration
-        buffer_duration_ms = (len(self._audio_buffer) / (self.sample_rate * 2)) * 1000  # 2 bytes per sample for int16
+        buffer_duration_ms = (
+            len(self._audio_buffer) / (self.sample_rate * 2)
+        ) * 1000  # 2 bytes per sample for int16
 
         # Send buffer if it meets minimum duration requirement
         if buffer_duration_ms >= self._min_chunk_duration_ms:
@@ -311,14 +314,14 @@ class AssemblyAISTT(STT):
                         "duration_ms": buffer_duration_ms,
                     },
                 )
-                
+
                 # Send the buffered audio data
                 self.streaming_client.stream(bytes(self._audio_buffer))
-                
+
                 # Clear buffer and reset timer
                 self._audio_buffer.clear()
                 self._buffer_start_time = time.time()
-                
+
             except Exception as e:
                 logger.error("Error sending audio to AssemblyAI", exc_info=e)
                 # Clear buffer on error to prevent accumulation

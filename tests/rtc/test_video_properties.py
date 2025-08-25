@@ -1,14 +1,16 @@
-import pytest
-import os
 import asyncio
+import os
+
+import pytest
 from aiortc.contrib.media import MediaPlayer
+
 from getstream.stream import Stream
 from getstream.video import rtc
-from getstream.video.rtc.track_util import (
-    detect_video_properties,
-    BufferedMediaTrack,
-)
 from getstream.video.rtc.pb.stream.video.sfu.models.models_pb2 import TRACK_TYPE_VIDEO
+from getstream.video.rtc.track_util import (
+    BufferedMediaTrack,
+    detect_video_properties,
+)
 
 
 @pytest.mark.asyncio
@@ -43,12 +45,12 @@ async def test_detect_video_properties():
         assert "bitrate" in properties, "Bitrate not estimated"
 
         # Since we know this specific file is 1280x720, verify those dimensions
-        assert (
-            properties["width"] == 1280
-        ), f"Incorrect width detected: {properties['width']}"
-        assert (
-            properties["height"] == 720
-        ), f"Incorrect height detected: {properties['height']}"
+        assert properties["width"] == 1280, (
+            f"Incorrect width detected: {properties['width']}"
+        )
+        assert properties["height"] == 720, (
+            f"Incorrect height detected: {properties['height']}"
+        )
 
         # FPS should be a reasonable value (typically around 25-30 for this test video)
         assert 20 <= properties["fps"] <= 60, f"Unexpected FPS: {properties['fps']}"
@@ -66,7 +68,9 @@ async def test_detect_video_properties():
             expected_bitrate - margin
             <= properties["bitrate"]
             <= expected_bitrate + margin
-        ), f"Unexpected bitrate: {properties['bitrate']}, expected around {expected_bitrate}"
+        ), (
+            f"Unexpected bitrate: {properties['bitrate']}, expected around {expected_bitrate}"
+        )
 
         print(f"Detected video properties: {properties}")
         print(f"Expected bitrate calculation: {expected_bitrate} kbps")
@@ -115,9 +119,9 @@ async def test_buffered_media_track():
 
         # Receiving again should get a new frame since buffer is now empty
         frame4 = await buffered_track.recv()
-        assert (
-            frame3 is not frame4
-        ), "Receiving after consuming the buffer should get a new frame"
+        assert frame3 is not frame4, (
+            "Receiving after consuming the buffer should get a new frame"
+        )
 
         # Now let's get multiple frames in sequence to see if PTS values work as expected
         frame5 = await buffered_track.recv()
@@ -139,9 +143,9 @@ async def test_buffered_media_track():
                 estimated_fps = int(1 / delta_seconds) if delta_seconds > 0 else 0
 
                 # For a normal video, this should be a reasonable FPS value
-                assert (
-                    20 <= estimated_fps <= 60
-                ), f"Calculated FPS ({estimated_fps}) outside expected range"
+                assert 20 <= estimated_fps <= 60, (
+                    f"Calculated FPS ({estimated_fps}) outside expected range"
+                )
                 print(f"Calculated FPS from frames: {estimated_fps}")
 
     finally:
@@ -179,7 +183,7 @@ async def test_prepare_video_track_info(client: Stream):
 
         # Test the prepare_video_track_info method
         track_info, buffered_track = await connection.prepare_video_track_info(
-            player.video
+            player.video,
         )
 
         # Verify the returned values
@@ -191,12 +195,12 @@ async def test_prepare_video_track_info(client: Stream):
         assert len(track_info.layers) == 1, "Expected one video layer"
 
         layer = track_info.layers[0]
-        assert (
-            layer.video_dimension.width == 1280
-        ), f"Incorrect width: {layer.video_dimension.width}"
-        assert (
-            layer.video_dimension.height == 720
-        ), f"Incorrect height: {layer.video_dimension.height}"
+        assert layer.video_dimension.width == 1280, (
+            f"Incorrect width: {layer.video_dimension.width}"
+        )
+        assert layer.video_dimension.height == 720, (
+            f"Incorrect height: {layer.video_dimension.height}"
+        )
         assert 20 <= layer.fps <= 60, f"Unexpected FPS: {layer.fps}"
 
         # Verify that the buffered track wraps the original track
@@ -205,7 +209,7 @@ async def test_prepare_video_track_info(client: Stream):
 
         print(f"Track info: {track_info}")
         print(
-            f"Video layer properties: width={layer.video_dimension.width}, height={layer.video_dimension.height}, fps={layer.fps}, bitrate={layer.bitrate}"
+            f"Video layer properties: width={layer.video_dimension.width}, height={layer.video_dimension.height}, fps={layer.fps}, bitrate={layer.bitrate}",
         )
 
     finally:

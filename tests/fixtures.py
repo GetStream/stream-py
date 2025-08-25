@@ -4,7 +4,7 @@ from typing import Dict
 import pytest
 
 from getstream import Stream
-from getstream.models import UserRequest, FullUserResponse
+from getstream.models import FullUserResponse, UserRequest
 
 
 def _client():
@@ -23,10 +23,7 @@ def call(client: Stream):
 
 @pytest.fixture(scope="class")
 def shared_call(request):
-    """
-    Use this fixture to decorate test classes subclassing base.VideoTestClass
-
-    """
+    """Use this fixture to decorate test classes subclassing base.VideoTestClass"""
     request.cls.client = _client()
     request.cls.call = request.cls.client.video.call("default", str(uuid.uuid4()))
 
@@ -34,7 +31,9 @@ def shared_call(request):
 @pytest.fixture
 def get_user(client: Stream):
     def inner(
-        name: str = None, image: str = None, custom: Dict[str, object] = None
+        name: str = None,
+        image: str = None,
+        custom: Dict[str, object] = None,
     ) -> FullUserResponse:
         id = str(uuid.uuid4())
         return client.upsert_users(

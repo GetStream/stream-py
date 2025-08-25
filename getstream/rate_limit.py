@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Optional
+
 import httpx
 
 
@@ -26,7 +27,8 @@ def extract_rate_limit(response: httpx.Response) -> Optional[RateLimitInfo]:
             limit_value = int(get_first_nonempty_value(limit))
             remaining_value = int(get_first_nonempty_value(remaining))
             reset_value = datetime.fromtimestamp(
-                float(get_first_nonempty_value(reset)), timezone.utc
+                float(get_first_nonempty_value(reset)),
+                timezone.utc,
             )
             return RateLimitInfo(
                 limit=limit_value,

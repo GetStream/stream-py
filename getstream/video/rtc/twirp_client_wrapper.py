@@ -1,7 +1,7 @@
-# -*- coding: utf-8 -*-
-import logging
-import functools
 import asyncio  # Import asyncio if not already present
+import functools
+import logging
+
 from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
 from getstream.video.rtc.pb.stream.video.sfu.signal_rpc.signal_twirp import (
     AsyncSignalServerClient,
@@ -20,7 +20,7 @@ class SfuRpcError(Exception):
         self.message = message
         self.method_name = method_name
         super().__init__(
-            f"SFU RPC Error in {method_name} - Code: {code}, Message: {message}"
+            f"SFU RPC Error in {method_name} - Code: {code}, Message: {message}",
         )
 
 
@@ -74,10 +74,9 @@ class SignalClient(AsyncSignalServerClient):
 
             # Return the dynamic wrapper
             return wrapped_method
-        else:
-            # For non-callable attributes, or non-async methods, or private methods,
-            # return the original attribute directly.
-            return original_attr
+        # For non-callable attributes, or non-async methods, or private methods,
+        # return the original attribute directly.
+        return original_attr
 
     # No need to explicitly override each method like SetPublisher, SendAnswer etc.
     # __getattribute__ handles them dynamically.

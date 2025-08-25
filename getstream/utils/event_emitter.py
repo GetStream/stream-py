@@ -1,12 +1,12 @@
 import asyncio
-import logging
-from pyee.asyncio import AsyncIOEventEmitter
 import inspect
+import logging
+
+from pyee.asyncio import AsyncIOEventEmitter
 
 
 class StreamAsyncIOEventEmitter(AsyncIOEventEmitter):
-    """
-    AsyncIOEventEmitter with wildcard pattern support for event names.
+    """AsyncIOEventEmitter with wildcard pattern support for event names.
 
     Supports patterns like:
     - '*' - matches all events
@@ -27,7 +27,6 @@ class StreamAsyncIOEventEmitter(AsyncIOEventEmitter):
         ``asyncio.create_task`` and errors are routed through the loop's
         exception handler (falling back to logging if none is available).
         """
-
         # First, attempt to emit the event via the parent implementation.  We
         # need to *safely* handle the special ``error`` event which pyee will
         # raise as a ``PyeeError`` if no explicit ``'error'`` listeners are
@@ -45,7 +44,7 @@ class StreamAsyncIOEventEmitter(AsyncIOEventEmitter):
             if isinstance(pyee_exc, PyeeError) and event == "error":
                 # Always swallow; treat it as normal when using wildcard-only handling.
                 logging.getLogger(__name__).debug(
-                    "Suppressed PyeeError for unhandled 'error' event"
+                    "Suppressed PyeeError for unhandled 'error' event",
                 )
                 result = False
             else:
@@ -120,17 +119,16 @@ class StreamAsyncIOEventEmitter(AsyncIOEventEmitter):
         """Check if an event matches a wildcard pattern"""
         if pattern == "*":
             return True
-        elif pattern.endswith("**"):
+        if pattern.endswith("**"):
             # Match multiple levels: 'api.**' matches 'api.user.login'
             prefix = pattern[:-2]
             return event.startswith(prefix)
-        elif pattern.endswith("*"):
+        if pattern.endswith("*"):
             # Match single level: 'api.*' matches 'api.user' but not 'api.user.login'
             prefix = pattern[:-1]
             remainder = event[len(prefix) :] if event.startswith(prefix) else ""
             return event.startswith(prefix) and "." not in remainder
-        else:
-            return event == pattern
+        return event == pattern
 
     @staticmethod
     def _report_listener_error(loop, exc, event, args, kwargs):
@@ -147,11 +145,13 @@ class StreamAsyncIOEventEmitter(AsyncIOEventEmitter):
                     "event": event,
                     "args": args,
                     "kwargs": kwargs,
-                }
+                },
             )
         else:
             logging.getLogger(__name__).error(
-                "Exception in wildcard event handler: %s", exc, exc_info=exc
+                "Exception in wildcard event handler: %s",
+                exc,
+                exc_info=exc,
             )
 
     @staticmethod
@@ -162,5 +162,7 @@ class StreamAsyncIOEventEmitter(AsyncIOEventEmitter):
         exc = task.exception()
         if exc:
             logging.getLogger(__name__).error(
-                "Exception in async wildcard listener: %s", exc, exc_info=exc
+                "Exception in async wildcard listener: %s",
+                exc,
+                exc_info=exc,
             )

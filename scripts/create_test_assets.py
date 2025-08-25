@@ -1,6 +1,7 @@
 import os
-import torchaudio
+
 import torch
+import torchaudio
 
 
 def create_test_assets():
@@ -35,7 +36,8 @@ def create_test_assets():
     # Create 48 kHz version
     print(f"Creating 48 kHz version: {output_48k}")
     resampler_48k = torchaudio.transforms.Resample(
-        orig_freq=sample_rate, new_freq=48000
+        orig_freq=sample_rate,
+        new_freq=48000,
     )
     resampled_waveform_48k = resampler_48k(waveform)
     torchaudio.save(output_48k, resampled_waveform_48k, sample_rate=48000)
@@ -45,7 +47,8 @@ def create_test_assets():
     # Create 16 kHz version
     print(f"Creating 16 kHz version: {output_16k}")
     resampler_16k = torchaudio.transforms.Resample(
-        orig_freq=sample_rate, new_freq=16000
+        orig_freq=sample_rate,
+        new_freq=16000,
     )
     resampled_waveform_16k = resampler_16k(waveform)
     torchaudio.save(output_16k, resampled_waveform_16k, sample_rate=16000)

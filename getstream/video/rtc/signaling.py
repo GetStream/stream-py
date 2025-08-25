@@ -1,11 +1,14 @@
 import asyncio
-import threading
-import websocket
 import logging
+import threading
 import time
-from typing import Any, Callable, Awaitable
+from collections.abc import Awaitable
+from typing import Any, Callable
+
+import websocket
 
 from getstream.utils import StreamAsyncIOEventEmitter
+
 from .pb.stream.video.sfu.event import events_pb2
 
 logger = logging.getLogger(__name__)
@@ -18,8 +21,7 @@ class SignalingError(Exception):
 
 
 class WebSocketClient(StreamAsyncIOEventEmitter):
-    """
-    WebSocket client for Stream Video signaling.
+    """WebSocket client for Stream Video signaling.
     Handles WebSocket connection, message serialization/deserialization, and event handling.
     """
 
@@ -29,13 +31,13 @@ class WebSocketClient(StreamAsyncIOEventEmitter):
         join_request: events_pb2.JoinRequest,
         main_loop: asyncio.AbstractEventLoop,
     ):
-        """
-        Initialize a new WebSocket client.
+        """Initialize a new WebSocket client.
 
         Args:
             url: The WebSocket server URL
             join_request: The JoinRequest protobuf message to send for authentication
             main_loop: The main asyncio event loop to run callbacks on
+
         """
         super().__init__()
         self.url = url
@@ -54,14 +56,14 @@ class WebSocketClient(StreamAsyncIOEventEmitter):
         self.ping_interval = 10  # seconds
 
     async def connect(self):
-        """
-        Establish WebSocket connection and authenticate.
+        """Establish WebSocket connection and authenticate.
 
         Returns:
             The first SfuEvent received (JoinResponse if successful)
 
         Raises:
             SignalingError: If the connection fails or the first message is an error
+
         """
         if self.closed:
             raise SignalingError("Cannot reconnect a closed WebSocket client")
@@ -84,7 +86,8 @@ class WebSocketClient(StreamAsyncIOEventEmitter):
 
         # Wait for first message
         await asyncio.get_event_loop().run_in_executor(
-            None, self.first_message_event.wait
+            None,
+            self.first_message_event.wait,
         )
 
         # Check if the first message is an error
@@ -114,7 +117,6 @@ class WebSocketClient(StreamAsyncIOEventEmitter):
 
     def _on_message(self, ws, message):
         """Handle incoming WebSocket messages."""
-
         event = events_pb2.SfuEvent()
         event.ParseFromString(message)
         logger.debug(f"WebSocket message received {event.WhichOneof('event_payload')}")
@@ -179,7 +181,7 @@ class WebSocketClient(StreamAsyncIOEventEmitter):
                 # Create and send health check request
                 health_check_req = events_pb2.HealthCheckRequest()
                 sfu_request = events_pb2.SfuRequest(
-                    health_check_request=health_check_req
+                    health_check_request=health_check_req,
                 )
 
                 # Send the serialized request
@@ -192,11 +194,11 @@ class WebSocketClient(StreamAsyncIOEventEmitter):
             time.sleep(self.ping_interval)
 
     async def _dispatch_event(self, event):
-        """
-        Dispatch an event to the appropriate handlers using emit.
+        """Dispatch an event to the appropriate handlers using emit.
 
         Args:
             event: The SfuEvent to dispatch
+
         """
         # Get the oneof event type
         event_type = event.WhichOneof("event_payload")
@@ -206,12 +208,12 @@ class WebSocketClient(StreamAsyncIOEventEmitter):
             self.emit(event_type, payload)
 
     def on_event(self, event_type: str, callback: Callable[[Any], Awaitable[None]]):
-        """
-        Register an event handler for a specific event type.
+        """Register an event handler for a specific event type.
 
         Args:
             event_type: The event type to listen for, or "*" for all events
             callback: An async function to call when the event occurs
+
         """
         # Use the parent class's on method for regular events
         # For wildcard events, use on_wildcard method

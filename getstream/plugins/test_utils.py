@@ -1,5 +1,4 @@
-"""
-Test utility functions for GetStream plugins.
+"""Test utility functions for GetStream plugins.
 
 This module provides utility functions for accessing test assets and other
 resources from the main test directory.
@@ -18,10 +17,10 @@ IMPORTANT: When writing tests for plugins, consider the following:
    and get_json_metadata() functions provided in this module.
 """
 
-import os
 import json
+import os
 import sys
-from typing import Dict, Any
+from typing import Any, Dict
 
 # Load environment variables from .env files
 try:
@@ -47,13 +46,13 @@ except ImportError:
 try:
     # Add project root to path to ensure imports work
     project_root = os.path.dirname(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
     )
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
 
     # Import fixtures from tests module
-    from tests.fixtures import client, call, get_user, shared_call
+    from tests.fixtures import call, client, get_user, shared_call
 
     # Re-export fixtures
     __all__ = [
@@ -72,14 +71,14 @@ except ImportError:
 
 
 def get_asset_path(file_name: str) -> str:
-    """
-    Get the path to an asset file in the tests/assets directory.
+    """Get the path to an asset file in the tests/assets directory.
 
     Args:
         file_name: The name of the asset file
 
     Returns:
         The full path to the asset file
+
     """
     # Find the project root (where tests/assets is located)
     project_root = _find_project_root()
@@ -89,39 +88,39 @@ def get_asset_path(file_name: str) -> str:
 
 
 def get_audio_asset(file_name: str) -> str:
-    """
-    Get the path to an audio asset file.
+    """Get the path to an audio asset file.
 
     Args:
         file_name: The name of the audio file (e.g., "mia.mp3")
 
     Returns:
         The full path to the audio file
+
     """
     return get_asset_path(file_name)
 
 
 def get_json_metadata(file_name: str) -> Dict[str, Any]:
-    """
-    Load and return the contents of a JSON metadata file.
+    """Load and return the contents of a JSON metadata file.
 
     Args:
         file_name: The name of the JSON file (e.g., "mia.json")
 
     Returns:
         The parsed JSON content as a dictionary
+
     """
     json_path = get_asset_path(file_name)
-    with open(json_path, "r") as f:
+    with open(json_path) as f:
         return json.load(f)
 
 
 def _find_project_root() -> str:
-    """
-    Find the project root directory by looking for the 'tests/assets' directory.
+    """Find the project root directory by looking for the 'tests/assets' directory.
 
     Returns:
         The path to the project root directory
+
     """
     # Start from the current file's directory
     current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -141,7 +140,7 @@ def _find_project_root() -> str:
     # If not found by walking up, try a fixed path from the current file
     # This assumes the module is at getstream/plugins/test_utils.py
     possible_root = os.path.dirname(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
     )
     if os.path.isdir(os.path.join(possible_root, "tests", "assets")):
         return possible_root
@@ -153,5 +152,5 @@ def _find_project_root() -> str:
 
     raise FileNotFoundError(
         "Could not find the project root directory with 'tests/assets'. "
-        "Make sure you're running tests from the project root or a subdirectory."
+        "Make sure you're running tests from the project root or a subdirectory.",
     )

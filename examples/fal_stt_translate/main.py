@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Example: Real-time Call Transcription with Deepgram STT
+"""Example: Real-time Call Transcription with Deepgram STT
 
 This example demonstrates how to:
 1. Join a Stream video call
@@ -26,31 +25,30 @@ from urllib.parse import urlencode
 from dotenv import load_dotenv
 
 from getstream.models import UserRequest
+from getstream.plugins.fal.stt import FalWizperSTT
+from getstream.plugins.silero.vad import SileroVAD
 from getstream.stream import Stream
 from getstream.video import rtc
 from getstream.video.rtc.track_util import PcmData
-from getstream.plugins.fal.stt import FalWizperSTT
-from getstream.plugins.silero.vad import SileroVAD
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
 
 def create_user(client: Stream, id: str, name: str) -> None:
-    """
-    Create a user with a unique Stream ID.
+    """Create a user with a unique Stream ID.
 
     Args:
         client: Stream client instance
         id: Unique user ID
         name: Display name for the user
+
     """
     user_request = UserRequest(id=id, name=name)
     client.upsert_users(user_request)
 
 
 def open_browser(api_key: str, token: str, call_id: str) -> str:
-    """
-    Helper function to open browser with Stream call link.
+    """Helper function to open browser with Stream call link.
 
     Args:
         api_key: Stream API key
@@ -59,6 +57,7 @@ def open_browser(api_key: str, token: str, call_id: str) -> str:
 
     Returns:
         The URL that was opened
+
     """
     base_url = f"{os.getenv('EXAMPLE_BASE_URL')}/join/"
     params = {"api_key": api_key, "token": token, "skip_lobby": "true"}
@@ -112,7 +111,7 @@ async def main():
 
     print("\n🤖 Starting transcription bot...")
     print(
-        "The bot will join the call and transcribe all audio it receives, optionally translating it to French."
+        "The bot will join the call and transcribe all audio it receives, optionally translating it to French.",
     )
     print("Join the call in your browser and speak to see transcriptions appear here!")
     print("\nPress Ctrl+C to stop the transcription bot.\n")
@@ -132,7 +131,7 @@ async def main():
             @vad.on("audio")  # type: ignore[arg-type]
             async def on_speech_detected(pcm: PcmData, user):
                 print(
-                    f"{time.time()} Speech detected from user: {user} duration {pcm.duration}"
+                    f"{time.time()} Speech detected from user: {user} duration {pcm.duration}",
                 )
                 # Process audio through FAL.ai STT with user metadata
                 user_metadata = {"user": user} if user else None
@@ -146,15 +145,15 @@ async def main():
                     user = event.user_metadata["user"]
                     user_info = user.name if hasattr(user, "name") else str(user)
                 print(f"[{timestamp}] {user_info}: {event.text}")
-                if hasattr(event, 'confidence') and event.confidence:
+                if hasattr(event, "confidence") and event.confidence:
                     print(f"    └─ confidence: {event.confidence:.2%}")
-                if hasattr(event, 'processing_time_ms') and event.processing_time_ms:
+                if hasattr(event, "processing_time_ms") and event.processing_time_ms:
                     print(f"    └─ processing time: {event.processing_time_ms:.1f}ms")
 
             @stt.on("error")
             async def on_stt_error(event):
                 print(f"\n❌ STT Error: {event.error_message}")
-                if hasattr(event, 'context') and event.context:
+                if hasattr(event, "context") and event.context:
                     print(f"    └─ context: {event.context}")
 
             # Keep the connection alive and wait for audio

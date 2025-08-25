@@ -1,17 +1,23 @@
 import abc
 import logging
 import uuid
-
 from typing import Any, Dict, List, Optional
 
 from pyee.asyncio import AsyncIOEventEmitter
 
-from .events import (
-    STSConnectedEvent, STSDisconnectedEvent, STSAudioInputEvent, STSAudioOutputEvent,
-    STSTranscriptEvent, STSResponseEvent, STSConversationItemEvent, STSErrorEvent,
-    PluginInitializedEvent, PluginClosedEvent
-)
 from .event_utils import register_global_event
+from .events import (
+    PluginClosedEvent,
+    PluginInitializedEvent,
+    STSAudioInputEvent,
+    STSAudioOutputEvent,
+    STSConnectedEvent,
+    STSConversationItemEvent,
+    STSDisconnectedEvent,
+    STSErrorEvent,
+    STSResponseEvent,
+    STSTranscriptEvent,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +68,7 @@ class STS(AsyncIOEventEmitter, abc.ABC):
             provider_config: Provider-specific configuration (e.g., Gemini Live config, OpenAI session prefs).
             response_modalities: Optional response modalities passed to the session.
             tools: Optional tools passed to the session.
+
         """
         super().__init__()
         self._is_connected = False
@@ -109,7 +116,7 @@ class STS(AsyncIOEventEmitter, abc.ABC):
             plugin_name=self.provider_name,
             provider=self.provider_name,
             session_config=session_config,
-            capabilities=capabilities
+            capabilities=capabilities,
         )
         register_global_event(event)
         self.emit("connected", event)  # Structured event
@@ -122,13 +129,16 @@ class STS(AsyncIOEventEmitter, abc.ABC):
             plugin_name=self.provider_name,
             provider=self.provider_name,
             reason=reason,
-            was_clean=was_clean
+            was_clean=was_clean,
         )
         register_global_event(event)
         self.emit("disconnected", event)  # Structured event
 
     def _emit_audio_input_event(
-        self, audio_data, sample_rate=16000, user_metadata=None
+        self,
+        audio_data,
+        sample_rate=16000,
+        user_metadata=None,
     ):
         """Emit a structured audio input event."""
         event = STSAudioInputEvent(
@@ -138,13 +148,17 @@ class STS(AsyncIOEventEmitter, abc.ABC):
             provider=self.provider_name,
             audio_data=audio_data,
             sample_rate=sample_rate,
-            user_metadata=user_metadata
+            user_metadata=user_metadata,
         )
         register_global_event(event)
         self.emit("audio_input", event)
 
     def _emit_audio_output_event(
-        self, audio_data, sample_rate=16000, response_id=None, user_metadata=None
+        self,
+        audio_data,
+        sample_rate=16000,
+        response_id=None,
+        user_metadata=None,
     ):
         """Emit a structured audio output event."""
         event = STSAudioOutputEvent(
@@ -155,14 +169,18 @@ class STS(AsyncIOEventEmitter, abc.ABC):
             audio_data=audio_data,
             sample_rate=sample_rate,
             response_id=response_id,
-            user_metadata=user_metadata
+            user_metadata=user_metadata,
         )
         register_global_event(event)
         self.emit("audio_output", event)
 
     def _emit_transcript_event(
-        self, text, is_user=True, confidence=None,
-        conversation_item_id=None, user_metadata=None
+        self,
+        text,
+        is_user=True,
+        confidence=None,
+        conversation_item_id=None,
+        user_metadata=None,
     ):
         """Emit a structured transcript event."""
         event = STSTranscriptEvent(
@@ -174,14 +192,18 @@ class STS(AsyncIOEventEmitter, abc.ABC):
             is_user=is_user,
             confidence=confidence,
             conversation_item_id=conversation_item_id,
-            user_metadata=user_metadata
+            user_metadata=user_metadata,
         )
         register_global_event(event)
         self.emit("transcript", event)
 
     def _emit_response_event(
-        self, text, response_id=None, is_complete=True,
-        conversation_item_id=None, user_metadata=None
+        self,
+        text,
+        response_id=None,
+        is_complete=True,
+        conversation_item_id=None,
+        user_metadata=None,
     ):
         """Emit a structured response event."""
         event = STSResponseEvent(
@@ -193,14 +215,19 @@ class STS(AsyncIOEventEmitter, abc.ABC):
             response_id=response_id,
             is_complete=is_complete,
             conversation_item_id=conversation_item_id,
-            user_metadata=user_metadata
+            user_metadata=user_metadata,
         )
         register_global_event(event)
         self.emit("response", event)
 
     def _emit_conversation_item_event(
-        self, item_id, item_type, status, role,
-        content=None, user_metadata=None
+        self,
+        item_id,
+        item_type,
+        status,
+        role,
+        content=None,
+        user_metadata=None,
     ):
         """Emit a structured conversation item event."""
         event = STSConversationItemEvent(
@@ -213,7 +240,7 @@ class STS(AsyncIOEventEmitter, abc.ABC):
             status=status,
             role=role,
             content=content,
-            user_metadata=user_metadata
+            user_metadata=user_metadata,
         )
         register_global_event(event)
         self.emit("conversation_item", event)
@@ -225,7 +252,7 @@ class STS(AsyncIOEventEmitter, abc.ABC):
             plugin_name=self.provider_name,
             error=error,
             context=context,
-            user_metadata=user_metadata
+            user_metadata=user_metadata,
         )
         register_global_event(event)
         self.emit("error", event)  # Structured event
@@ -241,7 +268,7 @@ class STS(AsyncIOEventEmitter, abc.ABC):
             plugin_name=self.provider_name,
             plugin_type="STS",
             provider=self.provider_name,
-            cleanup_successful=True
+            cleanup_successful=True,
         )
         register_global_event(close_event)
         self.emit("closed", close_event)

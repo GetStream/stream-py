@@ -1,7 +1,8 @@
-import json
-import pytest
 import asyncio
-from unittest.mock import patch, MagicMock
+import json
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from getstream.plugins.deepgram.stt import DeepgramSTT
 from getstream.video.rtc.track_util import PcmData
@@ -54,8 +55,8 @@ class MockDeepgramConnection:
                                 }
                                 for i, word in enumerate(text.split())
                             ],
-                        }
-                    ]
+                        },
+                    ],
                 },
                 "channel_index": 0,
             }
@@ -65,7 +66,8 @@ class MockDeepgramConnection:
 
             # Call the handler with the connection and the result
             self.event_handlers[LiveTranscriptionEvents.Transcript](
-                self, result=transcript_json
+                self,
+                result=transcript_json,
             )
 
     def emit_error(self, error_message):
@@ -75,7 +77,8 @@ class MockDeepgramConnection:
         if LiveTranscriptionEvents.Error in self.event_handlers:
             # Call the error handler
             self.event_handlers[LiveTranscriptionEvents.Error](
-                self, error=error_message
+                self,
+                error=error_message,
             )
 
 
@@ -90,8 +93,7 @@ class MockDeepgramClient:
 @pytest.mark.asyncio
 @patch("getstream.plugins.deepgram.stt.stt.DeepgramClient", MockDeepgramClient)
 async def test_real_time_transcript_emission():
-    """
-    Test that transcripts are emitted in real-time without needing a second audio chunk.
+    """Test that transcripts are emitted in real-time without needing a second audio chunk.
 
     This test verifies that:
     1. A transcript can be emitted immediately after receiving it from the server
@@ -113,7 +115,9 @@ async def test_real_time_transcript_emission():
 
     @stt.on("partial_transcript")
     def on_partial_transcript(event):
-        partial_transcript_events.append((event.text, event.user_metadata, {"is_final": False}))
+        partial_transcript_events.append(
+            (event.text, event.user_metadata, {"is_final": False}),
+        )
 
     @stt.on("error")
     def on_error(event):
@@ -145,9 +149,7 @@ async def test_real_time_transcript_emission():
 @pytest.mark.asyncio
 @patch("getstream.plugins.deepgram.stt.stt.DeepgramClient", MockDeepgramClient)
 async def test_real_time_partial_transcript_emission():
-    """
-    Test that partial transcripts are emitted in real-time.
-    """
+    """Test that partial transcripts are emitted in real-time."""
     # Create the Deepgram STT instance
     stt = DeepgramSTT(api_key="test-api-key")
 
@@ -162,7 +164,9 @@ async def test_real_time_partial_transcript_emission():
 
     @stt.on("partial_transcript")
     def on_partial_transcript(event):
-        partial_transcript_events.append((event.text, event.user_metadata, {"is_final": False}))
+        partial_transcript_events.append(
+            (event.text, event.user_metadata, {"is_final": False}),
+        )
 
     # Send some audio data to ensure the connection is active
     pcm_data = PcmData(samples=b"\x00\x00" * 800, sample_rate=48000, format="s16")
@@ -188,18 +192,18 @@ async def test_real_time_partial_transcript_emission():
 
     # Check that we received the partial transcript events
     assert len(partial_transcript_events) == 2, "Expected 2 partial transcript events"
-    assert (
-        partial_transcript_events[0][0] == "typing in prog"
-    ), "Incorrect partial transcript text"
-    assert (
-        partial_transcript_events[1][0] == "typing in progress"
-    ), "Incorrect partial transcript text"
+    assert partial_transcript_events[0][0] == "typing in prog", (
+        "Incorrect partial transcript text"
+    )
+    assert partial_transcript_events[1][0] == "typing in progress", (
+        "Incorrect partial transcript text"
+    )
 
     # Check that we received the final transcript event
     assert len(transcript_events) == 1, "Expected 1 final transcript event"
-    assert (
-        transcript_events[0][0] == "typing in progress complete"
-    ), "Incorrect final transcript text"
+    assert transcript_events[0][0] == "typing in progress complete", (
+        "Incorrect final transcript text"
+    )
 
     # Cleanup
     await stt.close()
@@ -208,9 +212,7 @@ async def test_real_time_partial_transcript_emission():
 @pytest.mark.asyncio
 @patch("getstream.plugins.deepgram.stt.stt.DeepgramClient", MockDeepgramClient)
 async def test_real_time_error_emission():
-    """
-    Test that errors are emitted in real-time.
-    """
+    """Test that errors are emitted in real-time."""
     # Create the Deepgram STT instance
     stt = DeepgramSTT(api_key="test-api-key")
 
@@ -243,9 +245,7 @@ async def test_real_time_error_emission():
 @pytest.mark.asyncio
 @patch("getstream.plugins.deepgram.stt.stt.DeepgramClient", MockDeepgramClient)
 async def test_close_cleanup():
-    """
-    Test that the STT service is properly closed and cleaned up.
-    """
+    """Test that the STT service is properly closed and cleaned up."""
     # Create the Deepgram STT instance
     stt = DeepgramSTT(api_key="test-api-key")
 
@@ -282,8 +282,7 @@ async def test_close_cleanup():
 @pytest.mark.asyncio
 @patch("getstream.plugins.deepgram.stt.stt.DeepgramClient", MockDeepgramClient)
 async def test_asynchronous_mode_behavior():
-    """
-    Test that Deepgram operates in asynchronous mode:
+    """Test that Deepgram operates in asynchronous mode:
     1. Events are emitted immediately when they arrive
     2. _process_audio_impl always returns None (no result collection)
     """

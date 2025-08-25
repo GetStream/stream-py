@@ -1,18 +1,19 @@
-import os
 import logging
+import os
 import time
-from typing import Dict, Any, Optional, Tuple, List
+from typing import Any, Dict, List, Optional, Tuple
+
 import numpy as np
 import soundfile as sf
 
-from getstream.plugins.common import STT
-from getstream.video.rtc.track_util import PcmData
-from getstream.audio.utils import resample_audio
 from getstream.audio.pcm_utils import (
+    log_audio_processing_info,
     pcm_to_numpy_array,
     validate_sample_rate_compatibility,
-    log_audio_processing_info,
 )
+from getstream.audio.utils import resample_audio
+from getstream.plugins.common import STT
+from getstream.video.rtc.track_util import PcmData
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +36,7 @@ _SUPPORTED_MODELS = {
 
 
 class MoonshineSTT(STT):
-    """
-    Moonshine-based Speech-to-Text implementation.
+    """Moonshine-based Speech-to-Text implementation.
 
     Moonshine is a family of speech-to-text models optimized for fast and accurate
     automatic speech recognition (ASR) on resource-constrained devices.
@@ -60,14 +60,14 @@ class MoonshineSTT(STT):
         min_audio_length_ms: int = 100,
         target_dbfs: float = -26.0,
     ):
-        """
-        Initialize the Moonshine STT service.
+        """Initialize the Moonshine STT service.
 
         Args:
             model_name: Moonshine model to use ("moonshine/tiny" or "moonshine/base")
             sample_rate: Sample rate of the audio in Hz (default: 16000, Moonshine's native rate)
             min_audio_length_ms: Minimum audio length required for transcription
             target_dbfs: Target RMS level in dBFS for audio normalization (default: -26.0, Moonshine's optimal level)
+
         """
         super().__init__(sample_rate=sample_rate)
 
@@ -75,14 +75,14 @@ class MoonshineSTT(STT):
         if not MOONSHINE_AVAILABLE:
             raise ImportError(
                 "moonshine_onnx is not installed. "
-                "Please install it from GitHub: pip install 'useful-moonshine-onnx@git+https://github.com/usefulsensors/moonshine.git#subdirectory=moonshine-onnx'"
+                "Please install it from GitHub: pip install 'useful-moonshine-onnx@git+https://github.com/usefulsensors/moonshine.git#subdirectory=moonshine-onnx'",
             )
 
         # Validate and normalize model name
         if model_name not in _SUPPORTED_MODELS:
             raise ValueError(
                 f"Unknown Moonshine model '{model_name}'. "
-                f"Allowed values: {', '.join(_SUPPORTED_MODELS.keys())}"
+                f"Allowed values: {', '.join(_SUPPORTED_MODELS.keys())}",
             )
         self.model_name = _SUPPORTED_MODELS[model_name]  # Use canonical value
         self.min_audio_length_ms = min_audio_length_ms
@@ -106,27 +106,27 @@ class MoonshineSTT(STT):
         logger.info("Moonshine model selected", extra={"checkpoint": self.model_name})
 
     def _normalize_audio(self, audio_data: np.ndarray) -> np.ndarray:
-        """
-        Normalize audio data to float32 in range [-1, 1].
+        """Normalize audio data to float32 in range [-1, 1].
 
         Args:
             audio_data: Input audio data as int16
 
         Returns:
             Normalized audio data as float32
+
         """
         # Convert int16 to float32 and normalize to [-1, 1]
         return audio_data.astype(np.float32) / 32768.0
 
     def _rms_normalise(self, audio: np.ndarray) -> np.ndarray:
-        """
-        Boost or attenuate audio to match target RMS in dBFS.
+        """Boost or attenuate audio to match target RMS in dBFS.
 
         Args:
             audio: Input audio data as int16
 
         Returns:
             RMS-normalized audio data as int16
+
         """
         # Calculate current RMS in dB
         rms = np.sqrt(np.mean(audio.astype(np.float32) ** 2))
@@ -153,16 +153,17 @@ class MoonshineSTT(STT):
         return boosted.astype(np.int16)
 
     async def _transcribe_audio(
-        self, audio_data: np.ndarray
+        self,
+        audio_data: np.ndarray,
     ) -> Optional[Tuple[str, float]]:
-        """
-        Transcribe audio data using Moonshine in-memory.
+        """Transcribe audio data using Moonshine in-memory.
 
         Args:
             audio_data: Audio data as float32 array
 
         Returns:
             Transcribed text and processing time, or None if transcription failed
+
         """
         try:
             # Check minimum audio length
@@ -208,7 +209,8 @@ class MoonshineSTT(STT):
                 import tempfile
 
                 with tempfile.NamedTemporaryFile(
-                    suffix=".wav", delete=False
+                    suffix=".wav",
+                    delete=False,
                 ) as temp_file:
                     temp_path = temp_file.name
 
@@ -246,22 +248,21 @@ class MoonshineSTT(STT):
                         },
                     )
                     return text, processing_time * 1000
-                else:
-                    logger.debug("Empty transcription result")
-                    return None
-            else:
-                logger.debug("No transcription result")
+                logger.debug("Empty transcription result")
                 return None
+            logger.debug("No transcription result")
+            return None
 
         except Exception as e:
             logger.error("Error during transcription", exc_info=e)
             return None
 
     async def _process_audio_impl(
-        self, pcm_data: PcmData, user_metadata: Optional[Dict[str, Any]] = None
+        self,
+        pcm_data: PcmData,
+        user_metadata: Optional[Dict[str, Any]] = None,
     ) -> Optional[List[Tuple[bool, str, Dict[str, Any]]]]:
-        """
-        Process audio data through Moonshine for transcription.
+        """Process audio data through Moonshine for transcription.
 
         Moonshine operates in synchronous mode - it processes audio immediately and
         returns results to the base class for event emission.
@@ -274,6 +275,7 @@ class MoonshineSTT(STT):
             List of tuples (is_final, text, metadata) representing transcription results,
             or None if no results are available. Moonshine returns final results only
             since it doesn't support streaming transcription.
+
         """
         if self._is_closed:
             logger.warning("Moonshine STT is closed, ignoring audio")
@@ -291,12 +293,16 @@ class MoonshineSTT(STT):
 
             # Validate and resample if needed using shared utility
             validate_sample_rate_compatibility(
-                pcm_data.sample_rate, self.sample_rate, "Moonshine"
+                pcm_data.sample_rate,
+                self.sample_rate,
+                "Moonshine",
             )
 
             if pcm_data.sample_rate != self.sample_rate:
                 audio_array = resample_audio(
-                    audio_array, pcm_data.sample_rate, self.sample_rate
+                    audio_array,
+                    pcm_data.sample_rate,
+                    self.sample_rate,
                 ).astype(np.int16)
 
             # Normalize audio for Moonshine
@@ -335,8 +341,7 @@ class MoonshineSTT(STT):
             return None
 
     async def flush(self):
-        """
-        Flush any remaining audio in the buffer and process it.
+        """Flush any remaining audio in the buffer and process it.
 
         Note: This is a no-op since we no longer buffer audio.
         """

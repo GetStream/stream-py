@@ -1,5 +1,6 @@
-import pytest
 import os
+
+import pytest
 
 
 @pytest.fixture(scope="session")
@@ -8,7 +9,7 @@ def deepgram_api_key():
     api_key = os.environ.get("DEEPGRAM_API_KEY")
     if not api_key:
         pytest.skip(
-            "DEEPGRAM_API_KEY environment variable not set. Add it to your .env file."
+            "DEEPGRAM_API_KEY environment variable not set. Add it to your .env file.",
         )
     return api_key
 

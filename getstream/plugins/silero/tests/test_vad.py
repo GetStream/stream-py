@@ -1,16 +1,16 @@
-import os
-import pytest
 import asyncio
 import logging
-import numpy as np
-import soundfile as sf
+import os
 import tempfile
 
+import numpy as np
+import pytest
+import soundfile as sf
 import torchaudio
 
 from getstream.plugins.silero.vad import SileroVAD
-from getstream.video.rtc.track_util import PcmData
 from getstream.plugins.test_utils import get_audio_asset, get_json_metadata
+from getstream.video.rtc.track_util import PcmData
 
 # Setup logging for the test
 logging.basicConfig(level=logging.INFO)
@@ -84,7 +84,11 @@ def vad_setup():
 
 
 async def process_audio_file(
-    vad, data, original_sample_rate, detected_segments, partial_segments=None
+    vad,
+    data,
+    original_sample_rate,
+    detected_segments,
+    partial_segments=None,
 ):
     """Process audio data with VAD and collect detected speech segments."""
 
@@ -96,7 +100,7 @@ async def process_audio_file(
         samples = event.audio_data if event.audio_data is not None else b""
         detected_segments.append({"duration": duration, "bytes": len(samples)})
         logger.info(
-            f"Detected speech segment: {duration:.2f} seconds ({len(samples)} bytes)"
+            f"Detected speech segment: {duration:.2f} seconds ({len(samples)} bytes)",
         )
 
     # Add handler for partial events if tracking them
@@ -107,11 +111,9 @@ async def process_audio_file(
             # Extract duration and samples from the event
             duration = event.duration_ms / 1000.0 if event.duration_ms else 0.0
             samples = event.audio_data if event.audio_data is not None else b""
-            partial_segments.append(
-                {"duration": duration, "bytes": len(samples)}
-            )
+            partial_segments.append({"duration": duration, "bytes": len(samples)})
             logger.info(
-                f"Partial speech data: {duration:.2f} seconds ({len(samples)} bytes)"
+                f"Partial speech data: {duration:.2f} seconds ({len(samples)} bytes)",
             )
 
     # Resample if needed
@@ -126,7 +128,7 @@ async def process_audio_file(
 
     # Process the audio data
     await vad.process_audio(
-        PcmData(samples=pcm_samples, sample_rate=vad.sample_rate, format="s16")
+        PcmData(samples=pcm_samples, sample_rate=vad.sample_rate, format="s16"),
     )
 
     # Ensure we flush any remaining speech
@@ -154,7 +156,7 @@ async def process_audio_in_chunks(
         samples = event.audio_data if event.audio_data is not None else b""
         detected_segments.append({"duration": duration, "bytes": len(samples)})
         logger.info(
-            f"Detected speech segment: {duration:.2f} seconds ({len(samples)} bytes)"
+            f"Detected speech segment: {duration:.2f} seconds ({len(samples)} bytes)",
         )
 
     # Add handler for partial events if tracking them
@@ -165,11 +167,9 @@ async def process_audio_in_chunks(
             # Extract duration and samples from the event
             duration = event.duration_ms / 1000.0 if event.duration_ms else 0.0
             samples = event.audio_data if event.audio_data is not None else b""
-            partial_segments.append(
-                {"duration": duration, "bytes": len(samples)}
-            )
+            partial_segments.append({"duration": duration, "bytes": len(samples)})
             logger.info(
-                f"Partial speech data: {duration:.2f} seconds ({len(samples)} bytes)"
+                f"Partial speech data: {duration:.2f} seconds ({len(samples)} bytes)",
             )
 
     # Resample if needed
@@ -182,7 +182,7 @@ async def process_audio_in_chunks(
     # Calculate chunk size in samples for the target sample rate
     chunk_samples = int(vad.sample_rate * chunk_size_ms / 1000)
     logger.info(
-        f"Processing audio in {chunk_size_ms}ms chunks ({chunk_samples} samples per chunk)"
+        f"Processing audio in {chunk_size_ms}ms chunks ({chunk_samples} samples per chunk)",
     )
 
     # Process audio in chunks
@@ -201,7 +201,7 @@ async def process_audio_in_chunks(
 
         # Process the chunk
         await vad.process_audio(
-            PcmData(samples=chunk_pcm, sample_rate=vad.sample_rate, format="s16")
+            PcmData(samples=chunk_pcm, sample_rate=vad.sample_rate, format="s16"),
         )
 
         # Add a small delay to simulate real-time processing
@@ -215,25 +215,28 @@ async def process_audio_in_chunks(
 
 
 def verify_detected_speech(
-    detected_segments, expected_duration=None, expected_turns=None, tolerance=0.1
+    detected_segments,
+    expected_duration=None,
+    expected_turns=None,
+    tolerance=0.1,
 ):
-    """
-    Verify that the detected speech matches expectations.
+    """Verify that the detected speech matches expectations.
 
     Args:
         detected_segments: List of detected speech segments
         expected_duration: Expected total duration of speech in seconds
         expected_turns: Expected number of speech turns
         tolerance: Tolerance for duration validation (e.g., 0.1 = ±10%)
+
     """
     # Verify that speech was detected
     assert len(detected_segments) > 0, "No speech segments were detected"
 
     # Verify number of turns if specified
     if expected_turns is not None:
-        assert (
-            len(detected_segments) == expected_turns
-        ), f"Expected {expected_turns} speech turns, got {len(detected_segments)}"
+        assert len(detected_segments) == expected_turns, (
+            f"Expected {expected_turns} speech turns, got {len(detected_segments)}"
+        )
 
     # Calculate total detected duration
     total_detected_duration = sum(segment["duration"] for segment in detected_segments)
@@ -247,7 +250,7 @@ def verify_detected_speech(
         logger.info(f"Expected speech duration: {expected_duration:.2f} seconds")
         logger.info(f"Detected speech duration: {total_detected_duration:.2f} seconds")
         logger.info(
-            f"Tolerance: ±{tolerance * 100:.0f}% ({min_expected:.2f} - {max_expected:.2f}s)"
+            f"Tolerance: ±{tolerance * 100:.0f}% ({min_expected:.2f} - {max_expected:.2f}s)",
         )
 
         if len(detected_segments) > 0:
@@ -257,27 +260,27 @@ def verify_detected_speech(
                 logger.info(f"Speech segment {i + 1}: {segment['duration']:.2f}s")
 
         # Verify that the duration is within expected range
-        assert (
-            min_expected <= total_detected_duration <= max_expected
-        ), f"Expected speech duration {expected_duration}s (±{tolerance * 100:.0f}%), got {total_detected_duration}s"
+        assert min_expected <= total_detected_duration <= max_expected, (
+            f"Expected speech duration {expected_duration}s (±{tolerance * 100:.0f}%), got {total_detected_duration}s"
+        )
 
 
 def verify_partial_events(partial_segments, detected_segments):
-    """
-    Verify that partial events were received before final speech events.
+    """Verify that partial events were received before final speech events.
 
     Args:
         partial_segments: List of partial speech events
         detected_segments: List of final speech events
+
     """
     # Verify that at least one partial event was observed before each final audio event
     assert len(partial_segments) > 0, "No partial speech events were detected"
 
     # Each detected segment should have at least one corresponding partial event
     # For simplicity, we just check that we have at least one partial event per detected segment
-    assert (
-        len(partial_segments) >= len(detected_segments)
-    ), f"Expected at least {len(detected_segments)} partial events, got {len(partial_segments)}"
+    assert len(partial_segments) >= len(detected_segments), (
+        f"Expected at least {len(detected_segments)} partial events, got {len(partial_segments)}"
+    )
 
 
 @pytest.mark.asyncio
@@ -299,7 +302,11 @@ async def test_silero_vad_speech_detection(audio_data, mia_metadata, vad_setup):
 
     # Process the entire audio file
     await process_audio_file(
-        vad, data, sample_rate, detected_segments, partial_segments
+        vad,
+        data,
+        sample_rate,
+        detected_segments,
+        partial_segments,
     )
 
     # Verify that speech was detected (without duration validation)
@@ -314,8 +321,7 @@ async def test_silero_vad_speech_detection(audio_data, mia_metadata, vad_setup):
 
 @pytest.mark.asyncio
 async def test_streaming_chunks_20ms(audio_data, mia_metadata):
-    """
-    Test that streaming chunks gives the same results as processing the entire file.
+    """Test that streaming chunks gives the same results as processing the entire file.
     This test verifies that the VAD works in streaming mode.
     """
     # Create a new VAD for this test using the same parameters as vad_setup
@@ -334,7 +340,12 @@ async def test_streaming_chunks_20ms(audio_data, mia_metadata):
 
     # Process the audio in small chunks to simulate streaming
     await process_audio_in_chunks(
-        vad, data, sample_rate, detected_segments, partial_segments, chunk_size_ms=20
+        vad,
+        data,
+        sample_rate,
+        detected_segments,
+        partial_segments,
+        chunk_size_ms=20,
     )
 
     # Verify that speech was detected (without duration validation)
@@ -373,7 +384,7 @@ async def test_vad_with_connection_manager_format(audio_data, vad_setup):
         samples = event.audio_data if event.audio_data is not None else b""
         detected_segments.append({"duration": duration, "bytes": len(samples)})
         logger.info(
-            f"Detected speech segment: {duration:.2f} seconds ({len(samples)} bytes)"
+            f"Detected speech segment: {duration:.2f} seconds ({len(samples)} bytes)",
         )
 
     @vad.on("partial")
@@ -383,12 +394,12 @@ async def test_vad_with_connection_manager_format(audio_data, vad_setup):
         samples = event.audio_data if event.audio_data is not None else b""
         partial_segments.append({"duration": duration, "bytes": len(samples)})
         logger.info(
-            f"Partial speech data: {duration:.2f} seconds ({len(samples)} bytes)"
+            f"Partial speech data: {duration:.2f} seconds ({len(samples)} bytes)",
         )
 
     # Process the audio data as bytes
     await vad.process_audio(
-        PcmData(samples=pcm_bytes, sample_rate=vad.sample_rate, format="s16")
+        PcmData(samples=pcm_bytes, sample_rate=vad.sample_rate, format="s16"),
     )
 
     # Ensure we flush any remaining speech
@@ -420,7 +431,8 @@ async def test_silence_no_turns():
     # Create 5 seconds of silence (zeros)
     silence_duration_seconds = 5
     silence_samples = np.zeros(
-        vad.sample_rate * silence_duration_seconds, dtype=np.int16
+        vad.sample_rate * silence_duration_seconds,
+        dtype=np.int16,
     )
 
     # Flag to track if audio event was fired
@@ -432,7 +444,7 @@ async def test_silence_no_turns():
         nonlocal audio_event_fired
         audio_event_fired = True
         logger.info(
-            f"Audio event detected on silence! Duration: {event.duration_ms/1000.0:.2f}s"
+            f"Audio event detected on silence! Duration: {event.duration_ms / 1000.0:.2f}s",
         )
 
     @vad.on("partial")
@@ -440,7 +452,7 @@ async def test_silence_no_turns():
         nonlocal partial_event_fired
         partial_event_fired = True
         logger.info(
-            f"Partial event detected on silence! Duration: {event.duration_ms/1000.0:.2f}s"
+            f"Partial event detected on silence! Duration: {event.duration_ms / 1000.0:.2f}s",
         )
 
     # Process the silence in chunks to simulate streaming
@@ -448,7 +460,7 @@ async def test_silence_no_turns():
     for i in range(0, len(silence_samples), chunk_size):
         chunk = silence_samples[i : i + chunk_size]
         await vad.process_audio(
-            PcmData(samples=chunk, sample_rate=vad.sample_rate, format="s16")
+            PcmData(samples=chunk, sample_rate=vad.sample_rate, format="s16"),
         )
 
     # Ensure we flush any remaining audio
@@ -495,22 +507,18 @@ class TestSileroVAD:
             detected_speech.append(event)
             duration = event.duration_ms / 1000.0 if event.duration_ms else 0.0
             samples = event.audio_data if event.audio_data is not None else b""
-            logger.info(
-                f"Audio event: {duration:.2f}s ({len(samples)} samples)"
-            )
+            logger.info(f"Audio event: {duration:.2f}s ({len(samples)} samples)")
 
         @vad.on("partial")
         def on_partial(event, user=None):
             partial_events.append(event)
             duration = event.duration_ms / 1000.0 if event.duration_ms else 0.0
             samples = event.audio_data if event.audio_data is not None else b""
-            logger.info(
-                f"Partial event: {duration:.2f}s ({len(samples)} samples)"
-            )
+            logger.info(f"Partial event: {duration:.2f}s ({len(samples)} samples)")
 
         # Process the audio data
         await vad.process_audio(
-            PcmData(samples=audio_data, sample_rate=vad.sample_rate, format="s16")
+            PcmData(samples=audio_data, sample_rate=vad.sample_rate, format="s16"),
         )
 
         # Ensure we flush any remaining speech
@@ -525,9 +533,9 @@ class TestSileroVAD:
 
         # Verify that partial events were received before the final audio event
         assert len(partial_events) > 0, "No partial events detected"
-        assert (
-            len(partial_events) >= len(detected_speech)
-        ), f"Expected at least {len(detected_speech)} partial events, got {len(partial_events)}"
+        assert len(partial_events) >= len(detected_speech), (
+            f"Expected at least {len(detected_speech)} partial events, got {len(partial_events)}"
+        )
         logger.info(f"Detected {len(partial_events)} partial events")
 
         # Clean up
@@ -565,7 +573,7 @@ class TestSileroVAD:
 
         # Process the silent audio data
         await vad.process_audio(
-            PcmData(samples=silence, sample_rate=vad.sample_rate, format="s16")
+            PcmData(samples=silence, sample_rate=vad.sample_rate, format="s16"),
         )
 
         # Ensure we flush any remaining buffer
@@ -613,13 +621,13 @@ class TestSileroVAD:
         # Load 16 kHz audio file
         audio_path_16k = get_audio_asset("formant_speech_16k.wav")
         audio_data_16k, sample_rate_16k = sf.read(audio_path_16k, dtype="int16")
-        assert (
-            sample_rate_16k == 16000
-        ), f"Expected sample rate 16000, got {sample_rate_16k}"
+        assert sample_rate_16k == 16000, (
+            f"Expected sample rate 16000, got {sample_rate_16k}"
+        )
 
         # Process the 16 kHz audio
         await vad_16k.process_audio(
-            PcmData(samples=audio_data_16k, sample_rate=16000, format="s16")
+            PcmData(samples=audio_data_16k, sample_rate=16000, format="s16"),
         )
         await vad_16k.flush()
         await asyncio.sleep(0.1)
@@ -647,29 +655,29 @@ class TestSileroVAD:
         # Load 48 kHz audio file
         audio_path_48k = get_audio_asset("formant_speech_48k.wav")
         audio_data_48k, sample_rate_48k = sf.read(audio_path_48k, dtype="int16")
-        assert (
-            sample_rate_48k == 48000
-        ), f"Expected sample rate 48000, got {sample_rate_48k}"
+        assert sample_rate_48k == 48000, (
+            f"Expected sample rate 48000, got {sample_rate_48k}"
+        )
 
         # Process the 48 kHz audio
         await vad_48k.process_audio(
-            PcmData(samples=audio_data_48k, sample_rate=48000, format="s16")
+            PcmData(samples=audio_data_48k, sample_rate=48000, format="s16"),
         )
         await vad_48k.flush()
         await asyncio.sleep(0.1)
 
         # Verify both detected speech segments and partial events
-        assert (
-            len(detected_speech_16k) > 0
-        ), "No speech segments detected in 16 kHz audio"
-        assert (
-            len(detected_speech_48k) > 0
-        ), "No speech segments detected in 48 kHz audio"
-        logger.info(
-            f"Detected {len(detected_speech_16k)} speech segments in 16 kHz audio"
+        assert len(detected_speech_16k) > 0, (
+            "No speech segments detected in 16 kHz audio"
+        )
+        assert len(detected_speech_48k) > 0, (
+            "No speech segments detected in 48 kHz audio"
         )
         logger.info(
-            f"Detected {len(detected_speech_48k)} speech segments in 48 kHz audio"
+            f"Detected {len(detected_speech_16k)} speech segments in 16 kHz audio",
+        )
+        logger.info(
+            f"Detected {len(detected_speech_48k)} speech segments in 48 kHz audio",
         )
 
         # Verify partial events
@@ -677,10 +685,10 @@ class TestSileroVAD:
         assert len(partial_events_48k) > 0, "No partial events detected in 48 kHz audio"
         # Don't require specific counts, just verify partials were emitted
         logger.info(
-            f"Detected {len(partial_events_16k)} partial events in 16 kHz audio"
+            f"Detected {len(partial_events_16k)} partial events in 16 kHz audio",
         )
         logger.info(
-            f"Detected {len(partial_events_48k)} partial events in 48 kHz audio"
+            f"Detected {len(partial_events_48k)} partial events in 48 kHz audio",
         )
 
         # Clean up
@@ -689,8 +697,7 @@ class TestSileroVAD:
 
     @pytest.mark.asyncio
     async def test_bytearray_efficiency(self):
-        """
-        Test that the bytearray implementation is memory efficient.
+        """Test that the bytearray implementation is memory efficient.
         This is a basic test to ensure the implementation avoids O(n²) memory growth.
         """
         import tracemalloc
@@ -709,7 +716,10 @@ class TestSileroVAD:
         # Shorter duration to avoid timeout
         duration_sec = 2
         samples = np.random.randint(
-            -10000, 10000, size=16000 * duration_sec, dtype=np.int16
+            -10000,
+            10000,
+            size=16000 * duration_sec,
+            dtype=np.int16,
         )
 
         # Start memory tracking
@@ -738,7 +748,7 @@ class TestSileroVAD:
             chunk = samples[i : i + chunk_size]
             # Process the audio
             await vad.process_audio(
-                PcmData(samples=chunk, sample_rate=16000, format="s16")
+                PcmData(samples=chunk, sample_rate=16000, format="s16"),
             )
 
         # Take memory snapshot after processing
@@ -758,7 +768,7 @@ class TestSileroVAD:
         ratio = total_memory_mb / audio_size_mb if audio_size_mb > 0 else 0
 
         logger.info(
-            f"Memory growth: {total_memory_mb:.2f} MB for {audio_size_mb:.2f} MB of audio (ratio: {ratio:.2f})"
+            f"Memory growth: {total_memory_mb:.2f} MB for {audio_size_mb:.2f} MB of audio (ratio: {ratio:.2f})",
         )
 
         # The ratio should be close to 1.0 for efficient buffering (no excessive copying)
@@ -774,8 +784,7 @@ class TestSileroVAD:
 
     @pytest.mark.asyncio
     async def test_cuda_fallback(self):
-        """
-        Test that the Silero VAD falls back to CPU when CUDA is not available.
+        """Test that the Silero VAD falls back to CPU when CUDA is not available.
         This test will be skipped if CUDA is available.
         """
         import torch
@@ -792,9 +801,9 @@ class TestSileroVAD:
         )
 
         # Check that the device fell back to CPU
-        assert (
-            vad.device_name == "cpu"
-        ), "Failed to fall back to CPU when CUDA unavailable"
+        assert vad.device_name == "cpu", (
+            "Failed to fall back to CPU when CUDA unavailable"
+        )
         assert vad.device.type == "cpu", "Device is not CPU after fallback"
 
         # Create a short silence for inference
@@ -808,9 +817,7 @@ class TestSileroVAD:
 
     @pytest.mark.asyncio
     async def test_flush_api(self):
-        """
-        Test that flush() properly emits a speech turn even if the speech is not complete.
-        """
+        """Test that flush() properly emits a speech turn even if the speech is not complete."""
         # Initialize the VAD with longer padding to ensure speech doesn't end naturally
         vad = SileroVAD(
             sample_rate=16000,
@@ -839,7 +846,7 @@ class TestSileroVAD:
 
         # Process half the audio to get speech started but not completed
         await vad.process_audio(
-            PcmData(samples=half_audio, sample_rate=sample_rate, format="s16")
+            PcmData(samples=half_audio, sample_rate=sample_rate, format="s16"),
         )
 
         # Mark that we're about to flush
@@ -850,19 +857,16 @@ class TestSileroVAD:
 
         # Verify that at least one speech segment was emitted due to the flush
         assert len(detected_speech) > 0, "No speech segments detected after flush"
-        assert detected_speech[-1][
-            "from_flush"
-        ], "Last speech segment was not triggered by flush"
+        assert detected_speech[-1]["from_flush"], (
+            "Last speech segment was not triggered by flush"
+        )
 
         # Clean up
         await vad.close()
 
     @pytest.mark.asyncio
     async def test_onnx_fallback(self):
-        """
-        Test that the Silero VAD falls back to PyTorch when ONNX is not available or fails.
-        """
-
+        """Test that the Silero VAD falls back to PyTorch when ONNX is not available or fails."""
         # Initialize VAD with ONNX requested
         vad = SileroVAD(
             sample_rate=16000,

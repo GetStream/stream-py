@@ -1,5 +1,4 @@
-"""
-Fal Wizper STT Plugin for Stream
+"""Fal Wizper STT Plugin for Stream
 
 Provides real-time audio transcription and translation using fal-ai/wizper (Whisper v3).
 This plugin integrates with Stream's audio processing pipeline to provide high-quality
@@ -24,23 +23,23 @@ Example usage:
 """
 
 import io
+import logging
 import os
 import tempfile
 import time
-import logging
-from typing import Any, Dict, Optional, List, Tuple
 import wave
+from typing import Any, Dict, List, Optional, Tuple
 
 import fal_client
-from getstream.video.rtc.track_util import PcmData
+
 from getstream.plugins.common import STT
+from getstream.video.rtc.track_util import PcmData
 
 logger = logging.getLogger(__name__)
 
 
 class FalWizperSTT(STT):
-    """
-    Audio transcription and translation using fal-ai/wizper (Whisper v3).
+    """Audio transcription and translation using fal-ai/wizper (Whisper v3).
 
     This plugin provides real-time speech-to-text capabilities using the fal-ai/wizper
     service, which is based on OpenAI's Whisper v3 model. It supports both transcription
@@ -49,6 +48,7 @@ class FalWizperSTT(STT):
     Attributes:
         task: The task type - either "transcribe" or "translate"
         target_language: Target language code for translation (e.g., "pt" for Portuguese)
+
     """
 
     def __init__(
@@ -58,13 +58,13 @@ class FalWizperSTT(STT):
         sample_rate: int = 48000,
         client: Optional[fal_client.AsyncClient] = None,
     ):
-        """
-        Initialize FalWizperSTT.
+        """Initialize FalWizperSTT.
 
         Args:
             task: "transcribe" or "translate"
             target_language: Target language code (e.g., "pt" for Portuguese)
             sample_rate: Sample rate of the audio in Hz.
+
         """
         super().__init__(sample_rate=sample_rate)
         self.task = task
@@ -74,14 +74,14 @@ class FalWizperSTT(STT):
         self._fal_client = client if client is not None else fal_client.AsyncClient()
 
     def _pcm_to_wav_bytes(self, pcm_data: PcmData) -> bytes:
-        """
-        Convert PCM data to WAV format bytes.
+        """Convert PCM data to WAV format bytes.
 
         Args:
             pcm_data: PCM audio data from Stream's audio pipeline
 
         Returns:
             WAV format audio data as bytes
+
         """
         wav_buffer = io.BytesIO()
 
@@ -95,10 +95,11 @@ class FalWizperSTT(STT):
         return wav_buffer.read()
 
     async def _process_audio_impl(
-        self, pcm_data: PcmData, user_metadata: Optional[Dict[str, Any]] = None
+        self,
+        pcm_data: PcmData,
+        user_metadata: Optional[Dict[str, Any]] = None,
     ) -> Optional[List[Tuple[bool, str, Dict[str, Any]]]]:
-        """
-        Process accumulated speech audio through fal-ai/wizper.
+        """Process accumulated speech audio through fal-ai/wizper.
 
         This method is typically called by VAD (Voice Activity Detection) systems
         when speech segments are detected.
@@ -106,6 +107,7 @@ class FalWizperSTT(STT):
         Args:
             speech_audio: Accumulated speech audio as numpy array
             user: User metadata from the Stream call
+
         """
         if self._is_closed:
             logger.debug("connection is closed, ignoring audio")
@@ -145,13 +147,16 @@ class FalWizperSTT(STT):
 
                 # Use regular subscribe since streaming isn't supported
                 result = await self._fal_client.subscribe(
-                    "fal-ai/wizper", arguments=input_params
+                    "fal-ai/wizper",
+                    arguments=input_params,
                 )
                 if "text" in result:
                     text = result["text"].strip()
                     if text:
                         self._emit_transcript_event(
-                            text, user_metadata, {"chunks": result.get("chunks", [])}
+                            text,
+                            user_metadata,
+                            {"chunks": result.get("chunks", [])},
                         )
             finally:
                 # Clean up temporary file

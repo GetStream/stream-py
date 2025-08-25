@@ -1,5 +1,5 @@
-from functools import cached_property
 import time
+from functools import cached_property
 from typing import List
 
 import jwt
@@ -13,13 +13,14 @@ from getstream.moderation.client import ModerationClient
 from getstream.utils import validate_and_clean_url
 from getstream.video.client import VideoClient
 
-
 BASE_URL = "https://chat.stream-io-api.com/"
 
 
 class Settings(BaseSettings):
     model_config = ConfigDict(
-        env_file=".env", env_file_encoding="utf-8", extra="ignore"
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
     )
 
     STREAM_API_KEY: str = "test_key"
@@ -28,8 +29,7 @@ class Settings(BaseSettings):
 
 
 class Stream(CommonClient):
-    """
-    A class used to represent a Stream client.
+    """A class used to represent a Stream client.
 
     Contains methods to interact with Video and Chat modules of Stream API.
     """
@@ -59,8 +59,7 @@ class Stream(CommonClient):
 
     @classmethod
     def from_env(cls, timeout: float = 6.0) -> "Stream":
-        """
-        Construct a StreamClient by loading its credentials and base_url
+        """Construct a StreamClient by loading its credentials and base_url
         from environment variables (via our pydantic Settings).
         """
         settings = Settings()
@@ -74,10 +73,7 @@ class Stream(CommonClient):
 
     @cached_property
     def video(self):
-        """
-        Video stream client.
-
-        """
+        """Video stream client."""
         return VideoClient(
             api_key=self.api_key,
             base_url=self.base_url,
@@ -88,10 +84,7 @@ class Stream(CommonClient):
 
     @cached_property
     def chat(self):
-        """
-        Chat stream client.
-
-        """
+        """Chat stream client."""
         return ChatClient(
             api_key=self.api_key,
             base_url=self.base_url,
@@ -102,10 +95,7 @@ class Stream(CommonClient):
 
     @cached_property
     def moderation(self):
-        """
-        Moderation stream client.
-
-        """
+        """Moderation stream client."""
         return ModerationClient(
             api_key=self.api_key,
             base_url=self.base_url,
@@ -115,8 +105,7 @@ class Stream(CommonClient):
         )
 
     def upsert_users(self, *users: UserRequest):
-        """
-        Creates or updates users. This method performs an "upsert" operation,
+        """Creates or updates users. This method performs an "upsert" operation,
         where it checks if each user already exists and updates their information
         if they do, or creates a new user entry if they do not.
         """
@@ -128,14 +117,13 @@ class Stream(CommonClient):
         user_id: str,
         expiration: int = None,
     ):
-        """
-            Generates a token for a given user, with an optional expiration time.
+        """Generates a token for a given user, with an optional expiration time.
 
-            Args:
+        Args:
                 user_id (str): The unique identifier of the user for whom the token is being created.
                 expiration (int, optional): The duration in seconds after which the token should expire.
 
-            Returns:
+        Returns:
                 str: A token generated for the user which may include encoded data about the user and
                     the token's expiration time.
 
@@ -145,10 +133,10 @@ class Stream(CommonClient):
 
             >>> token = client.create_token("alice", expiration=3600)  # doctest: +ELLIPSIS
 
-            Notes:
+        Notes:
                 - Expiration is handled as UNIX time (seconds since epoch), and it is recommended to provide this in UTC.
-        """
 
+        """
         if user_id is None or user_id == "":
             raise ValueError("user_id is required")
 
@@ -162,7 +150,10 @@ class Stream(CommonClient):
         expiration: int = None,
     ):
         return self._create_token(
-            user_id=user_id, call_cids=call_cids, role=role, expiration=expiration
+            user_id=user_id,
+            call_cids=call_cids,
+            role=role,
+            expiration=expiration,
         )
 
     def _create_token(

@@ -1,7 +1,9 @@
-import pytest
 import os
+
+import pytest
 from dotenv import load_dotenv
-from tests.fixtures import client, call, get_user, shared_call
+
+from tests.fixtures import call, client, get_user, shared_call
 
 __all__ = ["client", "call", "get_user", "shared_call"]
 
@@ -14,7 +16,8 @@ def load_env():
 def pytest_configure(config):
     """Register custom markers."""
     config.addinivalue_line(
-        "markers", "skip_in_ci: mark test to skip when running in CI"
+        "markers",
+        "skip_in_ci: mark test to skip when running in CI",
     )
 
 

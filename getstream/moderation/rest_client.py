@@ -2,13 +2,12 @@
 from getstream.base import BaseClient
 from getstream.models import *
 from getstream.stream_response import StreamResponse
-from getstream.utils import build_query_param, build_body_dict
+from getstream.utils import build_body_dict, build_query_param
 
 
 class ModerationRestClient(BaseClient):
     def __init__(self, api_key: str, base_url: str, timeout: float, token: str):
-        """
-        Initializes ModerationClient with BaseClient instance
+        """Initializes ModerationClient with BaseClient instance
         :param api_key: A string representing the client's API key
         :param base_url: A string representing the base uniform resource locator
         :param timeout: A number representing the time limit for a request
@@ -48,7 +47,8 @@ class ModerationRestClient(BaseClient):
         return self.post("/api/v2/moderation/ban", BanResponse, json=json)
 
     def bulk_image_moderation(
-        self, csv_file: str
+        self,
+        csv_file: str,
     ) -> StreamResponse[BulkImageModerationResponse]:
         json = build_body_dict(csv_file=csv_file)
 
@@ -133,7 +133,9 @@ class ModerationRestClient(BaseClient):
         return self.post("/api/v2/moderation/config", UpsertConfigResponse, json=json)
 
     def delete_config(
-        self, key: str, team: Optional[str] = None
+        self,
+        key: str,
+        team: Optional[str] = None,
     ) -> StreamResponse[DeleteModerationConfigResponse]:
         query_params = build_query_param(team=team)
         path_params = {
@@ -148,7 +150,9 @@ class ModerationRestClient(BaseClient):
         )
 
     def get_config(
-        self, key: str, team: Optional[str] = None
+        self,
+        key: str,
+        team: Optional[str] = None,
     ) -> StreamResponse[GetConfigResponse]:
         query_params = build_query_param(team=team)
         path_params = {
@@ -183,7 +187,9 @@ class ModerationRestClient(BaseClient):
         )
 
         return self.post(
-            "/api/v2/moderation/configs", QueryModerationConfigsResponse, json=json
+            "/api/v2/moderation/configs",
+            QueryModerationConfigsResponse,
+            json=json,
         )
 
     def custom_check(
@@ -207,7 +213,9 @@ class ModerationRestClient(BaseClient):
         )
 
         return self.post(
-            "/api/v2/moderation/custom_check", CustomCheckResponse, json=json
+            "/api/v2/moderation/custom_check",
+            CustomCheckResponse,
+            json=json,
         )
 
     def v2_delete_template(self) -> StreamResponse[DeleteModerationTemplateResponse]:
@@ -225,7 +233,9 @@ class ModerationRestClient(BaseClient):
         )
 
     def v2_upsert_template(
-        self, name: str, config: FeedsModerationTemplateConfig
+        self,
+        name: str,
+        config: FeedsModerationTemplateConfig,
     ) -> StreamResponse[UpsertModerationTemplateResponse]:
         json = build_body_dict(name=name, config=config)
 
@@ -268,11 +278,17 @@ class ModerationRestClient(BaseClient):
         filter: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[QueryModerationFlagsResponse]:
         json = build_body_dict(
-            limit=limit, next=next, prev=prev, sort=sort, filter=filter
+            limit=limit,
+            next=next,
+            prev=prev,
+            sort=sort,
+            filter=filter,
         )
 
         return self.post(
-            "/api/v2/moderation/flags", QueryModerationFlagsResponse, json=json
+            "/api/v2/moderation/flags",
+            QueryModerationFlagsResponse,
+            json=json,
         )
 
     def query_moderation_logs(
@@ -296,7 +312,9 @@ class ModerationRestClient(BaseClient):
         )
 
         return self.post(
-            "/api/v2/moderation/logs", QueryModerationLogsResponse, json=json
+            "/api/v2/moderation/logs",
+            QueryModerationLogsResponse,
+            json=json,
         )
 
     def mute(
@@ -307,7 +325,10 @@ class ModerationRestClient(BaseClient):
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[MuteResponse]:
         json = build_body_dict(
-            target_ids=target_ids, timeout=timeout, user_id=user_id, user=user
+            target_ids=target_ids,
+            timeout=timeout,
+            user_id=user_id,
+            user=user,
         )
 
         return self.post("/api/v2/moderation/mute", MuteResponse, json=json)
@@ -341,11 +362,14 @@ class ModerationRestClient(BaseClient):
         )
 
         return self.post(
-            "/api/v2/moderation/review_queue", QueryReviewQueueResponse, json=json
+            "/api/v2/moderation/review_queue",
+            QueryReviewQueueResponse,
+            json=json,
         )
 
     def get_review_queue_item(
-        self, id: str
+        self,
+        id: str,
     ) -> StreamResponse[GetReviewQueueItemResponse]:
         path_params = {
             "id": id,
@@ -388,7 +412,9 @@ class ModerationRestClient(BaseClient):
         )
 
         return self.post(
-            "/api/v2/moderation/submit_action", SubmitActionResponse, json=json
+            "/api/v2/moderation/submit_action",
+            SubmitActionResponse,
+            json=json,
         )
 
     def unban(

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Example: AI Voice Conversation Bot with Stream, Deepgram STT, ElevenLabs TTS, and OpenAI
+"""Example: AI Voice Conversation Bot with Stream, Deepgram STT, ElevenLabs TTS, and OpenAI
 
 This example demonstrates how to:
 1. Create a Stream video call and add an AI bot
@@ -21,9 +20,9 @@ Requirements:
 import asyncio
 import os
 import time
-from uuid import uuid4
 import webbrowser
 from urllib.parse import urlencode
+from uuid import uuid4
 
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -39,21 +38,20 @@ from getstream.video.rtc.track_util import PcmData
 
 
 def create_user(client: Stream, id: str, name: str) -> None:
-    """
-    Create a user with a unique Stream ID.
+    """Create a user with a unique Stream ID.
 
     Args:
         client: Stream client instance
         id: Unique user ID
         name: Display name for the user
+
     """
     user_request = UserRequest(id=id, name=name)
     client.upsert_users(user_request)
 
 
 def open_browser(api_key: str, token: str, call_id: str) -> str:
-    """
-    Helper function to open browser with Stream call link.
+    """Helper function to open browser with Stream call link.
 
     Args:
         api_key: Stream API key
@@ -62,6 +60,7 @@ def open_browser(api_key: str, token: str, call_id: str) -> str:
 
     Returns:
         The URL that was opened
+
     """
     base_url = f"{os.getenv('EXAMPLE_BASE_URL')}/join/"
     params = {"api_key": api_key, "token": token, "skip_lobby": "true"}
@@ -144,7 +143,7 @@ async def main():
             @vad.on("audio")
             async def on_speech_detected(pcm: PcmData, user):
                 print(
-                    f"{time.time()} Speech detected from user: {user} duration {pcm.duration}"
+                    f"{time.time()} Speech detected from user: {user} duration {pcm.duration}",
                 )
                 # Process audio through STT with user metadata
                 user_metadata = {"user": user} if user else None
@@ -158,7 +157,7 @@ async def main():
                     user_info = str(user)
                 print(
                     f"{time.time()} got text from user {user_info}, with metadata {event.to_dict()}"
-                    f"will send the transcript to the LLM: {event.text}"
+                    f"will send the transcript to the LLM: {event.text}",
                 )
 
                 response = openai_client.responses.create(

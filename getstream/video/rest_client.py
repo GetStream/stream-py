@@ -2,13 +2,12 @@
 from getstream.base import BaseClient
 from getstream.models import *
 from getstream.stream_response import StreamResponse
-from getstream.utils import build_query_param, build_body_dict
+from getstream.utils import build_body_dict, build_query_param
 
 
 class VideoRestClient(BaseClient):
     def __init__(self, api_key: str, base_url: str, timeout: float, token: str):
-        """
-        Initializes VideoClient with BaseClient instance
+        """Initializes VideoClient with BaseClient instance
         :param api_key: A string representing the client's API key
         :param base_url: A string representing the base uniform resource locator
         :param timeout: A number representing the time limit for a request
@@ -67,7 +66,9 @@ class VideoRestClient(BaseClient):
         )
 
         return self.post(
-            "/api/v2/video/call/members", QueryCallMembersResponse, json=json
+            "/api/v2/video/call/members",
+            QueryCallMembersResponse,
+            json=json,
         )
 
     def query_call_stats(
@@ -98,7 +99,10 @@ class VideoRestClient(BaseClient):
         video: Optional[bool] = None,
     ) -> StreamResponse[GetCallResponse]:
         query_params = build_query_param(
-            members_limit=members_limit, ring=ring, notify=notify, video=video
+            members_limit=members_limit,
+            ring=ring,
+            notify=notify,
+            video=video,
         )
         path_params = {
             "type": type,
@@ -125,7 +129,9 @@ class VideoRestClient(BaseClient):
             "id": id,
         }
         json = build_body_dict(
-            starts_at=starts_at, custom=custom, settings_override=settings_override
+            starts_at=starts_at,
+            custom=custom,
+            settings_override=settings_override,
         )
 
         return self.patch(
@@ -165,7 +171,10 @@ class VideoRestClient(BaseClient):
         )
 
     def block_user(
-        self, type: str, id: str, user_id: str
+        self,
+        type: str,
+        id: str,
+        user_id: str,
     ) -> StreamResponse[BlockUserResponse]:
         path_params = {
             "type": type,
@@ -181,7 +190,10 @@ class VideoRestClient(BaseClient):
         )
 
     def delete_call(
-        self, type: str, id: str, hard: Optional[bool] = None
+        self,
+        type: str,
+        id: str,
+        hard: Optional[bool] = None,
     ) -> StreamResponse[DeleteCallResponse]:
         path_params = {
             "type": type,
@@ -303,7 +315,8 @@ class VideoRestClient(BaseClient):
             "id": id,
         }
         json = build_body_dict(
-            remove_members=remove_members, update_members=update_members
+            remove_members=remove_members,
+            update_members=update_members,
         )
 
         return self.post(
@@ -371,7 +384,11 @@ class VideoRestClient(BaseClient):
         )
 
     def video_pin(
-        self, type: str, id: str, session_id: str, user_id: str
+        self,
+        type: str,
+        id: str,
+        session_id: str,
+        user_id: str,
     ) -> StreamResponse[PinResponse]:
         path_params = {
             "type": type,
@@ -387,7 +404,9 @@ class VideoRestClient(BaseClient):
         )
 
     def list_recordings(
-        self, type: str, id: str
+        self,
+        type: str,
+        id: str,
     ) -> StreamResponse[ListRecordingsResponse]:
         path_params = {
             "type": type,
@@ -401,7 +420,10 @@ class VideoRestClient(BaseClient):
         )
 
     def get_call_report(
-        self, type: str, id: str, session_id: Optional[str] = None
+        self,
+        type: str,
+        id: str,
+        session_id: Optional[str] = None,
     ) -> StreamResponse[GetCallReportResponse]:
         query_params = build_query_param(session_id=session_id)
         path_params = {
@@ -417,7 +439,10 @@ class VideoRestClient(BaseClient):
         )
 
     def start_rtmp_broadcasts(
-        self, type: str, id: str, broadcasts: List[RTMPBroadcastRequest]
+        self,
+        type: str,
+        id: str,
+        broadcasts: List[RTMPBroadcastRequest],
     ) -> StreamResponse[StartRTMPBroadcastsResponse]:
         path_params = {
             "type": type,
@@ -433,7 +458,9 @@ class VideoRestClient(BaseClient):
         )
 
     def stop_all_rtmp_broadcasts(
-        self, type: str, id: str
+        self,
+        type: str,
+        id: str,
     ) -> StreamResponse[StopAllRTMPBroadcastsResponse]:
         path_params = {
             "type": type,
@@ -467,7 +494,9 @@ class VideoRestClient(BaseClient):
         )
 
     def start_hls_broadcasting(
-        self, type: str, id: str
+        self,
+        type: str,
+        id: str,
     ) -> StreamResponse[StartHLSBroadcastingResponse]:
         path_params = {
             "type": type,
@@ -506,7 +535,10 @@ class VideoRestClient(BaseClient):
         )
 
     def start_frame_recording(
-        self, type: str, id: str, recording_external_storage: Optional[str] = None
+        self,
+        type: str,
+        id: str,
+        recording_external_storage: Optional[str] = None,
     ) -> StreamResponse[StartFrameRecordingResponse]:
         path_params = {
             "type": type,
@@ -522,7 +554,10 @@ class VideoRestClient(BaseClient):
         )
 
     def start_recording(
-        self, type: str, id: str, recording_external_storage: Optional[str] = None
+        self,
+        type: str,
+        id: str,
+        recording_external_storage: Optional[str] = None,
     ) -> StreamResponse[StartRecordingResponse]:
         path_params = {
             "type": type,
@@ -563,7 +598,9 @@ class VideoRestClient(BaseClient):
         )
 
     def stop_hls_broadcasting(
-        self, type: str, id: str
+        self,
+        type: str,
+        id: str,
     ) -> StreamResponse[StopHLSBroadcastingResponse]:
         path_params = {
             "type": type,
@@ -577,7 +614,10 @@ class VideoRestClient(BaseClient):
         )
 
     def stop_closed_captions(
-        self, type: str, id: str, stop_transcription: Optional[bool] = None
+        self,
+        type: str,
+        id: str,
+        stop_transcription: Optional[bool] = None,
     ) -> StreamResponse[StopClosedCaptionsResponse]:
         path_params = {
             "type": type,
@@ -593,7 +633,9 @@ class VideoRestClient(BaseClient):
         )
 
     def stop_frame_recording(
-        self, type: str, id: str
+        self,
+        type: str,
+        id: str,
     ) -> StreamResponse[StopFrameRecordingResponse]:
         path_params = {
             "type": type,
@@ -636,7 +678,9 @@ class VideoRestClient(BaseClient):
         )
 
     def stop_recording(
-        self, type: str, id: str
+        self,
+        type: str,
+        id: str,
     ) -> StreamResponse[StopRecordingResponse]:
         path_params = {
             "type": type,
@@ -650,7 +694,10 @@ class VideoRestClient(BaseClient):
         )
 
     def stop_transcription(
-        self, type: str, id: str, stop_closed_captions: Optional[bool] = None
+        self,
+        type: str,
+        id: str,
+        stop_closed_captions: Optional[bool] = None,
     ) -> StreamResponse[StopTranscriptionResponse]:
         path_params = {
             "type": type,
@@ -666,7 +713,9 @@ class VideoRestClient(BaseClient):
         )
 
     def list_transcriptions(
-        self, type: str, id: str
+        self,
+        type: str,
+        id: str,
     ) -> StreamResponse[ListTranscriptionsResponse]:
         path_params = {
             "type": type,
@@ -680,7 +729,10 @@ class VideoRestClient(BaseClient):
         )
 
     def unblock_user(
-        self, type: str, id: str, user_id: str
+        self,
+        type: str,
+        id: str,
+        user_id: str,
     ) -> StreamResponse[UnblockUserResponse]:
         path_params = {
             "type": type,
@@ -696,7 +748,11 @@ class VideoRestClient(BaseClient):
         )
 
     def video_unpin(
-        self, type: str, id: str, session_id: str, user_id: str
+        self,
+        type: str,
+        id: str,
+        session_id: str,
+        user_id: str,
     ) -> StreamResponse[UnpinResponse]:
         path_params = {
             "type": type,
@@ -737,7 +793,11 @@ class VideoRestClient(BaseClient):
         )
 
     def delete_recording(
-        self, type: str, id: str, session: str, filename: str
+        self,
+        type: str,
+        id: str,
+        session: str,
+        filename: str,
     ) -> StreamResponse[DeleteRecordingResponse]:
         path_params = {
             "type": type,
@@ -753,7 +813,11 @@ class VideoRestClient(BaseClient):
         )
 
     def delete_transcription(
-        self, type: str, id: str, session: str, filename: str
+        self,
+        type: str,
+        id: str,
+        session: str,
+        filename: str,
     ) -> StreamResponse[DeleteTranscriptionResponse]:
         path_params = {
             "type": type,
@@ -813,7 +877,9 @@ class VideoRestClient(BaseClient):
         }
 
         return self.delete(
-            "/api/v2/video/calltypes/{name}", Response, path_params=path_params
+            "/api/v2/video/calltypes/{name}",
+            Response,
+            path_params=path_params,
         )
 
     def get_call_type(self, name: str) -> StreamResponse[GetCallTypeResponse]:
@@ -864,5 +930,7 @@ class VideoRestClient(BaseClient):
         json = build_body_dict(_from=_from, to=to, report_types=report_types)
 
         return self.post(
-            "/api/v2/video/stats", QueryAggregateCallStatsResponse, json=json
+            "/api/v2/video/stats",
+            QueryAggregateCallStatsResponse,
+            json=json,
         )

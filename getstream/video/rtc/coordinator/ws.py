@@ -1,5 +1,4 @@
-"""
-WebSocket client implementation for Stream Video Coordinator.
+"""WebSocket client implementation for Stream Video Coordinator.
 
 This module contains the StreamAPIWS class that provides an asynchronous WebSocket client
 for communicating with Stream's Video Coordinator.
@@ -14,12 +13,13 @@ from typing import Optional
 import websockets
 
 from getstream.utils import StreamAsyncIOEventEmitter
+
+from .backoff import exp_backoff
 from .errors import (
     StreamWSAuthError,
     StreamWSConnectionError,
     StreamWSMaxRetriesExceeded,
 )
-from .backoff import exp_backoff
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +27,7 @@ DEFAULT_WS_URI = "wss://chat.stream-io-api.com/api/v2/connect"
 
 
 class StreamAPIWS(StreamAsyncIOEventEmitter):
-    """
-    Asynchronous WebSocket client for Stream Video Coordinator.
+    """Asynchronous WebSocket client for Stream Video Coordinator.
 
     This client handles authentication, event dispatching, and connection management
     for communicating with Stream's Video Coordinator WebSocket API.
@@ -48,8 +47,7 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
         backoff_factor: float = 2.0,
         logger: Optional[logging.Logger] = None,
     ):
-        """
-        Initialize the WebSocket client.
+        """Initialize the WebSocket client.
 
         Args:
             api_key: Stream API key
@@ -62,6 +60,7 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
             backoff_base: Base delay for exponential backoff
             backoff_factor: Factor for exponential backoff
             logger: Optional logger instance
+
         """
         super().__init__()
 
@@ -91,11 +90,11 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
         self._initial_connection = True  # Track if this is the first connection
 
     def _build_auth_payload(self) -> dict:
-        """
-        Build the authentication payload to send after connection.
+        """Build the authentication payload to send after connection.
 
         Returns:
             Authentication payload as a dictionary
+
         """
         payload = {
             "token": self.token,
@@ -109,8 +108,7 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
         return payload
 
     async def _open_socket(self) -> dict:
-        """
-        Open WebSocket connection and perform authentication.
+        """Open WebSocket connection and perform authentication.
 
         Returns:
             The first message received from server
@@ -118,6 +116,7 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
         Raises:
             StreamWSAuthError: If authentication fails
             StreamWSConnectionError: If connection fails
+
         """
         self._logger.debug("Opening WebSocket connection", extra={"uri": self.uri})
 
@@ -168,9 +167,7 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
         return message
 
     async def _reader_task_func(self) -> None:
-        """
-        Background task that reads messages from the WebSocket and emits events.
-        """
+        """Background task that reads messages from the WebSocket and emits events."""
         self._logger.debug("Starting reader task")
 
         try:
@@ -187,12 +184,14 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
                         message = json.loads(raw_message)
                         event_type = message.get("type", "unknown")
                         self._logger.debug(
-                            "Received message", extra={"type": event_type}
+                            "Received message",
+                            extra={"type": event_type},
                         )
                         self.emit(event_type, message)
                     except json.JSONDecodeError as e:
                         self._logger.warning(
-                            "Failed to parse message as JSON", exc_info=e
+                            "Failed to parse message as JSON",
+                            exc_info=e,
                         )
 
                 except websockets.exceptions.ConnectionClosed as e:
@@ -218,7 +217,8 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
                     break
                 except websockets.exceptions.WebSocketException as e:
                     self._logger.error(
-                        "WebSocket protocol error in reader task", exc_info=e
+                        "WebSocket protocol error in reader task",
+                        exc_info=e,
                     )
                     if self._connected and not self._reconnect_in_progress:
                         await self._trigger_reconnect()
@@ -236,9 +236,7 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
             self._logger.debug("Reader task ended")
 
     async def _heartbeat_task_func(self) -> None:
-        """
-        Background task that sends heartbeat messages and monitors connection health.
-        """
+        """Background task that sends heartbeat messages and monitors connection health."""
         self._logger.debug("Starting heartbeat task")
 
         try:
@@ -303,7 +301,8 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
                         break
                     except Exception as e:
                         self._logger.error(
-                            "Unexpected error while sending heartbeat", exc_info=e
+                            "Unexpected error while sending heartbeat",
+                            exc_info=e,
                         )
                         if not self._reconnect_in_progress:
                             await self._trigger_reconnect()
@@ -316,9 +315,7 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
             self._logger.debug("Heartbeat task ended")
 
     async def _trigger_reconnect(self) -> None:
-        """
-        Trigger reconnection process.
-        """
+        """Trigger reconnection process."""
         if self._reconnect_in_progress:
             return
 
@@ -334,11 +331,11 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
             self._reconnect_in_progress = False
 
     async def _reconnect(self) -> None:
-        """
-        Attempt to reconnect using exponential backoff strategy.
+        """Attempt to reconnect using exponential backoff strategy.
 
         Raises:
             StreamWSMaxRetriesExceeded: If all retry attempts fail
+
         """
         self._logger.info("Starting reconnection process")
 
@@ -377,7 +374,7 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
 
             if not self._connected:
                 self._logger.debug(
-                    "Connection was closed during backoff, aborting reconnection"
+                    "Connection was closed during backoff, aborting reconnection",
                 )
                 return
 
@@ -399,7 +396,8 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
             except StreamWSAuthError as e:
                 # Authentication errors should not trigger retry
                 self._logger.error(
-                    "Authentication failed during reconnection", exc_info=e
+                    "Authentication failed during reconnection",
+                    exc_info=e,
                 )
                 self._connected = False
                 raise
@@ -411,7 +409,7 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
         self._logger.error("All reconnection attempts failed")
         self._connected = False
         raise StreamWSMaxRetriesExceeded(
-            "Maximum number of reconnection attempts exceeded"
+            "Maximum number of reconnection attempts exceeded",
         )
 
     async def _start_background_tasks(self) -> None:
@@ -442,8 +440,7 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
             self._heartbeat_task = None
 
     async def connect(self) -> dict:
-        """
-        Open the socket, authenticate, and wait for the first server frame.
+        """Open the socket, authenticate, and wait for the first server frame.
 
         Returns:
             The first event payload (usually {"type": "connection.ok"})
@@ -451,6 +448,7 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
         Raises:
             StreamWSAuthError: If the first frame has type == "error" or authentication times out
             StreamWSConnectionError: If there are connection issues
+
         """
         self._logger.info("Connecting to coordinator", extra={"uri": self.uri})
 
@@ -497,9 +495,7 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
             raise StreamWSConnectionError(f"Unexpected connection error: {e}") from e
 
     async def disconnect(self) -> None:
-        """
-        Cancel internal tasks and close the WebSocket cleanly.
-        """
+        """Cancel internal tasks and close the WebSocket cleanly."""
         self._logger.info("Disconnecting from coordinator")
 
         self._connected = False
@@ -524,10 +520,10 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
 
     @property
     def connected(self) -> bool:
-        """
-        Check if the WebSocket is currently connected.
+        """Check if the WebSocket is currently connected.
 
         Returns:
             True if connected, False otherwise
+
         """
         return self._connected and self._websocket is not None

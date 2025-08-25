@@ -5,33 +5,33 @@ This module provides a wrapper around Google's Gemini Live API.
 
 from __future__ import annotations
 
-import logging
 import asyncio
-import os
-from typing import Optional, Any, Dict, List
 import contextlib
-from google.genai import Client
-from google.genai.types import (
-    LiveConnectConfigDict,
-    Blob,
-    Modality,
-    AudioTranscriptionConfigDict,
-    RealtimeInputConfigDict,
-    TurnCoverage,
-    SpeechConfigDict,
-    VoiceConfigDict,
-    PrebuiltVoiceConfigDict,
-    ContextWindowCompressionConfigDict,
-    SlidingWindowDict,
-)
-from google.genai.live import AsyncSession
+import logging
+import os
+from typing import Any, Dict, List, Optional
+
 import numpy as np
+from google.genai import Client
+from google.genai.live import AsyncSession
+from google.genai.types import (
+    AudioTranscriptionConfigDict,
+    Blob,
+    ContextWindowCompressionConfigDict,
+    LiveConnectConfigDict,
+    Modality,
+    PrebuiltVoiceConfigDict,
+    RealtimeInputConfigDict,
+    SlidingWindowDict,
+    SpeechConfigDict,
+    TurnCoverage,
+    VoiceConfigDict,
+)
 
-from getstream.plugins.common import STS
 from getstream.audio.utils import resample_audio
-from getstream.video.rtc.track_util import PcmData
+from getstream.plugins.common import STS
 from getstream.video.rtc.audio_track import AudioStreamTrack
-
+from getstream.video.rtc.track_util import PcmData
 
 logger = logging.getLogger(__name__)
 
@@ -67,8 +67,8 @@ class GeminiLive(STS):
             silence_timeout_ms: Time to wait for silence after user stops speaking.
             provider_config: Provider config to pass through unchanged. Pass a
                 ``LiveConnectConfigDict`` from ``google.genai.types``.
-        """
 
+        """
         super().__init__(
             model=model,
             instructions=instructions,
@@ -83,17 +83,18 @@ class GeminiLive(STS):
         )
         if not self.api_key:
             raise ValueError(
-                "GOOGLE_API_KEY or GEMINI_API_KEY not provided and not found in env"
+                "GOOGLE_API_KEY or GEMINI_API_KEY not provided and not found in env",
             )
 
         if Client is None:
             raise ImportError(
-                "failed to import google genai SDK, install with: uv add google-genai"
+                "failed to import google genai SDK, install with: uv add google-genai",
             )
 
         # Use v1beta for Live APIs as required by current SDK
         self.client = Client(
-            api_key=self.api_key, http_options={"api_version": "v1beta"}
+            api_key=self.api_key,
+            http_options={"api_version": "v1beta"},
         )
         self.model = model
         # Build a default config if none provided, and apply simple overrides
@@ -118,7 +119,9 @@ class GeminiLive(STS):
 
         # Create an outbound audio track for assistant speech
         self.output_track = AudioStreamTrack(
-            framerate=24000, stereo=False, format="s16"
+            framerate=24000,
+            stereo=False,
+            format="s16",
         )
         # Kick off background connect if we are in an event loop
         loop = asyncio.get_running_loop()
@@ -131,11 +134,11 @@ class GeminiLive(STS):
             output_audio_transcription=AudioTranscriptionConfigDict(),
             speech_config=SpeechConfigDict(
                 voice_config=VoiceConfigDict(
-                    prebuilt_voice_config=PrebuiltVoiceConfigDict(voice_name="Puck")
-                )
+                    prebuilt_voice_config=PrebuiltVoiceConfigDict(voice_name="Puck"),
+                ),
             ),
             realtime_input_config=RealtimeInputConfigDict(
-                turn_coverage=TurnCoverage.TURN_INCLUDES_ONLY_ACTIVITY
+                turn_coverage=TurnCoverage.TURN_INCLUDES_ONLY_ACTIVITY,
             ),
             context_window_compression=ContextWindowCompressionConfigDict(
                 trigger_tokens=25600,
@@ -161,7 +164,7 @@ class GeminiLive(STS):
         speech_cfg: Dict[str, Any] = dict(cfg.get("speech_config") or {})
         if voice is not None:
             speech_cfg["voice_config"] = VoiceConfigDict(
-                prebuilt_voice_config=PrebuiltVoiceConfigDict(voice_name=voice)
+                prebuilt_voice_config=PrebuiltVoiceConfigDict(voice_name=voice),
             )
         if speech_cfg:
             cfg["speech_config"] = speech_cfg
@@ -214,6 +217,7 @@ class GeminiLive(STS):
         Args:
             pcm: PcmData from RTC pipeline (int16 numpy array or bytes).
             target_rate: Target sample rate for Gemini input.
+
         """
         if not self._is_connected or not self._session:
             await self.wait_until_ready()
@@ -232,7 +236,9 @@ class GeminiLive(STS):
         # Resample if needed
         if pcm.sample_rate != target_rate:
             audio_array = resample_audio(
-                audio_array, pcm.sample_rate, target_rate
+                audio_array,
+                pcm.sample_rate,
+                target_rate,
             ).astype(np.int16)
 
         # Activity detection to avoid constant interruption when streaming continuous audio
@@ -256,7 +262,9 @@ class GeminiLive(STS):
         mime = f"audio/pcm;rate={target_rate}"
         blob = Blob(data=audio_bytes, mime_type=mime)
         logger.debug(
-            "Sending %d bytes audio to Gemini Live (%s)", len(audio_bytes), mime
+            "Sending %d bytes audio to Gemini Live (%s)",
+            len(audio_bytes),
+            mime,
         )
         await self._session.send_realtime_input(audio=blob)
 
@@ -277,6 +285,7 @@ class GeminiLive(STS):
 
         Args:
             emit_events: If True, emit an "audio" event with chunk bytes.
+
         """
         if not self._is_connected or not self._session:
             await self.wait_until_ready()
@@ -313,7 +322,7 @@ class GeminiLive(STS):
 
         logger.info("Response listener started")
         self._audio_receiver_task = asyncio.create_task(_audio_receive_loop())
-        return None
+        return
 
     async def interrupt_playback(self) -> None:
         """Stop current playback immediately and clear queued audio chunks."""

@@ -4,10 +4,10 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from getstream.video.rtc.location_discovery import (
-    HTTPHintLocationDiscovery,
-    HEADER_CLOUDFRONT_POP,
     FALLBACK_LOCATION_NAME,
+    HEADER_CLOUDFRONT_POP,
     STREAM_PROD_URL,
+    HTTPHintLocationDiscovery,
 )
 
 
@@ -131,7 +131,8 @@ class TestLocationDiscovery(unittest.TestCase):
 
         # Verify that the warning was logged
         self.logger_mock.warning.assert_called_with(
-            "HEAD request failed: %s", "Connection error"
+            "HEAD request failed: %s",
+            "Connection error",
         )
 
     @patch("http.client.HTTPSConnection")
@@ -167,7 +168,8 @@ class TestLocationDiscovery(unittest.TestCase):
 
         # Verify that the warning was logged
         self.logger_mock.warning.assert_called_with(
-            "Invalid URL format: %s", "invalid-url"
+            "Invalid URL format: %s",
+            "invalid-url",
         )
 
     def test_discover_caching(self):

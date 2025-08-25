@@ -1,15 +1,16 @@
 import logging
-import torch
-import numpy as np
-import warnings
 import time
-from typing import Dict, Any, Optional
-from getstream.plugins.common import VAD
-from getstream.video.rtc.track_util import PcmData
+import warnings
+from typing import Any, Dict, Optional
+
+import numpy as np
+import torch
+
 from getstream.audio.utils import resample_audio
-from getstream.plugins.common.events import VADAudioEvent
+from getstream.plugins.common import VAD
 from getstream.plugins.common.event_utils import register_global_event
-            
+from getstream.plugins.common.events import VADAudioEvent
+from getstream.video.rtc.track_util import PcmData
 
 try:
     import onnxruntime as ort
@@ -23,8 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 class SileroVAD(VAD):
-    """
-    Voice Activity Detection implementation using Silero VAD model.
+    """Voice Activity Detection implementation using Silero VAD model.
 
     This class implements the VAD interface using the Silero VAD model,
     which is a high-performance speech detection model.
@@ -53,8 +53,7 @@ class SileroVAD(VAD):
         partial_frames: int = 10,
         use_onnx: bool = False,
     ):
-        """
-        Initialize the Silero VAD.
+        """Initialize the Silero VAD.
 
         Args:
             sample_rate: Audio sample rate in Hz expected for input
@@ -69,6 +68,7 @@ class SileroVAD(VAD):
             device: Device to run the model on ("cpu", "cuda", "cuda:0", etc.)
             partial_frames: Number of frames to process before emitting a "partial" event
             use_onnx: Whether to use ONNX runtime for inference instead of PyTorch
+
         """
         # Issue deprecation warning for frame_size
         if frame_size is not None:
@@ -101,13 +101,13 @@ class SileroVAD(VAD):
         if self.model_rate == 16000 and self.window_samples != 512:
             logger.warning(
                 f"Adjusting window_samples from {self.window_samples} to 512, "
-                "which is required by Silero VAD at 16kHz"
+                "which is required by Silero VAD at 16kHz",
             )
             self.window_samples = 512
         elif self.model_rate == 8000 and self.window_samples != 256:
             logger.warning(
                 f"Adjusting window_samples from {self.window_samples} to 256, "
-                "which is required by Silero VAD at 8kHz"
+                "which is required by Silero VAD at 8kHz",
             )
             self.window_samples = 256
 
@@ -162,7 +162,7 @@ class SileroVAD(VAD):
             logger.info(f"Using device: {self.device}")
         except Exception as e:
             logger.warning(
-                f"Failed to use device {self.device_name}: {e}, falling back to CPU"
+                f"Failed to use device {self.device_name}: {e}, falling back to CPU",
             )
             self.device = torch.device("cpu")
             self.device_name = "cpu"
@@ -202,7 +202,7 @@ class SileroVAD(VAD):
             else:
                 if self.device_name.startswith("cuda"):
                     logger.warning(
-                        "CUDA requested but not available for ONNX, falling back to CPU"
+                        "CUDA requested but not available for ONNX, falling back to CPU",
                     )
                 providers = ["CPUExecutionProvider"]
                 self.device_name = "cpu"
@@ -236,7 +236,9 @@ class SileroVAD(VAD):
 
                 # Create ONNX session
                 self.onnx_session = ort.InferenceSession(
-                    tmp.name, sess_options=session_options, providers=providers
+                    tmp.name,
+                    sess_options=session_options,
+                    providers=providers,
                 )
 
                 # Get input name
@@ -246,7 +248,7 @@ class SileroVAD(VAD):
 
         except Exception as e:
             logger.warning(
-                f"Failed to load ONNX model: {e}, falling back to PyTorch model"
+                f"Failed to load ONNX model: {e}, falling back to PyTorch model",
             )
             self.use_onnx = False
             self._load_torch_model()
@@ -258,14 +260,14 @@ class SileroVAD(VAD):
         self._resampled = np.array([], dtype=np.float32)
 
     async def is_speech(self, frame: PcmData) -> float:
-        """
-        Detect speech in an audio frame using the Silero VAD model.
+        """Detect speech in an audio frame using the Silero VAD model.
 
         Args:
             frame: PcmData object containing audio samples
 
         Returns:
             Probability (0.0 to 1.0) that the frame contains speech
+
         """
         try:
             # Convert PCM data to float32 in range [-1.0, 1.0]
@@ -277,7 +279,9 @@ class SileroVAD(VAD):
             # Resample the accumulated raw buffer to model rate if needed
             if frame.sample_rate != self.model_rate:
                 resampled_new = resample_audio(
-                    self._raw_buffer, frame.sample_rate, self.model_rate
+                    self._raw_buffer,
+                    frame.sample_rate,
+                    self.model_rate,
                 )
                 # Reset raw buffer after resampling
                 self._raw_buffer = np.array([], dtype=np.float32)
@@ -353,15 +357,15 @@ class SileroVAD(VAD):
             return 0.0
 
     async def _flush_speech_buffer(self, user: Optional[Dict[str, Any]] = None) -> None:
-        """
-        Flush the accumulated speech buffer if it meets minimum length requirements.
+        """Flush the accumulated speech buffer if it meets minimum length requirements.
 
         Args:
             user: User metadata to include with emitted audio events
+
         """
         # Calculate min speech frames based on ms
         min_speech_frames = int(
-            self.min_speech_ms * self.sample_rate / 1000 / self.frame_size
+            self.min_speech_ms * self.sample_rate / 1000 / self.frame_size,
         )
 
         # Convert bytearray to numpy array
@@ -385,7 +389,7 @@ class SileroVAD(VAD):
                 duration_ms=duration_ms,
                 speech_probability=0.8,  # Default value, could be enhanced
                 frame_count=len(speech_data) // self.frame_size,
-                user_metadata=user
+                user_metadata=user,
             )
             register_global_event(audio_event)
             self.emit("audio", audio_event)  # Structured event
@@ -403,11 +407,11 @@ class SileroVAD(VAD):
         self.reset_states()
 
     async def flush(self, user=None) -> None:
-        """
-        Flush accumulated speech buffer and emit any pending audio events.
+        """Flush accumulated speech buffer and emit any pending audio events.
 
         Args:
             user: User metadata to include with emitted audio events
+
         """
         await super().flush(user)
         # Reset buffer after flushing

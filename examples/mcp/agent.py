@@ -1,8 +1,9 @@
-import logging
-import openai
-import fastmcp
 import json
+import logging
 import re
+
+import fastmcp
+import openai
 
 logging.basicConfig(level=logging.INFO)
 
@@ -62,7 +63,7 @@ async def chat_with_tools(prompt: str, client: fastmcp.Client) -> str:
                             f"The previous tool call arguments were not valid JSON (error: {e}). "
                             f'Please retry using a valid JSON object inside the brackets, e.g. {tool_name}["param":"value"].'
                         ),
-                    }
+                    },
                 )
                 continue
 
@@ -70,14 +71,14 @@ async def chat_with_tools(prompt: str, client: fastmcp.Client) -> str:
             try:
                 result = await client.call_tool(tool_name, args)
                 history.append(
-                    {"role": "assistant", "content": f"(result) {result.data}"}
+                    {"role": "assistant", "content": f"(result) {result.data}"},
                 )
             except Exception as e:
                 history.append(
                     {
                         "role": "assistant",
                         "content": f"(error) Tool '{tool_name}' failed: {e}",
-                    }
+                    },
                 )
 
             tool_calls += 1
@@ -86,18 +87,17 @@ async def chat_with_tools(prompt: str, client: fastmcp.Client) -> str:
                     {
                         "role": "user",
                         "content": "You may make at most one more tool call. If not strictly necessary, answer the user directly now.",
-                    }
+                    },
                 )
             if tool_calls >= 3:
                 history.append(
                     {
                         "role": "user",
                         "content": "Do not call more tools. Answer the user's question directly now using the information you have.",
-                    }
+                    },
                 )
                 final = call_llm(history)
                 return final
 
             continue
-        else:
-            return reply
+        return reply

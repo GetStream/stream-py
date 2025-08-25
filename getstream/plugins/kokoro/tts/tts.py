@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import AsyncIterator
+from typing import List, Optional
 
 import numpy as np
-from typing import AsyncIterator, List, Optional
 
 from getstream.plugins.common import TTS
 from getstream.video.rtc.audio_track import AudioStreamTrack
@@ -31,7 +32,7 @@ class KokoroTTS(TTS):
 
         if KPipeline is None:
             raise ImportError(
-                "The 'kokoro' package is not installed. ``pip install kokoro`` first."
+                "The 'kokoro' package is not installed. ``pip install kokoro`` first.",
             )
 
         self._pipeline = (
@@ -47,32 +48,32 @@ class KokoroTTS(TTS):
     def set_output_track(self, track: AudioStreamTrack) -> None:  # noqa: D401
         if track.framerate != self.sample_rate:
             raise TypeError(
-                f"Invalid framerate {track.framerate}, Kokoro requires {self.sample_rate} Hz"
+                f"Invalid framerate {track.framerate}, Kokoro requires {self.sample_rate} Hz",
             )
         super().set_output_track(track)
 
     async def stream_audio(self, text: str, *_, **__) -> AsyncIterator[bytes]:  # noqa: D401
         loop = asyncio.get_event_loop()
         chunks: List[bytes] = await loop.run_in_executor(
-            None, lambda: list(self._generate_chunks(text))
+            None,
+            lambda: list(self._generate_chunks(text)),
         )
         return chunks
 
     async def stop_audio(self) -> None:
-        """
-        Clears the queue and stops playing audio.
-
-        """
+        """Clears the queue and stops playing audio."""
         try:
             await self.track.flush()
             return
         except Exception as e:
             logging.error(f"Error flushing audio track: {e}")
 
-
     def _generate_chunks(self, text: str):
         for _gs, _ps, audio in self._pipeline(
-            text, voice=self.voice, speed=self.speed, split_pattern=r"\n+"
+            text,
+            voice=self.voice,
+            speed=self.speed,
+            split_pattern=r"\n+",
         ):
             if not isinstance(audio, np.ndarray):
                 audio = np.asarray(audio)

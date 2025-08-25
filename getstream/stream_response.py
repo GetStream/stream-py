@@ -1,5 +1,5 @@
-from typing import Any, Optional, Generic
 import typing
+from typing import Any, Generic, Optional
 
 import httpx
 

@@ -1,12 +1,11 @@
 import asyncio
+import logging
+import re
+from typing import Any, Callable, Dict, NamedTuple, Optional
 
+import aiortc
 import av
 import numpy as np
-import re
-from typing import Dict, Any, NamedTuple, Callable, Optional
-
-import logging
-import aiortc
 from aiortc import MediaStreamTrack
 from aiortc.mediastreams import MediaStreamError
 from numpy.typing import NDArray
@@ -15,8 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class PcmData(NamedTuple):
-    """
-    A named tuple representing PCM audio data.
+    """A named tuple representing PCM audio data.
 
     Attributes:
         format: The format of the audio data.
@@ -25,6 +23,7 @@ class PcmData(NamedTuple):
         pts: The presentation timestamp of the audio data.
         dts: The decode timestamp of the audio data.
         time_base: The time base for converting timestamps to seconds.
+
     """
 
     format: str
@@ -36,11 +35,11 @@ class PcmData(NamedTuple):
 
     @property
     def duration(self) -> float:
-        """
-        Calculate the duration of the audio data in seconds.
+        """Calculate the duration of the audio data in seconds.
 
         Returns:
             float: Duration in seconds.
+
         """
         # The samples field contains a numpy array of audio samples
         # For s16 format, each element in the array is one sample (int16)
@@ -66,7 +65,7 @@ class PcmData(NamedTuple):
                 num_samples = len(self.samples)
             except TypeError:
                 logger.warning(
-                    f"Cannot determine sample count for type {type(self.samples)}"
+                    f"Cannot determine sample count for type {type(self.samples)}",
                 )
                 return 0.0
 
@@ -87,8 +86,7 @@ class PcmData(NamedTuple):
 
 
 def patch_sdp_offer(sdp: str) -> str:
-    """
-    Patches an SDP offer to ensure consistent ICE and DTLS parameters across all media sections.
+    """Patches an SDP offer to ensure consistent ICE and DTLS parameters across all media sections.
 
     This function:
     1. Ensures all media descriptions have the same ice-ufrag, ice-pwd, and fingerprint values
@@ -101,6 +99,7 @@ def patch_sdp_offer(sdp: str) -> str:
 
     Returns:
         The modified SDP string with consistent parameters across all media sections.
+
     """
     # Parse the SDP
     session = aiortc.sdp.SessionDescription.parse(sdp)
@@ -141,8 +140,7 @@ def patch_sdp_offer(sdp: str) -> str:
 
 
 def fix_sdp_msid_semantic(sdp: str) -> str:
-    """
-    Fix SDP msid-semantic format by ensuring there is a space after "WMS".
+    """Fix SDP msid-semantic format by ensuring there is a space after "WMS".
 
     The WebRTC spec requires a space between "WMS" and any identifiers.
     Some SDPs may incorrectly have "WMS*" instead of "WMS *" which can
@@ -153,6 +151,7 @@ def fix_sdp_msid_semantic(sdp: str) -> str:
 
     Returns:
         The fixed SDP string
+
     """
     return re.sub(r"a=msid-semantic:WMS\*", r"a=msid-semantic:WMS *", sdp)
 
@@ -246,14 +245,14 @@ class BufferedMediaTrack(aiortc.mediastreams.MediaStreamTrack):
 async def detect_video_properties(
     video_track: aiortc.mediastreams.MediaStreamTrack,
 ) -> Dict[str, Any]:
-    """
-    Detect video track properties by peeking at frames.
+    """Detect video track properties by peeking at frames.
 
     Args:
         video_track: A video MediaStreamTrack
 
     Returns:
         Dict containing width (int), height (int), fps (int), and bitrate (int) in kbps
+
     """
     logger.info("Detecting video track properties")
 
@@ -316,7 +315,7 @@ async def detect_video_properties(
                     logger.warning("Cannot calculate FPS: zero or negative time delta")
             else:
                 logger.warning(
-                    "Cannot calculate FPS: missing PTS or time_base information"
+                    "Cannot calculate FPS: missing PTS or time_base information",
                 )
         except Exception as e:
             logger.warning(f"Error calculating FPS: {e}, using default 30 fps")
@@ -351,7 +350,7 @@ async def detect_video_properties(
 
         logger.info(f"Detected video properties: {width}x{height} at {fps}fps")
         logger.info(
-            f"Calculated bitrate: {bitrate} kbps (based on {bits_per_pixel} bits/pixel)"
+            f"Calculated bitrate: {bitrate} kbps (based on {bits_per_pixel} bits/pixel)",
         )
 
         return {"width": width, "height": height, "fps": fps, "bitrate": bitrate}
@@ -373,16 +372,16 @@ async def detect_video_properties(
 
 
 class AudioTrackHandler:
-    """
-    A helper to receive raw PCM data from an aiortc AudioStreamTrack
+    """A helper to receive raw PCM data from an aiortc AudioStreamTrack
     and feed it into the provided callback.
     """
 
     def __init__(
-        self, track: MediaStreamTrack, on_audio_frame: Callable[[PcmData], Any]
+        self,
+        track: MediaStreamTrack,
+        on_audio_frame: Callable[[PcmData], Any],
     ):
-        """
-        :param track: The incoming audio track (from `pc.on("track")`).
+        """:param track: The incoming audio track (from `pc.on("track")`).
         :param on_audio_frame: A callback function that will receive
                                the PCM data as a NumPy array (int16).
         """
@@ -392,16 +391,12 @@ class AudioTrackHandler:
         self._stopped = False
 
     async def start(self):
-        """
-        Start reading frames from the track in a background task.
-        """
+        """Start reading frames from the track in a background task."""
         if self._task is None:
             self._task = asyncio.create_task(self._run_track())
 
     async def stop(self):
-        """
-        Stop reading frames and clean up.
-        """
+        """Stop reading frames and clean up."""
         self._stopped = True
         if self._task:
             self._task.cancel()
@@ -412,10 +407,7 @@ class AudioTrackHandler:
             self._task = None
 
     async def _run_track(self):
-        """
-        Internal coroutine that continuously pulls frames from the track.
-        """
-
+        """Internal coroutine that continuously pulls frames from the track."""
         while not self._stopped:
             try:
                 frame = await self.track.recv()
@@ -439,7 +431,7 @@ class AudioTrackHandler:
                 pcm_ndarray = frame.to_ndarray()
             except Exception as plane_error:
                 logger.error(
-                    f"Error converting audio frame to ndarray: {plane_error}, dropping frame"
+                    f"Error converting audio frame to ndarray: {plane_error}, dropping frame",
                 )
                 break
 
@@ -454,7 +446,7 @@ class AudioTrackHandler:
                 except ValueError as e:
                     logger.error(
                         f"Error reshaping stereo audio: {e}. "
-                        f"Original shape: {pcm_ndarray.shape}, channels: {len(frame.layout.channels)}"
+                        f"Original shape: {pcm_ndarray.shape}, channels: {len(frame.layout.channels)}",
                     )
                     break
 
@@ -470,7 +462,7 @@ class AudioTrackHandler:
                     time_base = float(frame.time_base)
                 except (TypeError, ValueError):
                     logger.warning(
-                        f"Could not convert time_base to float: {frame.time_base}"
+                        f"Could not convert time_base to float: {frame.time_base}",
                     )
                     time_base = None
 
@@ -482,5 +474,5 @@ class AudioTrackHandler:
                     pts=pts,
                     dts=dts,
                     time_base=time_base,
-                )
+                ),
             )

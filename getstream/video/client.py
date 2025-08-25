@@ -1,11 +1,10 @@
-from getstream.video.rest_client import VideoRestClient
 from getstream.video.call import Call
+from getstream.video.rest_client import VideoRestClient
 
 
 class VideoClient(VideoRestClient):
     def __init__(self, api_key: str, base_url, token, timeout, stream):
-        """
-        Initializes VideoClient with BaseClient instance
+        """Initializes VideoClient with BaseClient instance
         :param api_key: A string representing the client's API key
         :param base_url: A string representing the base uniform resource locator
         :param token: A string instance representing the client's token

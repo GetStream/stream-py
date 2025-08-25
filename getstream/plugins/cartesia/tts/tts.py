@@ -29,15 +29,17 @@ class CartesiaTTS(TTS):
             model_id: Which model to use (default ``sonic-2``).
             voice_id: Cartesia voice ID. When ``None`` the model default is used.
             sample_rate: PCM sample-rate you want back (must match output track).
-        """
 
+        """
         super().__init__()
 
         self.api_key = api_key or os.getenv("CARTESIA_API_KEY")
         if not self.api_key:
             raise ValueError("CARTESIA_API_KEY env var or api_key parameter required")
 
-        self.client = client if client is not None else AsyncCartesia(api_key=self.api_key)
+        self.client = (
+            client if client is not None else AsyncCartesia(api_key=self.api_key)
+        )
         self.model_id = model_id
         self.voice_id = voice_id
         self.sample_rate = sample_rate
@@ -45,13 +47,12 @@ class CartesiaTTS(TTS):
     def set_output_track(self, track: AudioStreamTrack) -> None:  # noqa: D401
         if track.framerate != self.sample_rate:
             raise TypeError(
-                f"Track framerate {track.framerate} ≠ expected {self.sample_rate}"
+                f"Track framerate {track.framerate} ≠ expected {self.sample_rate}",
             )
         super().set_output_track(track)
 
     async def stream_audio(self, text: str, *_, **__) -> bytes:  # noqa: D401
         """Generate speech and yield raw PCM chunks."""
-
         output_format: OutputFormat_Raw = {
             "container": "raw",
             "encoding": "pcm_s16le",
@@ -76,17 +77,16 @@ class CartesiaTTS(TTS):
         return _audio_chunk_stream()
 
     async def stop_audio(self) -> None:
-        """
-        Clears the queue and stops playing audio.
+        """Clears the queue and stops playing audio.
         This method can be used manually or under the hood in response to turn events.
 
         Returns:
             None
+
         """
         try:
-            await self.track.flush(),
+            (await self.track.flush(),)
             logging.info("🎤 Stopping audio track for TTS")
             return
         except Exception as e:
             logging.error(f"Error flushing audio track: {e}")
-

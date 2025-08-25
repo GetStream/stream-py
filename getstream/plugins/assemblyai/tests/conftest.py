@@ -40,10 +40,10 @@ def sample_audio_data():
     sample_rate = 48000
     duration = 1.0  # seconds
     frequency = 440  # Hz (A note)
-    
+
     t = np.linspace(0, duration, int(sample_rate * duration), False)
     samples = (np.sin(2 * np.pi * frequency * t) * 16384).astype(np.int16)
-    
+
     return PcmData(format="s16", samples=samples, sample_rate=sample_rate)
 
 
@@ -54,10 +54,10 @@ def sample_audio_data_16k():
     sample_rate = 16000
     duration = 1.0  # seconds
     frequency = 440  # Hz (A note)
-    
+
     t = np.linspace(0, duration, int(sample_rate * duration), False)
     samples = (np.sin(2 * np.pi * frequency * t) * 16384).astype(np.int16)
-    
+
     return PcmData(format="s16", samples=samples, sample_rate=sample_rate)
 
 
@@ -74,10 +74,10 @@ def mock_transcription_response():
             {"text": "is", "start": 1.3, "end": 1.5, "confidence": 0.97},
             {"text": "a", "start": 1.5, "end": 1.6, "confidence": 0.99},
             {"text": "test", "start": 1.6, "end": 2.0, "confidence": 0.93},
-            {"text": "transcription", "start": 2.0, "end": 2.8, "confidence": 0.92}
+            {"text": "transcription", "start": 2.0, "end": 2.8, "confidence": 0.92},
         ],
         "audio_start": 0,
-        "audio_end": 2.8
+        "audio_end": 2.8,
     }
 
 
@@ -91,10 +91,10 @@ def mock_partial_transcription():
             {"text": "Hello", "start": 0, "end": 0.5, "confidence": 0.98},
             {"text": "world", "start": 0.5, "end": 1.0, "confidence": 0.96},
             {"text": "this", "start": 1.0, "end": 1.3, "confidence": 0.94},
-            {"text": "is", "start": 1.3, "end": 1.5, "confidence": 0.97}
+            {"text": "is", "start": 1.3, "end": 1.5, "confidence": 0.97},
         ],
         "audio_start": 0,
-        "audio_end": 1.5
+        "audio_end": 1.5,
     }
 
 
@@ -104,5 +104,5 @@ def mock_error_response():
     return {
         "error": "Invalid audio format",
         "code": "INVALID_AUDIO_FORMAT",
-        "details": "The provided audio data is not in a supported format."
+        "details": "The provided audio data is not in a supported format.",
     }

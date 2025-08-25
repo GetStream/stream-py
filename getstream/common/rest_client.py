@@ -2,13 +2,12 @@
 from getstream.base import BaseClient
 from getstream.models import *
 from getstream.stream_response import StreamResponse
-from getstream.utils import build_query_param, build_body_dict
+from getstream.utils import build_body_dict, build_query_param
 
 
 class CommonRestClient(BaseClient):
     def __init__(self, api_key: str, base_url: str, timeout: float, token: str):
-        """
-        Initializes CommonClient with BaseClient instance
+        """Initializes CommonClient with BaseClient instance
         :param api_key: A string representing the client's API key
         :param base_url: A string representing the base uniform resource locator
         :param timeout: A number representing the time limit for a request
@@ -125,12 +124,15 @@ class CommonRestClient(BaseClient):
         return self.patch("/api/v2/app", Response, json=json)
 
     def list_block_lists(
-        self, team: Optional[str] = None
+        self,
+        team: Optional[str] = None,
     ) -> StreamResponse[ListBlockListResponse]:
         query_params = build_query_param(team=team)
 
         return self.get(
-            "/api/v2/blocklists", ListBlockListResponse, query_params=query_params
+            "/api/v2/blocklists",
+            ListBlockListResponse,
+            query_params=query_params,
         )
 
     def create_block_list(
@@ -145,7 +147,9 @@ class CommonRestClient(BaseClient):
         return self.post("/api/v2/blocklists", CreateBlockListResponse, json=json)
 
     def delete_block_list(
-        self, name: str, team: Optional[str] = None
+        self,
+        name: str,
+        team: Optional[str] = None,
     ) -> StreamResponse[Response]:
         query_params = build_query_param(team=team)
         path_params = {
@@ -160,7 +164,9 @@ class CommonRestClient(BaseClient):
         )
 
     def get_block_list(
-        self, name: str, team: Optional[str] = None
+        self,
+        name: str,
+        team: Optional[str] = None,
     ) -> StreamResponse[GetBlockListResponse]:
         query_params = build_query_param(team=team)
         path_params = {
@@ -175,7 +181,10 @@ class CommonRestClient(BaseClient):
         )
 
     def update_block_list(
-        self, name: str, team: Optional[str] = None, words: Optional[List[str]] = None
+        self,
+        name: str,
+        team: Optional[str] = None,
+        words: Optional[List[str]] = None,
     ) -> StreamResponse[UpdateBlockListResponse]:
         path_params = {
             "name": name,
@@ -224,7 +233,9 @@ class CommonRestClient(BaseClient):
         sns_topic_arn: Optional[str] = None,
     ) -> StreamResponse[CheckSNSResponse]:
         json = build_body_dict(
-            sns_key=sns_key, sns_secret=sns_secret, sns_topic_arn=sns_topic_arn
+            sns_key=sns_key,
+            sns_secret=sns_secret,
+            sns_topic_arn=sns_topic_arn,
         )
 
         return self.post("/api/v2/check_sns", CheckSNSResponse, json=json)
@@ -240,19 +251,24 @@ class CommonRestClient(BaseClient):
         return self.post("/api/v2/check_sqs", CheckSQSResponse, json=json)
 
     def delete_device(
-        self, id: str, user_id: Optional[str] = None
+        self,
+        id: str,
+        user_id: Optional[str] = None,
     ) -> StreamResponse[Response]:
         query_params = build_query_param(id=id, user_id=user_id)
 
         return self.delete("/api/v2/devices", Response, query_params=query_params)
 
     def list_devices(
-        self, user_id: Optional[str] = None
+        self,
+        user_id: Optional[str] = None,
     ) -> StreamResponse[ListDevicesResponse]:
         query_params = build_query_param(user_id=user_id)
 
         return self.get(
-            "/api/v2/devices", ListDevicesResponse, query_params=query_params
+            "/api/v2/devices",
+            ListDevicesResponse,
+            query_params=query_params,
         )
 
     def create_device(
@@ -304,11 +320,14 @@ class CommonRestClient(BaseClient):
         )
 
         return self.post(
-            "/api/v2/external_storage", CreateExternalStorageResponse, json=json
+            "/api/v2/external_storage",
+            CreateExternalStorageResponse,
+            json=json,
         )
 
     def delete_external_storage(
-        self, name: str
+        self,
+        name: str,
     ) -> StreamResponse[DeleteExternalStorageResponse]:
         path_params = {
             "name": name,
@@ -350,7 +369,8 @@ class CommonRestClient(BaseClient):
         )
 
     def check_external_storage(
-        self, name: str
+        self,
+        name: str,
     ) -> StreamResponse[CheckExternalStorageResponse]:
         path_params = {
             "name": name,
@@ -368,7 +388,8 @@ class CommonRestClient(BaseClient):
         return self.post("/api/v2/guest", CreateGuestResponse, json=json)
 
     def create_import_url(
-        self, filename: Optional[str] = None
+        self,
+        filename: Optional[str] = None,
     ) -> StreamResponse[CreateImportURLResponse]:
         json = build_body_dict(filename=filename)
 
@@ -378,7 +399,9 @@ class CommonRestClient(BaseClient):
         return self.get("/api/v2/imports", ListImportsResponse)
 
     def create_import(
-        self, mode: str, path: str
+        self,
+        mode: str,
+        path: str,
     ) -> StreamResponse[CreateImportResponse]:
         json = build_body_dict(mode=mode, path=path)
 
@@ -390,7 +413,9 @@ class CommonRestClient(BaseClient):
         }
 
         return self.get(
-            "/api/v2/imports/{id}", GetImportResponse, path_params=path_params
+            "/api/v2/imports/{id}",
+            GetImportResponse,
+            path_params=path_params,
         )
 
     def get_og(self, url: str) -> StreamResponse[GetOGResponse]:
@@ -416,12 +441,15 @@ class CommonRestClient(BaseClient):
         return self.get("/api/v2/push_providers", ListPushProvidersResponse)
 
     def upsert_push_provider(
-        self, push_provider: Optional[PushProvider] = None
+        self,
+        push_provider: Optional[PushProvider] = None,
     ) -> StreamResponse[UpsertPushProviderResponse]:
         json = build_body_dict(push_provider=push_provider)
 
         return self.post(
-            "/api/v2/push_providers", UpsertPushProviderResponse, json=json
+            "/api/v2/push_providers",
+            UpsertPushProviderResponse,
+            json=json,
         )
 
     def delete_push_provider(self, type: str, name: str) -> StreamResponse[Response]:
@@ -431,7 +459,9 @@ class CommonRestClient(BaseClient):
         }
 
         return self.delete(
-            "/api/v2/push_providers/{type}/{name}", Response, path_params=path_params
+            "/api/v2/push_providers/{type}/{name}",
+            Response,
+            path_params=path_params,
         )
 
     def get_rate_limits(
@@ -451,7 +481,9 @@ class CommonRestClient(BaseClient):
         )
 
         return self.get(
-            "/api/v2/rate_limits", GetRateLimitsResponse, query_params=query_params
+            "/api/v2/rate_limits",
+            GetRateLimitsResponse,
+            query_params=query_params,
         )
 
     def list_roles(self) -> StreamResponse[ListRolesResponse]:
@@ -482,7 +514,9 @@ class CommonRestClient(BaseClient):
         return self.delete("/api/v2/uploads/file", Response, query_params=query_params)
 
     def upload_file(
-        self, file: Optional[str] = None, user: Optional[OnlyUserID] = None
+        self,
+        file: Optional[str] = None,
+        user: Optional[OnlyUserID] = None,
     ) -> StreamResponse[FileUploadResponse]:
         json = build_body_dict(file=file, user=user)
 
@@ -504,33 +538,39 @@ class CommonRestClient(BaseClient):
         return self.post("/api/v2/uploads/image", ImageUploadResponse, json=json)
 
     def query_users(
-        self, payload: Optional[QueryUsersPayload] = None
+        self,
+        payload: Optional[QueryUsersPayload] = None,
     ) -> StreamResponse[QueryUsersResponse]:
         query_params = build_query_param(payload=payload)
 
         return self.get("/api/v2/users", QueryUsersResponse, query_params=query_params)
 
     def update_users_partial(
-        self, users: List[UpdateUserPartialRequest]
+        self,
+        users: List[UpdateUserPartialRequest],
     ) -> StreamResponse[UpdateUsersResponse]:
         json = build_body_dict(users=users)
 
         return self.patch("/api/v2/users", UpdateUsersResponse, json=json)
 
     def update_users(
-        self, users: Dict[str, UserRequest]
+        self,
+        users: Dict[str, UserRequest],
     ) -> StreamResponse[UpdateUsersResponse]:
         json = build_body_dict(users=users)
 
         return self.post("/api/v2/users", UpdateUsersResponse, json=json)
 
     def get_blocked_users(
-        self, user_id: Optional[str] = None
+        self,
+        user_id: Optional[str] = None,
     ) -> StreamResponse[GetBlockedUsersResponse]:
         query_params = build_query_param(user_id=user_id)
 
         return self.get(
-            "/api/v2/users/block", GetBlockedUsersResponse, query_params=query_params
+            "/api/v2/users/block",
+            GetBlockedUsersResponse,
+            query_params=query_params,
         )
 
     def block_users(
@@ -540,7 +580,9 @@ class CommonRestClient(BaseClient):
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[BlockUsersResponse]:
         json = build_body_dict(
-            blocked_user_id=blocked_user_id, user_id=user_id, user=user
+            blocked_user_id=blocked_user_id,
+            user_id=user_id,
+            user=user,
         )
 
         return self.post("/api/v2/users/block", BlockUsersResponse, json=json)
@@ -584,7 +626,8 @@ class CommonRestClient(BaseClient):
         return self.post("/api/v2/users/delete", DeleteUsersResponse, json=json)
 
     def get_user_live_locations(
-        self, user_id: Optional[str] = None
+        self,
+        user_id: Optional[str] = None,
     ) -> StreamResponse[SharedLocationsResponse]:
         query_params = build_query_param(user_id=user_id)
 
@@ -647,7 +690,9 @@ class CommonRestClient(BaseClient):
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[UnblockUsersResponse]:
         json = build_body_dict(
-            blocked_user_id=blocked_user_id, user_id=user_id, user=user
+            blocked_user_id=blocked_user_id,
+            user_id=user_id,
+            user=user,
         )
 
         return self.post("/api/v2/users/unblock", UnblockUsersResponse, json=json)
@@ -662,7 +707,8 @@ class CommonRestClient(BaseClient):
             "user_id": user_id,
         }
         json = build_body_dict(
-            created_by_id=created_by_id, mark_messages_deleted=mark_messages_deleted
+            created_by_id=created_by_id,
+            mark_messages_deleted=mark_messages_deleted,
         )
 
         return self.post(
@@ -694,7 +740,9 @@ class CommonRestClient(BaseClient):
             "user_id": user_id,
         }
         json = build_body_dict(
-            created_by_id=created_by_id, name=name, restore_messages=restore_messages
+            created_by_id=created_by_id,
+            name=name,
+            restore_messages=restore_messages,
         )
 
         return self.post(

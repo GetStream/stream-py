@@ -5,7 +5,11 @@ from getstream.stream_response import StreamResponse
 
 class Call:
     def __init__(
-        self, client, call_type: str, call_id: str = None, custom_data: Dict = None
+        self,
+        client,
+        call_type: str,
+        call_id: str = None,
+        custom_data: Dict = None,
     ):
         self.id = call_id
         self.call_type = call_type
@@ -17,9 +21,12 @@ class Call:
             self.custom_data = data.call.custom
 
     def connect_openai(
-        self, openai_api_key, agent_user_id, model="gpt-4o-realtime-preview"
+        self,
+        openai_api_key,
+        agent_user_id,
+        model="gpt-4o-realtime-preview",
     ):
-        from .openai import get_openai_realtime_client, ConnectionManagerWrapper
+        from .openai import ConnectionManagerWrapper, get_openai_realtime_client
 
         client = get_openai_realtime_client(openai_api_key, self.client.base_url)
         token = self.client.stream_audio.create_token(agent_user_id)
@@ -96,7 +103,9 @@ class Call:
 
     def block_user(self, user_id: str) -> StreamResponse[BlockUserResponse]:
         response = self.client.block_user(
-            type=self.call_type, id=self.id, user_id=user_id
+            type=self.call_type,
+            id=self.id,
+            user_id=user_id,
         )
         self._sync_from_response(response.data)
         return response
@@ -113,7 +122,11 @@ class Call:
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[SendCallEventResponse]:
         response = self.client.send_call_event(
-            type=self.call_type, id=self.id, user_id=user_id, custom=custom, user=user
+            type=self.call_type,
+            id=self.id,
+            user_id=user_id,
+            custom=custom,
+            user=user,
         )
         self._sync_from_response(response.data)
         return response
@@ -223,7 +236,10 @@ class Call:
 
     def video_pin(self, session_id: str, user_id: str) -> StreamResponse[PinResponse]:
         response = self.client.video_pin(
-            type=self.call_type, id=self.id, session_id=session_id, user_id=user_id
+            type=self.call_type,
+            id=self.id,
+            session_id=session_id,
+            user_id=user_id,
         )
         self._sync_from_response(response.data)
         return response
@@ -234,19 +250,25 @@ class Call:
         return response
 
     def get_call_report(
-        self, session_id: Optional[str] = None
+        self,
+        session_id: Optional[str] = None,
     ) -> StreamResponse[GetCallReportResponse]:
         response = self.client.get_call_report(
-            type=self.call_type, id=self.id, session_id=session_id
+            type=self.call_type,
+            id=self.id,
+            session_id=session_id,
         )
         self._sync_from_response(response.data)
         return response
 
     def start_rtmp_broadcasts(
-        self, broadcasts: List[RTMPBroadcastRequest]
+        self,
+        broadcasts: List[RTMPBroadcastRequest],
     ) -> StreamResponse[StartRTMPBroadcastsResponse]:
         response = self.client.start_rtmp_broadcasts(
-            type=self.call_type, id=self.id, broadcasts=broadcasts
+            type=self.call_type,
+            id=self.id,
+            broadcasts=broadcasts,
         )
         self._sync_from_response(response.data)
         return response
@@ -290,7 +312,8 @@ class Call:
         return response
 
     def start_frame_recording(
-        self, recording_external_storage: Optional[str] = None
+        self,
+        recording_external_storage: Optional[str] = None,
     ) -> StreamResponse[StartFrameRecordingResponse]:
         response = self.client.start_frame_recording(
             type=self.call_type,
@@ -301,7 +324,8 @@ class Call:
         return response
 
     def start_recording(
-        self, recording_external_storage: Optional[str] = None
+        self,
+        recording_external_storage: Optional[str] = None,
     ) -> StreamResponse[StartRecordingResponse]:
         response = self.client.start_recording(
             type=self.call_type,
@@ -333,10 +357,13 @@ class Call:
         return response
 
     def stop_closed_captions(
-        self, stop_transcription: Optional[bool] = None
+        self,
+        stop_transcription: Optional[bool] = None,
     ) -> StreamResponse[StopClosedCaptionsResponse]:
         response = self.client.stop_closed_captions(
-            type=self.call_type, id=self.id, stop_transcription=stop_transcription
+            type=self.call_type,
+            id=self.id,
+            stop_transcription=stop_transcription,
         )
         self._sync_from_response(response.data)
         return response
@@ -372,10 +399,13 @@ class Call:
         return response
 
     def stop_transcription(
-        self, stop_closed_captions: Optional[bool] = None
+        self,
+        stop_closed_captions: Optional[bool] = None,
     ) -> StreamResponse[StopTranscriptionResponse]:
         response = self.client.stop_transcription(
-            type=self.call_type, id=self.id, stop_closed_captions=stop_closed_captions
+            type=self.call_type,
+            id=self.id,
+            stop_closed_captions=stop_closed_captions,
         )
         self._sync_from_response(response.data)
         return response
@@ -387,16 +417,23 @@ class Call:
 
     def unblock_user(self, user_id: str) -> StreamResponse[UnblockUserResponse]:
         response = self.client.unblock_user(
-            type=self.call_type, id=self.id, user_id=user_id
+            type=self.call_type,
+            id=self.id,
+            user_id=user_id,
         )
         self._sync_from_response(response.data)
         return response
 
     def video_unpin(
-        self, session_id: str, user_id: str
+        self,
+        session_id: str,
+        user_id: str,
     ) -> StreamResponse[UnpinResponse]:
         response = self.client.video_unpin(
-            type=self.call_type, id=self.id, session_id=session_id, user_id=user_id
+            type=self.call_type,
+            id=self.id,
+            session_id=session_id,
+            user_id=user_id,
         )
         self._sync_from_response(response.data)
         return response
@@ -418,19 +455,29 @@ class Call:
         return response
 
     def delete_recording(
-        self, session: str, filename: str
+        self,
+        session: str,
+        filename: str,
     ) -> StreamResponse[DeleteRecordingResponse]:
         response = self.client.delete_recording(
-            type=self.call_type, id=self.id, session=session, filename=filename
+            type=self.call_type,
+            id=self.id,
+            session=session,
+            filename=filename,
         )
         self._sync_from_response(response.data)
         return response
 
     def delete_transcription(
-        self, session: str, filename: str
+        self,
+        session: str,
+        filename: str,
     ) -> StreamResponse[DeleteTranscriptionResponse]:
         response = self.client.delete_transcription(
-            type=self.call_type, id=self.id, session=session, filename=filename
+            type=self.call_type,
+            id=self.id,
+            session=session,
+            filename=filename,
         )
         self._sync_from_response(response.data)
         return response

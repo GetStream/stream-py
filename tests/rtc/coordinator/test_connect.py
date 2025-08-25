@@ -1,6 +1,4 @@
-"""
-Tests for StreamAPIWS connect and disconnect functionality.
-"""
+"""Tests for StreamAPIWS connect and disconnect functionality."""
 
 import asyncio
 import json
@@ -8,12 +6,12 @@ import json
 import pytest
 import websockets
 
-from getstream.video.rtc.coordinator.ws import StreamAPIWS
+from getstream.stream import Stream
 from getstream.video.rtc.coordinator.errors import (
     StreamWSAuthError,
     StreamWSConnectionError,
 )
-from getstream.stream import Stream
+from getstream.video.rtc.coordinator.ws import StreamAPIWS
 
 
 @pytest.mark.asyncio
@@ -266,7 +264,6 @@ async def test_event_emission():
 @pytest.mark.asyncio
 async def test_auth_payload_structure():
     """Test that authentication payload has correct structure."""
-
     # Mock server that captures and validates auth payload
     captured_auth = None
 
@@ -319,7 +316,9 @@ async def test_auth_payload_structure():
 async def test_disconnect_without_connect():
     """Test that disconnect works even if never connected."""
     client = StreamAPIWS(
-        api_key="test_key", token="test_token", user_details={"id": "test_user"}
+        api_key="test_key",
+        token="test_token",
+        user_details={"id": "test_user"},
     )
 
     # Should not raise an exception
@@ -331,7 +330,9 @@ async def test_disconnect_without_connect():
 async def test_integration_test_simple(client: Stream):
     token = client.create_token("user_id")
     ws_client = StreamAPIWS(
-        api_key=client.api_key, token=token, user_details={"id": "user_id"}
+        api_key=client.api_key,
+        token=token,
+        user_details={"id": "user_id"},
     )
     response = await ws_client.connect()
     assert response["type"] == "connection.ok"
@@ -341,7 +342,9 @@ async def test_integration_test_simple(client: Stream):
 @pytest.mark.asyncio
 async def test_integration_test_bad_auth_raises(client: Stream):
     ws_client = StreamAPIWS(
-        api_key=client.api_key, token="tok", user_details={"id": "xxx"}
+        api_key=client.api_key,
+        token="tok",
+        user_details={"id": "xxx"},
     )
 
     # Test that authentication error is raised with invalid token

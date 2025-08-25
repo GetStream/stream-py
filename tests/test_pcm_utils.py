@@ -1,22 +1,22 @@
-"""
-Tests for getstream.audio.pcm_utils module.
+"""Tests for getstream.audio.pcm_utils module.
 
 This module tests all PCM audio utility functions including conversion,
 validation, and logging functionality.
 """
 
 import logging
-import pytest
+
 import numpy as np
+import pytest
 
 from getstream.audio.pcm_utils import (
-    pcm_to_numpy_array,
-    numpy_array_to_bytes,
-    validate_sample_rate_compatibility,
     log_audio_processing_info,
+    numpy_array_to_bytes,
+    pcm_to_numpy_array,
+    validate_sample_rate_compatibility,
 )
-from getstream.video.rtc.track_util import PcmData
 from getstream.plugins.test_utils import get_audio_asset
+from getstream.video.rtc.track_util import PcmData
 
 
 class TestPcmToNumpyArray:
@@ -324,7 +324,9 @@ class TestIntegrationWithRealAudio:
 
         # Create PcmData with bytes
         pcm_data_bytes = PcmData(
-            format="s16", sample_rate=sample_rate, samples=bytes_result
+            format="s16",
+            sample_rate=sample_rate,
+            samples=bytes_result,
         )
 
         # Convert back to numpy array
@@ -341,7 +343,9 @@ class TestIntegrationWithRealAudio:
             for target_rate in common_rates:
                 # Should not raise any exceptions
                 validate_sample_rate_compatibility(
-                    input_rate, target_rate, "test_plugin"
+                    input_rate,
+                    target_rate,
+                    "test_plugin",
                 )
 
     def test_processing_info_with_real_audio(self, caplog):

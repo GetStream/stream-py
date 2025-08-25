@@ -1,11 +1,12 @@
-"""
-Shared helpers for audio manipulation used by VAD and STT plugins.
+"""Shared helpers for audio manipulation used by VAD and STT plugins.
 Currently contains:
     * resample_audio() – high-quality multi-backend resampler.
 """
 
 from __future__ import annotations
+
 import logging
+
 import numpy as np
 
 # Optional back-ends
@@ -17,8 +18,8 @@ except ImportError:
     _has_scipy = False
 
 try:
-    import torchaudio
     import torch
+    import torchaudio
 
     _has_torchaudio = True
 except ImportError:
@@ -28,8 +29,7 @@ log = logging.getLogger(__name__)
 
 
 def resample_audio(frame: np.ndarray, from_sr: int, to_sr: int) -> np.ndarray:
-    """
-    High-quality resampling used across the codebase.
+    """High-quality resampling used across the codebase.
 
     – Prefers scipy.signal.resample_poly (best SNR & speed).
     – Falls back to torchaudio.transforms.Resample if SciPy missing.
@@ -52,7 +52,8 @@ def resample_audio(frame: np.ndarray, from_sr: int, to_sr: int) -> np.ndarray:
         try:
             tensor = torch.tensor(frame, dtype=torch.float32)
             resampler = torchaudio.transforms.Resample(
-                orig_freq=from_sr, new_freq=to_sr
+                orig_freq=from_sr,
+                new_freq=to_sr,
             )
             return resampler(tensor).numpy()
         except Exception as e:

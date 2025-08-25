@@ -1,24 +1,29 @@
 import abc
+import asyncio
 import logging
 import time
 import uuid
-from typing import Optional, Dict, Any, Tuple, List
-import asyncio
 from asyncio import AbstractEventLoop
+from typing import Any, Dict, List, Optional, Tuple
+
 from pyee.asyncio import AsyncIOEventEmitter
+
 from getstream.video.rtc.track_util import PcmData
 
-from .events import (
-    STTTranscriptEvent, STTPartialTranscriptEvent, STTErrorEvent, PluginInitializedEvent, PluginClosedEvent
-)
 from .event_utils import register_global_event
+from .events import (
+    PluginClosedEvent,
+    PluginInitializedEvent,
+    STTErrorEvent,
+    STTPartialTranscriptEvent,
+    STTTranscriptEvent,
+)
 
 logger = logging.getLogger(__name__)
 
 
 class STT(AsyncIOEventEmitter, abc.ABC):
-    """
-    Abstract base class for Speech-to-Text implementations.
+    """Abstract base class for Speech-to-Text implementations.
 
     This class provides a standardized interface for STT implementations with consistent
     event emission patterns and error handling.
@@ -49,8 +54,7 @@ class STT(AsyncIOEventEmitter, abc.ABC):
         loop: Optional[AbstractEventLoop] = None,
         provider_name: Optional[str] = None,
     ):
-        """
-        Initialize the STT service.
+        """Initialize the STT service.
 
         Args:
             sample_rate: The sample rate of the audio to process, in Hz.
@@ -66,8 +70,8 @@ class STT(AsyncIOEventEmitter, abc.ABC):
         ``RuntimeError: There is no current event loop``.  Capturing the running
         loop at instantiation guarantees the callbacks are always scheduled on
         the correct loop regardless of the calling thread.
-        """
 
+        """
         if loop is None:
             try:
                 # Prefer the currently running loop if in async context
@@ -106,22 +110,21 @@ class STT(AsyncIOEventEmitter, abc.ABC):
             plugin_name=self.provider_name,
             plugin_type="STT",
             provider=self.provider_name,
-            configuration={"sample_rate": sample_rate}
+            configuration={"sample_rate": sample_rate},
         )
         register_global_event(init_event)
         self.emit("initialized", init_event)
 
     def _validate_pcm_data(self, pcm_data: PcmData) -> bool:
-        """
-        Validate PCM data input for processing.
+        """Validate PCM data input for processing.
 
         Args:
             pcm_data: The PCM audio data to validate.
 
         Returns:
             True if the data is valid, False otherwise.
-        """
 
+        """
         if not hasattr(pcm_data, "samples") or pcm_data.samples is None:
             logger.warning("PCM data has no samples")
             return False
@@ -143,13 +146,13 @@ class STT(AsyncIOEventEmitter, abc.ABC):
         user_metadata: Optional[Dict[str, Any]],
         metadata: Dict[str, Any],
     ):
-        """
-        Emit a final transcript event with structured data.
+        """Emit a final transcript event with structured data.
 
         Args:
             text: The transcribed text.
             user_metadata: User-specific metadata.
             metadata: Transcription metadata (processing time, confidence, etc.).
+
         """
         event = STTTranscriptEvent(
             session_id=self.session_id,
@@ -185,13 +188,13 @@ class STT(AsyncIOEventEmitter, abc.ABC):
         user_metadata: Optional[Dict[str, Any]],
         metadata: Dict[str, Any],
     ):
-        """
-        Emit a partial transcript event with structured data.
+        """Emit a partial transcript event with structured data.
 
         Args:
             text: The partial transcribed text.
             user_metadata: User-specific metadata.
             metadata: Transcription metadata (processing time, confidence, etc.).
+
         """
         event = STTPartialTranscriptEvent(
             session_id=self.session_id,
@@ -220,14 +223,19 @@ class STT(AsyncIOEventEmitter, abc.ABC):
         register_global_event(event)
         self.emit("partial_transcript", event)  # Structured event
 
-    def _emit_error_event(self, error: Exception, context: str = "", user_metadata: Optional[Dict[str, Any]] = None):
-        """
-        Emit an error event with structured data.
+    def _emit_error_event(
+        self,
+        error: Exception,
+        context: str = "",
+        user_metadata: Optional[Dict[str, Any]] = None,
+    ):
+        """Emit an error event with structured data.
 
         Args:
             error: The exception that occurred.
             context: Additional context about where the error occurred.
             user_metadata: User-specific metadata.
+
         """
         event = STTErrorEvent(
             session_id=self.session_id,
@@ -235,8 +243,8 @@ class STT(AsyncIOEventEmitter, abc.ABC):
             error=error,
             context=context,
             user_metadata=user_metadata,
-            error_code=getattr(error, 'error_code', None),
-            is_recoverable=not isinstance(error, (SystemExit, KeyboardInterrupt))
+            error_code=getattr(error, "error_code", None),
+            is_recoverable=not isinstance(error, (SystemExit, KeyboardInterrupt)),
         )
 
         logger.error(
@@ -254,14 +262,16 @@ class STT(AsyncIOEventEmitter, abc.ABC):
         self.emit("error", event)  # Structured event
 
     async def process_audio(
-        self, pcm_data: PcmData, user_metadata: Optional[Dict[str, Any]] = None
+        self,
+        pcm_data: PcmData,
+        user_metadata: Optional[Dict[str, Any]] = None,
     ):
-        """
-        Process audio data for transcription and emit appropriate events.
+        """Process audio data for transcription and emit appropriate events.
 
         Args:
             pcm_data: The PCM audio data to process.
             user_metadata: Additional metadata about the user or session.
+
         """
         if self._is_closed:
             logger.debug("Ignoring audio processing request - STT is closed")
@@ -317,10 +327,11 @@ class STT(AsyncIOEventEmitter, abc.ABC):
 
     @abc.abstractmethod
     async def _process_audio_impl(
-        self, pcm_data: PcmData, user_metadata: Optional[Dict[str, Any]] = None
+        self,
+        pcm_data: PcmData,
+        user_metadata: Optional[Dict[str, Any]] = None,
     ) -> Optional[List[Tuple[bool, str, Dict[str, Any]]]]:
-        """
-        Implementation-specific method to process audio data.
+        """Implementation-specific method to process audio data.
 
         This method must be implemented by all STT providers and should handle the core
         transcription logic. The base class handles event emission and error handling.
@@ -339,13 +350,13 @@ class STT(AsyncIOEventEmitter, abc.ABC):
             or duplicate events will be produced.
             Exceptions should bubble up; process_audio() will catch them
             and emit a single "error" event.
+
         """
         pass
 
     @abc.abstractmethod
     async def close(self):
-        """
-        Close the STT service and release any resources.
+        """Close the STT service and release any resources.
 
         Implementations should:
         - Set self._is_closed = True
@@ -362,7 +373,7 @@ class STT(AsyncIOEventEmitter, abc.ABC):
                 plugin_name=self.provider_name,
                 plugin_type="STT",
                 provider=self.provider_name,
-                cleanup_successful=True
+                cleanup_successful=True,
             )
             register_global_event(close_event)
             self.emit("closed", close_event)

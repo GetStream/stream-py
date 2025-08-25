@@ -32,5 +32,4 @@ class BaseConfig:
     def _get_auth_type(self):
         if self.anonymous:
             return "anonymous"
-        else:
-            return "jwt"
+        return "jwt"

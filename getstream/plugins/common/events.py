@@ -1,5 +1,4 @@
-"""
-Structured event classes for all GetStream AI plugins.
+"""Structured event classes for all GetStream AI plugins.
 
 This module provides type-safe, structured event classes for STT, TTS, STS, VAD,
 and other AI plugin types. These events ensure consistency across implementations
@@ -16,8 +15,8 @@ Key Features:
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional, Dict, Any, List
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
 
 class EventType(Enum):
@@ -61,6 +60,7 @@ class EventType(Enum):
 
 class ConnectionState(Enum):
     """Connection states for streaming plugins."""
+
     DISCONNECTED = "disconnected"
     CONNECTING = "connecting"
     CONNECTED = "connected"
@@ -70,6 +70,7 @@ class ConnectionState(Enum):
 
 class AudioFormat(Enum):
     """Supported audio formats."""
+
     PCM_S16 = "s16"
     PCM_F32 = "f32"
     WAV = "wav"
@@ -80,6 +81,7 @@ class AudioFormat(Enum):
 @dataclass
 class BaseEvent:
     """Base class for all plugin events."""
+
     event_type: EventType
     event_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     timestamp: datetime = field(default_factory=datetime.utcnow)
@@ -91,12 +93,17 @@ class BaseEvent:
     def to_dict(self) -> Dict[str, Any]:
         """Convert event to dictionary for serialization."""
         result = {}
-        
+
         import dataclasses
+
         for field_info in dataclasses.fields(self):
             field_value = getattr(self, field_info.name)
             if isinstance(field_value, (datetime, Enum)):
-                result[field_info.name] = field_value.value if isinstance(field_value, Enum) else str(field_value)
+                result[field_info.name] = (
+                    field_value.value
+                    if isinstance(field_value, Enum)
+                    else str(field_value)
+                )
             else:
                 result[field_info.name] = field_value
         return result
@@ -106,9 +113,11 @@ class BaseEvent:
 # STT (Speech-to-Text) Events
 # ============================================================================
 
+
 @dataclass
 class STTTranscriptEvent(BaseEvent):
     """Event emitted when a complete transcript is available."""
+
     event_type: EventType = field(default=EventType.STT_TRANSCRIPT, init=False)
     text: str = ""
     confidence: Optional[float] = None
@@ -127,6 +136,7 @@ class STTTranscriptEvent(BaseEvent):
 @dataclass
 class STTPartialTranscriptEvent(BaseEvent):
     """Event emitted when a partial transcript is available."""
+
     event_type: EventType = field(default=EventType.STT_PARTIAL_TRANSCRIPT, init=False)
     text: str = ""
     confidence: Optional[float] = None
@@ -141,6 +151,7 @@ class STTPartialTranscriptEvent(BaseEvent):
 @dataclass
 class STTErrorEvent(BaseEvent):
     """Event emitted when an STT error occurs."""
+
     event_type: EventType = field(default=EventType.STT_ERROR, init=False)
     error: Optional[Exception] = None
     error_code: Optional[str] = None
@@ -156,6 +167,7 @@ class STTErrorEvent(BaseEvent):
 @dataclass
 class STTConnectionEvent(BaseEvent):
     """Event emitted for STT connection state changes."""
+
     event_type: EventType = field(default=EventType.STT_CONNECTION, init=False)
     connection_state: Optional[ConnectionState] = None
     provider: Optional[str] = None
@@ -167,9 +179,11 @@ class STTConnectionEvent(BaseEvent):
 # TTS (Text-to-Speech) Events
 # ============================================================================
 
+
 @dataclass
 class TTSAudioEvent(BaseEvent):
     """Event emitted when TTS audio data is available."""
+
     event_type: EventType = field(default=EventType.TTS_AUDIO, init=False)
     audio_data: Optional[bytes] = None
     audio_format: AudioFormat = AudioFormat.PCM_S16
@@ -184,6 +198,7 @@ class TTSAudioEvent(BaseEvent):
 @dataclass
 class TTSSynthesisStartEvent(BaseEvent):
     """Event emitted when TTS synthesis begins."""
+
     event_type: EventType = field(default=EventType.TTS_SYNTHESIS_START, init=False)
     text: Optional[str] = None
     synthesis_id: str = field(default_factory=lambda: str(uuid.uuid4()))
@@ -195,6 +210,7 @@ class TTSSynthesisStartEvent(BaseEvent):
 @dataclass
 class TTSSynthesisCompleteEvent(BaseEvent):
     """Event emitted when TTS synthesis completes."""
+
     event_type: EventType = field(default=EventType.TTS_SYNTHESIS_COMPLETE, init=False)
     synthesis_id: Optional[str] = None
     text: Optional[str] = None
@@ -208,6 +224,7 @@ class TTSSynthesisCompleteEvent(BaseEvent):
 @dataclass
 class TTSErrorEvent(BaseEvent):
     """Event emitted when a TTS error occurs."""
+
     event_type: EventType = field(default=EventType.TTS_ERROR, init=False)
     error: Optional[Exception] = None
     error_code: Optional[str] = None
@@ -224,6 +241,7 @@ class TTSErrorEvent(BaseEvent):
 @dataclass
 class TTSConnectionEvent(BaseEvent):
     """Event emitted for TTS connection state changes."""
+
     event_type: EventType = field(default=EventType.TTS_CONNECTION, init=False)
     connection_state: Optional[ConnectionState] = None
     provider: Optional[str] = None
@@ -234,9 +252,11 @@ class TTSConnectionEvent(BaseEvent):
 # STS (Speech-to-Speech) Events
 # ============================================================================
 
+
 @dataclass
 class STSConnectedEvent(BaseEvent):
     """Event emitted when STS connection is established."""
+
     event_type: EventType = field(default=EventType.STS_CONNECTED, init=False)
     provider: Optional[str] = None
     session_config: Optional[Dict[str, Any]] = None
@@ -246,6 +266,7 @@ class STSConnectedEvent(BaseEvent):
 @dataclass
 class STSDisconnectedEvent(BaseEvent):
     """Event emitted when STS connection is closed."""
+
     event_type: EventType = field(default=EventType.STS_DISCONNECTED, init=False)
     provider: Optional[str] = None
     reason: Optional[str] = None
@@ -255,6 +276,7 @@ class STSDisconnectedEvent(BaseEvent):
 @dataclass
 class STSAudioInputEvent(BaseEvent):
     """Event emitted when audio input is sent to STS."""
+
     event_type: EventType = field(default=EventType.STS_AUDIO_INPUT, init=False)
     audio_data: Optional[bytes] = None
     audio_format: AudioFormat = AudioFormat.PCM_S16
@@ -265,6 +287,7 @@ class STSAudioInputEvent(BaseEvent):
 @dataclass
 class STSAudioOutputEvent(BaseEvent):
     """Event emitted when audio output is received from STS."""
+
     event_type: EventType = field(default=EventType.STS_AUDIO_OUTPUT, init=False)
     audio_data: Optional[bytes] = None
     audio_format: AudioFormat = AudioFormat.PCM_S16
@@ -276,6 +299,7 @@ class STSAudioOutputEvent(BaseEvent):
 @dataclass
 class STSTranscriptEvent(BaseEvent):
     """Event emitted when STS provides a transcript."""
+
     event_type: EventType = field(default=EventType.STS_TRANSCRIPT, init=False)
     text: Optional[str] = None
     is_user: bool = True
@@ -286,6 +310,7 @@ class STSTranscriptEvent(BaseEvent):
 @dataclass
 class STSResponseEvent(BaseEvent):
     """Event emitted when STS provides a response."""
+
     event_type: EventType = field(default=EventType.STS_RESPONSE, init=False)
     text: Optional[str] = None
     response_id: str = field(default_factory=lambda: str(uuid.uuid4()))
@@ -296,9 +321,12 @@ class STSResponseEvent(BaseEvent):
 @dataclass
 class STSConversationItemEvent(BaseEvent):
     """Event emitted for conversation item updates in STS."""
+
     event_type: EventType = field(default=EventType.STS_CONVERSATION_ITEM, init=False)
     item_id: Optional[str] = None
-    item_type: Optional[str] = None  # "message", "function_call", "function_call_output"
+    item_type: Optional[str] = (
+        None  # "message", "function_call", "function_call_output"
+    )
     status: Optional[str] = None  # "completed", "in_progress", "incomplete"
     role: Optional[str] = None  # "user", "assistant", "system"
     content: Optional[List[Dict[str, Any]]] = None
@@ -307,6 +335,7 @@ class STSConversationItemEvent(BaseEvent):
 @dataclass
 class STSErrorEvent(BaseEvent):
     """Event emitted when an STS error occurs."""
+
     event_type: EventType = field(default=EventType.STS_ERROR, init=False)
     error: Optional[Exception] = None
     error_code: Optional[str] = None
@@ -322,9 +351,11 @@ class STSErrorEvent(BaseEvent):
 # VAD (Voice Activity Detection) Events
 # ============================================================================
 
+
 @dataclass
 class VADSpeechStartEvent(BaseEvent):
     """Event emitted when speech begins."""
+
     event_type: EventType = field(default=EventType.VAD_SPEECH_START, init=False)
     speech_probability: float = 0.0
     activation_threshold: float = 0.0
@@ -334,6 +365,7 @@ class VADSpeechStartEvent(BaseEvent):
 @dataclass
 class VADSpeechEndEvent(BaseEvent):
     """Event emitted when speech ends."""
+
     event_type: EventType = field(default=EventType.VAD_SPEECH_END, init=False)
     speech_probability: float = 0.0
     deactivation_threshold: float = 0.0
@@ -344,6 +376,7 @@ class VADSpeechEndEvent(BaseEvent):
 @dataclass
 class VADAudioEvent(BaseEvent):
     """Event emitted when VAD detects complete speech segment."""
+
     event_type: EventType = field(default=EventType.VAD_AUDIO, init=False)
     audio_data: Optional[bytes] = None  # PCM audio data
     sample_rate: int = 16000
@@ -357,6 +390,7 @@ class VADAudioEvent(BaseEvent):
 @dataclass
 class VADPartialEvent(BaseEvent):
     """Event emitted during ongoing speech detection."""
+
     event_type: EventType = field(default=EventType.VAD_PARTIAL, init=False)
     audio_data: Optional[bytes] = None  # PCM audio data
     sample_rate: int = 16000
@@ -371,6 +405,7 @@ class VADPartialEvent(BaseEvent):
 @dataclass
 class VADErrorEvent(BaseEvent):
     """Event emitted when a VAD error occurs."""
+
     event_type: EventType = field(default=EventType.VAD_ERROR, init=False)
     error: Optional[Exception] = None
     error_code: Optional[str] = None
@@ -386,9 +421,11 @@ class VADErrorEvent(BaseEvent):
 # Generic Plugin Events
 # ============================================================================
 
+
 @dataclass
 class PluginInitializedEvent(BaseEvent):
     """Event emitted when a plugin is successfully initialized."""
+
     event_type: EventType = field(default=EventType.PLUGIN_INITIALIZED, init=False)
     plugin_type: Optional[str] = None  # "STT", "TTS", "STS", "VAD"
     provider: Optional[str] = None
@@ -399,6 +436,7 @@ class PluginInitializedEvent(BaseEvent):
 @dataclass
 class PluginClosedEvent(BaseEvent):
     """Event emitted when a plugin is closed."""
+
     event_type: EventType = field(default=EventType.PLUGIN_CLOSED, init=False)
     plugin_type: Optional[str] = None  # "STT", "STS", "VAD"
     provider: Optional[str] = None
@@ -409,6 +447,7 @@ class PluginClosedEvent(BaseEvent):
 @dataclass
 class PluginErrorEvent(BaseEvent):
     """Event emitted when a generic plugin error occurs."""
+
     event_type: EventType = field(default=EventType.PLUGIN_ERROR, init=False)
     plugin_type: Optional[str] = None  # "STT", "TTS", "STS", "VAD"
     provider: Optional[str] = None
@@ -432,13 +471,11 @@ EVENT_CLASS_MAP = {
     EventType.STT_PARTIAL_TRANSCRIPT: STTPartialTranscriptEvent,
     EventType.STT_ERROR: STTErrorEvent,
     EventType.STT_CONNECTION: STTConnectionEvent,
-
     EventType.TTS_AUDIO: TTSAudioEvent,
     EventType.TTS_SYNTHESIS_START: TTSSynthesisStartEvent,
     EventType.TTS_SYNTHESIS_COMPLETE: TTSSynthesisCompleteEvent,
     EventType.TTS_ERROR: TTSErrorEvent,
     EventType.TTS_CONNECTION: TTSConnectionEvent,
-
     EventType.STS_CONNECTED: STSConnectedEvent,
     EventType.STS_DISCONNECTED: STSDisconnectedEvent,
     EventType.STS_AUDIO_INPUT: STSAudioInputEvent,
@@ -447,24 +484,19 @@ EVENT_CLASS_MAP = {
     EventType.STS_RESPONSE: STSResponseEvent,
     EventType.STS_CONVERSATION_ITEM: STSConversationItemEvent,
     EventType.STS_ERROR: STSErrorEvent,
-
     EventType.VAD_SPEECH_START: VADSpeechStartEvent,
     EventType.VAD_SPEECH_END: VADSpeechEndEvent,
     EventType.VAD_AUDIO: VADAudioEvent,
     EventType.VAD_PARTIAL: VADPartialEvent,
     EventType.VAD_ERROR: VADErrorEvent,
-
     EventType.PLUGIN_INITIALIZED: PluginInitializedEvent,
     EventType.PLUGIN_CLOSED: PluginClosedEvent,
     EventType.PLUGIN_ERROR: PluginErrorEvent,
 }
 
 
-
-
 def create_event(event_type: EventType, **kwargs) -> BaseEvent:
-    """
-    Create an event instance of the appropriate type.
+    """Create an event instance of the appropriate type.
 
     Args:
         event_type: The type of event to create
@@ -475,6 +507,7 @@ def create_event(event_type: EventType, **kwargs) -> BaseEvent:
 
     Raises:
         ValueError: If the event type is not recognized
+
     """
     if event_type not in EVENT_CLASS_MAP:
         raise ValueError(f"No event class defined for type: {event_type}")
@@ -488,23 +521,19 @@ __all__ = [
     "EventType",
     "ConnectionState",
     "AudioFormat",
-
     # Base classes
     "BaseEvent",
-
     # STT Events
     "STTTranscriptEvent",
     "STTPartialTranscriptEvent",
     "STTErrorEvent",
     "STTConnectionEvent",
-
     # TTS Events
     "TTSAudioEvent",
     "TTSSynthesisStartEvent",
     "TTSSynthesisCompleteEvent",
     "TTSErrorEvent",
     "TTSConnectionEvent",
-
     # STS Events
     "STSConnectedEvent",
     "STSDisconnectedEvent",
@@ -514,19 +543,16 @@ __all__ = [
     "STSResponseEvent",
     "STSConversationItemEvent",
     "STSErrorEvent",
-
     # VAD Events
     "VADSpeechStartEvent",
     "VADSpeechEndEvent",
     "VADAudioEvent",
     "VADPartialEvent",
     "VADErrorEvent",
-
     # Generic Events
     "PluginInitializedEvent",
     "PluginClosedEvent",
     "PluginErrorEvent",
-
     # Utilities
     "EVENT_CLASS_MAP",
     "create_event",

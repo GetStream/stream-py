@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Code copied directly from:
 # https://github.com/verloop/twirpy/blob/main/twirp/async_client.py
 # Embedded here as the library doesn't seem to ship it correctly.
@@ -13,13 +12,14 @@ import aiohttp
 # Assuming these modules exist within the installed twirp package
 # or need to be embedded as well if they are also problematic.
 # For now, assume they are available from the installed 'twirp' base.
-from twirp import exceptions
-from twirp import errors
+from twirp import errors, exceptions
 
 
 class AsyncTwirpClient:
     def __init__(
-        self, address: str, session: Optional[aiohttp.ClientSession] = None
+        self,
+        address: str,
+        session: Optional[aiohttp.ClientSession] = None,
     ) -> None:
         # Ensure address ends with a slash for urljoin to work correctly
         if not address.endswith("/"):
@@ -28,7 +28,14 @@ class AsyncTwirpClient:
         self._session = session
 
     async def _make_request(
-        self, *, url, ctx, request, response_obj, session=None, **kwargs
+        self,
+        *,
+        url,
+        ctx,
+        request,
+        response_obj,
+        session=None,
+        **kwargs,
     ):
         headers = ctx.get_headers()
         if "headers" in kwargs:
@@ -51,7 +58,9 @@ class AsyncTwirpClient:
         try:
             # Use the correctly constructed full_url
             async with await session.post(
-                url=full_url, data=request.SerializeToString(), **kwargs
+                url=full_url,
+                data=request.SerializeToString(),
+                **kwargs,
             ) as resp:
                 if resp.status == 200:
                     response = response_obj()
@@ -61,7 +70,10 @@ class AsyncTwirpClient:
                     raise exceptions.TwirpServerException.from_json(await resp.json())
                 except (aiohttp.ContentTypeError, json.JSONDecodeError):
                     raise exceptions.twirp_error_from_intermediary(
-                        resp.status, resp.reason, resp.headers, await resp.text()
+                        resp.status,
+                        resp.reason,
+                        resp.headers,
+                        await resp.text(),
                     ) from None
         except asyncio.TimeoutError as e:
             raise exceptions.TwirpServerException(

@@ -1,7 +1,8 @@
-import pytest
-from unittest.mock import MagicMock, patch
 import asyncio
 import sys
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 # Mock websocket module
 mock_websocket = MagicMock()
@@ -92,7 +93,9 @@ async def test_websocket_client_initialization():
         # Create a client
         join_request = MockJoinRequest()
         client = WebSocketClient(
-            "wss://test.url", join_request, asyncio.get_running_loop()
+            "wss://test.url",
+            join_request,
+            asyncio.get_running_loop(),
         )
 
         # Verify initial state
@@ -129,7 +132,9 @@ async def test_websocket_client_direct_methods():
         # Create a client with mocked dependencies
         join_request = MockJoinRequest()
         client = WebSocketClient(
-            "wss://test.url", join_request, asyncio.get_running_loop()
+            "wss://test.url",
+            join_request,
+            asyncio.get_running_loop(),
         )
 
         # Create mocks for testing callbacks
@@ -187,7 +192,9 @@ async def test_websocket_client_close():
         # Create a client
         join_request = MockJoinRequest()
         client = WebSocketClient(
-            "wss://test.url", join_request, asyncio.get_running_loop()
+            "wss://test.url",
+            join_request,
+            asyncio.get_running_loop(),
         )
 
         # Create mocks for the resources

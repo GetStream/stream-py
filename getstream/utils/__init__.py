@@ -1,11 +1,9 @@
 import json
-from typing import Dict, List, Optional, Union
-from urllib.parse import quote
-from datetime import datetime
-from datetime import timezone
-from urllib.parse import urlparse, urlunparse
 import logging
 import sys
+from datetime import datetime, timezone
+from typing import Dict, List, Optional, Union
+from urllib.parse import quote, urlparse, urlunparse
 
 from .event_emitter import StreamAsyncIOEventEmitter
 
@@ -13,8 +11,7 @@ UTC = timezone.utc
 
 
 def validate_and_clean_url(url):
-    """
-    Validates a given URL and removes any trailing slashes.
+    """Validates a given URL and removes any trailing slashes.
 
     Args:
         url (str): The URL to validate and clean.
@@ -24,8 +21,8 @@ def validate_and_clean_url(url):
 
     Raises:
         ValueError: If the URL is not valid.
-    """
 
+    """
     parsed_url = urlparse(url)
     if parsed_url.scheme not in ("http", "https"):
         raise ValueError("Provided URL is not a valid HTTP URL.")
@@ -36,14 +33,14 @@ def validate_and_clean_url(url):
 
 
 def encode_datetime(date: Optional[datetime]) -> Optional[str]:
-    """
-    Encodes a datetime object into an ISO 8601 formatted string.
+    """Encodes a datetime object into an ISO 8601 formatted string.
 
     Args:
     date (Optional[datetime]): The datetime object to encode.
 
     Returns:
     Optional[str]: The ISO 8601 string representation of the datetime, or None if input is None.
+
     """
     if date is None:
         return None
@@ -61,8 +58,7 @@ def datetime_from_unix_ns(
         ]
     ],
 ) -> Optional[Union[datetime, Dict[str, datetime], List[datetime]]]:
-    """
-    Converts unix timestamp(s) (nanoseconds since epoch) to datetime object(s).
+    """Converts unix timestamp(s) (nanoseconds since epoch) to datetime object(s).
     Can handle single values, dictionaries, or lists of values.
 
     Args:
@@ -71,6 +67,7 @@ def datetime_from_unix_ns(
 
     Returns:
     Datetime object(s) or None if input is None.
+
     """
     if ts is None:
         return None
@@ -91,8 +88,7 @@ def datetime_from_unix_ns(
 
 
 def build_query_param(**kwargs):
-    """
-    Constructs a dictionary of query parameters from keyword arguments.
+    """Constructs a dictionary of query parameters from keyword arguments.
 
     This function handles various data types:
     - JSON-serializable objects with a `to_json` method will be serialized using that method.
@@ -105,6 +101,7 @@ def build_query_param(**kwargs):
 
     Returns:
         dict: A dictionary where keys are parameter names and values are URL-ready strings.
+
     """
     params = {}
     for key, value in kwargs.items():
@@ -126,8 +123,7 @@ def build_query_param(**kwargs):
 
 
 def build_body_dict(**kwargs):
-    """
-    Constructs a dictionary for the body of a request, handling nested structures.
+    """Constructs a dictionary for the body of a request, handling nested structures.
     If an object has a `to_dict` method, it calls this method to serialize the object.
     It handles nested dictionaries and lists recursively.
 
@@ -136,30 +132,30 @@ def build_body_dict(**kwargs):
 
     Returns:
         dict: A dictionary with keys corresponding to kwargs keys and values processed, potentially recursively.
+
     """
 
     def handle_value(value):
         if hasattr(value, "to_dict") and callable(value.to_dict):
             return value.to_dict()
-        elif isinstance(value, dict):
+        if isinstance(value, dict):
             return {k: handle_value(v) for k, v in value.items()}
-        elif isinstance(value, list):
+        if isinstance(value, list):
             return [handle_value(v) for v in value]
-        else:
-            return value
+        return value
 
     data = {key: handle_value(value) for key, value in kwargs.items()}
     return data
 
 
 def configure_logging(level=None, handler=None, format=None):
-    """
-    Configure logging for the Stream library.
+    """Configure logging for the Stream library.
 
     Args:
         level: The logging level to use (default: logging.INFO)
         handler: A custom handler to use (default: StreamHandler)
         format: A custom format string (default: '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
     """
     # Get the root logger for the library
     logger = logging.getLogger("getstream")

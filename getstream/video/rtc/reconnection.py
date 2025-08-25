@@ -1,6 +1,4 @@
-"""
-Handles reconnection logic for the video connection.
-"""
+"""Handles reconnection logic for the video connection."""
 
 import asyncio
 import logging
@@ -67,12 +65,12 @@ class ReconnectionManager:
         self._fast_reconnect_deadline_seconds = 10
 
     async def reconnect(self, strategy: str, reason: str):
-        """
-        Main reconnection orchestrator.
+        """Main reconnection orchestrator.
 
         Args:
             strategy: The reconnection strategy to use
             reason: Human-readable reason for the reconnection
+
         """
         async with self._reconnect_lock:
             # Check if already in a reconnection state
@@ -84,7 +82,7 @@ class ReconnectionManager:
                 logger.debug(
                     "Reconnection already in progress",
                     extra={
-                        "current_state": self.connection_manager.connection_state.value
+                        "current_state": self.connection_manager.connection_state.value,
                     },
                 )
                 return
@@ -94,7 +92,8 @@ class ReconnectionManager:
             self.reconnection_info.reason = reason
 
             logger.info(
-                "Starting reconnection", extra={"strategy": strategy, "reason": reason}
+                "Starting reconnection",
+                extra={"strategy": strategy, "reason": reason},
             )
 
             try:
@@ -113,13 +112,14 @@ class ReconnectionManager:
             timeout = _DISCONNECTION_TIMEOUT_SECONDS
             if 0 < timeout < (time.time() - reconnect_start_time):
                 logger.warning(
-                    "Stopping reconnection attempts after reaching disconnection timeout"
+                    "Stopping reconnection attempts after reaching disconnection timeout",
                 )
                 self.connection_manager.connection_state = (
                     ConnectionState.RECONNECTING_FAILED
                 )
                 self.connection_manager.emit(
-                    "reconnection_failed", {"reason": "Disconnection timeout exceeded"}
+                    "reconnection_failed",
+                    {"reason": "Disconnection timeout exceeded"},
                 )
                 return
 
@@ -134,7 +134,7 @@ class ReconnectionManager:
                     await self.set_network_event.wait()
 
                 logger.info(
-                    f"Executing reconnection with strategy {self.reconnection_info.strategy}"
+                    f"Executing reconnection with strategy {self.reconnection_info.strategy}",
                 )
 
                 # Execute strategy-specific reconnection
@@ -252,7 +252,9 @@ class ReconnectionManager:
         try:
             # Close old connections efficiently
             await self.connection_manager._cleanup_connections(
-                old_ws_client, old_publisher, old_subscriber
+                old_ws_client,
+                old_publisher,
+                old_subscriber,
             )
 
             # Use _connect_internal for fresh connection
@@ -312,5 +314,7 @@ class ReconnectionManager:
         finally:
             # Clean up old connections
             await self.connection_manager._cleanup_connections(
-                current_ws_client, current_publisher, current_subscriber
+                current_ws_client,
+                current_publisher,
+                current_subscriber,
             )

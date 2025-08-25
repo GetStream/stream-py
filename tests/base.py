@@ -6,17 +6,14 @@ from getstream.video.call import Call
 
 
 class VideoTestClass(ABC):
-    """
-    Abstract base class for video tests that need to share the same call and client objects using pytest fixture
-    """
+    """Abstract base class for video tests that need to share the same call and client objects using pytest fixture"""
 
     client: Stream
     call: Call
 
 
 def wait_for_task(client, task_id, timeout_ms=10000, poll_interval_ms=1000):
-    """
-    Wait until the task is completed or timeout is reached.
+    """Wait until the task is completed or timeout is reached.
 
     Args:
         client: The client used to make the API call.
@@ -29,6 +26,7 @@ def wait_for_task(client, task_id, timeout_ms=10000, poll_interval_ms=1000):
 
     Raises:
         TimeoutError: If the task is not completed within the timeout period.
+
     """
     start_time = time.time() * 1000  # Convert to milliseconds
     while True:
@@ -37,6 +35,6 @@ def wait_for_task(client, task_id, timeout_ms=10000, poll_interval_ms=1000):
             return response
         if (time.time() * 1000) - start_time > timeout_ms:
             raise TimeoutError(
-                f"Task {task_id} did not complete within {timeout_ms} seconds"
+                f"Task {task_id} did not complete within {timeout_ms} seconds",
             )
         time.sleep(poll_interval_ms / 1000.0)

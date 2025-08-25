@@ -1,9 +1,9 @@
 import asyncio
 import logging
 import os
-from uuid import uuid4
 import webbrowser
 from urllib.parse import urlencode
+from uuid import uuid4
 
 from dotenv import load_dotenv
 
@@ -12,7 +12,6 @@ from getstream.models import CallRequest, UserRequest
 from getstream.plugins.gemini.live import GeminiLive
 from getstream.video import rtc
 from getstream.video.rtc.track_util import PcmData
-
 
 logging.basicConfig(
     level=logging.INFO,
@@ -25,21 +24,20 @@ logging.getLogger("getstream.plugins.gemini.live").setLevel(logging.DEBUG)
 
 
 def create_user(client: Stream, id: str, name: str) -> None:
-    """
-    Create a user with a unique Stream ID.
+    """Create a user with a unique Stream ID.
 
     Args:
         client: Stream client instance
         id: Unique user ID
         name: Display name for the user
+
     """
     user_request = UserRequest(id=id, name=name)
     client.upsert_users(user_request)
 
 
 def open_browser(api_key: str, token: str, call_id: str) -> str:
-    """
-    Helper function to open browser with Stream call link.
+    """Helper function to open browser with Stream call link.
 
     Args:
         api_key: Stream API key
@@ -48,6 +46,7 @@ def open_browser(api_key: str, token: str, call_id: str) -> str:
 
     Returns:
         The URL that was opened
+
     """
     base_url = f"{os.getenv('EXAMPLE_BASE_URL')}/join/"
     params = {"api_key": api_key, "token": token, "skip_lobby": "true"}
@@ -67,7 +66,6 @@ def open_browser(api_key: str, token: str, call_id: str) -> str:
 
 async def main():
     """Run a demo call with a Gemini Live Speech-to-Speech agent attached."""
-
     load_dotenv()
 
     client = Stream.from_env()

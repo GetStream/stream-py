@@ -1,6 +1,4 @@
-"""
-Manages WebRTC peer connections for video streaming.
-"""
+"""Manages WebRTC peer connections for video streaming."""
 
 import asyncio
 import logging
@@ -14,9 +12,9 @@ from getstream.video.rtc.connection_utils import (
     prepare_video_track_info,
 )
 from getstream.video.rtc.pb.stream.video.sfu.signal_rpc import signal_pb2
+from getstream.video.rtc.pc import PublisherPeerConnection, SubscriberPeerConnection
 from getstream.video.rtc.track_util import patch_sdp_offer
 from getstream.video.rtc.twirp_client_wrapper import SfuRpcError
-from getstream.video.rtc.pc import PublisherPeerConnection, SubscriberPeerConnection
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +36,7 @@ class PeerConnectionManager:
             "failed",
         ]:
             self.subscriber_pc = SubscriberPeerConnection(
-                connection=self.connection_manager
+                connection=self.connection_manager,
             )
 
             @self.subscriber_pc.on("audio")
@@ -49,10 +47,14 @@ class PeerConnectionManager:
             async def on_track_added(track, user):
                 """Handle track events from MediaRelay subscribers"""
                 await self.connection_manager.recording_manager.on_track_received(
-                    track, user
+                    track,
+                    user,
                 )
                 self.connection_manager.emit(
-                    "track_added", track._source.id, track.kind, user
+                    "track_added",
+                    track._source.id,
+                    track.kind,
+                    user,
                 )
 
             logger.debug("Created new subscriber peer connection")
@@ -94,7 +96,7 @@ class PeerConnectionManager:
 
             if self.publisher_pc is None:
                 self.publisher_pc = PublisherPeerConnection(
-                    manager=self.connection_manager
+                    manager=self.connection_manager,
                 )
 
             if audio:
@@ -170,10 +172,10 @@ class PeerConnectionManager:
     async def restore_published_tracks(self):
         """Restore published tracks using their stored MediaRelay instances."""
         track_ids = list(
-            self.connection_manager.reconnector.reconnection_info.published_tracks.keys()
+            self.connection_manager.reconnector.reconnection_info.published_tracks.keys(),
         )
         logger.info(
-            f"Restoring {len(track_ids)} published tracks with MediaRelay - Track IDs: {track_ids}"
+            f"Restoring {len(track_ids)} published tracks with MediaRelay - Track IDs: {track_ids}",
         )
 
         # Collect all tracks to restore
@@ -214,7 +216,7 @@ class PeerConnectionManager:
                 logger.info(f"Restored additional video track {i}: {track.id}")
 
             logger.info(
-                f"Successfully restored all {len(track_ids)} tracks using stored MediaRelay instances"
+                f"Successfully restored all {len(track_ids)} tracks using stored MediaRelay instances",
             )
 
         except Exception as e:

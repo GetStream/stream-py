@@ -1,19 +1,18 @@
-"""
-Tests for StreamAPIWS heartbeat and reconnection functionality.
-"""
+"""Tests for StreamAPIWS heartbeat and reconnection functionality."""
 
 import asyncio
 import json
-import pytest
 import time
 from unittest.mock import patch
+
+import pytest
 import websockets
 
-from getstream.video.rtc.coordinator.ws import StreamAPIWS
 from getstream.video.rtc.coordinator.errors import (
     StreamWSConnectionError,
     StreamWSMaxRetriesExceeded,
 )
+from getstream.video.rtc.coordinator.ws import StreamAPIWS
 
 
 @pytest.mark.asyncio
@@ -60,16 +59,16 @@ async def test_heartbeat_sent_periodically():
         await client.disconnect()
 
         # Verify heartbeats were sent
-        assert (
-            len(heartbeats_received) >= 2
-        ), f"Expected at least 2 heartbeats, got {len(heartbeats_received)}"
+        assert len(heartbeats_received) >= 2, (
+            f"Expected at least 2 heartbeats, got {len(heartbeats_received)}"
+        )
 
         # Verify timing between heartbeats
         if len(heartbeats_received) >= 2:
             interval = heartbeats_received[1] - heartbeats_received[0]
-            assert (
-                0.08 <= interval <= 0.15
-            ), f"Heartbeat interval should be ~0.1s, got {interval}"
+            assert 0.08 <= interval <= 0.15, (
+                f"Heartbeat interval should be ~0.1s, got {interval}"
+            )
 
     finally:
         server.close()
@@ -127,9 +126,9 @@ async def test_reconnect_on_heartbeat_timeout():
         await client.disconnect()
 
         # Verify reconnection occurred
-        assert (
-            len(connection_attempts) >= 2
-        ), f"Expected at least 2 connection attempts, got {len(connection_attempts)}"
+        assert len(connection_attempts) >= 2, (
+            f"Expected at least 2 connection attempts, got {len(connection_attempts)}"
+        )
 
     finally:
         server.close()
@@ -184,9 +183,9 @@ async def test_reconnect_on_connection_closed():
         await client.disconnect()
 
         # Verify reconnection occurred
-        assert (
-            len(connection_attempts) >= 2
-        ), f"Expected at least 2 connection attempts, got {len(connection_attempts)}"
+        assert len(connection_attempts) >= 2, (
+            f"Expected at least 2 connection attempts, got {len(connection_attempts)}"
+        )
 
     finally:
         server.close()
@@ -251,7 +250,7 @@ async def test_message_reception_updates_last_received():
 
             await asyncio.sleep(0.1)
             await websocket.send(
-                json.dumps({"type": "another.message", "data": "test2"})
+                json.dumps({"type": "another.message", "data": "test2"}),
             )
 
             # Keep server alive
@@ -290,9 +289,9 @@ async def test_message_reception_updates_last_received():
         await asyncio.sleep(0.5)  # Wait for messages to arrive
 
         # Verify messages were received
-        assert (
-            len(messages_received) >= 2
-        ), f"Expected at least 2 messages, got {len(messages_received)}"
+        assert len(messages_received) >= 2, (
+            f"Expected at least 2 messages, got {len(messages_received)}"
+        )
 
         # Verify last_received was updated (should be more recent than initial connection)
         assert client._last_received > initial_time
@@ -352,7 +351,6 @@ async def test_background_tasks_cancelled_on_disconnect():
 @pytest.mark.asyncio
 async def test_heartbeat_includes_client_id():
     """Test that heartbeats include client_id when available."""
-
     # Track sent messages
     sent_messages = []
 
@@ -423,7 +421,6 @@ async def test_heartbeat_includes_client_id():
 @pytest.mark.asyncio
 async def test_heartbeat_without_client_id():
     """Test that heartbeats work when no client_id is available."""
-
     # Track sent messages
     sent_messages = []
 

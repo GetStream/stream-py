@@ -1,14 +1,15 @@
-from dataclasses_json import DataClassJsonMixin, config
-from getstream.models import OwnCapability
-from httpx import Response
+from dataclasses import dataclass, field
 from datetime import timezone
+from typing import Any, List
+from unittest import TestCase
+
+from dataclasses_json import DataClassJsonMixin, config
 from dateutil.parser import parse as dt_parse
+from httpx import Response
+
+from getstream.models import OwnCapability
 from getstream.rate_limit import RateLimitInfo
 from getstream.stream_response import StreamResponse
-
-from unittest import TestCase
-from dataclasses import dataclass, field
-from typing import Any, List
 
 
 @dataclass
@@ -19,7 +20,7 @@ class Dummy:
 @dataclass
 class MockRequest(DataClassJsonMixin):
     own_capabilities: List[OwnCapability] = field(
-        metadata=config(field_name="own_capabilities")
+        metadata=config(field_name="own_capabilities"),
     )
 
 
@@ -29,7 +30,7 @@ class TestStreamResponse(TestCase):
             "x-ratelimit-limit": "100",
             "x-ratelimit-remaining": "80",
             "x-ratelimit-reset": str(
-                int(dt_parse("2022-01-01").replace(tzinfo=timezone.utc).timestamp())
+                int(dt_parse("2022-01-01").replace(tzinfo=timezone.utc).timestamp()),
             ),
         }
         self.response = Response(200, headers=headers)
@@ -52,10 +53,12 @@ class TestStreamResponse(TestCase):
 
     def test_status_code(self):
         self.assertEqual(
-            self.stream_response_dummy.status_code(), self.response.status_code
+            self.stream_response_dummy.status_code(),
+            self.response.status_code,
         )
         self.assertEqual(
-            self.stream_response_dict.status_code(), self.response.status_code
+            self.stream_response_dict.status_code(),
+            self.response.status_code,
         )
 
     def test_rate_limit(self):
@@ -66,20 +69,22 @@ class TestStreamResponse(TestCase):
         self.assertEqual(rate_limit_dummy.limit, 100)
         self.assertEqual(rate_limit_dummy.remaining, 80)
         self.assertEqual(
-            rate_limit_dummy.reset, dt_parse("2022-01-01").replace(tzinfo=timezone.utc)
+            rate_limit_dummy.reset,
+            dt_parse("2022-01-01").replace(tzinfo=timezone.utc),
         )
 
         self.assertIsInstance(rate_limit_dict, RateLimitInfo)
         self.assertEqual(rate_limit_dict.limit, 100)
         self.assertEqual(rate_limit_dict.remaining, 80)
         self.assertEqual(
-            rate_limit_dict.reset, dt_parse("2022-01-01").replace(tzinfo=timezone.utc)
+            rate_limit_dict.reset,
+            dt_parse("2022-01-01").replace(tzinfo=timezone.utc),
         )
 
     def test_response_with_enum(self):
         obj = MockRequest.from_dict(
             {
                 "own_capabilities": ["block-users", "asd"],
-            }
+            },
         )
         self.assertEqual(obj.own_capabilities, [OwnCapability.BLOCK_USERS, "asd"])

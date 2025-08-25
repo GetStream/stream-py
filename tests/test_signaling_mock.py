@@ -1,9 +1,9 @@
 import asyncio
-import pytest
+import sys
 import threading
 from unittest.mock import MagicMock, patch
-import sys
 
+import pytest
 
 # Mock required dependencies
 mock_websocket = MagicMock()
@@ -12,7 +12,13 @@ mock_websocket = MagicMock()
 # Create a proper WebSocketApp mock class
 class MockWebSocketApp:
     def __init__(
-        self, url, on_open=None, on_message=None, on_error=None, on_close=None, **kwargs
+        self,
+        url,
+        on_open=None,
+        on_message=None,
+        on_error=None,
+        on_close=None,
+        **kwargs,
     ):
         self.url = url
         self.on_open = on_open
@@ -70,7 +76,7 @@ class MockSfuEvent:
     def HasField(self, field_name):
         if field_name == "join_response":
             return self._which_oneof == "join_response"
-        elif field_name == "error":
+        if field_name == "error":
             return self._which_oneof == "error"
         return False
 
@@ -143,7 +149,7 @@ class TestWebSocketClient:
         patcher2 = patch.dict(
             "sys.modules",
             {
-                "getstream.video.rtc.pb.stream.video.sfu.event.events_pb2": self.mock_events_pb2
+                "getstream.video.rtc.pb.stream.video.sfu.event.events_pb2": self.mock_events_pb2,
             },
         )
         patcher3 = patch("threading.Thread", self.mock_thread_class)
@@ -172,7 +178,8 @@ class TestWebSocketClient:
         import asyncio
         import concurrent.futures
         import logging
-        from typing import Any, Callable, Dict, Awaitable, List
+        from collections.abc import Awaitable
+        from typing import Any, Callable, Dict, List
 
         logger = logging.getLogger(__name__)
 
@@ -182,28 +189,31 @@ class TestWebSocketClient:
             pass
 
         class WebSocketClient:
-            """
-            WebSocket client for Stream Video signaling.
+            """WebSocket client for Stream Video signaling.
             Handles WebSocket connection, message serialization/deserialization, and event handling.
             """
 
             def __init__(
-                self, url: str, join_request, main_loop: asyncio.AbstractEventLoop
+                self,
+                url: str,
+                join_request,
+                main_loop: asyncio.AbstractEventLoop,
             ):
-                """
-                Initialize a new WebSocket client.
+                """Initialize a new WebSocket client.
 
                 Args:
                     url: The WebSocket server URL
                     join_request: The JoinRequest protobuf message to send for authentication
                     main_loop: The main asyncio event loop to run callbacks on
+
                 """
                 self.url = url
                 self.join_request = join_request
                 self.main_loop = main_loop
                 self.ws = None
                 self.event_handlers: Dict[
-                    str, List[Callable[[Any], Awaitable[None]]]
+                    str,
+                    List[Callable[[Any], Awaitable[None]]],
                 ] = {}
                 self.first_message_event = asyncio.Event()
                 self.first_message = None
@@ -214,18 +224,19 @@ class TestWebSocketClient:
 
                 # Thread pool for executing callbacks
                 self.executor = concurrent.futures.ThreadPoolExecutor(
-                    max_workers=4, thread_name_prefix="ws-callback-"
+                    max_workers=4,
+                    thread_name_prefix="ws-callback-",
                 )
 
             async def connect(self):
-                """
-                Establish WebSocket connection and authenticate.
+                """Establish WebSocket connection and authenticate.
 
                 Returns:
                     The first SfuEvent received (JoinResponse if successful)
 
                 Raises:
                     SignalingError: If the connection fails or the first message is an error
+
                 """
                 if self.closed:
                     raise SignalingError("Cannot reconnect a closed WebSocket client")
@@ -299,7 +310,7 @@ class TestWebSocketClient:
                     if not self.first_message_event.is_set():
                         self.first_message = event
                         self.main_loop.call_soon_threadsafe(
-                            self.first_message_event.set
+                            self.first_message_event.set,
                         )
 
                     # Dispatch to event handlers
@@ -328,16 +339,16 @@ class TestWebSocketClient:
             def _on_close(self, ws, close_status_code, close_msg):
                 """Handle WebSocket close event."""
                 logger.debug(
-                    f"WebSocket connection closed: {close_status_code} {close_msg}"
+                    f"WebSocket connection closed: {close_status_code} {close_msg}",
                 )
                 self.running = False
 
             def _dispatch_event(self, event):
-                """
-                Dispatch an event to the appropriate handlers.
+                """Dispatch an event to the appropriate handlers.
 
                 Args:
                     event: The SfuEvent to dispatch
+
                 """
                 # Get the oneof event type
                 event_type = event.WhichOneof("event_payload")
@@ -355,14 +366,13 @@ class TestWebSocketClient:
                         self._run_handler_async(handler, event)
 
             def _run_handler_async(self, handler, payload):
-                """
-                Run an event handler asynchronously in a separate thread.
+                """Run an event handler asynchronously in a separate thread.
 
                 Args:
                     handler: The async handler function
                     payload: The event payload to pass to the handler
-                """
 
+                """
                 # In test environment, run handlers directly in the main loop
                 try:
                     # Schedule the handler to run in the main loop
@@ -372,14 +382,16 @@ class TestWebSocketClient:
                     logger.error(f"Error in event handler: {str(e)}")
 
             def on_event(
-                self, event_type: str, callback: Callable[[Any], Awaitable[None]]
+                self,
+                event_type: str,
+                callback: Callable[[Any], Awaitable[None]],
             ):
-                """
-                Register an event handler for a specific event type.
+                """Register an event handler for a specific event type.
 
                 Args:
                     event_type: The event type to listen for, or "*" for all events
                     callback: An async function to call when the event occurs
+
                 """
                 if event_type not in self.event_handlers:
                     self.event_handlers[event_type] = []
@@ -433,7 +445,9 @@ class TestWebSocketClient:
     async def test_connect_success(self, join_request):
         """Test successful connection flow."""
         client = WebSocketClient(
-            "wss://test.url", join_request, asyncio.get_running_loop()
+            "wss://test.url",
+            join_request,
+            asyncio.get_running_loop(),
         )
 
         try:
@@ -470,7 +484,9 @@ class TestWebSocketClient:
     async def test_connect_error(self, join_request):
         """Test connection with error response."""
         client = WebSocketClient(
-            "wss://test.url", join_request, asyncio.get_running_loop()
+            "wss://test.url",
+            join_request,
+            asyncio.get_running_loop(),
         )
 
         try:
@@ -491,7 +507,8 @@ class TestWebSocketClient:
 
             # Verify connect throws an exception
             with pytest.raises(
-                SignalingError, match="Connection failed: Error message"
+                SignalingError,
+                match="Connection failed: Error message",
             ):
                 await connect_task
         finally:
@@ -502,7 +519,9 @@ class TestWebSocketClient:
     async def test_websocket_error_during_connect(self, join_request):
         """Test WebSocket error during connection."""
         client = WebSocketClient(
-            "wss://test.url", join_request, asyncio.get_running_loop()
+            "wss://test.url",
+            join_request,
+            asyncio.get_running_loop(),
         )
 
         try:
@@ -529,7 +548,9 @@ class TestWebSocketClient:
     async def test_event_callbacks(self, join_request):
         """Test event callbacks are executed correctly."""
         client = WebSocketClient(
-            "wss://test.url", join_request, asyncio.get_running_loop()
+            "wss://test.url",
+            join_request,
+            asyncio.get_running_loop(),
         )
 
         # Create a callback tracking variable
@@ -584,7 +605,9 @@ class TestWebSocketClient:
     async def test_thread_usage(self, join_request):
         """Test that thread is properly used and managed."""
         client = WebSocketClient(
-            "wss://test.url", join_request, asyncio.get_running_loop()
+            "wss://test.url",
+            join_request,
+            asyncio.get_running_loop(),
         )
 
         try:

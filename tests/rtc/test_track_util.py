@@ -1,12 +1,12 @@
 import asyncio
-import pytest
-import numpy as np
-from unittest.mock import Mock
 import logging
+from unittest.mock import Mock
 
+import numpy as np
+import pytest
+
+from getstream.video.rtc import track_util
 from getstream.video.rtc.track_util import AudioTrackHandler, PcmData
-import getstream.video.rtc.track_util as track_util
-
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,10 @@ class MockAudioFrame:
                 samples = np.random.randint(-1000, 1000, num_samples, dtype=np.int16)
             else:
                 samples = np.random.randint(
-                    -1000, 1000, (num_samples, channels), dtype=np.int16
+                    -1000,
+                    1000,
+                    (num_samples, channels),
+                    dtype=np.int16,
                 )
 
         self._samples = samples
@@ -38,8 +41,7 @@ class MockAudioFrame:
         """Mock the to_ndarray method that's causing issues in newer PyAV."""
         if format == "s16":
             return self._samples
-        else:
-            raise ValueError(f"Unsupported format: {format}")
+        raise ValueError(f"Unsupported format: {format}")
 
 
 class MockAudioTrack:
@@ -56,7 +58,7 @@ class MockAudioTrack:
         if self.should_raise:
             if isinstance(self.should_raise, Exception):
                 raise self.should_raise
-            elif self.should_raise == "cancelled":
+            if self.should_raise == "cancelled":
                 raise asyncio.CancelledError()
 
         if self.frame_index >= len(self.frames):
@@ -76,7 +78,6 @@ def _monkeypatch_audio_frame(monkeypatch):
     and ``to_ndarray``).  This covers both ``MockAudioFrame`` and ad-hoc
     classes like ``BrokenAudioFrame`` defined inside individual tests.
     """
-
     real_audio_frame_cls = track_util.av.AudioFrame
 
     class _AudioFrameMeta(type):
@@ -171,14 +172,16 @@ async def test_run_track_mono_audio():
     assert received_data[0].sample_rate == 48000
     assert received_data[0].format == "s16"
     np.testing.assert_array_equal(
-        received_data[0].samples, np.array([1, 2, 3, 4], dtype=np.int16)
+        received_data[0].samples,
+        np.array([1, 2, 3, 4], dtype=np.int16),
     )
 
     # Check second frame
     assert received_data[1].sample_rate == 48000
     assert received_data[1].format == "s16"
     np.testing.assert_array_equal(
-        received_data[1].samples, np.array([5, 6, 7, 8], dtype=np.int16)
+        received_data[1].samples,
+        np.array([5, 6, 7, 8], dtype=np.int16),
     )
 
 
@@ -187,7 +190,8 @@ async def test_run_track_stereo_audio():
     """Test _run_track with stereo audio frames (should convert to mono)."""
     # Create mock frames with stereo audio
     stereo_samples = np.array(
-        [[1, 2], [3, 4], [5, 6], [7, 8]], dtype=np.int16
+        [[1, 2], [3, 4], [5, 6], [7, 8]],
+        dtype=np.int16,
     )  # 4 samples, 2 channels
     frames = [
         MockAudioFrame(sample_rate=48000, samples=stereo_samples, channels=2),
@@ -215,7 +219,8 @@ async def test_run_track_stereo_audio():
 
     # Check that stereo was converted to mono (average of channels)
     expected_mono = np.array(
-        [1.5, 3.5, 5.5, 7.5], dtype=np.int16
+        [1.5, 3.5, 5.5, 7.5],
+        dtype=np.int16,
     )  # Average of each stereo pair
     assert received_data[0].sample_rate == 48000
     assert received_data[0].format == "s16"

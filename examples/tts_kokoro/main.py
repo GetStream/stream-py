@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Example: Text-to-Speech bot with Kokoro
+"""Example: Text-to-Speech bot with Kokoro
 
 This minimal example shows how to:
 1. Spin up a Stream video call
@@ -22,21 +21,21 @@ generation. On macOS: `brew install espeak-ng`.
 from __future__ import annotations
 
 import asyncio
+import importlib
 import logging
 import os
-from uuid import uuid4
-import importlib
 import sys
 import webbrowser
 from urllib.parse import urlencode
+from uuid import uuid4
 
 from dotenv import load_dotenv
 
 from getstream.models import UserRequest
+from getstream.plugins.kokoro.tts import KokoroTTS
 from getstream.stream import Stream
 from getstream.video import rtc
 from getstream.video.rtc import audio_track
-from getstream.plugins.kokoro.tts import KokoroTTS
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
@@ -60,21 +59,20 @@ except ModuleNotFoundError:  # pragma: no cover – only triggers in uv venvs
 
 
 def create_user(client: Stream, id: str, name: str) -> None:
-    """
-    Create a user with a unique Stream ID.
+    """Create a user with a unique Stream ID.
 
     Args:
         client: Stream client instance
         id: Unique user ID
         name: Display name for the user
+
     """
     user_request = UserRequest(id=id, name=name)
     client.upsert_users(user_request)
 
 
 def open_browser(api_key: str, token: str, call_id: str) -> str:
-    """
-    Helper function to open browser with Stream call link.
+    """Helper function to open browser with Stream call link.
 
     Args:
         api_key: Stream API key
@@ -83,6 +81,7 @@ def open_browser(api_key: str, token: str, call_id: str) -> str:
 
     Returns:
         The URL that was opened
+
     """
     base_url = f"{os.getenv('EXAMPLE_BASE_URL')}/join/"
     params = {"api_key": api_key, "token": token, "skip_lobby": "true"}
@@ -102,7 +101,6 @@ def open_browser(api_key: str, token: str, call_id: str) -> str:
 
 async def main() -> None:
     """Create a video call and let a Kokoro TTS bot greet participants."""
-
     load_dotenv()
 
     client: Stream = Stream.from_env()
@@ -187,7 +185,7 @@ async def main() -> None:
 
             if existing_participants:
                 logging.info(
-                    f"👋 Found {len(existing_participants)} existing participants"
+                    f"👋 Found {len(existing_participants)} existing participants",
                 )
                 await send_greeting_once()
 
