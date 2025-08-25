@@ -20,7 +20,6 @@ class TestLocationDiscovery(unittest.TestCase):
         self.discovery = HTTPHintLocationDiscovery(
             url=STREAM_PROD_URL,
             max_retries=3,
-            client=self.client_mock,
             logger=self.logger_mock,
         )
 
@@ -67,7 +66,7 @@ class TestLocationDiscovery(unittest.TestCase):
         self.assertEqual(location, "IAD")
 
         # Verify that the correct HTTP request was made
-        mock_conn.request.assert_called_once_with("HEAD", "/")
+        mock_conn.request.assert_called_once_with("HEAD", "/", None, {})
         mock_response.getheader.assert_called_once_with(HEADER_CLOUDFRONT_POP, "")
         mock_response.read.assert_called_once()
         mock_conn.close.assert_called_once()
