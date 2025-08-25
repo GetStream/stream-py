@@ -4,26 +4,32 @@ build-backend = "hatchling.build"
 
 [project]
 name = "getstream-plugins-cartesia"
-version = "0.1.0"
+version = "0.1.1"
 description = "Cartesia plugin for GetStream"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 dependencies = [
-    "getstream[webrtc]",
-    "getstream-plugins-common",
+    "getstream[webrtc]>=2.3.0a6",
+    "getstream-plugins-common>=0.1.2",
     "cartesia>=2.0.5",
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["."]
+packages = ["getstream"]
 
-[tool.uv.sources]
-getstream = { workspace = true }
-getstream-plugins-common = { workspace = true }
+[tool.hatch.build.targets.sdist]
+include = ["/getstream"]
+exclude = [
+    "**/tests",
+]
 
 [dependency-groups]
 dev = [
     "pytest>=8.4.1",
     "pytest-asyncio>=1.0.0",
 ]
+
+[tool.uv.sources]
+getstream = { workspace = true }
+getstream-plugins-common = { workspace = true }

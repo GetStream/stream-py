@@ -4,23 +4,25 @@ build-backend = "hatchling.build"
 
 [project]
 name = "getstream-plugins-fal"
-version = "0.1.1"
+version = "0.1.2"
 description = "Fal.ai plugin for GetStream"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 dependencies = [
-    "getstream[webrtc]>=2.3.0a4",
-    "getstream-plugins-common>=0.1.0",
+    "getstream[webrtc]>=2.3.0a6",
+    "getstream-plugins-common>=0.1.2",
     "fal-client>=0.7.0",
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["."]
+packages = ["getstream"]
 
-[tool.uv.sources]
-getstream = { workspace = true }
-getstream-plugins-common = { workspace = true }
+[tool.hatch.build.targets.sdist]
+include = ["/getstream"]
+exclude = [
+    "**/tests",
+]
 
 [dependency-groups]
 dev = [
@@ -28,3 +30,7 @@ dev = [
     "pytest-asyncio>=1.0.0",
     "numpy>=2.2.6,<2.3",
 ]
+
+[tool.uv.sources]
+getstream = { workspace = true }
+getstream-plugins-common = { workspace = true }

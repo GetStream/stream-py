@@ -1,5 +1,5 @@
 """
-Tests for getstream.audio.pcm_utils module.
+Tests for getstream.video.rtc.pcm_utils module.
 
 This module tests all PCM audio utility functions including conversion,
 validation, and logging functionality.
@@ -9,7 +9,7 @@ import logging
 import pytest
 import numpy as np
 
-from getstream.audio.pcm_utils import (
+from getstream.video.rtc.pcm_utils import (
     pcm_to_numpy_array,
     numpy_array_to_bytes,
     validate_sample_rate_compatibility,

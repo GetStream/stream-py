@@ -5,7 +5,7 @@ import logging
 import time
 from typing import Any, Callable, Awaitable
 
-from getstream.utils import StreamAsyncIOEventEmitter
+from getstream.video.rtc.event_emitter import StreamAsyncIOEventEmitter
 from .pb.stream.video.sfu.event import events_pb2
 
 logger = logging.getLogger(__name__)

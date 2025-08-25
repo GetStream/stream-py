@@ -4,23 +4,29 @@ build-backend = "hatchling.build"
 
 [project]
 name = "getstream-plugins-common"
-version = "0.1.1"
+version = "0.1.2"
 description = "Common plugin for GetStream"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 dependencies = [
-    "getstream[webrtc]>=2.3.0a4",
+    "getstream[webrtc]>=2.3.0a6",
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["."]
+packages = ["getstream"]
 
-[tool.uv.sources]
-getstream = { workspace = true }
+[tool.hatch.build.targets.sdist]
+include = ["/getstream"]
+exclude = [
+    "**/tests",
+]
 
 [dependency-groups]
 dev = [
     "pytest>=8.4.1",
     "pytest-asyncio>=1.0.0",
 ]
+
+[tool.uv.sources]
+getstream = { workspace = true }

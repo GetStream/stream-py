@@ -677,7 +677,7 @@ async def test_deepgram_with_real_api_keep_alive():
         # Resample to 48kHz if needed (Deepgram's default)
         target_sample_rate = 48000
         if original_sample_rate != target_sample_rate:
-            from getstream.audio.utils import resample_audio
+            from getstream.video.rtc.utils import resample_audio
 
             audio_data = resample_audio(
                 audio_data, original_sample_rate, target_sample_rate
@@ -769,7 +769,7 @@ async def test_deepgram_real_integration():
         # Resample to 48kHz (Deepgram's preferred rate)
         target_sample_rate = 48000
         if original_sample_rate != target_sample_rate:
-            from getstream.audio.utils import resample_audio
+            from getstream.video.rtc.utils import resample_audio
 
             audio_data = resample_audio(
                 audio_data, original_sample_rate, target_sample_rate

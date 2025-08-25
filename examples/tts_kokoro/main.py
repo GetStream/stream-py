@@ -44,21 +44,6 @@ os.environ["KOKORO_NO_AUTO_INSTALL"] = (
     "1"  # Disable auto-install of kokoro dependencies
 )
 
-# ---------------------------------------------------------------------------
-# Ensure `pip` is present – uv-created virtual-envs omit it for speed and
-# Kokoro relies on `python -m pip` for optional installs (voices, extras).
-# Run this *before* we import Kokoro.
-# ---------------------------------------------------------------------------
-try:
-    importlib.import_module("pip")
-except ModuleNotFoundError:  # pragma: no cover – only triggers in uv venvs
-    import ensurepip, subprocess  # noqa
-
-    print("Boot-strapping pip (uv venv detected – pip missing)…", file=sys.stderr)
-    ensurepip.bootstrap()
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "pip"])
-
-
 def create_user(client: Stream, id: str, name: str) -> None:
     """
     Create a user with a unique Stream ID.

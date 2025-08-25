@@ -4,24 +4,26 @@ build-backend = "hatchling.build"
 
 [project]
 name = "getstream-plugins-deepgram"
-version = "0.1.1"
+version = "0.1.2"
 description = "Deepgram plugin for GetStream"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 dependencies = [
-    "getstream[webrtc]>=2.3.0a4",
-    "getstream-plugins-common>=0.1.1",
+    "getstream[webrtc]>=2.3.0a6",
+    "getstream-plugins-common>=0.1.2",
     "deepgram-sdk>=4.5.0",
     "numpy>=2.2.6,<2.3",
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["."]
+packages = ["getstream"]
 
-[tool.uv.sources]
-getstream = { workspace = true }
-getstream-plugins-common = { workspace = true }
+[tool.hatch.build.targets.sdist]
+include = ["/getstream"]
+exclude = [
+    "**/tests",
+]
 
 [dependency-groups]
 dev = [
@@ -31,3 +33,7 @@ dev = [
     "torchaudio>=2.7.1",
     "scipy>=1.15.3,<1.16",
 ]
+
+[tool.uv.sources]
+getstream = { workspace = true }
+getstream-plugins-common = { workspace = true }

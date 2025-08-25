@@ -6,7 +6,7 @@ import time
 from typing import Dict, Any, Optional
 from getstream.plugins.common import VAD
 from getstream.video.rtc.track_util import PcmData
-from getstream.audio.utils import resample_audio
+from getstream.video.rtc.utils import resample_audio
 
 try:
     import onnxruntime as ort

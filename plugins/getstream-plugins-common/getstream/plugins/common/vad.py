@@ -6,7 +6,7 @@ import numpy as np
 from pyee.asyncio import AsyncIOEventEmitter
 
 from getstream.video.rtc.track_util import PcmData
-from getstream.audio.pcm_utils import pcm_to_numpy_array, numpy_array_to_bytes
+from getstream.video.rtc.pcm_utils import pcm_to_numpy_array, numpy_array_to_bytes
 
 logger = logging.getLogger(__name__)
 

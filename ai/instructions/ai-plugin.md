@@ -139,10 +139,10 @@ async def _process_audio_impl(self, pcm_data, user_metadata=None):
 
 ## 4. Shared audio utilities
 
-For common audio processing tasks, use the shared utilities in `getstream.audio.utils`:
+For common audio processing tasks, use the shared utilities in `getstream.video.rtc.utils`:
 
 ```python
-from getstream.audio.utils import resample_audio
+from getstream.video.rtc.utils import resample_audio
 
 # High-quality resampling with automatic fallbacks
 resampled_audio = resample_audio(audio_data, from_sample_rate, to_sample_rate)

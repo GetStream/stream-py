@@ -6,15 +6,15 @@ authors = [
     { name = "sachaarbonel", email = "sacha.arbonel@hotmail.fr" },
     { name = "tbarbugli", email = "tbarbugli@gmail.com" },
 ]
-requires-python = ">=3.9,<4.0.0"
+requires-python = ">=3.10,<4.0.0"
 readme = "README.md"
 classifiers = [
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3 :: Only",
 ]
 dependencies = [
     "httpx>=0.28.1",
@@ -26,8 +26,6 @@ dependencies = [
     "aiohttp>=3.11.16",
     "pydantic-settings>=2.9.1",
     "pydantic>=2.10.6",
-    "tenacity>=9.1.2",
-    "ping3>=4.0.8",
 ]
 
 [project.optional-dependencies]
@@ -36,18 +34,16 @@ openai-realtime = [
 ]
 webrtc = [
     "aiortc>=1.10.1",
-    "numpy>=2.2.6,<2.3",
-    "torch>=2.7.1",
-    "torchaudio>=2.7.1",
-    "soundfile>=0.13.1",
-    "scipy>=1.15.3,<1.16",
     "twirp>=0.0.7",
-    "protobuf>=4.25.1",
     "pyee>=13.0.0",
+    "numpy>=2.2.6,<2.3",
+    "protobuf>=4.25.1",
     "websockets>=15.0.1,<16",
     "websocket-client>=1.8.0",
     "python-dateutil>=2.8.2",
     "structlog<24",
+    "tenacity>=9.1.2",
+    "ping3>=4.0.8",
 ]
 
 [dependency-groups]
@@ -65,8 +61,8 @@ dev = [
 
 [tool.uv.workspace]
 members = [
-    "getstream/plugins/*",
-    "examples/test",
+    "getstream",
+    "plugins/*",
 ]
  exclude = [
     "**/__pycache__",
@@ -97,8 +93,11 @@ exclude = [
 ]
 
 [tool.hatch.build.targets.sdist]
+include = ["/getstream"]
 exclude = [
+  ".*",
   "examples/**",
+  "plugins/**",
   "protocol/**",
   "scripts/**",
   "tests/**",

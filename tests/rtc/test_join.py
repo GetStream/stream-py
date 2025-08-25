@@ -13,9 +13,6 @@ from typing import Callable, Any
 
 from getstream.video.rtc.track_util import PcmData
 
-pytest.skip("Skipping RTC join tests during regular test runs", allow_module_level=True)
-
-
 CALL_ID = os.getenv("CALL_ID")
 
 

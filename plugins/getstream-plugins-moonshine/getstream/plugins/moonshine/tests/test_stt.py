@@ -63,7 +63,7 @@ def mia_audio_data(mia_mp3_path):
         # Resample to 16kHz (Moonshine's native rate)
         target_sample_rate = 16000
         if original_sample_rate != target_sample_rate:
-            from getstream.audio.utils import resample_audio
+            from getstream.video.rtc.utils import resample_audio
 
             data = resample_audio(data, original_sample_rate, target_sample_rate)
 
@@ -216,7 +216,7 @@ async def test_moonshine_custom_initialization():
 @pytest.mark.asyncio
 async def test_moonshine_audio_resampling():
     """Test that audio resampling works correctly."""
-    from getstream.audio.utils import resample_audio
+    from getstream.video.rtc.utils import resample_audio
 
     with patch("getstream.plugins.moonshine.stt.stt.moonshine"):
         stt = MoonshineSTT(sample_rate=16000)

@@ -7,8 +7,8 @@ import soundfile as sf
 
 from getstream.plugins.common import STT
 from getstream.video.rtc.track_util import PcmData
-from getstream.audio.utils import resample_audio
-from getstream.audio.pcm_utils import (
+from getstream.video.rtc.utils import resample_audio
+from getstream.video.rtc.pcm_utils import (
     pcm_to_numpy_array,
     validate_sample_rate_compatibility,
     log_audio_processing_info,
