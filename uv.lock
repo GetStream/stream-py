@@ -11,6 +11,7 @@ resolution-markers = [
 [manifest]
 members = [
     "getstream",
+    "getstream-plugins-assemblyai",
     "getstream-plugins-cartesia",
     "getstream-plugins-common",
     "getstream-plugins-deepgram",
@@ -217,6 +218,21 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/f1/b4/636b3b65173d3ce9a38ef5f0522789614e590dab6a8d505340a4efe4c567/anyio-4.10.0.tar.gz", hash = "sha256:3f3fae35c96039744587aa5b8371e7e8e603c0702999535961dd336026973ba6", size = 213252, upload-time = "2025-08-04T08:54:26.451Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/6f/12/e5e0282d673bb9746bacfb6e2dba8719989d3660cdb2ea79aee9a9651afb/anyio-4.10.0-py3-none-any.whl", hash = "sha256:60e474ac86736bbfd6f210f7a61218939c318f43f9972497381f1c5e930ed3d1", size = 107213, upload-time = "2025-08-04T08:54:24.882Z" },
+]
+
+[[package]]
+name = "assemblyai"
+version = "0.43.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "typing-extensions" },
+    { name = "websockets" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/9b/a6/51324e434a250f44f5d6d041e5acb8a98451604dbe8aaa9e5f91bf1dc902/assemblyai-0.43.1.tar.gz", hash = "sha256:c39e8ddb4434af316ade3259e51f86be8134c24be821d8cd84502850ea551951", size = 53970, upload-time = "2025-08-12T21:22:14.547Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f2/c4/3df745c07cc66be2d1134629b7007e3c8f3b9931caa5a62e023dcc7984cd/assemblyai-0.43.1-py3-none-any.whl", hash = "sha256:4e6e11eb07130c5c87aea84cc63d80933a6588e9b3aeee80026c2419756a3513", size = 50053, upload-time = "2025-08-12T21:22:13.255Z" },
 ]
 
 [[package]]
@@ -1150,6 +1166,43 @@ dev = [
     { name = "python-dateutil", specifier = ">=2.8.2,<3" },
     { name = "python-dotenv", specifier = ">=1.1.1,<2" },
     { name = "ruff", specifier = ">=0.12.1" },
+]
+
+[[package]]
+name = "getstream-plugins-assemblyai"
+version = "0.1.0"
+source = { editable = "getstream/plugins/assemblyai" }
+dependencies = [
+    { name = "assemblyai" },
+    { name = "getstream", extra = ["webrtc"] },
+    { name = "getstream-plugins-common" },
+    { name = "numpy" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "scipy" },
+    { name = "soundfile" },
+    { name = "torchaudio" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "assemblyai", specifier = ">=0.43.1" },
+    { name = "getstream", extras = ["webrtc"], editable = "." },
+    { name = "getstream-plugins-common", editable = "getstream/plugins/common" },
+    { name = "numpy", specifier = ">=2.2.6,<2.3" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=8.4.1" },
+    { name = "pytest-asyncio", specifier = ">=1.0.0" },
+    { name = "scipy", specifier = ">=1.15.3,<1.16" },
+    { name = "soundfile", specifier = ">=0.13.1" },
+    { name = "torchaudio", specifier = ">=2.7.1" },
 ]
 
 [[package]]
