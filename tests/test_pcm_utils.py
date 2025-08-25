@@ -6,6 +6,7 @@ validation, and logging functionality.
 """
 
 import logging
+import os
 import pytest
 import numpy as np
 
@@ -16,7 +17,6 @@ from getstream.video.rtc.pcm_utils import (
     log_audio_processing_info,
 )
 from getstream.video.rtc.track_util import PcmData
-from getstream.plugins.test_utils import get_audio_asset
 
 
 class TestPcmToNumpyArray:
@@ -305,7 +305,7 @@ class TestIntegrationWithRealAudio:
         import soundfile as sf
 
         # Load real audio asset
-        audio_path = get_audio_asset("formant_speech_16k.wav")
+        audio_path = os.path.join(os.path.dirname(__file__), "assets", "formant_speech_16k.wav")
         audio_data, sample_rate = sf.read(audio_path, dtype="int16")
 
         # Convert to mono if stereo
@@ -349,7 +349,7 @@ class TestIntegrationWithRealAudio:
         import soundfile as sf
 
         # Load real audio asset
-        audio_path = get_audio_asset("formant_speech_16k.wav")
+        audio_path = os.path.join(os.path.dirname(__file__), "assets", "formant_speech_16k.wav")
         audio_data, sample_rate = sf.read(audio_path, dtype="int16")
 
         # Convert to mono if stereo

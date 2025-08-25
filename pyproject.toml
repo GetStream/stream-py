@@ -42,6 +42,7 @@ webrtc = [
     "websocket-client>=1.8.0",
     "python-dateutil>=2.8.2",
     "structlog<24",
+    "soundfile>=0.13.0",
     "tenacity>=9.1.2",
     "ping3>=4.0.8",
 ]
@@ -61,7 +62,6 @@ dev = [
 
 [tool.uv.workspace]
 members = [
-    "getstream",
     "plugins/*",
 ]
  exclude = [

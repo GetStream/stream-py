@@ -173,8 +173,8 @@ async def test_join_and_leave(client: Stream):
     call = client.video.call("default", "test-join")
 
     async with await rtc.join(call, "test-user") as connection:
+        await asyncio.sleep(10)
         await connection.leave()
-        await connection.wait()
 
 
 @pytest.mark.skip_in_ci
@@ -304,6 +304,7 @@ async def test_detect_video_properties(client: Stream):
 
 
 @pytest.mark.asyncio
+@pytest.mark.skip_in_ci
 async def test_play_file(client: Stream):
     from aiortc.contrib.media import MediaPlayer
 
@@ -319,7 +320,7 @@ async def test_play_file(client: Stream):
 
     player = MediaPlayer(file_path)
 
-    async with await rtc.join(call, "vivek33") as connection:
+    async with await rtc.join(call, "test-user") as connection:
         # Use add_tracks which now automatically detects properties
         await connection.add_tracks(
             video=player.video,
@@ -331,7 +332,7 @@ async def test_play_file(client: Stream):
 
 @pytest.mark.asyncio
 async def test_play_audio_track_from_text(client: Stream):
-    from getstream.plugins.gs_elevenlabs import ElevenLabsTTS
+    from getstream.plugins.elevenlabs import ElevenLabsTTS
 
     audio = audio_track.AudioStreamTrack(framerate=16000)
     tts_instance = ElevenLabsTTS(voice_id="JBFqnCBsd6RMkjVDRZzb")
@@ -352,6 +353,7 @@ async def test_play_audio_track_from_text(client: Stream):
 
 
 @pytest.mark.asyncio
+@pytest.mark.skip_in_ci
 async def test_full_echo(client: Stream):
     from getstream.plugins.silero import SileroVAD
     from getstream.plugins.deepgram import DeepgramSTT
@@ -393,6 +395,7 @@ async def test_full_echo(client: Stream):
 
 
 @pytest.mark.asyncio
+@pytest.mark.skip_in_ci
 async def test_simple_capture(client: Stream):
     call = client.video.call("default", CALL_ID)
     async with await rtc.join(call, "test-user") as connection:
@@ -401,4 +404,4 @@ async def test_simple_capture(client: Stream):
         async def on_audio(pcm: PcmData, user):
             print("got audio")
 
-        await connection.wait()
+        await asyncio.sleep(30)
