@@ -1,9 +1,12 @@
-import pytest
 import asyncio
-import numpy as np
+import time
 from unittest.mock import Mock, patch
-from getstream.video.rtc.track_util import PcmData
+
+import numpy as np
+import pytest
+
 from getstream.plugins.assemblyai.stt import AssemblyAISTT
+from getstream.video.rtc.track_util import PcmData
 
 
 @pytest.fixture
@@ -399,8 +402,6 @@ class TestAssemblyAISTTPerformance:
     @pytest.mark.asyncio
     async def test_audio_processing_performance(self, mock_assemblyai_api_key, mock_assemblyai_dependencies, mock_streaming_client):
         """Test audio processing performance with timing."""
-        import time
-        
         stt = AssemblyAISTT(api_key=mock_assemblyai_api_key)
         stt.streaming_client = mock_streaming_client
         
@@ -420,8 +421,8 @@ class TestAssemblyAISTTPerformance:
     def test_memory_usage_with_large_data(self, mock_assemblyai_api_key, mock_assemblyai_dependencies):
         """Test memory usage with large PCM data."""
         try:
-            import psutil
             import os
+            import psutil
         except ImportError:
             pytest.skip("psutil not available for memory testing")
         

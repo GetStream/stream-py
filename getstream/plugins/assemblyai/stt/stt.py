@@ -1,8 +1,9 @@
 import logging
-from typing import Dict, Any, Optional, Tuple, List
-import numpy as np
 import os
 import time
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
 
 # Conditional imports with error handling
 try:

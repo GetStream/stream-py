@@ -19,6 +19,7 @@ import asyncio
 import logging
 import os
 import time
+import traceback
 import uuid
 import webbrowser
 from urllib.parse import urlencode
@@ -26,10 +27,10 @@ from urllib.parse import urlencode
 from dotenv import load_dotenv
 
 from getstream.models import UserRequest
+from getstream.plugins.assemblyai.stt import AssemblyAISTT
 from getstream.stream import Stream
 from getstream.video import rtc
 from getstream.video.rtc.track_util import PcmData
-from getstream.plugins.assemblyai.stt import AssemblyAISTT
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
@@ -173,8 +174,6 @@ async def main():
         print("\n⏹️  Stopping transcription bot...")
     except Exception as e:
         print(f"❌ Error: {e}")
-        import traceback
-
         traceback.print_exc()
     finally:
         await stt.close()
