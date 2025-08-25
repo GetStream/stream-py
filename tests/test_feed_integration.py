@@ -30,6 +30,8 @@ from getstream.models import (
     ActivityRequest,
     CreateFeedGroupRequest,
     RankingConfig,
+    ActivityProcessorConfig,
+    AggregationConfig
 )
 from getstream.stream_response import StreamResponse
 
@@ -1495,10 +1497,12 @@ class TestFeedIntegration:
         print("✅ Completed Feed Group CRUD operations")
 
         # Additional Feed Group Creation Examples
+        feed_group_id = f"test-feed-group-{uuid.uuid4().hex[:8]}"
+
         print("\n📊 Testing create feed group with aggregation...")
         # snippet-start: CreateFeedGroupWithAggregation
-        self.feeds_client.create_feed_group(CreateFeedGroupRequest(
-            id="aggregated-group",
+        self.client.feeds.create_feed_group(
+            id = feed_group_id,
             default_visibility="public",
             activity_processors=[
                 ActivityProcessorConfig(type="default")
@@ -1506,19 +1510,21 @@ class TestFeedIntegration:
             aggregation=AggregationConfig(
                 format="{{ type }}-{{ time.strftime(\"%Y-%m-%d\") }}"
             )
-        ))
+        )
         # snippet-end: CreateFeedGroupWithAggregation
+
+        feed_group_id = f"test-feed-group-{uuid.uuid4().hex[:8]}"
 
         print("\n🏆 Testing create feed group with ranking...")
         # snippet-start: CreateFeedGroupWithRanking
-        self.feeds_client.create_feed_group(CreateFeedGroupRequest(
-            id="ranked-group",
+        self.client.feeds.create_feed_group(
+            id=feed_group_id,
             default_visibility="public",
             ranking=RankingConfig(
                 type="default",
                 score="decay_linear(time) * popularity"
             )
-        ))
+        )
         # snippet-end: CreateFeedGroupWithRanking
 
     def test34_feed_view_crud(self):
