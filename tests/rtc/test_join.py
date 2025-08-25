@@ -330,7 +330,7 @@ async def test_play_file(client: Stream):
 
 @pytest.mark.asyncio
 async def test_play_audio_track_from_text(client: Stream):
-    from getstream.plugins.elevenlabs import ElevenLabsTTS
+    from getstream.plugins.elevenlabs.tts import ElevenLabsTTS
 
     audio = audio_track.AudioStreamTrack(framerate=16000)
     tts_instance = ElevenLabsTTS(voice_id="JBFqnCBsd6RMkjVDRZzb")
