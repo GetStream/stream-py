@@ -7,8 +7,6 @@ from urllib.parse import urlparse, urlunparse
 import logging
 import sys
 
-from .event_emitter import StreamAsyncIOEventEmitter
-
 UTC = timezone.utc
 
 
@@ -184,8 +182,6 @@ def configure_logging(level=None, handler=None, format=None):
 
 
 __all__ = [
-    # Event emitter
-    "StreamAsyncIOEventEmitter",
     # Utils functions
     "encode_datetime",
     "datetime_from_unix_ns",
