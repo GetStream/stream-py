@@ -12,7 +12,7 @@ on:
 jobs:
   test:
     name: Tests
-    environment: ci
+    environment: feeds-v3-ci
     runs-on: ubuntu-latest
     continue-on-error: true
     strategy:

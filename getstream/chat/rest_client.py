@@ -717,6 +717,7 @@ class ChatRestClient(BaseClient):
         blocklist: Optional[str] = None,
         blocklist_behavior: Optional[str] = None,
         connect_events: Optional[bool] = None,
+        count_messages: Optional[bool] = None,
         custom_events: Optional[bool] = None,
         mark_messages_pending: Optional[bool] = None,
         mutes: Optional[bool] = None,
@@ -753,6 +754,7 @@ class ChatRestClient(BaseClient):
             blocklist=blocklist,
             blocklist_behavior=blocklist_behavior,
             connect_events=connect_events,
+            count_messages=count_messages,
             custom_events=custom_events,
             mark_messages_pending=mark_messages_pending,
             mutes=mutes,
@@ -910,9 +912,15 @@ class ChatRestClient(BaseClient):
         )
 
     def delete_message(
-        self, id: str, hard: Optional[bool] = None, deleted_by: Optional[str] = None
+        self,
+        id: str,
+        hard: Optional[bool] = None,
+        deleted_by: Optional[str] = None,
+        delete_for_me: Optional[bool] = None,
     ) -> StreamResponse[DeleteMessageResponse]:
-        query_params = build_query_param(hard=hard, deleted_by=deleted_by)
+        query_params = build_query_param(
+            hard=hard, deleted_by=deleted_by, delete_for_me=delete_for_me
+        )
         path_params = {
             "id": id,
         }

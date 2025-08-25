@@ -284,6 +284,30 @@ class VideoRestClient(BaseClient):
             json=json,
         )
 
+    def kick_user(
+        self,
+        type: str,
+        id: str,
+        user_id: str,
+        block: Optional[bool] = None,
+        kicked_by_id: Optional[str] = None,
+        kicked_by: Optional[UserRequest] = None,
+    ) -> StreamResponse[KickUserResponse]:
+        path_params = {
+            "type": type,
+            "id": id,
+        }
+        json = build_body_dict(
+            user_id=user_id, block=block, kicked_by_id=kicked_by_id, kicked_by=kicked_by
+        )
+
+        return self.post(
+            "/api/v2/video/call/{type}/{id}/kick",
+            KickUserResponse,
+            path_params=path_params,
+            json=json,
+        )
+
     def end_call(self, type: str, id: str) -> StreamResponse[EndCallResponse]:
         path_params = {
             "type": type,
