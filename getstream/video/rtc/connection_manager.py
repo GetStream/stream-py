@@ -310,9 +310,9 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         self.twirp_context = Context(headers={"authorization": token})
 
         # Step 5: Create coordinator websocket (temporarily disabled to test)
-        user_token = self.call.client.stream_audio.create_token(user_id=self.user_id)
+        user_token = self.call.client.stream.create_token(user_id=self.user_id)
         self._coordinator_ws_client = StreamAPIWS(
-            api_key=self.call.client.stream_audio.api_key,
+            api_key=self.call.client.stream.api_key,
             token=user_token,
             user_details={"id": self.user_id},
         )
@@ -356,7 +356,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         await self._network_monitor.stop_monitoring()
         await self._peer_manager.close()
         if self._ws_client:
-            await self._ws_client.close()
+            self._ws_client.close()
             self._ws_client = None
         if self._coordinator_ws_client:
             await self._coordinator_ws_client.disconnect()
@@ -385,13 +385,6 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
     async def add_tracks(self, audio=None, video=None):
         """Add multiple audio and video tracks in a single negotiation."""
         await self._peer_manager.add_tracks(audio, video)
-
-    async def addTrack(self, track, track_info=None):
-        """Add a single track (backward compatibility)."""
-        if track.kind == "video":
-            await self.add_tracks(video=track)
-        else:
-            await self.add_tracks(audio=track)
 
     async def start_recording(
         self,

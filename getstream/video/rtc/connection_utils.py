@@ -154,13 +154,13 @@ async def join_call_coordinator_request(
 
     """
     # Create a token for this user
-    token = call.client.stream_audio.create_token(user_id=user_id)
+    token = call.client.stream.create_token(user_id=user_id)
 
     # Create a new client with this token
-    client = call.client.stream_audio.__class__(
-        api_key=call.client.stream_audio.api_key,
-        api_secret=call.client.stream_audio.api_secret,
-        base_url=call.client.stream_audio.base_url,
+    client = call.client.stream.__class__(
+        api_key=call.client.stream.api_key,
+        api_secret=call.client.stream.api_secret,
+        base_url=call.client.stream.base_url,
     )
 
     # Set up authentication

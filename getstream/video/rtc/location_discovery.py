@@ -8,6 +8,7 @@ import functools
 import http.client
 import logging
 from contextlib import contextmanager
+<<<<<<< HEAD
 from typing import Optional, Protocol
 
 # Constants matching the Go implementation
@@ -22,12 +23,11 @@ logger = logging.getLogger(__name__)
 class HTTPClient(Protocol):
     """Protocol defining the HTTP client interface."""
 
-    def request(self, method: str, url: str, body=None, headers=None, **kwargs):
+    def request(self, method: str, url: str, body=None, headers=None, **kwargs) -> None:
         """Make an HTTP request."""
         ...
 
-    @contextmanager
-    def response(self):
+    def response(self) -> ContextManager[http.client.HTTPResponse]:
         """Get the HTTP response."""
         ...
 
@@ -68,33 +68,25 @@ class HTTPHintLocationDiscovery:
             The 3-character location code (e.g. "IAD", "FRA")
 
         """
+        # Basic validation to match previous behavior and provide fast-fail
         parsed_url = self.url.split("://", 1)
         if len(parsed_url) != 2:
             self.logger.warning("Invalid URL format: %s", self.url)
             return FALLBACK_LOCATION_NAME
 
-        protocol, host_path = parsed_url
-        host = host_path.split("/", 1)[0]
-        path = "/" + host_path.split("/", 1)[1] if "/" in host_path else "/"
-
         for i in range(self.max_retries):
             self.logger.info("Discovering location, attempt %d", i + 1)
             try:
-                if protocol.lower() == "https":
-                    conn = http.client.HTTPSConnection(host, timeout=1)
-                else:
-                    conn = http.client.HTTPConnection(host, timeout=1)
+                # Use injected HTTP client (or default) for requests
+                self.client.request("HEAD", self.url)
+                with self.client.response() as response:
+                    if response.status != 200:
+                        self.logger.warning(
+                            "Unexpected status code: %d", response.status
+                        )
+                        continue
 
-                conn.request("HEAD", path)
-                response = conn.getresponse()
-
-                if response.status != 200:
-                    self.logger.warning("Unexpected status code: %d", response.status)
-                    continue
-
-                pop_name = response.getheader(HEADER_CLOUDFRONT_POP, "")
-                response.read()  # Read and discard the response body
-                conn.close()
+                    pop_name = response.getheader(HEADER_CLOUDFRONT_POP, "")
 
                 if len(pop_name) < 3:
                     self.logger.warning("Invalid pop name: %s", pop_name)

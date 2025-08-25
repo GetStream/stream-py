@@ -136,7 +136,7 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
                     relay.subscribe(track),
                     lambda pcm: self.emit("audio", pcm, user),
                 )
-                asyncio.ensure_future(handler.start())
+                asyncio.create_task(handler.start())
 
             self.emit("track_added", relay.subscribe(track), user)
 
