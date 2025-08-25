@@ -28,6 +28,8 @@ from getstream.models import (
     VoteData,
     SortParamRequest,
     ActivityRequest,
+    CreateFeedGroupRequest,
+    RankingConfig,
 )
 from getstream.stream_response import StreamResponse
 
@@ -1491,6 +1493,33 @@ class TestFeedIntegration:
         # snippet-end: DeleteFeedGroup
 
         print("✅ Completed Feed Group CRUD operations")
+
+        # Additional Feed Group Creation Examples
+        print("\n📊 Testing create feed group with aggregation...")
+        # snippet-start: CreateFeedGroupWithAggregation
+        self.feeds_client.create_feed_group(CreateFeedGroupRequest(
+            id="aggregated-group",
+            default_visibility="public",
+            activity_processors=[
+                ActivityProcessorConfig(type="default")
+            ],
+            aggregation=AggregationConfig(
+                format="{{ type }}-{{ time.strftime(\"%Y-%m-%d\") }}"
+            )
+        ))
+        # snippet-end: CreateFeedGroupWithAggregation
+
+        print("\n🏆 Testing create feed group with ranking...")
+        # snippet-start: CreateFeedGroupWithRanking
+        self.feeds_client.create_feed_group(CreateFeedGroupRequest(
+            id="ranked-group",
+            default_visibility="public",
+            ranking=RankingConfig(
+                type="default",
+                score="decay_linear(time) * popularity"
+            )
+        ))
+        # snippet-end: CreateFeedGroupWithRanking
 
     def test34_feed_view_crud(self):
         """Test 34: Feed View CRUD Operations"""
