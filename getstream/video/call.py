@@ -162,6 +162,24 @@ class Call:
         self._sync_from_response(response.data)
         return response
 
+    def kick_user(
+        self,
+        user_id: str,
+        block: Optional[bool] = None,
+        kicked_by_id: Optional[str] = None,
+        kicked_by: Optional[UserRequest] = None,
+    ) -> StreamResponse[KickUserResponse]:
+        response = self.client.kick_user(
+            type=self.call_type,
+            id=self.id,
+            user_id=user_id,
+            block=block,
+            kicked_by_id=kicked_by_id,
+            kicked_by=kicked_by,
+        )
+        self._sync_from_response(response.data)
+        return response
+
     def end(self) -> StreamResponse[EndCallResponse]:
         response = self.client.end_call(type=self.call_type, id=self.id)
         self._sync_from_response(response.data)
