@@ -1,6 +1,7 @@
 from functools import cached_property
 import time
 from typing import List
+from uuid import uuid4
 
 import jwt
 from pydantic import AnyHttpUrl, ConfigDict
@@ -122,6 +123,18 @@ class Stream(CommonClient):
         """
         users_map = {u.id: u for u in users}
         return self.update_users(users_map)
+
+    def create_user(self, name: str = "", id: str = str(uuid4()), image = ""):
+        """
+        Creates or updates users. This method performs an "upsert" operation,
+        where it checks if each user already exists and updates their information
+        if they do, or creates a new user entry if they do not.
+        """
+        user = UserRequest(name=name, id=id)
+        users_map = {user.id: user}
+        response = self.update_users(users_map)
+        user = response.data.users[user.id]
+        return user
 
     def create_token(
         self,
