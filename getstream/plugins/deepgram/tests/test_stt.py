@@ -5,7 +5,7 @@ import numpy as np
 from unittest.mock import patch, MagicMock
 import os
 
-from getstream.plugins.deepgram.stt import DeepgramSTT
+from getstream.plugins import DeepgramSTT
 from getstream.video.rtc.track_util import PcmData
 from getstream.plugins.test_utils import get_audio_asset, get_json_metadata
 

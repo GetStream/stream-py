@@ -3,7 +3,7 @@ import pytest
 import asyncio
 from unittest.mock import patch, MagicMock
 
-from getstream.plugins.elevenlabs.tts import ElevenLabsTTS
+from getstream.plugins import ElevenLabsTTS
 from getstream.video.rtc.audio_track import AudioStreamTrack
 
 

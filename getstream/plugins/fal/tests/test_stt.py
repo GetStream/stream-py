@@ -5,7 +5,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 import numpy as np
 
-from getstream.plugins.fal.stt.stt import FalWizperSTT
+from getstream.plugins import FalWizperSTT
 from getstream.video.rtc.track_util import PcmData
 
 

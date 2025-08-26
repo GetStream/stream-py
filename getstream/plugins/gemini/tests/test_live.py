@@ -111,8 +111,7 @@ except ImportError:  # pragma: no cover - environment should have google from pr
     sys.modules["google"] = pkg
 
 
-from getstream.plugins.gemini.live import live as gemini_live  # noqa: E402
-from getstream.plugins.gemini.live.live import GeminiLive  # noqa: E402
+from getstream.plugins import GeminiLive  # noqa: E402
 from getstream.video.rtc.track_util import PcmData  # noqa: E402
 
 

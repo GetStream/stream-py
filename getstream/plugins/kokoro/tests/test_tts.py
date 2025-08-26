@@ -4,7 +4,7 @@ import asyncio
 import numpy as np
 import pytest
 
-from getstream.plugins.kokoro.tts import KokoroTTS
+from getstream.plugins import KokoroTTS
 from getstream.video.rtc.audio_track import AudioStreamTrack
 
 
