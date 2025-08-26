@@ -189,23 +189,43 @@ async def join_call_coordinator_request(
     )
 
 
-def create_join_request(join_response, session_id: str) -> events_pb2.JoinRequest:
+async def create_join_request(token: str, session_id: str) -> events_pb2.JoinRequest:
     """Create a JoinRequest protobuf message for the WebSocket connection.
 
     Args:
-        join_response: The response from the coordinator join call
+        token: The token for the user
         session_id: The session ID for this connection
 
     Returns:
-        A JoinRequest protobuf message configured with data from the coordinator response
+        A JoinRequest protobuf message configured with data
     """
-    # Get credentials from the coordinator response
-    credentials = join_response.data.credentials
 
     # Create a JoinRequest
     join_request = events_pb2.JoinRequest()
-    join_request.token = credentials.token
+    join_request.token = token
     join_request.session_id = session_id
+
+    # Create generic SDPs for send and recv
+    temp_pub_pc = aiortc.RTCPeerConnection()
+    temp_sub_pc = aiortc.RTCPeerConnection()
+    temp_pub_pc.addTransceiver(direction="sendonly", trackOrKind="video")
+    temp_pub_pc.addTransceiver(direction="sendonly", trackOrKind="audio")
+    temp_sub_pc.addTransceiver(direction="recvonly", trackOrKind="video")
+    temp_sub_pc.addTransceiver(direction="recvonly", trackOrKind="audio")
+
+    pub_offer = await temp_pub_pc.createOffer()
+    sub_offer = await temp_sub_pc.createOffer()
+    join_request.publisher_sdp = pub_offer.sdp
+    join_request.subscriber_sdp = sub_offer.sdp
+
+    for transceiver in temp_pub_pc.getTransceivers():
+        transceiver.stop()
+    for transceiver in temp_sub_pc.getTransceivers():
+        transceiver.stop()
+
+    temp_pub_pc.close()
+    temp_sub_pc.close()
+
     return join_request
 
 
@@ -341,9 +361,7 @@ async def connect_websocket(
 
     try:
         # Create JoinRequest for WebSocket connection
-        join_request = events_pb2.JoinRequest()
-        join_request.token = token
-        join_request.session_id = session_id
+        join_request = await create_join_request(token, session_id)
 
         # Apply reconnect options if provided
         if options.fast_reconnect:
