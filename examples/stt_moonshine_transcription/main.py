@@ -30,8 +30,7 @@ from getstream.models import UserRequest
 from getstream.stream import Stream
 from getstream.video import rtc
 from getstream.video.rtc.track_util import PcmData
-from getstream.plugins.moonshine.stt import MoonshineSTT
-from getstream.plugins.silero.vad import SileroVAD
+from getstream.plugins import MoonshineSTT, SileroVAD
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")

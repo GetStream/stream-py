@@ -31,7 +31,7 @@ from getstream.models import UserRequest
 from getstream.stream import Stream
 from getstream.video import rtc
 from getstream.video.rtc import audio_track
-from getstream.plugins.elevenlabs.tts import ElevenLabsTTS
+from getstream.plugins import ElevenLabsTTS
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
