@@ -4,7 +4,7 @@ import numpy as np
 import warnings
 import time
 from typing import Dict, Any, Optional
-from getstream.plugins.common import VAD
+from getstream.plugins.common import VAD, TelemetryEventEmitter
 from getstream.video.rtc.track_util import PcmData
 from getstream.audio.utils import resample_audio
 from getstream.plugins.common.events import VADAudioEvent
@@ -96,6 +96,13 @@ class SileroVAD(VAD):
         self.window_samples = window_samples
         self.device_name = device
         self.use_onnx = use_onnx and has_onnx
+        
+        # Initialize telemetry event emitter
+        self.telemetry_emitter = TelemetryEventEmitter("silero_vad")
+        
+        # Initialize telemetry registry
+        from getstream.plugins.common import TelemetryEventRegistry
+        self.telemetry_registry = TelemetryEventRegistry()
 
         # Verify window size is correct for the Silero model
         if self.model_rate == 16000 and self.window_samples != 512:

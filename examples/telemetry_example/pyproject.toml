@@ -1,0 +1,16 @@
+[project]
+name = "getstream-telemetry-integration-example"
+version = "0.1.0"
+description = "Example project showing OpenTelemetry integration for GetStream AI plugins"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+dependencies = [
+    "getstream[webrtc]>=2.3.0a6",
+    "getstream-plugins-common>=0.2.0",
+    "python-dotenv>=1.1.1",
+]
+
+[tool.uv.sources]
+getstream = { path = "../../", editable = true }
+getstream-plugins-common = { path = "../../getstream/plugins/common", editable = true }

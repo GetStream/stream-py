@@ -65,6 +65,19 @@ class TTS(AsyncIOEventEmitter, abc.ABC):
         )
         register_global_event(init_event)
         self.emit("initialized", init_event)
+        
+        # Emit to telemetry if available
+        if hasattr(self, 'telemetry_emitter'):
+            self.telemetry_emitter.emit(init_event)
+            
+        # Initialize telemetry registry if available
+        try:
+            from getstream.plugins.common import TelemetryEventRegistry
+            self.telemetry_registry = TelemetryEventRegistry()
+            # Register initialization event in telemetry registry
+            self.telemetry_registry.register_event(init_event)
+        except ImportError:
+            self.telemetry_registry = None
 
     def set_output_track(self, track: AudioStreamTrack) -> None:
         """
@@ -150,6 +163,10 @@ class TTS(AsyncIOEventEmitter, abc.ABC):
             )
             register_global_event(start_event)
             self.emit("synthesis_start", start_event)
+            
+            # Register in telemetry registry if available
+            if hasattr(self, 'telemetry_registry'):
+                self.telemetry_registry.register_event(start_event)
 
             # Synthesize audio
             audio_data = await self.stream_audio(text, *args, **kwargs)
@@ -178,6 +195,10 @@ class TTS(AsyncIOEventEmitter, abc.ABC):
                 )
                 register_global_event(audio_event)
                 self.emit("audio", audio_event)  # Structured event
+                
+                # Register in telemetry registry if available
+                if hasattr(self, 'telemetry_registry'):
+                    self.telemetry_registry.register_event(audio_event)
             elif inspect.isasyncgen(audio_data):
                 async for chunk in audio_data:
                     if isinstance(chunk, bytes):
@@ -199,6 +220,10 @@ class TTS(AsyncIOEventEmitter, abc.ABC):
                         )
                         register_global_event(audio_event)
                         self.emit("audio", audio_event)  # Structured event
+                        
+                        # Register in telemetry registry if available
+                        if hasattr(self, 'telemetry_registry'):
+                            self.telemetry_registry.register_event(audio_event)
                     else:  # assume it's a Cartesia TTS chunk object
                         total_audio_bytes += len(chunk.data)
                         audio_chunks += 1
@@ -218,6 +243,10 @@ class TTS(AsyncIOEventEmitter, abc.ABC):
                         )
                         register_global_event(audio_event)
                         self.emit("audio", audio_event)  # Structured event
+                        
+                        # Register in telemetry registry if available
+                        if hasattr(self, 'telemetry_registry'):
+                            self.telemetry_registry.register_event(audio_event)
             elif hasattr(audio_data, "__iter__") and not isinstance(
                 audio_data, (str, bytes, bytearray)
             ):
@@ -240,6 +269,10 @@ class TTS(AsyncIOEventEmitter, abc.ABC):
                     )
                     register_global_event(audio_event)
                     self.emit("audio", audio_event)  # Structured event
+                    
+                    # Register in telemetry registry if available
+                    if hasattr(self, 'telemetry_registry'):
+                        self.telemetry_registry.register_event(audio_event)
             else:
                 raise TypeError(
                     f"Unsupported return type from synthesize: {type(audio_data)}"
@@ -275,6 +308,10 @@ class TTS(AsyncIOEventEmitter, abc.ABC):
             )
             register_global_event(completion_event)
             self.emit("synthesis_complete", completion_event)
+            
+            # Register in telemetry registry if available
+            if hasattr(self, 'telemetry_registry'):
+                self.telemetry_registry.register_event(completion_event)
 
             logger.info(
                 "Text-to-speech synthesis completed",
@@ -305,6 +342,10 @@ class TTS(AsyncIOEventEmitter, abc.ABC):
             register_global_event(error_event)
             self.emit("error", error_event)  # New structured event
             self.emit("error_legacy", e)  # Backward compatibility
+            
+            # Register in telemetry registry if available
+            if hasattr(self, 'telemetry_registry'):
+                self.telemetry_registry.register_event(error_event)
             # Re-raise to allow the caller to handle the error
             raise
 
@@ -320,3 +361,7 @@ class TTS(AsyncIOEventEmitter, abc.ABC):
         )
         register_global_event(close_event)
         self.emit("closed", close_event)
+        
+        # Register in telemetry registry if available
+        if hasattr(self, 'telemetry_registry'):
+            self.telemetry_registry.register_event(close_event)

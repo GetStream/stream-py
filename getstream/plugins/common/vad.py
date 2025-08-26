@@ -97,7 +97,7 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
                 "deactivation_th": deactivation_th,
             },
         )
-
+        
         # Emit initialization event
         init_event = PluginInitializedEvent(
             session_id=self.session_id,
@@ -114,6 +114,19 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
         )
         register_global_event(init_event)
         self.emit("initialized", init_event)
+        
+        # Emit to telemetry if available
+        if hasattr(self, 'telemetry_emitter'):
+            self.telemetry_emitter.emit(init_event)
+            
+        # Initialize telemetry registry if available
+        try:
+            from getstream.plugins.common import TelemetryEventRegistry
+            self.telemetry_registry = TelemetryEventRegistry()
+            # Register initialization event in telemetry registry
+            self.telemetry_registry.register_event(init_event)
+        except ImportError:
+            self.telemetry_registry = None
 
     @abc.abstractmethod
     async def is_speech(self, frame: PcmData) -> float:
@@ -234,6 +247,10 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
                 )
                 register_global_event(partial_event)
                 self.emit("partial", partial_event)  # Structured event
+                
+                # Register in telemetry registry if available
+                if hasattr(self, 'telemetry_registry'):
+                    self.telemetry_registry.register_event(partial_event)
 
                 logger.debug(
                     f"Emitted partial event with {len(current_samples)} samples"
@@ -284,6 +301,10 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
             )
             register_global_event(speech_start_event)
             self.emit("speech_start", speech_start_event)
+            
+            # Register in telemetry registry if available
+            if hasattr(self, 'telemetry_registry'):
+                self.telemetry_registry.register_event(speech_start_event)
 
             # Add this frame to the buffer using shared utility
             frame_bytes = numpy_array_to_bytes(frame.samples)
@@ -319,6 +340,10 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
             )
             register_global_event(audio_event)
             self.emit("audio", audio_event)  # Structured event
+            
+            # Register in telemetry registry if available
+            if hasattr(self, 'telemetry_registry'):
+                self.telemetry_registry.register_event(audio_event)
 
             logger.debug(f"Emitted audio event with {len(speech_data)} samples")
 
@@ -336,6 +361,10 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
             )
             register_global_event(speech_end_event)
             self.emit("speech_end", speech_end_event)
+            
+            # Register in telemetry registry if available
+            if hasattr(self, 'telemetry_registry'):
+                self.telemetry_registry.register_event(speech_end_event)
 
         # Reset state variables
         self.speech_buffer = bytearray()
@@ -376,6 +405,10 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
         )
         register_global_event(error_event)
         self.emit("error", error_event)  # Structured event
+        
+        # Register in telemetry registry if available
+        if hasattr(self, 'telemetry_registry'):
+            self.telemetry_registry.register_event(error_event)
 
     async def close(self):
         """Close the VAD service and release any resources."""
@@ -393,3 +426,7 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
         )
         register_global_event(close_event)
         self.emit("closed", close_event)
+        
+        # Register in telemetry registry if available
+        if hasattr(self, 'telemetry_registry'):
+            self.telemetry_registry.register_event(close_event)
