@@ -1,5 +1,4 @@
 import asyncio
-import logging
 import time
 from unittest.mock import Mock, patch
 
