@@ -28,7 +28,6 @@ from getstream.models import (
     VoteData,
     SortParamRequest,
     ActivityRequest,
-    CreateFeedGroupRequest,
     RankingConfig,
     ActivityProcessorConfig,
     AggregationConfig
