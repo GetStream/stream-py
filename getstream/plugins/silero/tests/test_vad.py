@@ -594,8 +594,8 @@ class TestSileroVAD:
         vad_16k = SileroVAD(
             sample_rate=16000,
             frame_size=512,
-            activation_th=0.3,
-            deactivation_th=0.2,
+            activation_th=0.2,  # Lower threshold for more sensitivity
+            deactivation_th=0.15,  # Lower deactivation threshold
             speech_pad_ms=30,
             min_speech_ms=250,
             model_rate=16000,
@@ -628,8 +628,8 @@ class TestSileroVAD:
         vad_48k = SileroVAD(
             sample_rate=48000,  # Input is 48 kHz
             frame_size=512 * 3,  # Scale frame size to match time duration
-            activation_th=0.3,
-            deactivation_th=0.2,
+            activation_th=0.2,  # Lower threshold for more sensitivity
+            deactivation_th=0.15,  # Lower deactivation threshold
             speech_pad_ms=30,
             min_speech_ms=250,
             model_rate=16000,  # Model still runs at 16 kHz
