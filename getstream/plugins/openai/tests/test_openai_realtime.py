@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 import asyncio
 
-from getstream.plugins.openai.sts import OpenAIRealtime
+from getstream.plugins import OpenAIRealtime
 from getstream.video.call import Call
 from getstream.video.openai import ConnectionManagerWrapper
 

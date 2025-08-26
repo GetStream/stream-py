@@ -111,9 +111,9 @@ except ImportError:  # pragma: no cover - environment should have google from pr
     sys.modules["google"] = pkg
 
 
-from getstream.plugins.gemini.live import live as gemini_live  # noqa: E402
-from getstream.plugins.gemini.live.live import GeminiLive  # noqa: E402
+from getstream.plugins import GeminiLive  # noqa: E402
 from getstream.video.rtc.track_util import PcmData  # noqa: E402
+import getstream.plugins.gemini.live.live as gemini_live  # noqa: E402
 
 
 @pytest.mark.asyncio
@@ -188,10 +188,8 @@ async def test_send_audio_pcm_resample_barge_in_and_silence_timeout(monkeypatch)
     client.aio.live = _DummyLive([])
     monkeypatch.setattr(gemini_live, "Client", lambda *a, **k: client)
 
-    # Use our dummy Blob in assertions
+    # Mock the imported components at the module level
     monkeypatch.setattr(gemini_live, "Blob", _DummyBlob)
-
-    # Avoid doing real resampling; return the provided array unchanged
     monkeypatch.setattr(gemini_live, "resample_audio", lambda arr, src, dst: arr)
 
     sts = GeminiLive(

@@ -3,7 +3,7 @@ import pytest
 import asyncio
 from unittest.mock import patch, MagicMock
 
-from getstream.plugins.deepgram.stt import DeepgramSTT
+from getstream.plugins import DeepgramSTT
 from getstream.video.rtc.track_util import PcmData
 
 

@@ -4,7 +4,7 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-from getstream.plugins.cartesia.tts import CartesiaTTS
+from getstream.plugins import CartesiaTTS
 from getstream.video.rtc.audio_track import AudioStreamTrack
 
 
