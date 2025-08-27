@@ -1,14 +1,15 @@
-## Stream + Gemini Live Speech-to-Speech Example
+## Stream + Gemini Live Multimodal Example
 
-This example shows how to connect a Google Gemini Live speech-to-speech agent to a Stream video call for real-time voice conversations. It has turn detection and interruption enabled so you can interrupt the bot as it speaks.
+This example shows how to connect a Google Gemini Live speech-to-speech agent to a Stream video call for real-time voice conversations. It has turn detection and interruption enabled so you can interrupt the bot as it speaks. It also sends video frames from your webcam to Gemini Live so it can describe things it can see.
 
 ### What It Does
 
-- 🤖 AI agent: joins a Stream video call as a bot user
-- 🌐 Browser UI: opens a link so you can join the same call
-- 🎤 Live audio: streams your microphone audio to Gemini
-- 🔊 Assistant speech: plays Gemini’s synthesized audio into the call
-- 🧠 Model: uses a Gemini Live model with voice output
+- AI agent: joins a Stream video call as a bot user
+- Browser UI: opens a link so you can join the same call
+- Live audio: streams your microphone audio to Gemini
+- Live video: sends video frames from your webcam to Gemini at 1FPS
+- Assistant speech: plays Gemini’s synthesized audio into the call
+- Model: uses a Gemini Live model with voice output
 
 ### Prerequisites
 
@@ -45,4 +46,4 @@ Run the example:
 uv run main.py
 ```
 
-The script creates a user and a bot user, starts a call, and opens a browser link. Join the call in the browser, then speak; the agent listens and responds with synthesized speech.
+The script creates a user and a bot user, starts a call, and opens a browser link. Join the call in the browser, then speak; the agent listens and responds with synthesized speech. Ask it about something in your environment!

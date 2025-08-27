@@ -59,11 +59,24 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
+Optional: forward remote participant video frames to Gemini for multimodal context:
+
+```python
+# Forward remote video frames to Gemini (optional)
+@connection.on("track_added")
+async def _on_track_added(track_id, kind, user):
+    if kind == "video" and connection.subscriber_pc:
+        track = connection.subscriber_pc.add_track_subscriber(track_id)
+        if track:
+            await gemini.start_video_sender(track, fps=1)
+```
+
 For a full runnable example, see `examples/gemini_live/main.py`.
 
 ### Features
 
 - **Bidirectional audio**: Streams microphone PCM to Gemini, and plays Gemini speech into the call using `output_track`.
+- **Video frame forwarding**: Sends remote participant video frames to Gemini Live for multimodal understanding. Use `start_video_sender` with a remote `MediaStreamTrack`.
 - **Text messages**: Use `send_text` to add text turns directly to the conversation.
 - **Barge-in (interruptions)**: When the user starts speaking, current playback is interrupted so Gemini can focus on the new input. Playback automatically resumes after brief silence.
 - **Auto resampling**: `send_audio_pcm` will resample input frames to the target rate when needed.
@@ -77,6 +90,8 @@ For a full runnable example, see `examples/gemini_live/main.py`.
 - **`await send_audio_pcm(pcm: PcmData, target_rate: int = 48000)`**: Stream PCM frames to Gemini. Frames are converted to the required format and resampled if necessary.
 - **`await wait_until_ready(timeout: float | None = None) -> bool`**: Wait until the underlying live session is connected.
 - **`await interrupt_playback()` / `resume_playback()`**: Manually stop or resume synthesized audio playback. Useful if you want to manage barge-in behavior yourself.
+- **`await start_video_sender(track: MediaStreamTrack, fps: int = 1)`**: Start forwarding video frames from a remote `MediaStreamTrack` to Gemini Live at the given frame rate.
+- **`await stop_video_sender()`**: Stop the background video sender task, if running.
 - **`await close()`**: Close the session and background tasks.
 
 ### Environment Variables
