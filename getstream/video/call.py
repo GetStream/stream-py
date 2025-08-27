@@ -101,6 +101,30 @@ class Call:
         self._sync_from_response(response.data)
         return response
 
+    def send_closed_caption(
+        self,
+        speaker_id: str,
+        text: str,
+        end_time: Optional[datetime] = None,
+        service: Optional[str] = None,
+        start_time: Optional[datetime] = None,
+        user_id: Optional[str] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[SendClosedCaptionResponse]:
+        response = self.client.send_closed_caption(
+            type=self.call_type,
+            id=self.id,
+            speaker_id=speaker_id,
+            text=text,
+            end_time=end_time,
+            service=service,
+            start_time=start_time,
+            user_id=user_id,
+            user=user,
+        )
+        self._sync_from_response(response.data)
+        return response
+
     def delete(self, hard: Optional[bool] = None) -> StreamResponse[DeleteCallResponse]:
         response = self.client.delete_call(type=self.call_type, id=self.id, hard=hard)
         self._sync_from_response(response.data)
@@ -158,6 +182,24 @@ class Call:
             start_recording=start_recording,
             start_transcription=start_transcription,
             transcription_storage_name=transcription_storage_name,
+        )
+        self._sync_from_response(response.data)
+        return response
+
+    def kick_user(
+        self,
+        user_id: str,
+        block: Optional[bool] = None,
+        kicked_by_id: Optional[str] = None,
+        kicked_by: Optional[UserRequest] = None,
+    ) -> StreamResponse[KickUserResponse]:
+        response = self.client.kick_user(
+            type=self.call_type,
+            id=self.id,
+            user_id=user_id,
+            block=block,
+            kicked_by_id=kicked_by_id,
+            kicked_by=kicked_by,
         )
         self._sync_from_response(response.data)
         return response

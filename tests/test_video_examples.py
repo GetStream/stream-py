@@ -222,6 +222,9 @@ def test_create_call_with_session_timer(call: Call):
     assert response.data.call.settings.limits.max_duration_seconds == 0
 
 
+
+
+
 def test_user_blocking(client: Stream, get_user):
     alice = get_user()
     bob = get_user()
