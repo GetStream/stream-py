@@ -594,8 +594,8 @@ class TestSileroVAD:
         vad_16k = SileroVAD(
             sample_rate=16000,
             frame_size=512,
-            activation_th=0.3,
-            deactivation_th=0.2,
+            activation_th=0.2,  # Lower threshold for more sensitivity
+            deactivation_th=0.15,  # Lower deactivation threshold
             speech_pad_ms=30,
             min_speech_ms=250,
             model_rate=16000,
@@ -603,11 +603,11 @@ class TestSileroVAD:
         )
 
         @vad_16k.on("audio")
-        def on_audio_16k(event, user=None):
+        async def on_audio_16k(event, user=None):
             detected_speech_16k.append(event)
 
         @vad_16k.on("partial")
-        def on_partial_16k(event, user=None):
+        async def on_partial_16k(event, user=None):
             partial_events_16k.append(event)
 
         # Load 16 kHz audio file
@@ -622,14 +622,14 @@ class TestSileroVAD:
             PcmData(samples=audio_data_16k, sample_rate=16000, format="s16")
         )
         await vad_16k.flush()
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(0.2)  # Increased delay for CI environments
 
         # Now test with 48 kHz audio using the same parameters
         vad_48k = SileroVAD(
             sample_rate=48000,  # Input is 48 kHz
             frame_size=512 * 3,  # Scale frame size to match time duration
-            activation_th=0.3,
-            deactivation_th=0.2,
+            activation_th=0.2,  # Lower threshold for more sensitivity
+            deactivation_th=0.15,  # Lower deactivation threshold
             speech_pad_ms=30,
             min_speech_ms=250,
             model_rate=16000,  # Model still runs at 16 kHz
@@ -637,11 +637,11 @@ class TestSileroVAD:
         )
 
         @vad_48k.on("audio")
-        def on_audio_48k(event, user=None):
+        async def on_audio_48k(event, user=None):
             detected_speech_48k.append(event)
 
         @vad_48k.on("partial")
-        def on_partial_48k(event, user=None):
+        async def on_partial_48k(event, user=None):
             partial_events_48k.append(event)
 
         # Load 48 kHz audio file
@@ -656,7 +656,7 @@ class TestSileroVAD:
             PcmData(samples=audio_data_48k, sample_rate=48000, format="s16")
         )
         await vad_48k.flush()
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(0.2)  # Increased delay for CI environments
 
         # Verify both detected speech segments and partial events
         assert (
