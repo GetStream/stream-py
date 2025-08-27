@@ -222,9 +222,6 @@ def test_create_call_with_session_timer(call: Call):
     assert response.data.call.settings.limits.max_duration_seconds == 0
 
 
-
-
-
 def test_user_blocking(client: Stream, get_user):
     alice = get_user()
     bob = get_user()
@@ -380,6 +377,12 @@ def test_create_call_with_custom_frame_recording_settings(client: Stream):
     assert response.data.call.settings.frame_recording.capture_interval_in_seconds == 3
     assert response.data.call.settings.frame_recording.mode == "auto-on"
     assert response.data.call.settings.frame_recording.quality == "1080p"
+
+
+def test_fps(client: Stream):
+    response = client.video.get_active_calls_status()
+    resolution = response.data.metrics.publishers.all.video.resolution
+    print(resolution.p10)
 
 
 @pytest.mark.skip_in_ci
