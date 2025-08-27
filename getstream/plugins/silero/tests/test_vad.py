@@ -1,16 +1,16 @@
-import os
-import pytest
 import asyncio
 import logging
-import numpy as np
-import soundfile as sf
+import os
 import tempfile
 
+import numpy as np
+import pytest
+import soundfile as sf
 import torchaudio
 
 from getstream.plugins import SileroVAD
-from getstream.video.rtc.track_util import PcmData
 from getstream.plugins.test_utils import get_audio_asset, get_json_metadata
+from getstream.video.rtc.track_util import PcmData
 
 # Setup logging for the test
 logging.basicConfig(level=logging.INFO)
@@ -107,9 +107,7 @@ async def process_audio_file(
             # Extract duration and samples from the event
             duration = event.duration_ms / 1000.0 if event.duration_ms else 0.0
             samples = event.audio_data if event.audio_data is not None else b""
-            partial_segments.append(
-                {"duration": duration, "bytes": len(samples)}
-            )
+            partial_segments.append({"duration": duration, "bytes": len(samples)})
             logger.info(
                 f"Partial speech data: {duration:.2f} seconds ({len(samples)} bytes)"
             )
@@ -165,9 +163,7 @@ async def process_audio_in_chunks(
             # Extract duration and samples from the event
             duration = event.duration_ms / 1000.0 if event.duration_ms else 0.0
             samples = event.audio_data if event.audio_data is not None else b""
-            partial_segments.append(
-                {"duration": duration, "bytes": len(samples)}
-            )
+            partial_segments.append({"duration": duration, "bytes": len(samples)})
             logger.info(
                 f"Partial speech data: {duration:.2f} seconds ({len(samples)} bytes)"
             )
@@ -432,7 +428,7 @@ async def test_silence_no_turns():
         nonlocal audio_event_fired
         audio_event_fired = True
         logger.info(
-            f"Audio event detected on silence! Duration: {event.duration_ms/1000.0:.2f}s"
+            f"Audio event detected on silence! Duration: {event.duration_ms / 1000.0:.2f}s"
         )
 
     @vad.on("partial")
@@ -440,7 +436,7 @@ async def test_silence_no_turns():
         nonlocal partial_event_fired
         partial_event_fired = True
         logger.info(
-            f"Partial event detected on silence! Duration: {event.duration_ms/1000.0:.2f}s"
+            f"Partial event detected on silence! Duration: {event.duration_ms / 1000.0:.2f}s"
         )
 
     # Process the silence in chunks to simulate streaming
@@ -495,18 +491,14 @@ class TestSileroVAD:
             detected_speech.append(event)
             duration = event.duration_ms / 1000.0 if event.duration_ms else 0.0
             samples = event.audio_data if event.audio_data is not None else b""
-            logger.info(
-                f"Audio event: {duration:.2f}s ({len(samples)} samples)"
-            )
+            logger.info(f"Audio event: {duration:.2f}s ({len(samples)} samples)")
 
         @vad.on("partial")
         def on_partial(event, user=None):
             partial_events.append(event)
             duration = event.duration_ms / 1000.0 if event.duration_ms else 0.0
             samples = event.audio_data if event.audio_data is not None else b""
-            logger.info(
-                f"Partial event: {duration:.2f}s ({len(samples)} samples)"
-            )
+            logger.info(f"Partial event: {duration:.2f}s ({len(samples)} samples)")
 
         # Process the audio data
         await vad.process_audio(
@@ -594,10 +586,10 @@ class TestSileroVAD:
         vad_16k = SileroVAD(
             sample_rate=16000,
             frame_size=512,
-            activation_th=0.3,
-            deactivation_th=0.2,
+            activation_th=0.2,
+            deactivation_th=0.15,
             speech_pad_ms=30,
-            min_speech_ms=250,
+            min_speech_ms=100,
             model_rate=16000,
             window_samples=512,  # Silero requires exactly 512 samples at 16kHz
         )
@@ -628,10 +620,10 @@ class TestSileroVAD:
         vad_48k = SileroVAD(
             sample_rate=48000,  # Input is 48 kHz
             frame_size=512 * 3,  # Scale frame size to match time duration
-            activation_th=0.3,
-            deactivation_th=0.2,
+            activation_th=0.2,
+            deactivation_th=0.15,
             speech_pad_ms=30,
-            min_speech_ms=250,
+            min_speech_ms=100,
             model_rate=16000,  # Model still runs at 16 kHz
             window_samples=512,  # Silero requires exactly 512 samples at 16kHz
         )
