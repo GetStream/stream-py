@@ -19,7 +19,7 @@ from getstream.video.rtc.tracks import (
 )
 
 logging.basicConfig(
-    level=logging.CRITICAL,
+    level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     force=True,  # Override any previous basicConfig calls
 )
@@ -117,14 +117,11 @@ async def main():
 
             @connection.on("track_added")
             async def _on_track_added(track_id, kind, user):
-                print(f"Track added: {track_id}, {kind}, {user}")
-                print(f"connection.subscriber_pc: {connection.subscriber_pc}")
                 try:
                     if kind == "video" and connection.subscriber_pc:
                         track = connection.subscriber_pc.add_track_subscriber(track_id)
                     if track:
                         await gemini_live.start_video_sender(track, fps=1)
-                        print(f"Started forwarding video for user {user}")
                         logging.info("🎥 Started forwarding video for user %s", user)
                 except Exception as e:
                     logging.error("❌ Failed to start video sender: %s", e)

@@ -180,6 +180,17 @@ class GeminiLive(STS):
 
         return LiveConnectConfigDict(**cfg)
 
+    async def _require_session(self) -> AsyncSession:
+        """Ensure the live session is connected and return it.
+
+        Raises RuntimeError if not connected within the wait period.
+        """
+        if not self._is_connected or not self._session:
+            await self.wait_until_ready()
+        if not self._is_connected or not self._session:
+            raise RuntimeError("Not connected")
+        return self._session
+
     async def _run_connection(self) -> None:
         """Background task that connects and holds the session open until stopped."""
         if self._is_connected:
@@ -213,11 +224,8 @@ class GeminiLive(STS):
 
     async def send_text(self, text: str):
         """Send a text message from the human side to the conversation."""
-        if not self._is_connected or not self._session:
-            await self.wait_until_ready()
-            if not self._is_connected or not self._session:
-                raise RuntimeError("Not connected")
-        await self._session.send_realtime_input(text=text)
+        session = await self._require_session()
+        await session.send_realtime_input(text=text)
 
     async def send_audio_pcm(self, pcm: PcmData, target_rate: int = 48000):
         """Send a `PcmData` frame to Gemini, resampling if needed.
@@ -226,10 +234,7 @@ class GeminiLive(STS):
             pcm: PcmData from RTC pipeline (int16 numpy array or bytes).
             target_rate: Target sample rate for Gemini input.
         """
-        if not self._is_connected or not self._session:
-            await self.wait_until_ready()
-            if not self._is_connected or not self._session:
-                raise RuntimeError("Not connected")
+        session = await self._require_session()
 
         # Convert to numpy int16 array
         if isinstance(pcm.samples, (bytes, bytearray)):
@@ -269,7 +274,7 @@ class GeminiLive(STS):
         logger.info(
             "Sending %d bytes audio to Gemini Live (%s)", len(audio_bytes), mime
         )
-        await self._session.send_realtime_input(audio=blob)
+        await session.send_realtime_input(audio=blob)
 
     async def start_video_sender(self, track: MediaStreamTrack, fps: int = 1) -> None:
         """Start a background task that forwards video frames to Gemini Live.
@@ -278,37 +283,33 @@ class GeminiLive(STS):
             track: Remote video track to read frames from.
             fps: Frames per second throttle for sending.
         """
-        if not self._is_connected or not self._session:
-            await self.wait_until_ready()
-            if not self._is_connected or not self._session:
-                raise RuntimeError("Not connected")
+        await self._require_session()
 
         if self._video_sender_task and not self._video_sender_task.done():
             return
 
-        interval = max(0.001, 1.0 / max(1, fps))
+        interval = max(0.01, 1.0 / max(1, fps))
+
+        def _frame_to_png_bytes(frame: Any) -> bytes:
+            if Image is None:
+                return b""
+            if hasattr(frame, "to_image"):
+                img = frame.to_image()  # type: ignore[attr-defined]
+            else:
+                arr = frame.to_ndarray(format="rgb24")  # type: ignore[attr-defined]
+                img = Image.fromarray(arr)
+            buf = io.BytesIO()
+            img.save(buf, format="PNG")
+            return buf.getvalue()
 
         async def _loop():
             try:
                 while self._is_connected and self._session is not None:
-                    frame = await track.recv()
-                    if Image is None:
-                        await asyncio.sleep(interval)
-                        continue
-
-                    # Convert to PIL image and encode as PNG bytes
-                    if hasattr(frame, "to_image"):
-                        img = frame.to_image()  # type: ignore[attr-defined]
-                    else:
-                        arr = frame.to_ndarray(format="rgb24")  # type: ignore[attr-defined]
-                        img = Image.fromarray(arr)
-
-                    buf = io.BytesIO()
-                    img.save(buf, format="PNG")
-                    png_bytes = buf.getvalue()
-
-                    blob = Blob(data=png_bytes, mime_type="image/png")
-                    await self._session.send_realtime_input(media=blob)
+                    frame = await track.recv()  # type: ignore[reportUnknownReturnType]
+                    png_bytes = _frame_to_png_bytes(frame)
+                    if png_bytes:
+                        blob = Blob(data=png_bytes, mime_type="image/png")
+                        await self._session.send_realtime_input(media=blob)
                     await asyncio.sleep(interval)
             except asyncio.CancelledError:
                 return
@@ -343,15 +344,10 @@ class GeminiLive(STS):
         Args:
             emit_events: If True, emit an "audio" event with chunk bytes.
         """
-        if not self._is_connected or not self._session:
-            await self.wait_until_ready()
-            if not self._is_connected or not self._session:
-                raise RuntimeError("Not connected")
+        await self._require_session()
 
         if self._audio_receiver_task and not self._audio_receiver_task.done():
             return
-
-        logger.info("Starting response listener")
 
         async def _audio_receive_loop():
             try:
