@@ -716,7 +716,6 @@ class TestSileroVAD:
         # Clean up
         await vad_16k.close()
         await vad_48k.close()
-        assert 0
 
     @pytest.mark.asyncio
     async def test_bytearray_efficiency(self):
