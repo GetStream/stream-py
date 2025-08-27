@@ -596,6 +596,7 @@ class TestSileroVAD:
             min_speech_ms=100,
             model_rate=16000,
             window_samples=512,  # Silero requires exactly 512 samples at 16kHz
+            partial_frames=2,
         )
 
         # Spy/wrap is_speech for 16k
@@ -646,6 +647,7 @@ class TestSileroVAD:
             min_speech_ms=100,
             model_rate=16000,  # Model still runs at 16 kHz
             window_samples=512,  # Silero requires exactly 512 samples at 16kHz
+            partial_frames=2,
         )
 
         # Spy/wrap is_speech for 48k
