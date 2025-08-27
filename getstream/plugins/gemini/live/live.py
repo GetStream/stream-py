@@ -67,8 +67,8 @@ class GeminiLive(STS):
             model: Model ID to use when connecting.
             instructions: Optional system instructions passed to the session.
             temperature: Optional temperature passed to the session.
-            voice: Optional voice selection passed to the session.
             response_modalities: Optional response modalities passed to the session.
+            voice: Optional voice selection passed to the session.
             barge_in: Whether to interrupt current playback when the user starts speaking.
             activity_threshold: Minimum audio activity threshold for barge-in. Range is 0-32767.
             silence_timeout_ms: Time to wait for silence after user stops speaking.
@@ -125,6 +125,7 @@ class GeminiLive(STS):
         self._activity_threshold: int = activity_threshold
         self._stop_event = asyncio.Event()
         self._ready_event = asyncio.Event()
+        # Video sender control
         self._video_sender_task: Optional[asyncio.Task] = None
 
         # Create an outbound audio track for assistant speech
@@ -265,7 +266,7 @@ class GeminiLive(STS):
         audio_bytes = audio_array.tobytes()
         mime = f"audio/pcm;rate={target_rate}"
         blob = Blob(data=audio_bytes, mime_type=mime)
-        logger.debug(
+        logger.info(
             "Sending %d bytes audio to Gemini Live (%s)", len(audio_bytes), mime
         )
         await self._session.send_realtime_input(audio=blob)

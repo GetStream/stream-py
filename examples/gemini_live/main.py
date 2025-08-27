@@ -1,9 +1,9 @@
 import asyncio
 import logging
 import os
-from uuid import uuid4
 import webbrowser
 from urllib.parse import urlencode
+from uuid import uuid4
 
 from dotenv import load_dotenv
 
@@ -12,16 +12,17 @@ from getstream.models import CallRequest, UserRequest
 from getstream.plugins.gemini.live import GeminiLive
 from getstream.video import rtc
 from getstream.video.rtc.track_util import PcmData
-
+from getstream.video.rtc.tracks import (
+    SubscriptionConfig,
+    TrackSubscriptionConfig,
+    TrackType,
+)
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.CRITICAL,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     force=True,  # Override any previous basicConfig calls
 )
-
-# Enable debug logging for Gemini plugin
-logging.getLogger("getstream.plugins.gemini.live").setLevel(logging.DEBUG)
 
 
 def create_user(client: Stream, id: str, name: str) -> None:
@@ -105,8 +106,28 @@ async def main():
             logging.error("GOOGLE_API_KEY not found in environment")
             return
 
-        async with await rtc.join(call, bot_user_id) as connection:
+        subscription = SubscriptionConfig(
+            default=TrackSubscriptionConfig(track_types=[TrackType.TRACK_TYPE_VIDEO])
+        )
+
+        async with await rtc.join(
+            call, bot_user_id, subscription_config=subscription
+        ) as connection:
             await connection.add_tracks(audio=gemini_live.output_track)
+
+            @connection.on("track_added")
+            async def _on_track_added(track_id, kind, user):
+                print(f"Track added: {track_id}, {kind}, {user}")
+                print(f"connection.subscriber_pc: {connection.subscriber_pc}")
+                try:
+                    if kind == "video" and connection.subscriber_pc:
+                        track = connection.subscriber_pc.add_track_subscriber(track_id)
+                    if track:
+                        await gemini_live.start_video_sender(track, fps=1)
+                        print(f"Started forwarding video for user {user}")
+                        logging.info("🎥 Started forwarding video for user %s", user)
+                except Exception as e:
+                    logging.error("❌ Failed to start video sender: %s", e)
 
             @connection.on("audio")
             async def on_audio(pcm: PcmData, user):
@@ -115,23 +136,6 @@ async def main():
                     logging.debug("✅ Audio sent to Gemini Live from user %s", user)
                 except Exception as e:
                     logging.error("❌ Failed to send audio to Gemini: %s", e)
-
-            @connection.on("track_added")
-            async def on_track_added(track_id, kind, user):
-                try:
-                    if kind == "video":
-                        if connection.subscriber_pc is None:
-                            return
-                        video_track = connection.subscriber_pc.add_track_subscriber(
-                            track_id
-                        )
-                        if video_track is not None:
-                            await gemini_live.start_video_sender(video_track, fps=1)
-                            logging.info(
-                                "🎥 Started forwarding video for user %s", user
-                            )
-                except Exception as e:
-                    logging.error("❌ Failed to start video sender: %s", e)
 
             await gemini_live.send_text("Give a greeting to the user.")
 
