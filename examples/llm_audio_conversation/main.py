@@ -29,9 +29,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 from getstream.models import UserRequest
-from getstream.plugins.deepgram.stt import DeepgramSTT
-from getstream.plugins.elevenlabs.tts import ElevenLabsTTS
-from getstream.plugins.silero.vad import SileroVAD
+from getstream.plugins import DeepgramSTT, ElevenLabsTTS, SileroVAD
 from getstream.stream import Stream
 from getstream.video import rtc
 from getstream.video.rtc import audio_track

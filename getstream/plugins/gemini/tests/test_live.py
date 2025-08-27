@@ -316,10 +316,8 @@ async def test_send_audio_pcm_resample_barge_in_and_silence_timeout(
     # No incoming responses needed for this test
     patch_genai_client([])
 
-    # Use our dummy Blob in assertions
+    # Mock the imported components at the module level
     monkeypatch.setattr(gemini_live, "Blob", _DummyBlob)
-
-    # Avoid doing real resampling; return the provided array unchanged
     monkeypatch.setattr(gemini_live, "resample_audio", lambda arr, src, dst: arr)
 
     sts = GeminiLive(

@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 from getstream import Stream
 from getstream.models import CallRequest, StartClosedCaptionsResponse, UserRequest
-from getstream.plugins.openai.sts import OpenAIRealtime
+from getstream.plugins import OpenAIRealtime
 
 
 logging.basicConfig(

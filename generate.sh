@@ -10,7 +10,7 @@ fi
 
 if ! uv -V &> /dev/null
 then
-  echo "cannot find poetry in path, did you setup this repo correctly?";
+  echo "cannot find uv in path, did you setup this repo correctly?";
   exit 1;
 fi
 
