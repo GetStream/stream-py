@@ -21,18 +21,17 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from uuid import uuid4
 import webbrowser
 from urllib.parse import urlencode
+from uuid import uuid4
 
 from dotenv import load_dotenv
 
 from getstream.models import UserRequest
+from getstream.plugins import ElevenLabsTTS
 from getstream.stream import Stream
 from getstream.video import rtc
 from getstream.video.rtc import audio_track
-from getstream.plugins import ElevenLabsTTS
-
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 

@@ -1,12 +1,115 @@
+import asyncio
+import importlib
 import sys
 import types
-import asyncio
+from typing import Any, Dict, List, cast
 from unittest.mock import AsyncMock
-from typing import Any, cast
-import importlib
 
 import numpy as np
 import pytest
+
+from getstream.plugins.gemini.live import GeminiLive
+from getstream.video.rtc.track_util import PcmData
+
+
+class _FakeSession:
+    def __init__(self) -> None:
+        self.calls: List[Dict[str, Any]] = []
+
+    async def send_realtime_input(self, *, media=None, audio=None, text=None):
+        self.calls.append({"media": media, "audio": audio, "text": text})
+
+
+class _FakeImage:
+    def __init__(self, arr) -> None:
+        self._arr = arr
+
+    def save(self, fp, format="PNG"):
+        # Write a minimal PNG header to simulate an encoded image
+        fp.write(b"\x89PNG\r\n\x1a\n")
+
+
+class _FakeImageModule:
+    @staticmethod
+    def fromarray(arr):
+        return _FakeImage(arr)
+
+
+class _FakeVideoTrack:
+    kind = "video"
+
+    def __init__(self, frames: int = 1) -> None:
+        self._remaining = frames
+
+    async def recv(self):
+        if self._remaining <= 0:
+            await asyncio.sleep(0)  # yield control
+        self._remaining -= 1
+
+        # Return an object that supports to_ndarray("rgb24")
+        class _Frame:
+            @staticmethod
+            def to_ndarray(format: str = "rgb24"):
+                return (np.random.rand(16, 16, 3) * 255).astype(np.uint8)
+
+        return _Frame()
+
+
+# --- Pytest fixtures ---
+@pytest.fixture
+def fake_image(monkeypatch):
+    import getstream.plugins.gemini.live.live as live_mod
+
+    monkeypatch.setattr(live_mod, "Image", _FakeImageModule)
+    return _FakeImageModule
+
+
+@pytest.mark.asyncio
+async def test_start_video_sender_sends_media_blob(fake_image):
+    g = GeminiLive(api_key="test", model="test-model")
+    # Pretend we're connected and have a session
+    fake = _FakeSession()
+    g._session = fake  # type: ignore[attr-defined]
+    g._is_connected = True  # type: ignore[attr-defined]
+
+    track = _FakeVideoTrack(frames=2)
+    await g.start_video_sender(track, fps=100)  # type: ignore[reportArgumentType]
+    # Allow the loop to run at least once
+    await asyncio.sleep(0.05)
+    await g.stop_video_sender()
+
+    # We should have at least one media send
+    assert any(call.get("media") is not None for call in fake.calls)
+
+
+@pytest.mark.asyncio
+async def test_send_audio_pcm_sends_audio_blob():
+    g = GeminiLive(api_key="test", model="test-model")
+    fake = _FakeSession()
+    g._session = fake  # type: ignore[attr-defined]
+    g._is_connected = True  # type: ignore[attr-defined]
+
+    samples = (np.zeros(1600)).astype(np.int16)
+    pcm = PcmData(samples=samples, sample_rate=16000, format="s16")
+    await g.send_audio_pcm(pcm, target_rate=16000)
+
+    # Ensure an audio blob was sent
+    assert any(call.get("audio") is not None for call in fake.calls)
+
+
+@pytest.mark.asyncio
+async def test_stop_video_sender_cancels_task(fake_image):
+    g = GeminiLive(api_key="test", model="test-model")
+    g._session = _FakeSession()  # type: ignore[attr-defined]
+    g._is_connected = True  # type: ignore[attr-defined]
+
+    track = _FakeVideoTrack(frames=1)
+    await g.start_video_sender(track, fps=100)  # type: ignore[reportArgumentType]
+    await asyncio.sleep(0)
+    await g.stop_video_sender()
+
+    # Task should be cleared
+    assert g._video_sender_task is None  # type: ignore[attr-defined]
 
 
 # --- Provide mocked google.genai SDK so the module under test can import ---
@@ -111,19 +214,47 @@ except ImportError:  # pragma: no cover - environment should have google from pr
     sys.modules["google"] = pkg
 
 
-from getstream.plugins import GeminiLive  # noqa: E402
-from getstream.video.rtc.track_util import PcmData  # noqa: E402
-import getstream.plugins.gemini.live.live as gemini_live  # noqa: E402
+from getstream.plugins.gemini.live import live as gemini_live  # noqa: E402
+
+
+@pytest.fixture
+def patch_genai_client(monkeypatch):
+    def _patch(responses=None):
+        client = _DummyClient()
+        client.aio.live = _DummyLive(responses or [])
+        monkeypatch.setattr(gemini_live, "Client", lambda *a, **k: client)
+        return client
+
+    return _patch
+
+
+@pytest.fixture
+def spy_track_write(monkeypatch):
+    def _spy(sts):
+        write_spy = AsyncMock()
+        monkeypatch.setattr(sts.output_track, "write", write_spy)
+        return write_spy
+
+    return _spy
+
+
+@pytest.fixture
+def spy_track_flush(monkeypatch):
+    def _spy(sts):
+        flush_spy = AsyncMock()
+        monkeypatch.setattr(sts.output_track, "flush", flush_spy)
+        return flush_spy
+
+    return _spy
 
 
 @pytest.mark.asyncio
-async def test_connect_emits_events_and_forwards_audio_and_text(monkeypatch):
+async def test_connect_emits_events_and_forwards_audio_and_text(
+    patch_genai_client, spy_track_write
+):
     # Arrange streamed responses
     responses = [(b"abc", "hello"), (b"def", None)]
-    # Ensure our dummy client will yield these from the connect context
-    client = _DummyClient()
-    client.aio.live = _DummyLive(responses)
-    monkeypatch.setattr(gemini_live, "Client", lambda *a, **k: client)
+    patch_genai_client(responses)
 
     events = {"connected": False, "audio": [], "text": []}
 
@@ -142,8 +273,7 @@ async def test_connect_emits_events_and_forwards_audio_and_text(monkeypatch):
         events["text"].append(text)
 
     # Spy on track writes
-    write_spy = AsyncMock()
-    monkeypatch.setattr(sts.output_track, "write", write_spy)
+    write_spy = spy_track_write(sts)
 
     # Act
     ready = await sts.wait_until_ready(timeout=1.0)
@@ -164,10 +294,8 @@ async def test_connect_emits_events_and_forwards_audio_and_text(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_send_text_calls_underlying_session(monkeypatch):
-    client = _DummyClient()
-    client.aio.live = _DummyLive([])
-    monkeypatch.setattr(gemini_live, "Client", lambda *a, **k: client)
+async def test_send_text_calls_underlying_session(patch_genai_client):
+    patch_genai_client([])
 
     sts = GeminiLive(api_key="key", model="model", provider_config=None)
     await sts.wait_until_ready(timeout=1.0)
@@ -182,11 +310,11 @@ async def test_send_text_calls_underlying_session(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_send_audio_pcm_resample_barge_in_and_silence_timeout(monkeypatch):
+async def test_send_audio_pcm_resample_barge_in_and_silence_timeout(
+    monkeypatch, patch_genai_client, spy_track_flush
+):
     # No incoming responses needed for this test
-    client = _DummyClient()
-    client.aio.live = _DummyLive([])
-    monkeypatch.setattr(gemini_live, "Client", lambda *a, **k: client)
+    patch_genai_client([])
 
     # Mock the imported components at the module level
     monkeypatch.setattr(gemini_live, "Blob", _DummyBlob)
@@ -205,8 +333,7 @@ async def test_send_audio_pcm_resample_barge_in_and_silence_timeout(monkeypatch)
     # Threshold and timeout configured via constructor
 
     # Spy on flush
-    flush_spy = AsyncMock()
-    monkeypatch.setattr(sts.output_track, "flush", flush_spy)
+    flush_spy = spy_track_flush(sts)
 
     # Build loud mono PCM ndarray at 16k to trigger resample path
     samples = np.ones(480, dtype=np.int16) * 1000  # 30ms at 16k
@@ -236,16 +363,13 @@ async def test_send_audio_pcm_resample_barge_in_and_silence_timeout(monkeypatch)
 
 
 @pytest.mark.asyncio
-async def test_interrupt_and_resume_playback(monkeypatch):
-    client = _DummyClient()
-    client.aio.live = _DummyLive([])
-    monkeypatch.setattr(gemini_live, "Client", lambda *a, **k: client)
+async def test_interrupt_and_resume_playback(patch_genai_client, spy_track_flush):
+    patch_genai_client([])
 
     sts = GeminiLive(api_key="key", model="model", provider_config=None)
     await sts.wait_until_ready(timeout=1.0)
 
-    flush_spy = AsyncMock()
-    monkeypatch.setattr(sts.output_track, "flush", flush_spy)
+    flush_spy = spy_track_flush(sts)
 
     await sts.interrupt_playback()
     assert sts._playback_enabled is False
@@ -258,12 +382,10 @@ async def test_interrupt_and_resume_playback(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_stop_response_listener_cancels_task(monkeypatch):
+async def test_stop_response_listener_cancels_task(patch_genai_client):
     # Start with one response so the listener spins up
     responses = [(b"x", None)]
-    client = _DummyClient()
-    client.aio.live = _DummyLive(responses)
-    monkeypatch.setattr(gemini_live, "Client", lambda *a, **k: client)
+    patch_genai_client(responses)
 
     sts = GeminiLive(api_key="key", model="model", provider_config=None)
     await sts.wait_until_ready(timeout=1.0)
