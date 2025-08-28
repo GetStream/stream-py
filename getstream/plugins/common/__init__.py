@@ -61,7 +61,8 @@ from .events import (
     VADSpeechStartEvent,
     create_event,
 )
-from .llm import LLM, RealtimeLLM
+from .llm import LLM, Conversation, Message, RealtimeLLM
+from .llm_types import ContentPart, Role
 from .sts import STS
 from .stt import STT
 from .tts import TTS
@@ -117,6 +118,11 @@ __all__ = [
     # LLM base classes
     "LLM",
     "RealtimeLLM",
+    # LLM helpers
+    "Conversation",
+    "Message",
+    "ContentPart",
+    "Role",
     # Event utilities
     "EventFilter",
     "EventRegistry",

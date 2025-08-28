@@ -19,6 +19,8 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
+from .llm_types import Message
+
 
 class EventType(Enum):
     """Enumeration of all event types across plugin systems."""
@@ -362,11 +364,18 @@ class STSErrorEvent(BaseEvent):
 
 @dataclass
 class LLMRequestEvent(BaseEvent):
-    """Event emitted when an LLM request is initiated."""
+    """Event emitted when an LLM request is initiated.
+
+    Notes:
+        The ``messages`` field follows the provider-agnostic ``Message`` schema
+        defined in common LLM types (role + content parts). We keep a flexible
+        Dict/List type here to avoid circular imports; providers should still
+        populate it with the normalized ``Message`` objects.
+    """
 
     event_type: EventType = field(default=EventType.LLM_REQUEST, init=False)
     model_name: Optional[str] = None
-    messages: Optional[List[Dict[str, Any]]] = None
+    messages: Optional[List[Message]] = None
     tools: Optional[List[Dict[str, Any]]] = None
     options: Optional[Dict[str, Any]] = None
 
@@ -383,10 +392,15 @@ class LLMStreamDeltaEvent(BaseEvent):
 
 @dataclass
 class LLMResponseEvent(BaseEvent):
-    """Event emitted when an LLM response is available (final or intermediate)."""
+    """Event emitted when an LLM response is available (final or intermediate).
+
+    Notes:
+        The ``message`` field should use the normalized ``Message`` schema.
+        Tool calls and usage are provider-normalized dicts when available.
+    """
 
     event_type: EventType = field(default=EventType.LLM_RESPONSE, init=False)
-    message: Optional[Dict[str, Any]] = None
+    message: Optional[Message] = None
     tool_calls: Optional[List[Dict[str, Any]]] = None
     usage: Optional[Dict[str, Any]] = None
     is_complete: bool = True
