@@ -86,7 +86,7 @@ class CartesiaTTS(TTS):
             None
         """
         try:
-            (await self.track.flush(),)
+            await self.track.flush()
             logging.info("🎤 Stopping audio track for TTS")
             return
         except Exception as e:

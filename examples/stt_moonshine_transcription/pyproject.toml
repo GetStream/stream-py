@@ -13,3 +13,6 @@ dependencies = [
     "python-dotenv>=1.1.1",
     "useful-moonshine-onnx",
 ]
+
+[tool.uv.sources]
+useful-moonshine-onnx = { git = "https://github.com/usefulsensors/moonshine.git", subdirectory = "moonshine-onnx" }
