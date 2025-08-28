@@ -6,15 +6,15 @@ Handles track publishing, subscription configuration, and subscription managemen
 import asyncio
 import logging
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
 from pyee.asyncio import AsyncIOEventEmitter
 
-from getstream.video.rtc.pb.stream.video.sfu.models.models_pb2 import VideoDimension
+from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
 from getstream.video.rtc.pb.stream.video.sfu.models.models_pb2 import (
     TrackType,
+    VideoDimension,
 )
-from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
 from getstream.video.rtc.pb.stream.video.sfu.signal_rpc import signal_pb2
 from getstream.video.rtc.twirp_client_wrapper import SfuRpcError
 

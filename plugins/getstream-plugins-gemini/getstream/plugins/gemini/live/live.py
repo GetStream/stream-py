@@ -5,33 +5,40 @@ This module provides a wrapper around Google's Gemini Live API.
 
 from __future__ import annotations
 
-import logging
 import asyncio
-import os
-from typing import Optional, Any, Dict, List
 import contextlib
-from google.genai import Client
-from google.genai.types import (
-    LiveConnectConfigDict,
-    Blob,
-    Modality,
-    AudioTranscriptionConfigDict,
-    RealtimeInputConfigDict,
-    TurnCoverage,
-    SpeechConfigDict,
-    VoiceConfigDict,
-    PrebuiltVoiceConfigDict,
-    ContextWindowCompressionConfigDict,
-    SlidingWindowDict,
-)
-from google.genai.live import AsyncSession
+import io
+import logging
+import os
+from typing import Any, Dict, List, Optional
+
+from aiortc.mediastreams import MediaStreamTrack
+
+try:
+    from PIL import Image  # type: ignore
+except Exception:  # pragma: no cover
+    Image = None  # type: ignore
 import numpy as np
+from google.genai import Client
+from google.genai.live import AsyncSession
+from google.genai.types import (
+    AudioTranscriptionConfigDict,
+    Blob,
+    ContextWindowCompressionConfigDict,
+    LiveConnectConfigDict,
+    Modality,
+    PrebuiltVoiceConfigDict,
+    RealtimeInputConfigDict,
+    SlidingWindowDict,
+    SpeechConfigDict,
+    TurnCoverage,
+    VoiceConfigDict,
+)
 
-from getstream.plugins.common import STS
 from getstream.video.rtc.utils import resample_audio
-from getstream.video.rtc.track_util import PcmData
+from getstream.plugins.common import STS
 from getstream.video.rtc.audio_track import AudioStreamTrack
-
+from getstream.video.rtc.track_util import PcmData
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +53,7 @@ class GeminiLive(STS):
         *,
         instructions: Optional[str] = None,
         temperature: Optional[float] = None,
-        response_modalities: Optional[List[Any]] = None,
+        response_modalities: Optional[List[Modality]] = None,
         voice: Optional[str] = None,
         barge_in: bool = True,
         activity_threshold: int = 1000,
@@ -60,8 +67,8 @@ class GeminiLive(STS):
             model: Model ID to use when connecting.
             instructions: Optional system instructions passed to the session.
             temperature: Optional temperature passed to the session.
-            voice: Optional voice selection passed to the session.
             response_modalities: Optional response modalities passed to the session.
+            voice: Optional voice selection passed to the session.
             barge_in: Whether to interrupt current playback when the user starts speaking.
             activity_threshold: Minimum audio activity threshold for barge-in. Range is 0-32767.
             silence_timeout_ms: Time to wait for silence after user stops speaking.
@@ -69,13 +76,16 @@ class GeminiLive(STS):
                 ``LiveConnectConfigDict`` from ``google.genai.types``.
         """
 
+        modalities_str: Optional[List[str]] = (
+            [str(m) for m in response_modalities] if response_modalities else None
+        )
         super().__init__(
             model=model,
             instructions=instructions,
             temperature=temperature,
             voice=voice,
             provider_config=provider_config,
-            response_modalities=response_modalities,
+            response_modalities=modalities_str,
         )
 
         self.api_key = (
@@ -115,6 +125,8 @@ class GeminiLive(STS):
         self._activity_threshold: int = activity_threshold
         self._stop_event = asyncio.Event()
         self._ready_event = asyncio.Event()
+        # Video sender control
+        self._video_sender_task: Optional[asyncio.Task] = None
 
         # Create an outbound audio track for assistant speech
         self.output_track = AudioStreamTrack(
@@ -147,7 +159,7 @@ class GeminiLive(STS):
         self,
         *,
         base_config: Optional[LiveConnectConfigDict],
-        response_modalities: Optional[List[Any]],
+        response_modalities: Optional[List[Modality]],
         voice: Optional[str],
     ) -> LiveConnectConfigDict:
         # Start from provided provider_config (preferred) or defaults
@@ -167,6 +179,17 @@ class GeminiLive(STS):
             cfg["speech_config"] = speech_cfg
 
         return LiveConnectConfigDict(**cfg)
+
+    async def _require_session(self) -> AsyncSession:
+        """Ensure the live session is connected and return it.
+
+        Raises RuntimeError if not connected within the wait period.
+        """
+        if not self._is_connected or not self._session:
+            await self.wait_until_ready()
+        if not self._is_connected or not self._session:
+            raise RuntimeError("Not connected")
+        return self._session
 
     async def _run_connection(self) -> None:
         """Background task that connects and holds the session open until stopped."""
@@ -195,30 +218,23 @@ class GeminiLive(STS):
         if self._ready_event.is_set():
             return True
         try:
-            await asyncio.wait_for(self._ready_event.wait(), timeout=timeout)
-            return True
+            return await asyncio.wait_for(self._ready_event.wait(), timeout=timeout)
         except asyncio.TimeoutError:
             return False
 
     async def send_text(self, text: str):
         """Send a text message from the human side to the conversation."""
-        if not self._is_connected or not self._session:
-            await self.wait_until_ready()
-            if not self._is_connected or not self._session:
-                raise RuntimeError("Not connected")
-        await self._session.send_realtime_input(text=text)
+        session = await self._require_session()
+        await session.send_realtime_input(text=text)
 
     async def send_audio_pcm(self, pcm: PcmData, target_rate: int = 48000):
-        """Send a `PcmData` frame, resampling if needed.
+        """Send a `PcmData` frame to Gemini, resampling if needed.
 
         Args:
             pcm: PcmData from RTC pipeline (int16 numpy array or bytes).
             target_rate: Target sample rate for Gemini input.
         """
-        if not self._is_connected or not self._session:
-            await self.wait_until_ready()
-            if not self._is_connected or not self._session:
-                raise RuntimeError("Not connected")
+        session = await self._require_session()
 
         # Convert to numpy int16 array
         if isinstance(pcm.samples, (bytes, bytearray)):
@@ -255,10 +271,60 @@ class GeminiLive(STS):
         audio_bytes = audio_array.tobytes()
         mime = f"audio/pcm;rate={target_rate}"
         blob = Blob(data=audio_bytes, mime_type=mime)
-        logger.debug(
+        logger.info(
             "Sending %d bytes audio to Gemini Live (%s)", len(audio_bytes), mime
         )
-        await self._session.send_realtime_input(audio=blob)
+        await session.send_realtime_input(audio=blob)
+
+    async def start_video_sender(self, track: MediaStreamTrack, fps: int = 1) -> None:
+        """Start a background task that forwards video frames to Gemini Live.
+
+        Args:
+            track: Remote video track to read frames from.
+            fps: Frames per second throttle for sending.
+        """
+        await self._require_session()
+
+        if self._video_sender_task and not self._video_sender_task.done():
+            return
+
+        interval = max(0.01, 1.0 / max(1, fps))
+
+        def _frame_to_png_bytes(frame: Any) -> bytes:
+            if Image is None:
+                return b""
+            if hasattr(frame, "to_image"):
+                img = frame.to_image()  # type: ignore[attr-defined]
+            else:
+                arr = frame.to_ndarray(format="rgb24")  # type: ignore[attr-defined]
+                img = Image.fromarray(arr)
+            buf = io.BytesIO()
+            img.save(buf, format="PNG")
+            return buf.getvalue()
+
+        async def _loop():
+            try:
+                while self._is_connected and self._session is not None:
+                    frame = await track.recv()  # type: ignore[reportUnknownReturnType]
+                    png_bytes = _frame_to_png_bytes(frame)
+                    if png_bytes:
+                        blob = Blob(data=png_bytes, mime_type="image/png")
+                        await self._session.send_realtime_input(media=blob)
+                    await asyncio.sleep(interval)
+            except asyncio.CancelledError:
+                return
+            except Exception as e:
+                self.emit("error", e)
+
+        self._video_sender_task = asyncio.create_task(_loop())
+
+    async def stop_video_sender(self) -> None:
+        """Stop the background video sender task, if running."""
+        if self._video_sender_task and not self._video_sender_task.done():
+            self._video_sender_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self._video_sender_task
+        self._video_sender_task = None
 
     async def _silence_timeout_task(self) -> None:
         try:
@@ -278,15 +344,10 @@ class GeminiLive(STS):
         Args:
             emit_events: If True, emit an "audio" event with chunk bytes.
         """
-        if not self._is_connected or not self._session:
-            await self.wait_until_ready()
-            if not self._is_connected or not self._session:
-                raise RuntimeError("Not connected")
+        await self._require_session()
 
         if self._audio_receiver_task and not self._audio_receiver_task.done():
             return
-
-        logger.info("Starting response listener")
 
         async def _audio_receive_loop():
             try:
@@ -345,6 +406,7 @@ class GeminiLive(STS):
     async def close(self) -> None:
         """Stop the session and background tasks."""
         self._stop_event.set()
+        await self.stop_video_sender()
         await self.stop_response_listener()
         if self._connect_task and not self._connect_task.done():
             self._connect_task.cancel()

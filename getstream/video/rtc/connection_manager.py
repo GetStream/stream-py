@@ -180,7 +180,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             # Fix any invalid msid-semantic format in the SDP
             fixed_sdp = fix_sdp_msid_semantic(event.sdp)
             # Fix any invalid rtcp-fb lines
-            #fixed_sdp = fix_sdp_rtcp_fb(fixed_sdp)
+            fixed_sdp = fix_sdp_rtcp_fb(fixed_sdp)
             # Parse SDP to create track_id to stream_id mapping
             self.participants_state.set_track_stream_mapping(
                 parse_track_stream_mapping(fixed_sdp)

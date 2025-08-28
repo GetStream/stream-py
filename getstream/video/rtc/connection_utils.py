@@ -11,11 +11,12 @@ This module provides core connection-related functionality including:
 
 import asyncio
 import logging
-from enum import Enum
 from dataclasses import dataclass
-from typing import Any, Tuple, Optional
+from enum import Enum
+from typing import Any, Optional, Tuple
 
 import aiortc
+
 from getstream.base import StreamResponse
 from getstream.models import CallRequest
 from getstream.utils import build_body_dict
@@ -23,14 +24,14 @@ from getstream.video.call import Call
 from getstream.video.rtc.models import JoinCallResponse
 from getstream.video.rtc.pb.stream.video.sfu.event import events_pb2
 from getstream.video.rtc.pb.stream.video.sfu.models.models_pb2 import (
-    TrackInfo,
-    TRACK_TYPE_VIDEO,
     TRACK_TYPE_AUDIO,
-    VideoLayer,
+    TRACK_TYPE_VIDEO,
+    TrackInfo,
     VideoDimension,
+    VideoLayer,
 )
+from getstream.video.rtc.signaling import SignalingError, WebSocketClient
 from getstream.video.rtc.track_util import BufferedMediaTrack, detect_video_properties
-from getstream.video.rtc.signaling import WebSocketClient, SignalingError
 
 logger = logging.getLogger(__name__)
 

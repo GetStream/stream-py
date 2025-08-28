@@ -1,16 +1,16 @@
-import os
-import pytest
 import asyncio
 import logging
-import numpy as np
-import soundfile as sf
+import os
 import tempfile
 
+import numpy as np
+import pytest
+import soundfile as sf
 import torchaudio
 
 from getstream.plugins.silero.vad import SileroVAD
-from getstream.video.rtc.track_util import PcmData
 from plugins.test_utils import get_audio_asset, get_json_metadata
+from getstream.video.rtc.track_util import PcmData
 
 # Setup logging for the test
 logging.basicConfig(level=logging.INFO)
@@ -107,9 +107,7 @@ async def process_audio_file(
             # Extract duration and samples from the event
             duration = event.duration_ms / 1000.0 if event.duration_ms else 0.0
             samples = event.audio_data if event.audio_data is not None else b""
-            partial_segments.append(
-                {"duration": duration, "bytes": len(samples)}
-            )
+            partial_segments.append({"duration": duration, "bytes": len(samples)})
             logger.info(
                 f"Partial speech data: {duration:.2f} seconds ({len(samples)} bytes)"
             )
@@ -122,6 +120,7 @@ async def process_audio_file(
         data = scipy.signal.resample(data, num_samples)
 
     # Convert to int16 PCM
+    data = np.asarray(data, dtype=np.float32)
     pcm_samples = (data * 32768.0).astype(np.int16)
 
     # Process the audio data
@@ -165,9 +164,7 @@ async def process_audio_in_chunks(
             # Extract duration and samples from the event
             duration = event.duration_ms / 1000.0 if event.duration_ms else 0.0
             samples = event.audio_data if event.audio_data is not None else b""
-            partial_segments.append(
-                {"duration": duration, "bytes": len(samples)}
-            )
+            partial_segments.append({"duration": duration, "bytes": len(samples)})
             logger.info(
                 f"Partial speech data: {duration:.2f} seconds ({len(samples)} bytes)"
             )
@@ -197,6 +194,7 @@ async def process_audio_in_chunks(
             chunk = padded_chunk
 
         # Convert to int16 PCM
+        chunk = np.asarray(chunk, dtype=np.float32)
         chunk_pcm = (chunk * 32768.0).astype(np.int16)
 
         # Process the chunk
@@ -364,6 +362,7 @@ async def test_vad_with_connection_manager_format(audio_data, vad_setup):
         data = scipy.signal.resample(data, num_samples)
 
     # Convert to int16 PCM bytes
+    data = np.asarray(data, dtype=np.float32)
     pcm_bytes = (data * 32768.0).astype(np.int16).tobytes()
 
     @vad.on("audio")
@@ -387,8 +386,9 @@ async def test_vad_with_connection_manager_format(audio_data, vad_setup):
         )
 
     # Process the audio data as bytes
+    pcm_array = np.frombuffer(pcm_bytes, dtype=np.int16)
     await vad.process_audio(
-        PcmData(samples=pcm_bytes, sample_rate=vad.sample_rate, format="s16")
+        PcmData(samples=pcm_array, sample_rate=vad.sample_rate, format="s16")
     )
 
     # Ensure we flush any remaining speech
@@ -432,7 +432,7 @@ async def test_silence_no_turns():
         nonlocal audio_event_fired
         audio_event_fired = True
         logger.info(
-            f"Audio event detected on silence! Duration: {event.duration_ms/1000.0:.2f}s"
+            f"Audio event detected on silence! Duration: {event.duration_ms / 1000.0:.2f}s"
         )
 
     @vad.on("partial")
@@ -440,7 +440,7 @@ async def test_silence_no_turns():
         nonlocal partial_event_fired
         partial_event_fired = True
         logger.info(
-            f"Partial event detected on silence! Duration: {event.duration_ms/1000.0:.2f}s"
+            f"Partial event detected on silence! Duration: {event.duration_ms / 1000.0:.2f}s"
         )
 
     # Process the silence in chunks to simulate streaming
@@ -495,18 +495,14 @@ class TestSileroVAD:
             detected_speech.append(event)
             duration = event.duration_ms / 1000.0 if event.duration_ms else 0.0
             samples = event.audio_data if event.audio_data is not None else b""
-            logger.info(
-                f"Audio event: {duration:.2f}s ({len(samples)} samples)"
-            )
+            logger.info(f"Audio event: {duration:.2f}s ({len(samples)} samples)")
 
         @vad.on("partial")
         def on_partial(event, user=None):
             partial_events.append(event)
             duration = event.duration_ms / 1000.0 if event.duration_ms else 0.0
             samples = event.audio_data if event.audio_data is not None else b""
-            logger.info(
-                f"Partial event: {duration:.2f}s ({len(samples)} samples)"
-            )
+            logger.info(f"Partial event: {duration:.2f}s ({len(samples)} samples)")
 
         # Process the audio data
         await vad.process_audio(
@@ -594,13 +590,29 @@ class TestSileroVAD:
         vad_16k = SileroVAD(
             sample_rate=16000,
             frame_size=512,
-            activation_th=0.3,
-            deactivation_th=0.2,
+            activation_th=0.2,
+            deactivation_th=0.15,
             speech_pad_ms=30,
-            min_speech_ms=250,
+            min_speech_ms=100,
             model_rate=16000,
             window_samples=512,  # Silero requires exactly 512 samples at 16kHz
+            partial_frames=2,
         )
+
+        # Spy/wrap is_speech for 16k
+        max_p_16k = 0.0
+        calls_16k = 0
+        orig_is_speech_16k = vad_16k.is_speech
+
+        async def spy_is_speech_16k(frame):
+            nonlocal max_p_16k, calls_16k
+            p = await orig_is_speech_16k(frame)
+            calls_16k += 1
+            if p > max_p_16k:
+                max_p_16k = p
+            return p
+
+        vad_16k.is_speech = spy_is_speech_16k
 
         @vad_16k.on("audio")
         def on_audio_16k(event, user=None):
@@ -623,18 +635,35 @@ class TestSileroVAD:
         )
         await vad_16k.flush()
         await asyncio.sleep(0.1)
+        logger.info(f"16k: is_speech calls={calls_16k}, max_p={max_p_16k:.3f}")
 
         # Now test with 48 kHz audio using the same parameters
         vad_48k = SileroVAD(
             sample_rate=48000,  # Input is 48 kHz
             frame_size=512 * 3,  # Scale frame size to match time duration
-            activation_th=0.3,
-            deactivation_th=0.2,
+            activation_th=0.2,
+            deactivation_th=0.15,
             speech_pad_ms=30,
-            min_speech_ms=250,
+            min_speech_ms=100,
             model_rate=16000,  # Model still runs at 16 kHz
             window_samples=512,  # Silero requires exactly 512 samples at 16kHz
+            partial_frames=2,
         )
+
+        # Spy/wrap is_speech for 48k
+        max_p_48k = 0.0
+        calls_48k = 0
+        orig_is_speech_48k = vad_48k.is_speech
+
+        async def spy_is_speech_48k(frame):
+            nonlocal max_p_48k, calls_48k
+            p = await orig_is_speech_48k(frame)
+            calls_48k += 1
+            if p > max_p_48k:
+                max_p_48k = p
+            return p
+
+        vad_48k.is_speech = spy_is_speech_48k
 
         @vad_48k.on("audio")
         def on_audio_48k(event, user=None):
@@ -657,6 +686,7 @@ class TestSileroVAD:
         )
         await vad_48k.flush()
         await asyncio.sleep(0.1)
+        logger.info(f"48k: is_speech calls={calls_48k}, max_p={max_p_48k:.3f}")
 
         # Verify both detected speech segments and partial events
         assert (
