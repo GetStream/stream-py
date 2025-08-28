@@ -9,7 +9,7 @@ from getstream.video.rtc.track_util import PcmData
 from getstream.video.rtc.utils import resample_audio
 from getstream.plugins.common.events import VADAudioEvent
 from getstream.plugins.common.event_utils import register_global_event
-            
+
 
 try:
     import onnxruntime as ort
@@ -385,7 +385,7 @@ class SileroVAD(VAD):
                 duration_ms=duration_ms,
                 speech_probability=0.8,  # Default value, could be enhanced
                 frame_count=len(speech_data) // self.frame_size,
-                user_metadata=user
+                user_metadata=user,
             )
             register_global_event(audio_event)
             self.emit("audio", audio_event)  # Structured event

@@ -12,6 +12,7 @@ import pytest
 import soundfile as sf
 from getstream.plugins.silero.vad import SileroVAD
 from getstream.video.rtc.track_util import PcmData
+from plugins.test_utils import get_audio_asset
 
 
 async def benchmark_vad(use_onnx=False, device="cpu"):
@@ -160,6 +161,6 @@ async def test_vad_benchmark_onnx():
     print(f"  Speech segments detected: {results['speech_segments']}")
 
     # Verify that the ONNX implementation is reasonably efficient
-    assert (
-        results["rtf"] < 2.0
-    ), f"ONNX VAD performance too slow: RTF = {results['rtf']:.3f}"
+    assert results["rtf"] < 2.0, (
+        f"ONNX VAD performance too slow: RTF = {results['rtf']:.3f}"
+    )

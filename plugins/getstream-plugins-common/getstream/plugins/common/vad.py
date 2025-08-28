@@ -11,8 +11,13 @@ from getstream.video.rtc.track_util import PcmData
 from getstream.video.rtc.pcm_utils import pcm_to_numpy_array, numpy_array_to_bytes
 
 from .events import (
-    VADSpeechStartEvent, VADSpeechEndEvent, VADAudioEvent, VADPartialEvent, VADErrorEvent,
-    PluginInitializedEvent, PluginClosedEvent
+    VADSpeechStartEvent,
+    VADSpeechEndEvent,
+    VADAudioEvent,
+    VADPartialEvent,
+    VADErrorEvent,
+    PluginInitializedEvent,
+    PluginClosedEvent,
 )
 from .event_utils import register_global_event
 
@@ -110,7 +115,7 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
                 "deactivation_threshold": deactivation_th,
                 "min_speech_ms": min_speech_ms,
                 "max_speech_ms": max_speech_ms,
-            }
+            },
         )
         register_global_event(init_event)
         self.emit("initialized", init_event)
@@ -230,7 +235,7 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
                     audio_data=current_samples,
                     duration_ms=current_duration_ms,
                     frame_count=len(current_samples) // self.frame_size,
-                    user_metadata=user
+                    user_metadata=user,
                 )
                 register_global_event(partial_event)
                 self.emit("partial", partial_event)  # Structured event
@@ -280,7 +285,7 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
                 speech_probability=speech_prob,
                 activation_threshold=self.activation_th,
                 frame_count=1,
-                user_metadata=user
+                user_metadata=user,
             )
             register_global_event(speech_start_event)
             self.emit("speech_start", speech_start_event)
@@ -315,7 +320,7 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
                 audio_data=speech_data,
                 duration_ms=speech_duration_ms,
                 frame_count=len(speech_data) // self.frame_size,
-                user_metadata=user
+                user_metadata=user,
             )
             register_global_event(audio_event)
             self.emit("audio", audio_event)  # Structured event
@@ -332,7 +337,7 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
                 deactivation_threshold=self.deactivation_th,
                 total_speech_duration_ms=total_speech_duration,
                 total_frames=self.total_speech_frames,
-                user_metadata=user
+                user_metadata=user,
             )
             register_global_event(speech_end_event)
             self.emit("speech_end", speech_end_event)
@@ -364,7 +369,12 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
         self._leftover = np.empty(0, np.int16)
         self._speech_start_time = None
 
-    def _emit_error_event(self, error: Exception, context: str = "", user_metadata: Optional[Dict[str, Any]] = None):
+    def _emit_error_event(
+        self,
+        error: Exception,
+        context: str = "",
+        user_metadata: Optional[Dict[str, Any]] = None,
+    ):
         """Emit a structured error event."""
         error_event = VADErrorEvent(
             session_id=self.session_id,
@@ -372,7 +382,7 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
             error=error,
             context=context,
             user_metadata=user_metadata,
-            frame_data_available=len(self.speech_buffer) > 0
+            frame_data_available=len(self.speech_buffer) > 0,
         )
         register_global_event(error_event)
         self.emit("error", error_event)  # Structured event
@@ -389,7 +399,7 @@ class VAD(AsyncIOEventEmitter, abc.ABC):
             plugin_name=self.provider_name,
             plugin_type="VAD",
             provider=self.provider_name,
-            cleanup_successful=True
+            cleanup_successful=True,
         )
         register_global_event(close_event)
         self.emit("closed", close_event)

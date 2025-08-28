@@ -57,8 +57,8 @@ async def test_gemini_live_with_real_api():
         await asyncio.sleep(0.2)
 
     try:
-        assert (
-            events["audio"] or events["text"]
-        ), "No response received from Gemini Live"
+        assert events["audio"] or events["text"], (
+            "No response received from Gemini Live"
+        )
     finally:
         await sts.close()

@@ -305,7 +305,9 @@ class TestIntegrationWithRealAudio:
         import soundfile as sf
 
         # Load real audio asset
-        audio_path = os.path.join(os.path.dirname(__file__), "assets", "formant_speech_16k.wav")
+        audio_path = os.path.join(
+            os.path.dirname(__file__), "assets", "formant_speech_16k.wav"
+        )
         audio_data, sample_rate = sf.read(audio_path, dtype="int16")
 
         # Convert to mono if stereo
@@ -349,7 +351,9 @@ class TestIntegrationWithRealAudio:
         import soundfile as sf
 
         # Load real audio asset
-        audio_path = os.path.join(os.path.dirname(__file__), "assets", "formant_speech_16k.wav")
+        audio_path = os.path.join(
+            os.path.dirname(__file__), "assets", "formant_speech_16k.wav"
+        )
         audio_data, sample_rate = sf.read(audio_path, dtype="int16")
 
         # Convert to mono if stereo

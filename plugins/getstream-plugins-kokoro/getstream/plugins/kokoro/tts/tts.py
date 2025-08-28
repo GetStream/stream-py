@@ -69,7 +69,6 @@ class KokoroTTS(TTS):
         except Exception as e:
             logging.error(f"Error flushing audio track: {e}")
 
-
     def _generate_chunks(self, text: str):
         for _gs, _ps, audio in self._pipeline(
             text, voice=self.voice, speed=self.speed, split_pattern=r"\n+"

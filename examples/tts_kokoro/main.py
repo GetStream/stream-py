@@ -25,8 +25,6 @@ import asyncio
 import logging
 import os
 from uuid import uuid4
-import importlib
-import sys
 import webbrowser
 from urllib.parse import urlencode
 
@@ -43,6 +41,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 os.environ["KOKORO_NO_AUTO_INSTALL"] = (
     "1"  # Disable auto-install of kokoro dependencies
 )
+
 
 def create_user(client: Stream, id: str, name: str) -> None:
     """

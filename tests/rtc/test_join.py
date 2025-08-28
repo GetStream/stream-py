@@ -283,16 +283,16 @@ async def test_detect_video_properties(client: Stream):
         # Verify detected properties match expectations
         assert "width" in video_props, "Width not detected"
         assert "height" in video_props, "Height not detected"
-        assert (
-            video_props["width"] == 1280
-        ), f"Incorrect width detected: {video_props['width']}"
-        assert (
-            video_props["height"] == 720
-        ), f"Incorrect height detected: {video_props['height']}"
+        assert video_props["width"] == 1280, (
+            f"Incorrect width detected: {video_props['width']}"
+        )
+        assert video_props["height"] == 720, (
+            f"Incorrect height detected: {video_props['height']}"
+        )
         assert video_props["fps"] == 25, "Invalid FPS value"
-        assert (
-            1000 <= video_props["bitrate"] <= 2000
-        ), f"Unexpected bitrate: {video_props['bitrate']}"
+        assert 1000 <= video_props["bitrate"] <= 2000, (
+            f"Unexpected bitrate: {video_props['bitrate']}"
+        )
 
     finally:
         # Ensure player is properly closed
@@ -310,7 +310,7 @@ async def test_play_file(client: Stream):
 
     call = client.video.call("default", CALL_ID)
 
-    file_path = ("test_asset.mp4")
+    file_path = "test_asset.mp4"
 
     # Check if file exists before running test, skip if not
     if not os.path.exists(file_path):

@@ -124,7 +124,7 @@ class Stream(CommonClient):
         users_map = {u.id: u for u in users}
         return self.update_users(users_map)
 
-    def create_user(self, name: str = "", id: str = str(uuid4()), image = ""):
+    def create_user(self, name: str = "", id: str = str(uuid4()), image=""):
         """
         Creates or updates users. This method performs an "upsert" operation,
         where it checks if each user already exists and updates their information

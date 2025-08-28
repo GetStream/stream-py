@@ -396,7 +396,9 @@ async def test_deepgram_with_real_api(
 
     @stt.on("partial_transcript")
     def on_partial(event):
-        partial_transcripts.append((event.text, event.user_metadata, {"is_final": False}))
+        partial_transcripts.append(
+            (event.text, event.user_metadata, {"is_final": False})
+        )
 
     @stt.on("error")
     def on_error(event):
@@ -486,11 +488,15 @@ async def test_deepgram_with_real_api(
                 # Re-register event handlers
                 @stt.on("transcript")
                 def on_transcript(event):
-                    transcripts.append((event.text, event.user_metadata, {"is_final": True}))
+                    transcripts.append(
+                        (event.text, event.user_metadata, {"is_final": True})
+                    )
 
                 @stt.on("partial_transcript")
                 def on_partial(event):
-                    partial_transcripts.append((event.text, event.user_metadata, {"is_final": False}))
+                    partial_transcripts.append(
+                        (event.text, event.user_metadata, {"is_final": False})
+                    )
 
                 @stt.on("error")
                 def on_error(event):
@@ -498,9 +504,9 @@ async def test_deepgram_with_real_api(
             else:
                 # Final attempt failed
                 print(f"All retry attempts failed: {e}")
-                assert (
-                    False
-                ), f"Failed to process audio after {max_retries} attempts: {e}"
+                assert False, (
+                    f"Failed to process audio after {max_retries} attempts: {e}"
+                )
 
     # Cleanup and close the connection
     try:
@@ -510,9 +516,9 @@ async def test_deepgram_with_real_api(
         print(f"Error closing STT: {e}")
 
     # We should have received transcripts
-    assert (
-        len(transcripts) > 0 or len(partial_transcripts) > 0
-    ), "No transcripts received after sending audio"
+    assert len(transcripts) > 0 or len(partial_transcripts) > 0, (
+        "No transcripts received after sending audio"
+    )
     print(
         f"Received {len(transcripts)} transcripts and {len(partial_transcripts)} partial transcripts"
     )
@@ -541,9 +547,9 @@ async def test_deepgram_keep_alive_mechanism():
     await asyncio.sleep(0.2)
 
     # We should see that keep-alive messages have been sent
-    assert (
-        len(connection.sent_text_messages) > 0
-    ), "No keep-alive messages sent after wait"
+    assert len(connection.sent_text_messages) > 0, (
+        "No keep-alive messages sent after wait"
+    )
 
     # Cleanup
     await stt.close()
@@ -569,9 +575,9 @@ async def test_deepgram_keep_alive_after_audio():
     await asyncio.sleep(0.2)
 
     # We should see that keep-alive messages have been sent
-    assert (
-        len(connection.sent_text_messages) > 0
-    ), "No keep-alive messages sent after audio processing"
+    assert len(connection.sent_text_messages) > 0, (
+        "No keep-alive messages sent after audio processing"
+    )
 
     # Cleanup
     await stt.close()
@@ -594,9 +600,9 @@ async def test_deepgram_keep_alive_direct():
     assert success, "Failed to send keep-alive message"
 
     # The connection should have received the message
-    assert (
-        len(connection.sent_text_messages) > 0
-    ), "No keep-alive messages were recorded"
+    assert len(connection.sent_text_messages) > 0, (
+        "No keep-alive messages were recorded"
+    )
 
     # If the connection has a keep_alive method, then the send_text method should not be used
     if hasattr(connection, "keep_alive"):
@@ -710,7 +716,9 @@ async def test_deepgram_with_real_api_keep_alive():
 
     @stt.on("partial_transcript")
     def on_partial_transcript(event):
-        partial_transcripts.append((event.text, event.user_metadata, {"is_final": False}))
+        partial_transcripts.append(
+            (event.text, event.user_metadata, {"is_final": False})
+        )
 
     @stt.on("error")
     def on_error(event):
@@ -813,12 +821,20 @@ async def test_deepgram_real_integration():
     def on_transcript(event):
         # Extract words from the text for metadata
         words = event.text.lower().split() if event.text else []
-        transcripts.append((event.text, event.user_metadata, {"is_final": True, "confidence": 0.9, "words": words}))
+        transcripts.append(
+            (
+                event.text,
+                event.user_metadata,
+                {"is_final": True, "confidence": 0.9, "words": words},
+            )
+        )
         print(f"Final transcript: {event.text}")
 
     @stt.on("partial_transcript")
     def on_partial_transcript(event):
-        partial_transcripts.append((event.text, event.user_metadata, {"is_final": False}))
+        partial_transcripts.append(
+            (event.text, event.user_metadata, {"is_final": False})
+        )
         print(f"Partial transcript: {event.text}")
 
     @stt.on("error")
@@ -906,14 +922,14 @@ async def test_deepgram_real_integration():
             print(f"Key words found: {found_key_words}")
 
             # We should find at least some key words from the story
-            assert (
-                len(found_key_words) >= 2
-            ), f"Expected to find at least 2 key words from {key_words}, but only found {found_key_words}"
+            assert len(found_key_words) >= 2, (
+                f"Expected to find at least 2 key words from {key_words}, but only found {found_key_words}"
+            )
 
             # Check that we got a reasonable amount of text
-            assert (
-                len(actual_words) >= 10
-            ), f"Expected at least 10 words, but got {len(actual_words)}: {combined_text}"
+            assert len(actual_words) >= 10, (
+                f"Expected at least 10 words, but got {len(actual_words)}: {combined_text}"
+            )
 
             # Verify metadata structure
             assert "confidence" in metadata

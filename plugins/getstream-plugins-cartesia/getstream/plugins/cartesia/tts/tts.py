@@ -37,7 +37,9 @@ class CartesiaTTS(TTS):
         if not self.api_key:
             raise ValueError("CARTESIA_API_KEY env var or api_key parameter required")
 
-        self.client = client if client is not None else AsyncCartesia(api_key=self.api_key)
+        self.client = (
+            client if client is not None else AsyncCartesia(api_key=self.api_key)
+        )
         self.model_id = model_id
         self.voice_id = voice_id
         self.sample_rate = sample_rate
@@ -84,9 +86,8 @@ class CartesiaTTS(TTS):
             None
         """
         try:
-            await self.track.flush(),
+            (await self.track.flush(),)
             logging.info("🎤 Stopping audio track for TTS")
             return
         except Exception as e:
             logging.error(f"Error flushing audio track: {e}")
-
