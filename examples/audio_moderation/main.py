@@ -32,7 +32,7 @@ from getstream.stream import Stream
 from getstream.video import rtc
 from getstream.video.rtc.track_util import PcmData
 from getstream.models import CheckResponse, ModerationPayload
-from getstream.plugins import DeepgramSTT
+from getstream.plugins.deepgram.stt import DeepgramSTT
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
@@ -153,13 +153,15 @@ async def main(client: Stream):
                     user = event.user_metadata["user"]
                     user_info = user.name if hasattr(user, "name") else str(user)
                 print(f"[{timestamp}] {user_info}: {event.text}")
-                if hasattr(event, 'confidence') and event.confidence:
+                if hasattr(event, "confidence") and event.confidence:
                     print(f"    └─ confidence: {event.confidence:.2%}")
-                if hasattr(event, 'processing_time_ms') and event.processing_time_ms:
+                if hasattr(event, "processing_time_ms") and event.processing_time_ms:
                     print(f"    └─ processing time: {event.processing_time_ms:.1f}ms")
 
                 # Moderation check (executed in a background thread to avoid blocking)
-                moderation = await asyncio.to_thread(moderate, client, event.text, user_info)
+                moderation = await asyncio.to_thread(
+                    moderate, client, event.text, user_info
+                )
                 print(
                     f"    └─ moderation recommended action: {moderation.recommended_action} for transcript: {event.text}"
                 )
@@ -167,7 +169,7 @@ async def main(client: Stream):
             @stt.on("error")
             async def on_stt_error(event):
                 print(f"\n❌ STT Error: {event.error_message}")
-                if hasattr(event, 'context') and event.context:
+                if hasattr(event, "context") and event.context:
                     print(f"    └─ context: {event.context}")
 
             # Keep the connection alive and wait for audio

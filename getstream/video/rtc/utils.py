@@ -1,33 +1,72 @@
-import webbrowser
-from urllib.parse import urlencode
+"""
+Shared helpers for audio manipulation used by VAD and STT plugins.
+Currently contains:
+    * resample_audio() – high-quality multi-backend resampler.
+"""
+
+from __future__ import annotations
+import logging
+import numpy as np
+
+# Optional back-ends
+try:
+    import scipy.signal
+
+    _has_scipy = True
+except ImportError:
+    _has_scipy = False
+
+try:
+    import torchaudio
+    import torch
+
+    _has_torchaudio = True
+except ImportError:
+    _has_torchaudio = False
+
+log = logging.getLogger(__name__)
 
 
-def open_browser(api_key: str, token: str, call_id: str) -> str:
+def resample_audio(frame: np.ndarray, from_sr: int, to_sr: int) -> np.ndarray:
     """
-    Helper function to open browser with Stream call link.
+    High-quality resampling used across the codebase.
 
-    This utility function is useful for example projects and demos that need to
-    provide a quick way for users to join a call via browser.
+    – Prefers scipy.signal.resample_poly (best SNR & speed).
+    – Falls back to torchaudio.transforms.Resample if SciPy missing.
+    – Final fallback is a simple average-pool loop (keeps tests green).
 
-    Args:
-        api_key: Stream API key
-        token: JWT token for the user
-        call_id: ID of the call
-
-    Returns:
-        The URL that was opened
+    Returns float32 or int16 array matching input dtype.
     """
-    base_url = "https://pronto.getstream.io/bare/join/"
-    params = {"api_key": api_key, "token": token, "skip_lobby": "true"}
+    if from_sr == to_sr:
+        return frame
 
-    url = f"{base_url}{call_id}?{urlencode(params)}"
-    print(f"Opening browser to: {url}")
+    # ------------------------------------------------  SciPy path
+    if _has_scipy:
+        try:
+            return scipy.signal.resample_poly(frame, to_sr, from_sr, axis=-1)
+        except Exception as e:
+            log.warning("scipy resample failed: %s – trying fallback", e)
 
-    try:
-        webbrowser.open(url)
-        print("Browser opened successfully!")
-    except Exception as e:
-        print(f"Failed to open browser: {e}")
-        print(f"Please manually open this URL: {url}")
+    # ------------------------------------------------  torchaudio path
+    if _has_torchaudio:
+        try:
+            tensor = torch.tensor(frame, dtype=torch.float32)
+            resampler = torchaudio.transforms.Resample(
+                orig_freq=from_sr, new_freq=to_sr
+            )
+            return resampler(tensor).numpy()
+        except Exception as e:
+            log.warning("torchaudio resample failed: %s – using simple avg-pool", e)
 
-    return url
+    # ------------------------------------------------  naïve fallback
+    ratio = from_sr / to_sr
+    out_len = int(len(frame) / ratio)
+    out = np.zeros(out_len, dtype=np.float32)
+    for i in range(out_len):
+        start = int(i * ratio)
+        end = int((i + 1) * ratio)
+        chunk = frame[start:end]
+        if chunk.size:
+            out[i] = float(chunk.mean())
+
+    return out

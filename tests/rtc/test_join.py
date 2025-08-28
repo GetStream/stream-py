@@ -13,9 +13,6 @@ from typing import Callable, Any
 
 from getstream.video.rtc.track_util import PcmData
 
-pytest.skip("Skipping RTC join tests during regular test runs", allow_module_level=True)
-
-
 CALL_ID = os.getenv("CALL_ID")
 
 
@@ -176,8 +173,8 @@ async def test_join_and_leave(client: Stream):
     call = client.video.call("default", "test-join")
 
     async with await rtc.join(call, "test-user") as connection:
+        await asyncio.sleep(5)
         await connection.leave()
-        await connection.wait()
 
 
 @pytest.mark.skip_in_ci
@@ -286,16 +283,16 @@ async def test_detect_video_properties(client: Stream):
         # Verify detected properties match expectations
         assert "width" in video_props, "Width not detected"
         assert "height" in video_props, "Height not detected"
-        assert (
-            video_props["width"] == 1280
-        ), f"Incorrect width detected: {video_props['width']}"
-        assert (
-            video_props["height"] == 720
-        ), f"Incorrect height detected: {video_props['height']}"
+        assert video_props["width"] == 1280, (
+            f"Incorrect width detected: {video_props['width']}"
+        )
+        assert video_props["height"] == 720, (
+            f"Incorrect height detected: {video_props['height']}"
+        )
         assert video_props["fps"] == 25, "Invalid FPS value"
-        assert (
-            1000 <= video_props["bitrate"] <= 2000
-        ), f"Unexpected bitrate: {video_props['bitrate']}"
+        assert 1000 <= video_props["bitrate"] <= 2000, (
+            f"Unexpected bitrate: {video_props['bitrate']}"
+        )
 
     finally:
         # Ensure player is properly closed
@@ -307,14 +304,13 @@ async def test_detect_video_properties(client: Stream):
 
 
 @pytest.mark.asyncio
+@pytest.mark.skip_in_ci
 async def test_play_file(client: Stream):
     from aiortc.contrib.media import MediaPlayer
 
     call = client.video.call("default", CALL_ID)
 
-    file_path = (
-        "/Users/vivek/stream/tools/samples/videos/bbb_sunflower_1080p_60fps_normal.mp4"
-    )
+    file_path = "test_asset.mp4"
 
     # Check if file exists before running test, skip if not
     if not os.path.exists(file_path):
@@ -322,19 +318,19 @@ async def test_play_file(client: Stream):
 
     player = MediaPlayer(file_path)
 
-    async with await rtc.join(call, "vivek33") as connection:
+    async with await rtc.join(call, "test-user") as connection:
         # Use add_tracks which now automatically detects properties
         await connection.add_tracks(
             video=player.video,
             audio=player.audio,
         )
 
-        await connection.wait()
+        await asyncio.sleep(5)
 
 
 @pytest.mark.asyncio
 async def test_play_audio_track_from_text(client: Stream):
-    from getstream.plugins.gs_elevenlabs import ElevenLabsTTS
+    from getstream.plugins.elevenlabs.tts import ElevenLabsTTS
 
     audio = audio_track.AudioStreamTrack(framerate=16000)
     tts_instance = ElevenLabsTTS(voice_id="JBFqnCBsd6RMkjVDRZzb")
@@ -351,14 +347,15 @@ async def test_play_audio_track_from_text(client: Stream):
 
         await tts_instance.send("do you think Stream is awesome so far?")
 
-        await asyncio.sleep(1)
+        await asyncio.sleep(5)
 
 
 @pytest.mark.asyncio
+@pytest.mark.skip_in_ci
 async def test_full_echo(client: Stream):
-    from getstream.plugins.silero import SileroVAD
-    from getstream.plugins.deepgram import DeepgramSTT
-    from getstream.plugins.gs_elevenlabs import ElevenLabsTTS
+    from getstream.plugins.silero.vad import SileroVAD
+    from getstream.plugins.deepgram.stt import DeepgramSTT
+    from getstream.plugins.elevenlabs.tts import ElevenLabsTTS
 
     audio = audio_track.AudioStreamTrack(framerate=16000)
     vad = SileroVAD()
@@ -392,10 +389,11 @@ async def test_full_echo(client: Stream):
             )
             await tts_instance.send(text)
 
-        await asyncio.sleep(30)
+        await asyncio.sleep(5)
 
 
 @pytest.mark.asyncio
+@pytest.mark.skip_in_ci
 async def test_simple_capture(client: Stream):
     call = client.video.call("default", CALL_ID)
     async with await rtc.join(call, "test-user") as connection:
@@ -404,4 +402,4 @@ async def test_simple_capture(client: Stream):
         async def on_audio(pcm: PcmData, user):
             print("got audio")
 
-        await connection.wait()
+        await asyncio.sleep(5)

@@ -198,7 +198,7 @@ class SubscriptionManager(AsyncIOEventEmitter):
 
     async def handle_track_published(self, event):
         """Handle new remote track publications from the SFU."""
-        logger.error(
+        logger.debug(
             f"Handling track published: {event.user_id} - {event.session_id} - {event.type}"
         )
         try:
@@ -222,7 +222,7 @@ class SubscriptionManager(AsyncIOEventEmitter):
             if not self._should_subscribe(
                 getattr(event, "participant", None), track_type
             ):
-                logger.error(f"Not subscribing to track: {event}")
+                logger.info(f"Not subscribing to track: {event}")
                 return
 
             # Check for duplicates & subscription limits

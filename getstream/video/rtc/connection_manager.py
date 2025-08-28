@@ -7,8 +7,9 @@ from typing import Optional, Dict, Any
 import aioice
 import aiortc
 from twirp.context import Context
+from tenacity import retry, stop_after_attempt, wait_exponential
 
-from getstream.utils import StreamAsyncIOEventEmitter
+from getstream.video.rtc.event_emitter import StreamAsyncIOEventEmitter
 from getstream.video.rtc.coordinator.ws import StreamAPIWS
 from getstream.video.rtc.pb.stream.video.sfu.event import events_pb2
 from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
@@ -57,7 +58,6 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
     ):
         super().__init__()
 
-        # Public attributes
         self.call: Call = call
         self.user_id: Optional[str] = user_id
         self.create: bool = create
@@ -67,14 +67,12 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         self.join_response: Optional[JoinCallResponse] = None
         self.local_sfu: bool = False  # Local SFU flag for development
 
-        # Private attributes
         self._connection_state: ConnectionState = ConnectionState.IDLE
         self._stop_event: asyncio.Event = asyncio.Event()
         self._connection_options: ConnectionOptions = ConnectionOptions()
         self._ws_client = None
         self._coordinator_ws_client = None
 
-        # Initialize private managers
         self._participants_state: ParticipantsState = ParticipantsState()
         self._recording_manager: RecordingManager = RecordingManager()
         self._network_monitor: NetworkMonitor = NetworkMonitor(self)
@@ -83,13 +81,20 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             self, subscription_config
         )
         self._peer_manager: PeerConnectionManager = PeerConnectionManager(self)
-
-        self.recording_manager = self._recording_manager  # type: ignore
-        self.participants_state = self._participants_state  # type: ignore
-        self.reconnector = self._reconnector  # type: ignore
-
         self.twirp_signaling_client = None
         self.twirp_context: Optional[Context] = None
+
+    @property
+    def recording_manager(self) -> RecordingManager:
+        return self._recording_manager
+
+    @property
+    def participants_state(self) -> ParticipantsState:
+        return self._participants_state
+
+    @property
+    def reconnector(self) -> ReconnectionManager:
+        return self._reconnector
 
     @property
     def connection_state(self) -> ConnectionState:
@@ -104,6 +109,41 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             self._connection_state = state
             # Schedule the emit as a background task since property setters cannot be async
             self.emit("connection.state_changed", {"old": old_state, "new": state})
+
+    # WebSocket client helper
+    @property
+    def ws_client(self):
+        return self._ws_client
+
+    @ws_client.setter
+    def ws_client(self, value):
+        self._ws_client = value
+
+    # Publisher / Subscriber peer-connection shortcuts
+    @property
+    def publisher_pc(self):
+        return self._peer_manager.publisher_pc
+
+    @publisher_pc.setter
+    def publisher_pc(self, value):
+        self._peer_manager.publisher_pc = value
+
+    @property
+    def subscriber_pc(self):
+        return self._peer_manager.subscriber_pc
+
+    @subscriber_pc.setter
+    def subscriber_pc(self, value):
+        self._peer_manager.subscriber_pc = value
+
+    # Negotiation locks
+    @property
+    def publisher_negotiation_lock(self):
+        return self._peer_manager.publisher_negotiation_lock
+
+    @property
+    def subscriber_negotiation_lock(self):
+        return self._peer_manager.subscriber_negotiation_lock
 
     async def _on_ice_trickle(self, event):
         """Handle ICE trickle from SFU."""
@@ -212,7 +252,9 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                 region = HTTPHintLocationDiscovery(logger=logger).discover()
             except Exception as e:
                 logger.warning(f"Failed to discover location: {e}")
-                location = "FRA"
+                region = "FRA"
+        if not region:
+            region = "FRA"
         logger.debug(f"Using location: {region}")
         location = region
 
@@ -300,6 +342,10 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
 
         logger.info("Successfully connected to SFU")
 
+    @retry(
+        stop=stop_after_attempt(5),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+    )
     async def connect(self):
         """
         Connect to SFU.
@@ -384,42 +430,6 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
     def get_recording_status(self) -> dict:
         """Get current recording status."""
         return self._recording_manager.get_recording_status()
-
-    # WebSocket client helper
-    @property
-    def ws_client(self):
-        return self._ws_client
-
-    @ws_client.setter
-    def ws_client(self, value):
-        self._ws_client = value
-
-    # Publisher / Subscriber peer-connection shortcuts
-    @property
-    def publisher_pc(self):
-        return self._peer_manager.publisher_pc
-
-    @publisher_pc.setter
-    def publisher_pc(self, value):
-        self._peer_manager.publisher_pc = value
-
-    @property
-    def subscriber_pc(self):
-        return self._peer_manager.subscriber_pc
-
-    @subscriber_pc.setter
-    def subscriber_pc(self, value):
-        self._peer_manager.subscriber_pc = value
-
-    # Negotiation locks
-
-    @property
-    def publisher_negotiation_lock(self):
-        return self._peer_manager.publisher_negotiation_lock
-
-    @property
-    def subscriber_negotiation_lock(self):
-        return self._peer_manager.subscriber_negotiation_lock
 
     async def _cleanup_connections(
         self, ws_client=None, publisher_pc=None, subscriber_pc=None

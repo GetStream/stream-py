@@ -156,6 +156,7 @@ def fix_sdp_msid_semantic(sdp: str) -> str:
     """
     return re.sub(r"a=msid-semantic:WMS\*", r"a=msid-semantic:WMS *", sdp)
 
+
 def fix_sdp_rtcp_fb(sdp: str) -> str:
     """
     Fix SDP rtcp-fb format
@@ -173,6 +174,7 @@ def fix_sdp_rtcp_fb(sdp: str) -> str:
         r"\1",
         sdp,
     )
+
 
 def parse_track_stream_mapping(sdp: str) -> dict:
     """Parse SDP to extract track_id to stream_id mapping from msid lines."""

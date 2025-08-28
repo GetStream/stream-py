@@ -13,7 +13,7 @@ from typing import Optional
 
 import websockets
 
-from getstream.utils import StreamAsyncIOEventEmitter
+from getstream.video.rtc.event_emitter import StreamAsyncIOEventEmitter
 from .errors import (
     StreamWSAuthError,
     StreamWSConnectionError,
