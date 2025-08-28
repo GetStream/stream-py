@@ -23,7 +23,7 @@ class NetworkMonitor(AsyncIOEventEmitter):
         connection_manager,
         connectivity_hosts: list = None,
         connectivity_timeout: float = 3.0,
-        check_interval: float = 1.0,
+        check_interval: float = 5.0,
         required_successful_pings: int = 1,
     ):
         """
@@ -114,9 +114,6 @@ class NetworkMonitor(AsyncIOEventEmitter):
 
                 if response_time is not None:
                     successful_pings += 1
-                    self.logger.debug(
-                        f"Ping to {host} successful: {response_time:.2f}s"
-                    )
 
                     # If we've reached the required number of successful pings, we're online
                     if successful_pings >= self.required_successful_pings:
