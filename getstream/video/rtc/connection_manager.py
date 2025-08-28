@@ -25,6 +25,7 @@ from getstream.video.rtc.connection_utils import (
 )
 from getstream.video.rtc.track_util import (
     fix_sdp_msid_semantic,
+    fix_sdp_rtcp_fb,
     parse_track_stream_mapping,
 )
 from getstream.video.rtc.network_monitor import NetworkMonitor
@@ -138,6 +139,8 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         try:
             # Fix any invalid msid-semantic format in the SDP
             fixed_sdp = fix_sdp_msid_semantic(event.sdp)
+            # Fix any invalid rtcp-fb lines
+            fixed_sdp = fix_sdp_rtcp_fb(fixed_sdp)
             # Parse SDP to create track_id to stream_id mapping
             self.participants_state.set_track_stream_mapping(
                 parse_track_stream_mapping(fixed_sdp)
@@ -181,32 +184,6 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                 logger.error(f"Unexpected error sending subscriber answer: {e}")
         finally:
             self.subscriber_negotiation_lock.release()
-
-    def _extract_track_stream_mapping(self, sdp: str):
-        """Extract track-to-stream mapping from SDP."""
-        track_mapping = {}
-
-        # Parse SDP to find track-to-stream mapping
-        # SDP format includes lines like:
-        # a=msid:<stream_id> <track_id>
-        # a=mid:<media_id>
-        for line in sdp.split("\n"):
-            line = line.strip()
-            if line.startswith("a=msid:"):
-                # Extract msid line: a=msid:<stream_id> <track_id>
-                parts = line.split(" ")
-                if len(parts) >= 3:
-                    stream_id = parts[1]
-                    track_id = parts[2]
-                    track_mapping[track_id] = stream_id
-                    logger.debug(f"Extracted track mapping: {track_id} -> {stream_id}")
-
-        # Set the mapping in participants state
-        if track_mapping:
-            logger.info(f"Setting track stream mapping: {track_mapping}")
-            self.participants_state.set_track_stream_mapping(track_mapping)
-        else:
-            logger.warning("No track-to-stream mapping found in SDP")
 
     async def _connect_internal(
         self,

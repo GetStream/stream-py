@@ -156,6 +156,23 @@ def fix_sdp_msid_semantic(sdp: str) -> str:
     """
     return re.sub(r"a=msid-semantic:WMS\*", r"a=msid-semantic:WMS *", sdp)
 
+def fix_sdp_rtcp_fb(sdp: str) -> str:
+    """
+    Fix SDP rtcp-fb format
+    https://github.com/pion/webrtc/issues/3207
+    """
+    # Some generators (e.g. pion) emit a trailing space after feedback id when no
+    # parameter is present, e.g. "a=rtcp-fb:96 goog-remb ". This breaks some
+    # parsers. Strip only the trailing whitespace before end-of-line on rtcp-fb
+    # lines while preserving CRLF if present.
+    #
+    # Example fix:
+    #   a=rtcp-fb:96 goog-remb \r\n  ->  a=rtcp-fb:96 goog-remb\r\n
+    return re.sub(
+        r"(?m)^(a=rtcp-fb:[^\r\n]*\S)[ \t]+(?=\r?$)",
+        r"\1",
+        sdp,
+    )
 
 def parse_track_stream_mapping(sdp: str) -> dict:
     """Parse SDP to extract track_id to stream_id mapping from msid lines."""

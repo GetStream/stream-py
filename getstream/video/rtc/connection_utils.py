@@ -219,12 +219,12 @@ async def create_join_request(token: str, session_id: str) -> events_pb2.JoinReq
     join_request.subscriber_sdp = sub_offer.sdp
 
     for transceiver in temp_pub_pc.getTransceivers():
-        transceiver.stop()
+        await transceiver.stop()
     for transceiver in temp_sub_pc.getTransceivers():
-        transceiver.stop()
+        await transceiver.stop()
 
-    temp_pub_pc.close()
-    temp_sub_pc.close()
+    await temp_pub_pc.close()
+    await temp_sub_pc.close()
 
     return join_request
 
