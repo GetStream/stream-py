@@ -1,16 +1,15 @@
 import asyncio
 import logging
 import os
-from uuid import uuid4
 import webbrowser
 from urllib.parse import urlencode
+from uuid import uuid4
 
 from dotenv import load_dotenv
 
 from getstream import Stream
 from getstream.models import CallRequest, StartClosedCaptionsResponse, UserRequest
-from getstream.plugins import OpenAIRealtime
-
+from getstream.plugins.openai.sts import OpenAIRealtime
 
 logging.basicConfig(
     level=logging.INFO,
@@ -93,7 +92,7 @@ async def main():
 
     sts_bot = OpenAIRealtime(
         api_key=os.getenv("OPENAI_API_KEY"),
-        model=os.getenv("OPENAI_REALTIME_MODEL") or "gpt-4o-realtime-preview",
+        model=os.getenv("OPENAI_REALTIME_MODEL") or "gpt-realtime",
         instructions="You are a friendly assistant; reply verbally in a short sentence of maximum 5 words.",
         voice="alloy",
     )
@@ -119,16 +118,6 @@ async def main():
                 }
             ]
 
-            await sts_bot.update_session(
-                turn_detection={
-                    "type": "semantic_vad",
-                    "eagerness": "low",
-                    "create_response": True,
-                    "interrupt_response": True,
-                },
-                tools=tools,
-            )
-
             await sts_bot.send_user_message("Give a very short greeting to the user.")
 
             logging.info("🎧 Listening for responses... (Press Ctrl+C to stop)")
@@ -140,8 +129,45 @@ async def main():
                 """Helper that starts closed captions for the call."""
                 return call.start_closed_captions().data
 
+            # One-time session update after server confirms session creation
+            session_updated_once = False
+
             async for event in connection:
                 logging.info("🔔 Event received: %s", event.type)
+                if event.type == "session.created" and not session_updated_once:
+                    try:
+                        await sts_bot.update_session(
+                            modalities=["audio"],
+                            turn_detection={
+                                "type": "semantic_vad",
+                                "eagerness": "low",
+                                "create_response": True,
+                                "interrupt_response": True,
+                            },
+                            voice="alloy",
+                            speed=1.1,
+                            tools=tools,
+                        )
+                        session_updated_once = True
+                    except Exception:
+                        logging.exception("Failed to update session")
+                if event.type == "session.updated":
+                    try:
+                        logging.info(
+                            "🛠 Session updated: %s", getattr(event, "session", None)
+                        )
+                        logging.info("🛠🛠🛠🛠🛠🛠🛠 Using model: %s", event.session.model)
+                    except Exception:
+                        pass
+
+                if event.type == "session.created":
+                    logging.info(
+                        "🛠 Session created: %s", getattr(event, "session", None)
+                    )
+                    logging.info(
+                        "session_id %s", getattr(event.session, "session_id", None)
+                    )
+                    logging.info("model %s", getattr(event.session, "model", None))
 
                 if (
                     event.type == "response.done"
