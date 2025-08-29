@@ -62,7 +62,6 @@ from getstream.plugins.common import STS
 from getstream.video.call import Call
 from getstream.video.openai import ConnectionManagerWrapper
 
-
 logger = logging.getLogger(__name__)
 
 
