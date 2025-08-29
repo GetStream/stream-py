@@ -92,7 +92,7 @@ async def main():
 
     sts_bot = OpenAIRealtime(
         api_key=os.getenv("OPENAI_API_KEY"),
-        model="gpt-realtime",
+        model=os.getenv("OPENAI_REALTIME_MODEL") or "gpt-realtime",
         instructions="You are a friendly assistant; reply verbally in a short sentence of maximum 5 words.",
         voice="alloy",
     )
