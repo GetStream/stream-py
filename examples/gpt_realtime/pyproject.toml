@@ -1,0 +1,16 @@
+[project]
+name = "gpt-realtime-demo"
+version = "0.1.0"
+description = "GPT-Realtime w/ Stream"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "getstream[webrtc]==2.3.0a5",
+    "aiortc",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.1",
+    "pytest-asyncio>=1.0.0",
+]
