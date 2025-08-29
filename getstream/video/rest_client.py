@@ -185,6 +185,39 @@ class VideoRestClient(BaseClient):
             json=json,
         )
 
+    def send_closed_caption(
+        self,
+        type: str,
+        id: str,
+        speaker_id: str,
+        text: str,
+        end_time: Optional[datetime] = None,
+        service: Optional[str] = None,
+        start_time: Optional[datetime] = None,
+        user_id: Optional[str] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[SendClosedCaptionResponse]:
+        path_params = {
+            "type": type,
+            "id": id,
+        }
+        json = build_body_dict(
+            speaker_id=speaker_id,
+            text=text,
+            end_time=end_time,
+            service=service,
+            start_time=start_time,
+            user_id=user_id,
+            user=user,
+        )
+
+        return self.post(
+            "/api/v2/video/call/{type}/{id}/closed_captions",
+            SendClosedCaptionResponse,
+            path_params=path_params,
+            json=json,
+        )
+
     def delete_call(
         self, type: str, id: str, hard: Optional[bool] = None
     ) -> StreamResponse[DeleteCallResponse]:
