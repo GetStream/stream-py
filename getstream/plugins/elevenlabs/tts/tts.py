@@ -1,6 +1,6 @@
 import logging
 
-from getstream.plugins.common import TTS
+from getstream.plugins.common import TTS, TelemetryEventEmitter
 from elevenlabs.client import AsyncElevenLabs
 from getstream.video.rtc.audio_track import AudioStreamTrack
 from typing import AsyncIterator, Optional
@@ -35,6 +35,13 @@ class ElevenLabsTTS(TTS):
         self.voice_id = voice_id
         self.model_id = model_id
         self.output_format = "pcm_16000"
+        
+        # Initialize telemetry event emitter
+        self.telemetry_emitter = TelemetryEventEmitter("elevenlabs_tts")
+        
+        # Initialize telemetry registry
+        from getstream.plugins.common import TelemetryEventRegistry
+        self.telemetry_registry = TelemetryEventRegistry()
 
     def set_output_track(self, track: AudioStreamTrack) -> None:
         if track.framerate != 16000:

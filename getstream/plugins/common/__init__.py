@@ -61,6 +61,26 @@ from .event_serialization import serialize_event, serialize_events, deserialize_
 from .event_metrics import calculate_stt_metrics, calculate_tts_metrics, calculate_vad_metrics
 from .events import create_event
 
+# OpenTelemetry integration
+from .telemetry import (
+    TelemetryConfig,
+    PluginTelemetry,
+    initialize_telemetry,
+    get_telemetry,
+    shutdown_telemetry,
+    trace_plugin_operation,
+)
+from .telemetry_events import (
+    TelemetryEventEmitter,
+    TelemetryEventFilter,
+)
+from .telemetry_registry import (
+    RegistryMetrics,
+    TelemetryEventRegistry,
+    get_global_telemetry_registry,
+    shutdown_global_telemetry_registry,
+)
+
 __all__ = [
     # Base classes
     "STT",
@@ -127,4 +147,18 @@ __all__ = [
     "calculate_stt_metrics",
     "calculate_tts_metrics",
     "calculate_vad_metrics",
+    
+    # OpenTelemetry integration
+    "TelemetryConfig",
+    "PluginTelemetry",
+    "initialize_telemetry",
+    "get_telemetry",
+    "shutdown_telemetry",
+    "trace_plugin_operation",
+    "TelemetryEventEmitter",
+    "TelemetryEventFilter",
+    "RegistryMetrics",
+    "TelemetryEventRegistry",
+    "get_global_telemetry_registry",
+    "shutdown_global_telemetry_registry",
 ]

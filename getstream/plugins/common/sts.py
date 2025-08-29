@@ -85,6 +85,19 @@ class STS(AsyncIOEventEmitter, abc.ABC):
         )
         register_global_event(init_event)
         self.emit("initialized", init_event)
+        
+        # Emit to telemetry if available
+        if hasattr(self, 'telemetry_emitter'):
+            self.telemetry_emitter.emit(init_event)
+            
+        # Initialize telemetry registry if available
+        try:
+            from getstream.plugins.common import TelemetryEventRegistry
+            self.telemetry_registry = TelemetryEventRegistry()
+            # Register initialization event in telemetry registry
+            self.telemetry_registry.register_event(init_event)
+        except ImportError:
+            self.telemetry_registry = None
 
         # Common, optional preferences (not all providers will use all of these)
         self.model = model
@@ -113,6 +126,10 @@ class STS(AsyncIOEventEmitter, abc.ABC):
         )
         register_global_event(event)
         self.emit("connected", event)  # Structured event
+        
+        # Register in telemetry registry if available
+        if hasattr(self, 'telemetry_registry'):
+            self.telemetry_registry.register_event(event)
 
     def _emit_disconnected_event(self, reason=None, was_clean=True):
         """Emit a structured disconnected event."""
@@ -126,6 +143,10 @@ class STS(AsyncIOEventEmitter, abc.ABC):
         )
         register_global_event(event)
         self.emit("disconnected", event)  # Structured event
+        
+        # Register in telemetry registry if available
+        if hasattr(self, 'telemetry_registry'):
+            self.telemetry_registry.register_event(event)
 
     def _emit_audio_input_event(
         self, audio_data, sample_rate=16000, user_metadata=None
@@ -142,6 +163,10 @@ class STS(AsyncIOEventEmitter, abc.ABC):
         )
         register_global_event(event)
         self.emit("audio_input", event)
+        
+        # Register in telemetry registry if available
+        if hasattr(self, 'telemetry_registry'):
+            self.telemetry_registry.register_event(event)
 
     def _emit_audio_output_event(
         self, audio_data, sample_rate=16000, response_id=None, user_metadata=None
@@ -159,6 +184,10 @@ class STS(AsyncIOEventEmitter, abc.ABC):
         )
         register_global_event(event)
         self.emit("audio_output", event)
+        
+        # Register in telemetry registry if available
+        if hasattr(self, 'telemetry_registry'):
+            self.telemetry_registry.register_event(event)
 
     def _emit_transcript_event(
         self, text, is_user=True, confidence=None,
@@ -178,6 +207,10 @@ class STS(AsyncIOEventEmitter, abc.ABC):
         )
         register_global_event(event)
         self.emit("transcript", event)
+        
+        # Register in telemetry registry if available
+        if hasattr(self, 'telemetry_registry'):
+            self.telemetry_registry.register_event(event)
 
     def _emit_response_event(
         self, text, response_id=None, is_complete=True,
@@ -197,6 +230,10 @@ class STS(AsyncIOEventEmitter, abc.ABC):
         )
         register_global_event(event)
         self.emit("response", event)
+        
+        # Register in telemetry registry if available
+        if hasattr(self, 'telemetry_registry'):
+            self.telemetry_registry.register_event(event)
 
     def _emit_conversation_item_event(
         self, item_id, item_type, status, role,
@@ -217,6 +254,10 @@ class STS(AsyncIOEventEmitter, abc.ABC):
         )
         register_global_event(event)
         self.emit("conversation_item", event)
+        
+        # Register in telemetry registry if available
+        if hasattr(self, 'telemetry_registry'):
+            self.telemetry_registry.register_event(event)
 
     def _emit_error_event(self, error, context="", user_metadata=None):
         """Emit a structured error event."""
@@ -229,6 +270,10 @@ class STS(AsyncIOEventEmitter, abc.ABC):
         )
         register_global_event(event)
         self.emit("error", event)  # Structured event
+        
+        # Register in telemetry registry if available
+        if hasattr(self, 'telemetry_registry'):
+            self.telemetry_registry.register_event(event)
 
     async def close(self):
         """Close the STS service and release any resources."""
@@ -245,6 +290,10 @@ class STS(AsyncIOEventEmitter, abc.ABC):
         )
         register_global_event(close_event)
         self.emit("closed", close_event)
+        
+        # Register in telemetry registry if available
+        if hasattr(self, 'telemetry_registry'):
+            self.telemetry_registry.register_event(close_event)
 
 
 # Public re-export

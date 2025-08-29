@@ -110,6 +110,15 @@ class STT(AsyncIOEventEmitter, abc.ABC):
         )
         register_global_event(init_event)
         self.emit("initialized", init_event)
+        
+        # Initialize telemetry registry if available
+        try:
+            from getstream.plugins.common import TelemetryEventRegistry
+            self.telemetry_registry = TelemetryEventRegistry()
+            # Register initialization event in telemetry registry
+            self.telemetry_registry.register_event(init_event)
+        except ImportError:
+            self.telemetry_registry = None
 
     def _validate_pcm_data(self, pcm_data: PcmData) -> bool:
         """
@@ -178,6 +187,14 @@ class STT(AsyncIOEventEmitter, abc.ABC):
         # Register in global registry and emit structured event
         register_global_event(event)
         self.emit("transcript", event)  # Structured event
+        
+        # Emit to telemetry if available
+        if hasattr(self, 'telemetry_emitter'):
+            self.telemetry_emitter.emit(event)
+            
+        # Register in telemetry registry if available
+        if hasattr(self, 'telemetry_registry'):
+            self.telemetry_registry.register_event(event)
 
     def _emit_partial_transcript_event(
         self,
@@ -219,6 +236,14 @@ class STT(AsyncIOEventEmitter, abc.ABC):
         # Register in global registry and emit structured event
         register_global_event(event)
         self.emit("partial_transcript", event)  # Structured event
+        
+        # Emit to telemetry if available
+        if hasattr(self, 'telemetry_emitter'):
+            self.telemetry_emitter.emit(event)
+            
+        # Register in telemetry registry if available
+        if hasattr(self, 'telemetry_registry'):
+            self.telemetry_registry.register_event(event)
 
     def _emit_error_event(self, error: Exception, context: str = "", user_metadata: Optional[Dict[str, Any]] = None):
         """
@@ -252,6 +277,14 @@ class STT(AsyncIOEventEmitter, abc.ABC):
         # Register in global registry and emit structured event
         register_global_event(event)
         self.emit("error", event)  # Structured event
+        
+        # Emit to telemetry if available
+        if hasattr(self, 'telemetry_emitter'):
+            self.telemetry_emitter.emit(event)
+            
+        # Register in telemetry registry if available
+        if hasattr(self, 'telemetry_registry'):
+            self.telemetry_registry.register_event(event)
 
     async def process_audio(
         self, pcm_data: PcmData, user_metadata: Optional[Dict[str, Any]] = None

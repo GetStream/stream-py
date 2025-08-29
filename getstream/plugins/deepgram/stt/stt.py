@@ -17,7 +17,7 @@ except ImportError:
     LiveOptions = None  # type: ignore
     _deepgram_available = False
 
-from getstream.plugins.common import STT
+from getstream.plugins.common import STT, TelemetryEventEmitter, TelemetryEventRegistry
 from getstream.video.rtc.track_util import PcmData
 
 logger = logging.getLogger(__name__)
@@ -97,6 +97,12 @@ class DeepgramSTT(STT):
         self._running = False
         self._setup_attempted = False
         self._is_closed = False
+        
+        # Initialize telemetry event emitter
+        self.telemetry_emitter = TelemetryEventEmitter("deepgram_stt")
+        
+        # Initialize telemetry registry
+        self.telemetry_registry = TelemetryEventRegistry()
 
         # Track current user context for associating transcripts with users
         self._current_user = None
