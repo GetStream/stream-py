@@ -5,7 +5,7 @@ from typing import List
 
 from getstream.chat.client import ChatClient
 from getstream.common.client import CommonClient
-from getstream.feeds.rest_client import FeedsRestClient
+from getstream.feeds.client import FeedsClient
 from getstream.models import UserRequest
 from getstream.utils import validate_and_clean_url
 from getstream.video.client import VideoClient
@@ -92,11 +92,12 @@ class Stream(CommonClient):
         Feeds stream client.
 
         """
-        return FeedsRestClient(
+        return FeedsClient(
             api_key=self.api_key,
             base_url=self.base_url,
             token=self.token,
             timeout=self.timeout,
+            stream=self,
         )
 
     def upsert_users(self, *users: UserRequest):
