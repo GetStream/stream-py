@@ -101,6 +101,34 @@ class Call:
         self._sync_from_response(response.data)
         return response
 
+    def send_closed_caption(
+        self,
+        speaker_id: str,
+        text: str,
+        end_time: Optional[datetime] = None,
+        language: Optional[str] = None,
+        service: Optional[str] = None,
+        start_time: Optional[datetime] = None,
+        translated: Optional[bool] = None,
+        user_id: Optional[str] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[SendClosedCaptionResponse]:
+        response = self.client.send_closed_caption(
+            type=self.call_type,
+            id=self.id,
+            speaker_id=speaker_id,
+            text=text,
+            end_time=end_time,
+            language=language,
+            service=service,
+            start_time=start_time,
+            translated=translated,
+            user_id=user_id,
+            user=user,
+        )
+        self._sync_from_response(response.data)
+        return response
+
     def delete(self, hard: Optional[bool] = None) -> StreamResponse[DeleteCallResponse]:
         response = self.client.delete_call(type=self.call_type, id=self.id, hard=hard)
         self._sync_from_response(response.data)
@@ -296,6 +324,7 @@ class Call:
         enable_transcription: Optional[bool] = None,
         external_storage: Optional[str] = None,
         language: Optional[str] = None,
+        speech_segment_config: Optional[SpeechSegmentConfig] = None,
     ) -> StreamResponse[StartClosedCaptionsResponse]:
         response = self.client.start_closed_captions(
             type=self.call_type,
@@ -303,6 +332,7 @@ class Call:
             enable_transcription=enable_transcription,
             external_storage=external_storage,
             language=language,
+            speech_segment_config=speech_segment_config,
         )
         self._sync_from_response(response.data)
         return response

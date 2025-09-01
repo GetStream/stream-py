@@ -60,25 +60,27 @@ class ModerationRestClient(BaseClient):
 
     def check(
         self,
-        config_key: str,
         entity_creator_id: str,
         entity_id: str,
         entity_type: str,
+        config_key: Optional[str] = None,
         config_team: Optional[str] = None,
         test_mode: Optional[bool] = None,
         user_id: Optional[str] = None,
+        config: Optional[ModerationConfig] = None,
         moderation_payload: Optional[ModerationPayload] = None,
         options: Optional[Dict[str, object]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[CheckResponse]:
         json = build_body_dict(
-            config_key=config_key,
             entity_creator_id=entity_creator_id,
             entity_id=entity_id,
             entity_type=entity_type,
+            config_key=config_key,
             config_team=config_team,
             test_mode=test_mode,
             user_id=user_id,
+            config=config,
             moderation_payload=moderation_payload,
             options=options,
             user=user,
@@ -299,6 +301,76 @@ class ModerationRestClient(BaseClient):
 
         return self.post(
             "/api/v2/moderation/logs", QueryModerationLogsResponse, json=json
+        )
+
+    def upsert_moderation_rule(
+        self,
+        name: str,
+        rule_type: str,
+        action: RuleBuilderAction,
+        cooldown_period: Optional[str] = None,
+        description: Optional[str] = None,
+        enabled: Optional[bool] = None,
+        logic: Optional[str] = None,
+        team: Optional[str] = None,
+        conditions: Optional[List[RuleBuilderCondition]] = None,
+        config_keys: Optional[List[str]] = None,
+        groups: Optional[List[RuleBuilderConditionGroup]] = None,
+    ) -> StreamResponse[UpsertModerationRuleResponse]:
+        json = build_body_dict(
+            name=name,
+            rule_type=rule_type,
+            action=action,
+            cooldown_period=cooldown_period,
+            description=description,
+            enabled=enabled,
+            logic=logic,
+            team=team,
+            conditions=conditions,
+            config_keys=config_keys,
+            groups=groups,
+        )
+
+        return self.post(
+            "/api/v2/moderation/moderation_rule",
+            UpsertModerationRuleResponse,
+            json=json,
+        )
+
+    def delete_moderation_rule(self) -> StreamResponse[DeleteModerationRuleResponse]:
+        return self.delete(
+            "/api/v2/moderation/moderation_rule/{id}", DeleteModerationRuleResponse
+        )
+
+    def get_moderation_rule(self) -> StreamResponse[GetModerationRuleResponse]:
+        return self.get(
+            "/api/v2/moderation/moderation_rule/{id}", GetModerationRuleResponse
+        )
+
+    def query_moderation_rules(
+        self,
+        limit: Optional[int] = None,
+        next: Optional[str] = None,
+        prev: Optional[str] = None,
+        user_id: Optional[str] = None,
+        sort: Optional[List[SortParamRequest]] = None,
+        filter: Optional[Dict[str, object]] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[QueryModerationRulesResponse]:
+        json = build_body_dict(
+            limit=limit,
+            next=next,
+            prev=prev,
+            user_id=user_id,
+            sort=sort,
+            filter=filter,
+            user=user,
+        )
+
+        return self.post(
+            "/api/v2/moderation/moderation_rules",
+            QueryModerationRulesResponse,
+            json=json,
         )
 
     def mute(

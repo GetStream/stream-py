@@ -30,7 +30,7 @@ from getstream.models import (
     ActivityRequest,
     RankingConfig,
     ActivityProcessorConfig,
-    AggregationConfig
+    AggregationConfig,
 )
 from getstream.stream_response import StreamResponse
 
@@ -1446,7 +1446,7 @@ class TestFeedIntegration:
         # snippet-start: ListFeedGroups
         list_response = self.client.feeds.list_feed_groups()
         # snippet-end: ListFeedGroups
-        
+
         self._assert_response_success(list_response, "list feed groups")
         print(f"✅ Listed {len(list_response.data.groups)} existing feed groups")
 
@@ -1454,8 +1454,8 @@ class TestFeedIntegration:
         print("\n➕ Testing create feed group...")
         # snippet-start: CreateFeedGroup
         create_response = self.client.feeds.create_feed_group(
-            id= feed_group_id,
-            default_visibility= "public",
+            id=feed_group_id,
+            default_visibility="public",
         )
         # snippet-end: CreateFeedGroup
 
@@ -1476,7 +1476,7 @@ class TestFeedIntegration:
         # Test 4: Update Feed Group
         print("\n✏️ Testing update feed group...")
         # snippet-start: UpdateFeedGroup
-        update_response = self.client.feeds.update_feed_group(id= "feed_group_id")
+        update_response = self.client.feeds.update_feed_group(id="feed_group_id")
         # snippet-end: UpdateFeedGroup
 
         self._assert_response_success(update_response, "update feed group")
@@ -1501,14 +1501,12 @@ class TestFeedIntegration:
         print("\n📊 Testing create feed group with aggregation...")
         # snippet-start: CreateFeedGroupWithAggregation
         self.client.feeds.create_feed_group(
-            id = feed_group_id,
+            id=feed_group_id,
             default_visibility="public",
-            activity_processors=[
-                ActivityProcessorConfig(type="default")
-            ],
+            activity_processors=[ActivityProcessorConfig(type="dummy")],
             aggregation=AggregationConfig(
-                format="{{ type }}-{{ time.strftime(\"%Y-%m-%d\") }}"
-            )
+                format='{{ type }}-{{ time.strftime("%Y-%m-%d") }}'
+            ),
         )
         # snippet-end: CreateFeedGroupWithAggregation
 
@@ -1520,9 +1518,8 @@ class TestFeedIntegration:
             id=feed_group_id,
             default_visibility="public",
             ranking=RankingConfig(
-                type="default",
-                score="decay_linear(time) * popularity"
-            )
+                type="expression", score="decay_linear(time) * popularity"
+            ),
         )
         # snippet-end: CreateFeedGroupWithRanking
 
@@ -1545,12 +1542,8 @@ class TestFeedIntegration:
         print("\n➕ Testing create feed view...")
         # snippet-start: CreateFeedView
         create_response = self.client.feeds.create_feed_view(
-            id = feed_view_id,
-            activity_selectors= [
-                {
-                    "type": "recent"
-                }
-            ],
+            id=feed_view_id,
+            activity_selectors=[{"type": "recent"}],
         )
         # snippet-end: CreateFeedView
 
@@ -1573,12 +1566,7 @@ class TestFeedIntegration:
         # snippet-start: UpdateFeedView
         update_response = self.client.feeds.update_feed_view(
             id="feedViewID",
-            activity_selectors= [
-                {
-                    "type": "popular",
-                    "min_popularity": 10
-                }
-            ]
+            activity_selectors=[{"type": "popular", "min_popularity": 10}],
         )
         # snippet-end: UpdateFeedView
 
@@ -1589,14 +1577,13 @@ class TestFeedIntegration:
         print("\n🔄 Testing get or create feed view (existing)...")
         # snippet-start: GetOrCreateFeedViewExisting
         get_or_create_response = self.client.feeds.get_or_create_feed_view(
-            id=feed_view_id,
-            activity_selectors= [
-                {"type": "recent"}
-            ]
+            id=feed_view_id, activity_selectors=[{"type": "recent"}]
         )
         # snippet-end: GetOrCreateFeedViewExisting
 
-        self._assert_response_success(get_or_create_response, "get or create existing feed view")
+        self._assert_response_success(
+            get_or_create_response, "get or create existing feed view"
+        )
         print(f"✅ Got existing feed view: {feed_view_id}")
 
         # Test 6: Delete Feed View
