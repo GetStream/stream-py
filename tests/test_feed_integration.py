@@ -1503,7 +1503,7 @@ class TestFeedIntegration:
         self.client.feeds.create_feed_group(
             id=feed_group_id,
             default_visibility="public",
-            activity_processors=[ActivityProcessorConfig(type="default")],
+            activity_processors=[ActivityProcessorConfig(type="dummy")],
             aggregation=AggregationConfig(
                 format='{{ type }}-{{ time.strftime("%Y-%m-%d") }}'
             ),
