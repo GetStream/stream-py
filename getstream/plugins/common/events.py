@@ -14,10 +14,17 @@ Key Features:
 """
 
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
+
+from .llm_types import (
+    NormalizedOutputItem,
+    NormalizedResponse,
+    ResponseFormat,
+)
 
 
 class EventType(Enum):
@@ -52,6 +59,13 @@ class EventType(Enum):
     VAD_AUDIO = "vad_audio"
     VAD_PARTIAL = "vad_partial"
     VAD_ERROR = "vad_error"
+
+    # LLM Events
+    LLM_REQUEST = "llm_request"
+    LLM_STREAM_DELTA = "llm_stream_delta"
+    LLM_RESPONSE = "llm_response"
+    LLM_ERROR = "llm_error"
+    LLM_CONNECTION = "llm_connection"
 
     # Generic Plugin Events
     PLUGIN_INITIALIZED = "plugin_initialized"
@@ -349,6 +363,83 @@ class STSErrorEvent(BaseEvent):
 
 
 # ============================================================================
+# LLM (Large Language Model) Events
+# ============================================================================
+
+
+@dataclass
+class LLMRequestEvent(BaseEvent):
+    """Event emitted when an LLM request is initiated.
+
+    Notes:
+        The ``messages`` field follows the provider-agnostic ``Message`` schema
+        defined in common LLM types (role + content parts). We keep a flexible
+        Dict/List type here to avoid circular imports; providers should still
+        populate it with the normalized ``Message`` objects.
+    """
+
+    event_type: EventType = field(default=EventType.LLM_REQUEST, init=False)
+    model_name: Optional[str] = None
+    messages: Optional[Sequence[Any]] = None
+    tools: Optional[Sequence[Any]] = None
+    options: Optional[Any] = None
+    response_format: Optional[ResponseFormat] = None
+    metadata: Optional[Dict[str, Any]] = None
+
+
+@dataclass
+class LLMStreamDeltaEvent(BaseEvent):
+    """Event emitted for streaming deltas from the LLM provider."""
+
+    event_type: EventType = field(default=EventType.LLM_STREAM_DELTA, init=False)
+    delta: Optional[Any] = None
+    index: Optional[int] = None
+    is_final: bool = False
+    normalized_delta: Optional[NormalizedOutputItem] = None
+    event_name: Optional[str] = None
+
+
+@dataclass
+class LLMResponseEvent(BaseEvent):
+    """Event emitted when an LLM response is available (final or intermediate).
+
+    Notes:
+        The ``message`` field should use the normalized ``Message`` schema.
+        Tool calls and usage are provider-normalized dicts when available.
+    """
+
+    event_type: EventType = field(default=EventType.LLM_RESPONSE, init=False)
+    normalized_response: Optional[NormalizedResponse] = None
+    raw: Optional[Any] = None
+
+
+@dataclass
+class LLMErrorEvent(BaseEvent):
+    """Event emitted when an LLM error occurs."""
+
+    event_type: EventType = field(default=EventType.LLM_ERROR, init=False)
+    error: Optional[Exception] = None
+    error_code: Optional[str] = None
+    context: Optional[str] = None
+    is_recoverable: bool = True
+    raw: Optional[Any] = None
+
+    @property
+    def error_message(self) -> str:
+        return str(self.error) if self.error else "Unknown error"
+
+
+@dataclass
+class LLMConnectionEvent(BaseEvent):
+    """Event emitted for LLM realtime connection state changes."""
+
+    event_type: EventType = field(default=EventType.LLM_CONNECTION, init=False)
+    connection_state: Optional[ConnectionState] = None
+    provider: Optional[str] = None
+    details: Optional[Dict[str, Any]] = None
+
+
+# ============================================================================
 # VAD (Voice Activity Detection) Events
 # ============================================================================
 
@@ -490,6 +581,11 @@ EVENT_CLASS_MAP = {
     EventType.VAD_AUDIO: VADAudioEvent,
     EventType.VAD_PARTIAL: VADPartialEvent,
     EventType.VAD_ERROR: VADErrorEvent,
+    EventType.LLM_REQUEST: LLMRequestEvent,
+    EventType.LLM_STREAM_DELTA: LLMStreamDeltaEvent,
+    EventType.LLM_RESPONSE: LLMResponseEvent,
+    EventType.LLM_ERROR: LLMErrorEvent,
+    EventType.LLM_CONNECTION: LLMConnectionEvent,
     EventType.PLUGIN_INITIALIZED: PluginInitializedEvent,
     EventType.PLUGIN_CLOSED: PluginClosedEvent,
     EventType.PLUGIN_ERROR: PluginErrorEvent,
@@ -535,6 +631,12 @@ __all__ = [
     "TTSSynthesisCompleteEvent",
     "TTSErrorEvent",
     "TTSConnectionEvent",
+    # LLM Events
+    "LLMRequestEvent",
+    "LLMStreamDeltaEvent",
+    "LLMResponseEvent",
+    "LLMErrorEvent",
+    "LLMConnectionEvent",
     # STS Events
     "STSConnectedEvent",
     "STSDisconnectedEvent",
