@@ -14,12 +14,17 @@ Key Features:
 """
 
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from .llm_types import Message
+from .llm_types import (
+    NormalizedOutputItem,
+    NormalizedResponse,
+    ResponseFormat,
+)
 
 
 class EventType(Enum):
@@ -375,9 +380,11 @@ class LLMRequestEvent(BaseEvent):
 
     event_type: EventType = field(default=EventType.LLM_REQUEST, init=False)
     model_name: Optional[str] = None
-    messages: Optional[List[Message]] = None
-    tools: Optional[List[Dict[str, Any]]] = None
-    options: Optional[Dict[str, Any]] = None
+    messages: Optional[Sequence[Any]] = None
+    tools: Optional[Sequence[Any]] = None
+    options: Optional[Any] = None
+    response_format: Optional[ResponseFormat] = None
+    metadata: Optional[Dict[str, Any]] = None
 
 
 @dataclass
@@ -385,9 +392,11 @@ class LLMStreamDeltaEvent(BaseEvent):
     """Event emitted for streaming deltas from the LLM provider."""
 
     event_type: EventType = field(default=EventType.LLM_STREAM_DELTA, init=False)
-    delta: Optional[Dict[str, Any]] = None
+    delta: Optional[Any] = None
     index: Optional[int] = None
     is_final: bool = False
+    normalized_delta: Optional[NormalizedOutputItem] = None
+    event_name: Optional[str] = None
 
 
 @dataclass
@@ -400,10 +409,8 @@ class LLMResponseEvent(BaseEvent):
     """
 
     event_type: EventType = field(default=EventType.LLM_RESPONSE, init=False)
-    message: Optional[Message] = None
-    tool_calls: Optional[List[Dict[str, Any]]] = None
-    usage: Optional[Dict[str, Any]] = None
-    is_complete: bool = True
+    normalized_response: Optional[NormalizedResponse] = None
+    raw: Optional[Any] = None
 
 
 @dataclass
@@ -415,6 +422,7 @@ class LLMErrorEvent(BaseEvent):
     error_code: Optional[str] = None
     context: Optional[str] = None
     is_recoverable: bool = True
+    raw: Optional[Any] = None
 
     @property
     def error_message(self) -> str:

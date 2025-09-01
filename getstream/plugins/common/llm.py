@@ -1,7 +1,17 @@
 import abc
 import logging
 import uuid
-from typing import Any, AsyncIterator, Dict, List, Optional, Union
+from collections.abc import Sequence
+from typing import (
+    Any,
+    AsyncIterator,
+    Dict,
+    Generic,
+    List,
+    Optional,
+    TypeVar,
+    Union,
+)
 
 from pyee.asyncio import AsyncIOEventEmitter
 
@@ -19,25 +29,52 @@ from .events import (
     PluginClosedEvent,
     PluginInitializedEvent,
 )
-from .llm_types import ImageBytesPart, ImageURLPart, Message, Role
+from .llm_types import (
+    ImageBytesPart,
+    ImageURLPart,
+    Message,
+    NormalizedAudioItem,
+    NormalizedOutputItem,
+    NormalizedResponse,
+    ResponseFormat,
+    Role,
+)
+
+# Provider type variables for generic LLM base (unbounded; provider-defined)
+TMessage = TypeVar("TMessage")
+TTool = TypeVar("TTool")
+TOptions = TypeVar("TOptions")
+TSyncResult = TypeVar("TSyncResult")
+TStreamItem = TypeVar("TStreamItem")
 
 logger = logging.getLogger(__name__)
 
 
-class LLM(AsyncIOEventEmitter, abc.ABC):
+class LLM(
+    AsyncIOEventEmitter,
+    abc.ABC,
+    Generic[TMessage, TTool, TOptions, TSyncResult, TStreamItem],
+):
     """Base class for multimodal LLM providers.
 
     Responsibilities:
     - Normalize requests (messages, tools, options)
     - Emit structured events (request, delta, response, error, usage in response payload)
     - Provide sync and streaming APIs via abstract provider hooks
+
+    Notes:
+    - This class is generic over provider-specific types for messages, tools, options,
+      sync results, and stream items.
+    - `response_format` allows callers to request structured outputs (e.g., JSON Schema).
+    - `metadata` is a free-form dict for traceability and routing; it is forwarded to
+      events and provider hooks unchanged.
     """
 
     def __init__(
         self,
         *,
-        provider_name: Optional[str] = None,
-        model: Optional[str] = None,
+        provider_name: str,
+        model: str,
         client: Optional[Any] = None,
         **_: Any,
     ):
@@ -58,24 +95,30 @@ class LLM(AsyncIOEventEmitter, abc.ABC):
         register_global_event(init_event)
         self.emit("initialized", init_event)
 
-    async def generate(
+    async def create_response(
         self,
-        messages: List[Message],
+        messages: Sequence[TMessage],
         *,
-        tools: Optional[List[Dict[str, Any]]] = None,
-        options: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
-        """Run a non-streaming generation.
+        tools: Optional[Sequence[TTool]] = None,
+        options: Optional[TOptions] = None,
+        response_format: Optional[ResponseFormat] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> TSyncResult:
+        """Request a non-streaming response.
 
         Emits LLM_REQUEST and then either LLM_RESPONSE or LLM_ERROR.
-        Returns a normalized response dict (provider-agnostic).
 
-        Expected normalized result shape:
-            {
-                "message": Message,
-                "tool_calls": Optional[List[Dict[str, Any]]],
-                "usage": Optional[Dict[str, Any]]
-            }
+        Parameters:
+        - messages: Provider-specific message objects. Read-only sequence.
+        - tools: Provider-specific tool definitions, if any. Read-only sequence.
+        - options: Provider-specific request options.
+        - response_format: Optional structured-output request (e.g., JSON Schema).
+        - metadata: Optional per-request metadata passed through to events/providers.
+
+        Returns:
+        - Provider-specific sync result (TSyncResult). A corresponding LLM_RESPONSE
+          event is emitted with `raw` set to this result; providers may also supply
+          a normalized response in future adapters.
         """
         req_event = LLMRequestEvent(
             session_id=self.session_id,
@@ -84,22 +127,27 @@ class LLM(AsyncIOEventEmitter, abc.ABC):
             messages=messages,
             tools=tools,
             options=options,
+            response_format=response_format,
+            metadata=metadata,
         )
         register_global_event(req_event)
         self.emit("request", req_event)
 
         try:
-            result = await self._generate_impl(
-                messages=messages, tools=tools, options=options
+            result = await self._create_response_impl(
+                messages=messages,
+                tools=tools,
+                options=options,
+                response_format=response_format,
+                metadata=metadata,
             )
 
+            normalized = self._normalize_sync_result_payload(result)
             resp_event = LLMResponseEvent(
                 session_id=self.session_id,
                 plugin_name=self.provider_name,
-                message=result.get("message"),
-                tool_calls=result.get("tool_calls"),
-                usage=result.get("usage"),
-                is_complete=True,
+                normalized_response=normalized,
+                raw=result,
             )
             register_global_event(resp_event)
             self.emit("response", resp_event)
@@ -110,25 +158,37 @@ class LLM(AsyncIOEventEmitter, abc.ABC):
                 session_id=self.session_id,
                 plugin_name=self.provider_name,
                 error=e,
-                context="generate",
+                context="create_response",
             )
             register_global_event(err_event)
             self.emit("error", err_event)
             raise
 
-    async def stream(
+    async def create_response_stream(
         self,
-        messages: List[Message],
+        messages: Sequence[TMessage],
         *,
-        tools: Optional[List[Dict[str, Any]]] = None,
-        options: Optional[Dict[str, Any]] = None,
-    ) -> AsyncIterator[Dict[str, Any]]:
-        """Run a streaming generation.
+        tools: Optional[Sequence[TTool]] = None,
+        options: Optional[TOptions] = None,
+        response_format: Optional[ResponseFormat] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> AsyncIterator[TStreamItem]:
+        """Request a streaming response.
 
-        Emits LLM_REQUEST, then a sequence of LLM_STREAM_DELTA events, and a final LLM_RESPONSE.
-        Yields provider-agnostic delta dicts.
+        Emits LLM_REQUEST, then a sequence of LLM_STREAM_DELTA events, and a final
+        LLM_RESPONSE. Yields provider-specific stream items (TStreamItem).
 
-        Delta shape (minimum): { "content_delta": str } or provider-specific keys.
+        Parameters:
+        - messages: Provider-specific message objects. Read-only sequence.
+        - tools: Provider-specific tool definitions, if any. Read-only sequence.
+        - options: Provider-specific request options.
+        - response_format: Optional structured-output request (e.g., JSON Schema).
+        - metadata: Optional per-request metadata passed through to events/providers.
+
+        Notes:
+        - Stream deltas are forwarded in `LLMStreamDeltaEvent.delta`. Adapters may also
+          populate `normalized_delta` for OpenAI Responses–style output items.
+        - Convenience text/audio delta fields can be added later without breaking this API.
         """
         req_event = LLMRequestEvent(
             session_id=self.session_id,
@@ -137,52 +197,185 @@ class LLM(AsyncIOEventEmitter, abc.ABC):
             messages=messages,
             tools=tools,
             options=options,
+            response_format=response_format,
+            metadata=metadata,
         )
         register_global_event(req_event)
         self.emit("request", req_event)
 
-        iterator = await self._stream_impl(
-            messages=messages, tools=tools, options=options
+        iterator = await self._create_response_stream_impl(
+            messages=messages,
+            tools=tools,
+            options=options,
+            response_format=response_format,
+            metadata=metadata,
         )
         async for delta in iterator:
+            normalized_delta = self._normalize_stream_item_payload(delta)
             delta_event = LLMStreamDeltaEvent(
                 session_id=self.session_id,
                 plugin_name=self.provider_name,
                 delta=delta,
-                is_final=bool(delta.get("is_final")),
+                normalized_delta=normalized_delta,
+                event_name=(
+                    f"{normalized_delta.get('type')}.delta"
+                    if isinstance(normalized_delta, dict) and "type" in normalized_delta
+                    else None
+                ),
+                is_final=bool(delta.get("is_final"))
+                if isinstance(delta, dict)
+                else False,
             )
             register_global_event(delta_event)
             self.emit("delta", delta_event)
+
+            # Convenience text delta event
+            text_delta = self._extract_text_delta(delta)
+            if isinstance(text_delta, str) and text_delta:
+                text_event = LLMStreamDeltaEvent(
+                    session_id=self.session_id,
+                    plugin_name=self.provider_name,
+                    delta=None,
+                    normalized_delta={"type": "text", "text": text_delta},
+                    event_name="text.delta",
+                    is_final=False,
+                )
+                register_global_event(text_event)
+                self.emit("delta", text_event)
+
+            # Convenience audio delta event
+            audio_info = self._extract_audio_delta(delta)
+            if isinstance(audio_info, dict) and audio_info.get("data"):
+                data_val = audio_info.get("data")
+                if isinstance(data_val, (bytes, bytearray)):
+                    audio_item: NormalizedAudioItem = {
+                        "type": "audio",
+                        "data": bytes(data_val),
+                    }
+                    mime_val = audio_info.get("mime_type")
+                    if isinstance(mime_val, str):
+                        audio_item["mime_type"] = mime_val
+                    sr_val = audio_info.get("sample_rate")
+                    if isinstance(sr_val, int):
+                        audio_item["sample_rate"] = sr_val
+                    ch_val = audio_info.get("channels")
+                    if isinstance(ch_val, int):
+                        audio_item["channels"] = ch_val
+
+                    audio_event = LLMStreamDeltaEvent(
+                        session_id=self.session_id,
+                        plugin_name=self.provider_name,
+                        delta=None,
+                        normalized_delta=audio_item,
+                        event_name="audio.delta",
+                        is_final=False,
+                    )
+                    register_global_event(audio_event)
+                    self.emit("delta", audio_event)
             yield delta
 
     @abc.abstractmethod
-    async def _generate_impl(
+    async def _create_response_impl(
         self,
         *,
-        messages: List[Message],
-        tools: Optional[List[Dict[str, Any]]],
-        options: Optional[Dict[str, Any]],
-    ) -> Dict[str, Any]:
+        messages: Sequence[TMessage],
+        tools: Optional[Sequence[TTool]],
+        options: Optional[TOptions],
+        response_format: Optional[ResponseFormat],
+        metadata: Optional[Dict[str, Any]],
+    ) -> TSyncResult:
         """Provider-specific non-streaming implementation.
 
-        Implementations should return the normalized result shape described in generate().
+        Implementations should return a provider-specific result (TSyncResult) and
+        respect `response_format` and `metadata` where supported by the provider.
         """
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def _stream_impl(
+    async def _create_response_stream_impl(
         self,
         *,
-        messages: List[Message],
-        tools: Optional[List[Dict[str, Any]]],
-        options: Optional[Dict[str, Any]],
-    ) -> AsyncIterator[Dict[str, Any]]:
+        messages: Sequence[TMessage],
+        tools: Optional[Sequence[TTool]],
+        options: Optional[TOptions],
+        response_format: Optional[ResponseFormat],
+        metadata: Optional[Dict[str, Any]],
+    ) -> AsyncIterator[TStreamItem]:
         """Provider-specific streaming implementation.
 
-        Implementations should `yield` normalized deltas; a final response event will
-        typically be emitted by the provider when the stream ends (if available).
+        Implementations should yield provider-specific stream items (TStreamItem) and
+        respect `response_format` and `metadata` where supported by the provider.
+        A final response event will typically be emitted by the provider when the
+        stream ends (if available).
         """
         raise NotImplementedError
+
+    # =============================
+    # Normalization / Convenience hooks
+    # =============================
+
+    # def _map_turn_input(
+    #     self,
+    #     *,
+    #     text: Optional[str],
+    #     inputs: Optional[List[ContentPart]],
+    #     state: Optional[Dict[str, Any]],
+    # ) -> List[Message]:
+    #     """Default mapper from a simple turn input to a `Message` list.
+
+    #     - text: user text input
+    #     - inputs: optional additional content parts (image/audio/etc.)
+    #     - state: optional processor state; mapped into a {"type": "json", "data": ...} part
+    #     """
+    #     content: List[ContentPart] = []
+    #     if text:
+    #         content.append({"type": "text", "text": text})
+    #     if inputs:
+    #         content.extend(inputs)
+    #     if state:
+    #         content.append({"type": "json", "data": state})
+    #     if not content:
+    #         raise ValueError("At least one of text, inputs, or state must be provided")
+    #     return [
+    #         {
+    #             "role": Role.USER,
+    #             "content": content,
+    #         }
+    #     ]
+
+    # TODO: make these abstract
+    def _normalize_sync_result_payload(
+        self, result: TSyncResult
+    ) -> Optional[NormalizedResponse]:
+        """Optional: Map provider sync result to NormalizedResponse.
+
+        Default: return None. Providers can override to supply normalized payload.
+        """
+        return None
+
+    def _normalize_stream_item_payload(
+        self, item: TStreamItem
+    ) -> Optional[NormalizedOutputItem]:
+        """Optional: Map provider stream item to a NormalizedOutputItem.
+
+        Default: return None. Providers can override.
+        """
+        return None
+
+    def _extract_text_delta(self, item: TStreamItem) -> Optional[str]:
+        """Optional: Extract plain text delta for convenience text events.
+
+        Default: return None. Providers can override.
+        """
+        return None
+
+    def _extract_audio_delta(self, item: TStreamItem) -> Optional[Dict[str, Any]]:
+        """Optional: Extract audio chunk for convenience audio events.
+
+        Should return a dict with keys: data (bytes) and optionally
+        mime_type (str), sample_rate (int), channels (int). Default: None.
+        """
+        return None
 
     async def close(self):
         """Close the LLM and release any resources."""
@@ -197,7 +390,7 @@ class LLM(AsyncIOEventEmitter, abc.ABC):
         self.emit("closed", close_event)
 
 
-class RealtimeLLM(LLM):
+class RealtimeLLM(LLM[TMessage, TTool, TOptions, TSyncResult, TStreamItem]):
     """Base class for realtime-capable LLM providers.
 
     Adds connection lifecycle and event emission. Concrete classes should
@@ -257,6 +450,14 @@ class RealtimeLLM(LLM):
         """
         self._output_track = track
 
+    def create_output_track(
+        self, *, framerate: int = 24000, stereo: bool = False, format: str = "s16"
+    ) -> AudioStreamTrack:
+        """Create and set a default output audio track and return it."""
+        track = AudioStreamTrack(framerate=framerate, stereo=stereo, format=format)
+        self.set_output_track(track)
+        return track
+
     @property
     def output_track(self) -> Optional[AudioStreamTrack]:
         return self._output_track
@@ -281,6 +482,31 @@ class RealtimeLLM(LLM):
     ) -> None:
         """Send an image (bytes or URL) into the realtime session."""
         raise NotImplementedError
+
+    @abc.abstractmethod
+    async def send_video_frame(
+        self,
+        *,
+        data: bytes,
+        mime_type: Optional[str] = None,
+        width: Optional[int] = None,
+        height: Optional[int] = None,
+    ) -> None:
+        """Send a single encoded video frame (e.g. PNG/JPEG bytes) into the session."""
+        raise NotImplementedError
+
+    def emit_transcript(self, text: str, *, is_final: bool = False) -> None:
+        """Emit a standardized transcript delta event to integrate with chat flow."""
+        event = LLMStreamDeltaEvent(
+            session_id=self.session_id,
+            plugin_name=self.provider_name,
+            delta=None,
+            normalized_delta={"type": "text", "text": text},
+            event_name="transcript.delta",
+            is_final=is_final,
+        )
+        register_global_event(event)
+        self.emit("delta", event)
 
     async def close(self):
         # If connected, disconnect first
