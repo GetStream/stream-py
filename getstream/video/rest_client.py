@@ -553,6 +553,7 @@ class VideoRestClient(BaseClient):
         enable_transcription: Optional[bool] = None,
         external_storage: Optional[str] = None,
         language: Optional[str] = None,
+        speech_segment_config: Optional[SpeechSegmentConfig] = None,
     ) -> StreamResponse[StartClosedCaptionsResponse]:
         path_params = {
             "type": type,
@@ -562,6 +563,7 @@ class VideoRestClient(BaseClient):
             enable_transcription=enable_transcription,
             external_storage=external_storage,
             language=language,
+            speech_segment_config=speech_segment_config,
         )
 
         return self.post(

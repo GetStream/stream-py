@@ -9,7 +9,7 @@ class FeedsClient(FeedsRestClient):
             api_key=api_key, base_url=base_url, token=token, timeout=timeout
         )
         self.stream = stream
-    
+
     def feed(
         self, feed_type: str, feed_id: str, custom_data: Optional[Dict] = None
     ) -> Feed:
