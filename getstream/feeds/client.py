@@ -1,5 +1,6 @@
 from getstream.feeds.rest_client import FeedsRestClient
 from getstream.feeds.feeds import Feed
+from typing import Optional, Dict
 
 
 class FeedsClient(FeedsRestClient):
