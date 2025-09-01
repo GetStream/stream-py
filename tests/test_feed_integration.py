@@ -1518,7 +1518,7 @@ class TestFeedIntegration:
             id=feed_group_id,
             default_visibility="public",
             ranking=RankingConfig(
-                type="default", score="decay_linear(time) * popularity"
+                type="expression", score="decay_linear(time) * popularity"
             ),
         )
         # snippet-end: CreateFeedGroupWithRanking
