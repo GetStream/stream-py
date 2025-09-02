@@ -1,5 +1,5 @@
 """
-Test utility functions for GetStream plugins.
+Test utility functions for GetStream.
 
 This module provides utility functions for accessing test assets and other
 resources from the main test directory.
@@ -18,10 +18,10 @@ IMPORTANT: When writing tests for plugins, consider the following:
    and get_json_metadata() functions provided in this module.
 """
 
-import os
 import json
+import os
 import sys
-from typing import Dict, Any
+from typing import Any, Dict
 
 # Load environment variables from .env files
 try:
@@ -53,7 +53,7 @@ try:
         sys.path.insert(0, project_root)
 
     # Import fixtures from tests module
-    from tests.fixtures import client, call, get_user, shared_call
+    from tests.fixtures import call, client, get_user, shared_call
 
     # Re-export fixtures
     __all__ = [
