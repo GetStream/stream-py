@@ -85,6 +85,13 @@ class Stream(CommonClient):
             timeout=self.timeout,
             stream=self,
         )
+    
+    @cached_property
+    def common(self):
+        """
+        Common stream client.
+        """
+        return CommonClient(self.api_key, self.base_url, self.token, self.timeout, stream=self,)
 
     @cached_property
     def feeds(self):
