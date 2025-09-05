@@ -420,7 +420,7 @@ async def test_connect_openai(client: Stream, capsys):
                         print("other user left, leaving the call now")
                         return
                     if event.type == "call.session_participant_joined":
-                        await connection.conversation.item.create(
+                        await connection._conversation.item.create(
                             item={
                                 "type": "message",
                                 "role": "user",
