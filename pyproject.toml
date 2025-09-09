@@ -6,7 +6,7 @@ authors = [
     { name = "sachaarbonel", email = "sacha.arbonel@hotmail.fr" },
     { name = "tbarbugli", email = "tbarbugli@gmail.com" },
 ]
-requires-python = ">=3.9,<4.0.0"
+requires-python = ">=3.10,<4.0.0"
 readme = "README.md"
 classifiers = [
     "Programming Language :: Python :: 3",

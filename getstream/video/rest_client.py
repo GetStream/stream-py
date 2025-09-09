@@ -21,6 +21,11 @@ class VideoRestClient(BaseClient):
             token=token,
         )
 
+    def get_active_calls_status(self) -> StreamResponse[GetActiveCallsStatusResponse]:
+        return self.get(
+            "/api/v2/video/active_calls_status", GetActiveCallsStatusResponse
+        )
+
     def query_user_feedback(
         self,
         full: Optional[bool] = None,
@@ -180,6 +185,43 @@ class VideoRestClient(BaseClient):
             json=json,
         )
 
+    def send_closed_caption(
+        self,
+        type: str,
+        id: str,
+        speaker_id: str,
+        text: str,
+        end_time: Optional[datetime] = None,
+        language: Optional[str] = None,
+        service: Optional[str] = None,
+        start_time: Optional[datetime] = None,
+        translated: Optional[bool] = None,
+        user_id: Optional[str] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[SendClosedCaptionResponse]:
+        path_params = {
+            "type": type,
+            "id": id,
+        }
+        json = build_body_dict(
+            speaker_id=speaker_id,
+            text=text,
+            end_time=end_time,
+            language=language,
+            service=service,
+            start_time=start_time,
+            translated=translated,
+            user_id=user_id,
+            user=user,
+        )
+
+        return self.post(
+            "/api/v2/video/call/{type}/{id}/closed_captions",
+            SendClosedCaptionResponse,
+            path_params=path_params,
+            json=json,
+        )
+
     def delete_call(
         self, type: str, id: str, hard: Optional[bool] = None
     ) -> StreamResponse[DeleteCallResponse]:
@@ -275,6 +317,30 @@ class VideoRestClient(BaseClient):
         return self.post(
             "/api/v2/video/call/{type}/{id}/go_live",
             GoLiveResponse,
+            path_params=path_params,
+            json=json,
+        )
+
+    def kick_user(
+        self,
+        type: str,
+        id: str,
+        user_id: str,
+        block: Optional[bool] = None,
+        kicked_by_id: Optional[str] = None,
+        kicked_by: Optional[UserRequest] = None,
+    ) -> StreamResponse[KickUserResponse]:
+        path_params = {
+            "type": type,
+            "id": id,
+        }
+        json = build_body_dict(
+            user_id=user_id, block=block, kicked_by_id=kicked_by_id, kicked_by=kicked_by
+        )
+
+        return self.post(
+            "/api/v2/video/call/{type}/{id}/kick",
+            KickUserResponse,
             path_params=path_params,
             json=json,
         )
@@ -487,6 +553,7 @@ class VideoRestClient(BaseClient):
         enable_transcription: Optional[bool] = None,
         external_storage: Optional[str] = None,
         language: Optional[str] = None,
+        speech_segment_config: Optional[SpeechSegmentConfig] = None,
     ) -> StreamResponse[StartClosedCaptionsResponse]:
         path_params = {
             "type": type,
@@ -496,6 +563,7 @@ class VideoRestClient(BaseClient):
             enable_transcription=enable_transcription,
             external_storage=external_storage,
             language=language,
+            speech_segment_config=speech_segment_config,
         )
 
         return self.post(

@@ -717,6 +717,7 @@ class ChatRestClient(BaseClient):
         blocklist: Optional[str] = None,
         blocklist_behavior: Optional[str] = None,
         connect_events: Optional[bool] = None,
+        count_messages: Optional[bool] = None,
         custom_events: Optional[bool] = None,
         mark_messages_pending: Optional[bool] = None,
         mutes: Optional[bool] = None,
@@ -753,6 +754,7 @@ class ChatRestClient(BaseClient):
             blocklist=blocklist,
             blocklist_behavior=blocklist_behavior,
             connect_events=connect_events,
+            count_messages=count_messages,
             custom_events=custom_events,
             mark_messages_pending=mark_messages_pending,
             mutes=mutes,
@@ -910,9 +912,15 @@ class ChatRestClient(BaseClient):
         )
 
     def delete_message(
-        self, id: str, hard: Optional[bool] = None, deleted_by: Optional[str] = None
+        self,
+        id: str,
+        hard: Optional[bool] = None,
+        deleted_by: Optional[str] = None,
+        delete_for_me: Optional[bool] = None,
     ) -> StreamResponse[DeleteMessageResponse]:
-        query_params = build_query_param(hard=hard, deleted_by=deleted_by)
+        query_params = build_query_param(
+            hard=hard, deleted_by=deleted_by, delete_for_me=delete_for_me
+        )
         path_params = {
             "id": id,
         }
@@ -1018,6 +1026,33 @@ class ChatRestClient(BaseClient):
         return self.post(
             "/api/v2/chat/messages/{id}/commit",
             MessageResponse,
+            path_params=path_params,
+            json=json,
+        )
+
+    def ephemeral_message_update(
+        self,
+        id: str,
+        skip_enrich_url: Optional[bool] = None,
+        user_id: Optional[str] = None,
+        unset: Optional[List[str]] = None,
+        set: Optional[Dict[str, object]] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[UpdateMessagePartialResponse]:
+        path_params = {
+            "id": id,
+        }
+        json = build_body_dict(
+            skip_enrich_url=skip_enrich_url,
+            user_id=user_id,
+            unset=unset,
+            set=set,
+            user=user,
+        )
+
+        return self.patch(
+            "/api/v2/chat/messages/{id}/ephemeral",
+            UpdateMessagePartialResponse,
             path_params=path_params,
             json=json,
         )
@@ -1162,7 +1197,7 @@ class ChatRestClient(BaseClient):
             json=json,
         )
 
-    def remove_poll_vote(
+    def delete_poll_vote(
         self, message_id: str, poll_id: str, vote_id: str, user_id: Optional[str] = None
     ) -> StreamResponse[PollVoteResponse]:
         query_params = build_query_param(user_id=user_id)
@@ -1235,8 +1270,6 @@ class ChatRestClient(BaseClient):
     def get_replies(
         self,
         parent_id: str,
-        limit: Optional[int] = None,
-        offset: Optional[int] = None,
         id_gte: Optional[str] = None,
         id_gt: Optional[str] = None,
         id_lte: Optional[str] = None,
@@ -1250,8 +1283,6 @@ class ChatRestClient(BaseClient):
         sort: Optional[List[SortParamRequest]] = None,
     ) -> StreamResponse[GetRepliesResponse]:
         query_params = build_query_param(
-            limit=limit,
-            offset=offset,
             id_gte=id_gte,
             id_gt=id_gt,
             id_lte=id_lte,
@@ -1314,291 +1345,6 @@ class ChatRestClient(BaseClient):
 
         return self.post(
             "/api/v2/chat/moderation/unmute/channel", UnmuteResponse, json=json
-        )
-
-    def create_poll(
-        self,
-        name: str,
-        allow_answers: Optional[bool] = None,
-        allow_user_suggested_options: Optional[bool] = None,
-        description: Optional[str] = None,
-        enforce_unique_vote: Optional[bool] = None,
-        id: Optional[str] = None,
-        is_closed: Optional[bool] = None,
-        max_votes_allowed: Optional[int] = None,
-        user_id: Optional[str] = None,
-        voting_visibility: Optional[str] = None,
-        options: Optional[List[PollOptionInput]] = None,
-        custom: Optional[Dict[str, object]] = None,
-        user: Optional[UserRequest] = None,
-    ) -> StreamResponse[PollResponse]:
-        json = build_body_dict(
-            name=name,
-            allow_answers=allow_answers,
-            allow_user_suggested_options=allow_user_suggested_options,
-            description=description,
-            enforce_unique_vote=enforce_unique_vote,
-            id=id,
-            is_closed=is_closed,
-            max_votes_allowed=max_votes_allowed,
-            user_id=user_id,
-            voting_visibility=voting_visibility,
-            options=options,
-            custom=custom,
-            user=user,
-        )
-
-        return self.post("/api/v2/chat/polls", PollResponse, json=json)
-
-    def update_poll(
-        self,
-        id: str,
-        name: str,
-        allow_answers: Optional[bool] = None,
-        allow_user_suggested_options: Optional[bool] = None,
-        description: Optional[str] = None,
-        enforce_unique_vote: Optional[bool] = None,
-        is_closed: Optional[bool] = None,
-        max_votes_allowed: Optional[int] = None,
-        user_id: Optional[str] = None,
-        voting_visibility: Optional[str] = None,
-        options: Optional[List[PollOptionRequest]] = None,
-        custom: Optional[Dict[str, object]] = None,
-        user: Optional[UserRequest] = None,
-    ) -> StreamResponse[PollResponse]:
-        json = build_body_dict(
-            id=id,
-            name=name,
-            allow_answers=allow_answers,
-            allow_user_suggested_options=allow_user_suggested_options,
-            description=description,
-            enforce_unique_vote=enforce_unique_vote,
-            is_closed=is_closed,
-            max_votes_allowed=max_votes_allowed,
-            user_id=user_id,
-            voting_visibility=voting_visibility,
-            options=options,
-            custom=custom,
-            user=user,
-        )
-
-        return self.put("/api/v2/chat/polls", PollResponse, json=json)
-
-    def query_polls(
-        self,
-        user_id: Optional[str] = None,
-        limit: Optional[int] = None,
-        next: Optional[str] = None,
-        prev: Optional[str] = None,
-        sort: Optional[List[SortParamRequest]] = None,
-        filter: Optional[Dict[str, object]] = None,
-    ) -> StreamResponse[QueryPollsResponse]:
-        query_params = build_query_param(user_id=user_id)
-        json = build_body_dict(
-            limit=limit, next=next, prev=prev, sort=sort, filter=filter
-        )
-
-        return self.post(
-            "/api/v2/chat/polls/query",
-            QueryPollsResponse,
-            query_params=query_params,
-            json=json,
-        )
-
-    def delete_poll(
-        self, poll_id: str, user_id: Optional[str] = None
-    ) -> StreamResponse[Response]:
-        query_params = build_query_param(user_id=user_id)
-        path_params = {
-            "poll_id": poll_id,
-        }
-
-        return self.delete(
-            "/api/v2/chat/polls/{poll_id}",
-            Response,
-            query_params=query_params,
-            path_params=path_params,
-        )
-
-    def get_poll(
-        self, poll_id: str, user_id: Optional[str] = None
-    ) -> StreamResponse[PollResponse]:
-        query_params = build_query_param(user_id=user_id)
-        path_params = {
-            "poll_id": poll_id,
-        }
-
-        return self.get(
-            "/api/v2/chat/polls/{poll_id}",
-            PollResponse,
-            query_params=query_params,
-            path_params=path_params,
-        )
-
-    def update_poll_partial(
-        self,
-        poll_id: str,
-        user_id: Optional[str] = None,
-        unset: Optional[List[str]] = None,
-        set: Optional[Dict[str, object]] = None,
-        user: Optional[UserRequest] = None,
-    ) -> StreamResponse[PollResponse]:
-        path_params = {
-            "poll_id": poll_id,
-        }
-        json = build_body_dict(user_id=user_id, unset=unset, set=set, user=user)
-
-        return self.patch(
-            "/api/v2/chat/polls/{poll_id}",
-            PollResponse,
-            path_params=path_params,
-            json=json,
-        )
-
-    def create_poll_option(
-        self,
-        poll_id: str,
-        text: str,
-        position: Optional[int] = None,
-        user_id: Optional[str] = None,
-        custom: Optional[Dict[str, object]] = None,
-        user: Optional[UserRequest] = None,
-    ) -> StreamResponse[PollOptionResponse]:
-        path_params = {
-            "poll_id": poll_id,
-        }
-        json = build_body_dict(
-            text=text, position=position, user_id=user_id, custom=custom, user=user
-        )
-
-        return self.post(
-            "/api/v2/chat/polls/{poll_id}/options",
-            PollOptionResponse,
-            path_params=path_params,
-            json=json,
-        )
-
-    def update_poll_option(
-        self,
-        poll_id: str,
-        id: str,
-        text: str,
-        user_id: Optional[str] = None,
-        custom: Optional[Dict[str, object]] = None,
-        user: Optional[UserRequest] = None,
-    ) -> StreamResponse[PollOptionResponse]:
-        path_params = {
-            "poll_id": poll_id,
-        }
-        json = build_body_dict(
-            id=id, text=text, user_id=user_id, custom=custom, user=user
-        )
-
-        return self.put(
-            "/api/v2/chat/polls/{poll_id}/options",
-            PollOptionResponse,
-            path_params=path_params,
-            json=json,
-        )
-
-    def delete_poll_option(
-        self, poll_id: str, option_id: str, user_id: Optional[str] = None
-    ) -> StreamResponse[Response]:
-        query_params = build_query_param(user_id=user_id)
-        path_params = {
-            "poll_id": poll_id,
-            "option_id": option_id,
-        }
-
-        return self.delete(
-            "/api/v2/chat/polls/{poll_id}/options/{option_id}",
-            Response,
-            query_params=query_params,
-            path_params=path_params,
-        )
-
-    def get_poll_option(
-        self, poll_id: str, option_id: str, user_id: Optional[str] = None
-    ) -> StreamResponse[PollOptionResponse]:
-        query_params = build_query_param(user_id=user_id)
-        path_params = {
-            "poll_id": poll_id,
-            "option_id": option_id,
-        }
-
-        return self.get(
-            "/api/v2/chat/polls/{poll_id}/options/{option_id}",
-            PollOptionResponse,
-            query_params=query_params,
-            path_params=path_params,
-        )
-
-    def query_poll_votes(
-        self,
-        poll_id: str,
-        user_id: Optional[str] = None,
-        limit: Optional[int] = None,
-        next: Optional[str] = None,
-        prev: Optional[str] = None,
-        sort: Optional[List[SortParamRequest]] = None,
-        filter: Optional[Dict[str, object]] = None,
-    ) -> StreamResponse[PollVotesResponse]:
-        query_params = build_query_param(user_id=user_id)
-        path_params = {
-            "poll_id": poll_id,
-        }
-        json = build_body_dict(
-            limit=limit, next=next, prev=prev, sort=sort, filter=filter
-        )
-
-        return self.post(
-            "/api/v2/chat/polls/{poll_id}/votes",
-            PollVotesResponse,
-            query_params=query_params,
-            path_params=path_params,
-            json=json,
-        )
-
-    def update_push_notification_preferences(
-        self, preferences: List[PushPreferenceInput]
-    ) -> StreamResponse[UpsertPushPreferencesResponse]:
-        json = build_body_dict(preferences=preferences)
-
-        return self.post(
-            "/api/v2/chat/push_preferences", UpsertPushPreferencesResponse, json=json
-        )
-
-    def get_push_templates(
-        self, push_provider_type: str, push_provider_name: Optional[str] = None
-    ) -> StreamResponse[GetPushTemplatesResponse]:
-        query_params = build_query_param(
-            push_provider_type=push_provider_type, push_provider_name=push_provider_name
-        )
-
-        return self.get(
-            "/api/v2/chat/push_templates",
-            GetPushTemplatesResponse,
-            query_params=query_params,
-        )
-
-    def upsert_push_template(
-        self,
-        event_type: str,
-        push_provider_type: str,
-        enable_push: Optional[bool] = None,
-        push_provider_name: Optional[str] = None,
-        template: Optional[str] = None,
-    ) -> StreamResponse[UpsertPushTemplateResponse]:
-        json = build_body_dict(
-            event_type=event_type,
-            push_provider_type=push_provider_type,
-            enable_push=enable_push,
-            push_provider_name=push_provider_name,
-            template=template,
-        )
-
-        return self.post(
-            "/api/v2/chat/push_templates", UpsertPushTemplateResponse, json=json
         )
 
     def query_banned_users(
