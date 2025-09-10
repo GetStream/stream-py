@@ -51,7 +51,7 @@ openai-realtime = [
   "openai[realtime]>=1.93.0",
 ]
 webrtc = [
-    "aiortc>=1.10.1",
+    "aiortc>=1.13.0",
     "numpy>=2.2.6,<2.3",
     "torch>=2.7.1",
     "torchaudio>=2.7.1",
