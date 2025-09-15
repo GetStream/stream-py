@@ -81,6 +81,8 @@ class Call:
         ring: Optional[bool] = None,
         video: Optional[bool] = None,
         data: Optional[CallRequest] = None,
+        connection_id: Optional[str] = None,
+        user_id: Optional[str] = None,
     ) -> StreamResponse[GetOrCreateCallResponse]:
         response = self.client.get_or_create_call(
             type=self.call_type,
@@ -90,6 +92,8 @@ class Call:
             ring=ring,
             video=video,
             data=data,
+            connection_id=connection_id,
+            user_id=user_id
         )
         self._sync_from_response(response.data)
         return response

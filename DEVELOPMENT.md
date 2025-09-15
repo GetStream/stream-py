@@ -26,7 +26,6 @@ getstream acts as a namespace package which means all imports will be relative t
 
 We use uv to manage the workspace. The project root is the root of the workspace. The following packages are added to the workspace:
 - `getstream`
-- `getstream.plugins`
 
 Workspace is configured in `pyproject.toml` and `uv.lock`.
 In the workspace root pyproject.toml,
@@ -34,7 +33,6 @@ In the workspace root pyproject.toml,
 [tool.uv.workspace]
 members = [
     "getstream",
-    "plugins/*",
 ]
 ```
 

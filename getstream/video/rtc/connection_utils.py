@@ -19,7 +19,7 @@ import aiortc
 
 from getstream.base import StreamResponse
 from getstream.models import CallRequest
-from getstream.utils import build_body_dict
+from getstream.utils import build_body_dict, build_query_param, sync_to_async
 from getstream.video.call import Call
 from getstream.video.rtc.models import JoinCallResponse
 from getstream.video.rtc.pb.stream.video.sfu.event import events_pb2
@@ -102,12 +102,13 @@ async def join_call(
     location: str,
     create: bool,
     local_sfu: bool,
+    connection_id: str,
     **kwargs,
 ):
     """Join call via coordinator API."""
     try:
         join_response = await join_call_coordinator_request(
-            call, user_id, location=location, create=create, **kwargs
+            call, user_id, location=location, create=create, connection_id=connection_id, **kwargs
         )
         if local_sfu:
             join_response.data.credentials.server.url = "http://127.0.0.1:3031/twirp"
@@ -133,6 +134,7 @@ async def join_call_coordinator_request(
     notify: Optional[bool] = None,
     video: Optional[bool] = None,
     location: Optional[str] = None,
+    connection_id: Optional[str] = None,
 ) -> StreamResponse[JoinCallResponse]:
     """Make a request to join a call via the coordinator.
 
@@ -150,19 +152,22 @@ async def join_call_coordinator_request(
         A response containing the call information and credentials
     """
     # Create a token for this user
-    token = call.client.stream.create_token(user_id=user_id)
+    token = await sync_to_async(
+        call.client.stream.create_token,
+        user_id=user_id
+    )
 
-    # Create a new client with this token
+    # create a new client with this token
     client = call.client.stream.__class__(
         api_key=call.client.stream.api_key,
         api_secret=call.client.stream.api_secret,
         base_url=call.client.stream.base_url,
     )
 
-    # Set up authentication
+    # set up authentication
     client.token = token
-    client.headers["Authorization"] = token
-    client.client.headers["Authorization"] = token
+    client.headers["authorization"] = token
+    client.client.headers["authorization"] = token
 
     # Prepare path parameters for the request
     path_params = {
@@ -179,12 +184,15 @@ async def join_call_coordinator_request(
         video=video,
         data=data,
     )
+    query_params = build_query_param(connection_id=connection_id)
 
     # Make the POST request to join the call
-    return client.post(
+    return await sync_to_async(
+        client.post,
         "/api/v2/video/call/{type}/{id}/join",
         JoinCallResponse,
         path_params=path_params,
+        query_params=query_params,
         json=json_body,
     )
 
