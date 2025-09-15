@@ -213,7 +213,7 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
             while self._connected and self._websocket:
                 try:
                     raw_message = await self._websocket.recv()
-                    self._logger.info(f"Received message {raw_message}")
+                    self._logger.debug(f"Received message {raw_message}")
 
                     # Update last received timestamp
                     self._last_received = time.time()
