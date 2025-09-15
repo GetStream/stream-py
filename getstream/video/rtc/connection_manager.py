@@ -216,7 +216,16 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         logger.debug(f"Using location: {region}")
         location = region
 
-        # Step 2: Join call via coordinator
+
+        # Step 2: Create coordinator websocket
+        self._coordinator_ws_client = StreamAPIWS(
+            call=self.call,
+            user_details={"id": self.user_id},
+        )
+        self._coordinator_ws_client.on_wildcard("*", _log_event)
+        await self._coordinator_ws_client.connect()
+
+        # Step 3: Join call via coordinator
         if not (ws_url or token):
             join_response = await join_call(
                 self.call,
@@ -224,6 +233,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                 location,
                 self.create,
                 self.local_sfu,
+                self._coordinator_ws_client._client_id,
                 **self.kwargs,
             )
             ws_url = join_response.data.credentials.server.ws_endpoint
@@ -236,7 +246,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
 
         await self._peer_manager.setup_subscriber()
 
-        # Step 3: Connect to WebSocket
+        # Step 4: Connect to WebSocket
         try:
             self._ws_client, sfu_event = await connect_websocket(
                 token=token,
@@ -278,21 +288,10 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             logger.error(f"Failed to connect WebSocket to {ws_url}: {e}")
             raise SfuConnectionError(f"WebSocket connection failed: {e}")
 
-        # Step 4: Create SFU signaling client
+        # Step 5: Create SFU signaling client
         twirp_server_url = self.join_response.data.credentials.server.url
         self.twirp_signaling_client = SignalClient(address=twirp_server_url)
         self.twirp_context = Context(headers={"authorization": token})
-
-        # Step 5: Create coordinator websocket (temporarily disabled to test)
-        user_token = self.call.client.stream.create_token(user_id=self.user_id)
-        self._coordinator_ws_client = StreamAPIWS(
-            api_key=self.call.client.stream.api_key,
-            token=user_token,
-            user_details={"id": self.user_id},
-        )
-        self._coordinator_ws_client.on_wildcard("*", _log_event)
-        await self._coordinator_ws_client.connect()
-
         # Mark as connected
         self.running = True
         self.connection_state = ConnectionState.JOINED

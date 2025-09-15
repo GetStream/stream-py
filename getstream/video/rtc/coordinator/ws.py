@@ -13,18 +13,22 @@ from typing import Optional
 
 import websockets
 
+from getstream import Stream
 from getstream.utils import StreamAsyncIOEventEmitter
+from getstream.video.call import Call
 from .errors import (
     StreamWSAuthError,
     StreamWSConnectionError,
     StreamWSMaxRetriesExceeded,
 )
+from getstream.utils import build_query_param, sync_to_async
+
 from .backoff import exp_backoff
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_WS_URI = "wss://chat.stream-io-api.com/api/v2/connect"
 
+DEFAULT_WS_URI = "wss://video.stream-io-api.com/api/v2/connect"
 
 class StreamAPIWS(StreamAsyncIOEventEmitter):
     """
@@ -36,8 +40,7 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
 
     def __init__(
         self,
-        api_key: str,
-        token: str,
+        call: Call,
         user_details: Optional[dict] = None,
         *,
         uri: str = DEFAULT_WS_URI,
@@ -47,6 +50,7 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
         backoff_base: float = 1.0,
         backoff_factor: float = 2.0,
         logger: Optional[logging.Logger] = None,
+        user_token: Optional[str] = None,
     ):
         """
         Initialize the WebSocket client.
@@ -65,10 +69,10 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
         """
         super().__init__()
 
-        self.api_key = api_key
-        self.token = token
+        self.call = call
         self.user_details = user_details
-        self.uri = f"{uri}?api_key={api_key}&stream-auth-type=jwt"
+        self.user_token = user_token
+        self.uri = f"{uri}?api_key={self.call.client.api_key}&stream-auth-type=jwt"
         self.healthcheck_interval = healthcheck_interval
         self.healthcheck_timeout = healthcheck_timeout
         self.max_retries = max_retries
@@ -90,15 +94,19 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
         self._reconnect_in_progress = False
         self._initial_connection = True  # Track if this is the first connection
 
-    def _build_auth_payload(self) -> dict:
+    async def _build_auth_payload(self) -> dict:
         """
         Build the authentication payload to send after connection.
 
         Returns:
             Authentication payload as a dictionary
         """
+        if not self.user_token:
+            self.user_token = await sync_to_async(self.call.client.stream.create_token, 
+                user_id=self.user_details["id"]
+            )
         payload = {
-            "token": self.token,
+            "token": self.user_token,
             "products": ["video"],
         }
 
@@ -122,15 +130,18 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
         self._logger.debug("Opening WebSocket connection", extra={"uri": self.uri})
 
         # Open WebSocket connection with ping disabled (we handle heartbeats ourselves)
-        self._websocket = await websockets.connect(
-            self.uri,
-            # ping_interval=None,
-            # ping_timeout=None,
+        # Prepare auth payload in same time
+        self._websocket, auth_payload = await asyncio.gather(
+            websockets.connect(
+                self.uri,
+                # ping_interval=None,
+                # ping_timeout=None,
+            ),
+            self._build_auth_payload()
         )
         self._logger.debug("WebSocket connection established")
 
         # Send authentication payload immediately
-        auth_payload = self._build_auth_payload()
         self._logger.debug("Sending auth payload")
         await self._websocket.send(json.dumps(auth_payload))
 
@@ -165,6 +176,31 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
         event_type = message.get("type", "unknown")
         self.emit(event_type, message)
 
+        if not self._reconnect_in_progress:
+            return message
+
+        # make sure we update connection_id to subscribe to events
+        client = Stream(
+            api_key=self.call.client.stream.api_key,
+            api_secret=self.call.client.stream.api_secret,
+            base_url=self.call.client.stream.base_url,
+        )
+
+        client.token = self.user_token
+        client.headers["authorization"] = self.user_token
+        client.client.headers["authorization"] = self.user_token
+        path_params = {
+            "type": self.call.call_type,
+            "id": self.call.id,
+        }
+        query_params = build_query_param(**{
+            "connection_id": self._client_id,
+        })
+        await sync_to_async(client.post,
+            "/video/call/{type}/{id}",
+            path_params=path_params,
+            query_params=query_params
+        )
         return message
 
     async def _reader_task_func(self) -> None:
@@ -177,7 +213,7 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
             while self._connected and self._websocket:
                 try:
                     raw_message = await self._websocket.recv()
-                    self._logger.debug("Received message")
+                    self._logger.info(f"Received message {raw_message}")
 
                     # Update last received timestamp
                     self._last_received = time.time()

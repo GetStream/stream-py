@@ -1,4 +1,5 @@
 import json
+import asyncio
 from typing import Dict, List, Optional, Union
 from urllib.parse import quote
 from datetime import datetime
@@ -183,6 +184,46 @@ def configure_logging(level=None, handler=None, format=None):
     return logger
 
 
+async def sync_to_async(func, *args, **kwargs):
+    """
+    Run a synchronous function asynchronously in a separate thread.
+
+    This helper schedules the blocking function ``func`` to be executed in a
+    thread from the default ``ThreadPoolExecutor`` via
+    :func:`asyncio.to_thread`.  The returned coroutine is wrapped in
+    :func:`asyncio.shield` so that it cannot be cancelled by a caller's
+    cancellation of the surrounding coroutine.  This mirrors the behaviour
+    of many legacy wrappers that provide an ``async`` interface to a sync
+    API.
+
+    Parameters
+    ----------
+    func : Callable
+        The blocking function to execute.
+    *args
+        Positional arguments to pass to ``func``.
+    **kwargs
+        Keyword arguments to pass to ``func``.
+
+    Returns
+    -------
+    Any
+        The result returned by ``func``.
+
+    Example
+    -------
+    >>> import asyncio
+    >>> async def main():
+    ...     result = await sync_to_async(sum, [1, 2, 3])
+    ...     print(result)
+    ...
+    >>> asyncio.run(main())
+    6
+    """
+    return await asyncio.shield(
+        asyncio.create_task(asyncio.to_thread(func, *args, **kwargs))
+    )
+
 __all__ = [
     # Event emitter
     "StreamAsyncIOEventEmitter",
@@ -194,4 +235,6 @@ __all__ = [
     "validate_and_clean_url",
     "configure_logging",
     "UTC",
+    # async
+    "sync_to_async"
 ]

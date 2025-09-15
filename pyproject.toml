@@ -81,7 +81,6 @@ dev = [
 
 [tool.uv.workspace]
 members = [
-    "getstream/plugins/*",
     "examples/test",
 ]
  exclude = [
