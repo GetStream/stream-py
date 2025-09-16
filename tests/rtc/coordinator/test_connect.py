@@ -319,9 +319,7 @@ async def test_auth_payload_structure(client: Stream):
 async def test_disconnect_without_connect(client: Stream):
     """Test that disconnect works even if never connected."""
     call = Call(client.video, "default")
-    client = StreamAPIWS(
-        call, user_details={"id": "test_user"}
-    )
+    client = StreamAPIWS(call, user_details={"id": "test_user"})
 
     # Should not raise an exception
     await client.disconnect()
@@ -331,9 +329,7 @@ async def test_disconnect_without_connect(client: Stream):
 @pytest.mark.asyncio
 async def test_integration_test_simple(client: Stream):
     call = Call(client.video, "default")
-    ws_client = StreamAPIWS(
-        call, user_details={"id": "user_id"}
-    )
+    ws_client = StreamAPIWS(call, user_details={"id": "user_id"})
     response = await ws_client.connect()
     assert response["type"] == "connection.ok"
     await ws_client.disconnect()

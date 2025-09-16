@@ -95,19 +95,13 @@ class TestFeedIntegration:
         # snippet-start: GetOrCreateFeed
 
         feed_response_1 = self.test_feed.get_or_create(user_id=self.test_user_id)
-        feed_response_2 = self.test_feed_2.get_or_create(
-            user_id=self.test_user_id_2
-        )
+        feed_response_2 = self.test_feed_2.get_or_create(user_id=self.test_user_id_2)
         # snippet-end: GetOrCreateFeed
 
         if feed_response_1.status_code() >= 400:
-            raise Exception(
-                f"Failed to create feed 1: {feed_response_1.status_code()}"
-            )
+            raise Exception(f"Failed to create feed 1: {feed_response_1.status_code()}")
         if feed_response_2.status_code() >= 400:
-            raise Exception(
-                f"Failed to create feed 2: {feed_response_2.status_code()}"
-            )
+            raise Exception(f"Failed to create feed 2: {feed_response_2.status_code()}")
 
     def _cleanup_resources(self):
         """Cleanup created resources in reverse order"""
