@@ -89,3 +89,7 @@ async def test_send_message(async_client: AsyncStream):
     await channel.send_message(
         message=MessageRequest(text="Hello, world!", user_id="test-user-id")
     )
+
+
+def test_from_env():
+    Stream.from_env()
