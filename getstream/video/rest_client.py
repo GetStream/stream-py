@@ -149,8 +149,6 @@ class VideoRestClient(BaseClient):
         ring: Optional[bool] = None,
         video: Optional[bool] = None,
         data: Optional[CallRequest] = None,
-        connection_id: Optional[str] = None,
-        user_id: Optional[str] = None,
     ) -> StreamResponse[GetOrCreateCallResponse]:
         path_params = {
             "type": type,
@@ -163,14 +161,11 @@ class VideoRestClient(BaseClient):
             video=video,
             data=data,
         )
-        query_params = build_query_param(**{
-            "connection_id": connection_id,
-        })
+
         return self.post(
             "/api/v2/video/call/{type}/{id}",
             GetOrCreateCallResponse,
             path_params=path_params,
-            query_params=query_params,
             json=json,
         )
 
@@ -848,8 +843,6 @@ class VideoRestClient(BaseClient):
         prev: Optional[str] = None,
         sort: Optional[List[SortParamRequest]] = None,
         filter_conditions: Optional[Dict[str, object]] = None,
-        watch: Optional[bool] = None,
-        connection_id: Optional[str] = None
     ) -> StreamResponse[QueryCallsResponse]:
         json = build_body_dict(
             limit=limit,
@@ -857,12 +850,9 @@ class VideoRestClient(BaseClient):
             prev=prev,
             sort=sort,
             filter_conditions=filter_conditions,
-            watch=watch
         )
-        query_params = build_query_param(
-            connection_id=connection_id
-        )
-        return self.post("/api/v2/video/calls", QueryCallsResponse, json=json, query_params=query_params)
+
+        return self.post("/api/v2/video/calls", QueryCallsResponse, json=json)
 
     def list_call_types(self) -> StreamResponse[ListCallTypeResponse]:
         return self.get("/api/v2/video/calltypes", ListCallTypeResponse)

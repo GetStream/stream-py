@@ -9,6 +9,7 @@ from pydantic_settings import BaseSettings
 
 from getstream.chat.client import ChatClient
 from getstream.common.client import CommonClient
+from getstream.feeds.client import FeedsClient
 from getstream.models import UserRequest
 from getstream.moderation.client import ModerationClient
 from getstream.utils import validate_and_clean_url
@@ -108,6 +109,20 @@ class Stream(CommonClient):
 
         """
         return ModerationClient(
+            api_key=self.api_key,
+            base_url=self.base_url,
+            token=self.token,
+            timeout=self.timeout,
+            stream=self,
+        )
+
+    @cached_property
+    def feeds(self):
+        """
+        Feeds stream client.
+
+        """
+        return FeedsClient(
             api_key=self.api_key,
             base_url=self.base_url,
             token=self.token,

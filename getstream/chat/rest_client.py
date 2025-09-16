@@ -1270,6 +1270,8 @@ class ChatRestClient(BaseClient):
     def get_replies(
         self,
         parent_id: str,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
         id_gte: Optional[str] = None,
         id_gt: Optional[str] = None,
         id_lte: Optional[str] = None,
@@ -1283,6 +1285,8 @@ class ChatRestClient(BaseClient):
         sort: Optional[List[SortParamRequest]] = None,
     ) -> StreamResponse[GetRepliesResponse]:
         query_params = build_query_param(
+            limit=limit,
+            offset=offset,
             id_gte=id_gte,
             id_gt=id_gt,
             id_lte=id_lte,

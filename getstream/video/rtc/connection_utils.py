@@ -108,7 +108,12 @@ async def join_call(
     """Join call via coordinator API."""
     try:
         join_response = await join_call_coordinator_request(
-            call, user_id, location=location, create=create, connection_id=connection_id, **kwargs
+            call,
+            user_id,
+            location=location,
+            create=create,
+            connection_id=connection_id,
+            **kwargs,
         )
         if local_sfu:
             join_response.data.credentials.server.url = "http://127.0.0.1:3031/twirp"
@@ -152,10 +157,7 @@ async def join_call_coordinator_request(
         A response containing the call information and credentials
     """
     # Create a token for this user
-    token = await sync_to_async(
-        call.client.stream.create_token,
-        user_id=user_id
-    )
+    token = await sync_to_async(call.client.stream.create_token, user_id=user_id)
 
     # create a new client with this token
     client = call.client.stream.__class__(

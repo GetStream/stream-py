@@ -224,6 +224,7 @@ async def sync_to_async(func, *args, **kwargs):
         asyncio.create_task(asyncio.to_thread(func, *args, **kwargs))
     )
 
+
 __all__ = [
     # Event emitter
     "StreamAsyncIOEventEmitter",
@@ -236,5 +237,5 @@ __all__ = [
     "configure_logging",
     "UTC",
     # async
-    "sync_to_async"
+    "sync_to_async",
 ]

@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_WS_URI = "wss://video.stream-io-api.com/api/v2/connect"
 
+
 class StreamAPIWS(StreamAsyncIOEventEmitter):
     """
     Asynchronous WebSocket client for Stream Video Coordinator.
@@ -102,8 +103,8 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
             Authentication payload as a dictionary
         """
         if not self.user_token:
-            self.user_token = await sync_to_async(self.call.client.stream.create_token, 
-                user_id=self.user_details["id"]
+            self.user_token = await sync_to_async(
+                self.call.client.stream.create_token, user_id=self.user_details["id"]
             )
         payload = {
             "token": self.user_token,
@@ -137,7 +138,7 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
                 # ping_interval=None,
                 # ping_timeout=None,
             ),
-            self._build_auth_payload()
+            self._build_auth_payload(),
         )
         self._logger.debug("WebSocket connection established")
 
@@ -193,13 +194,16 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
             "type": self.call.call_type,
             "id": self.call.id,
         }
-        query_params = build_query_param(**{
-            "connection_id": self._client_id,
-        })
-        await sync_to_async(client.post,
+        query_params = build_query_param(
+            **{
+                "connection_id": self._client_id,
+            }
+        )
+        await sync_to_async(
+            client.post,
             "/video/call/{type}/{id}",
             path_params=path_params,
-            query_params=query_params
+            query_params=query_params,
         )
         return message
 

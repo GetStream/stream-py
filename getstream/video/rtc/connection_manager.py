@@ -216,7 +216,6 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         logger.debug(f"Using location: {region}")
         location = region
 
-
         # Step 2: Create coordinator websocket
         self._coordinator_ws_client = StreamAPIWS(
             call=self.call,

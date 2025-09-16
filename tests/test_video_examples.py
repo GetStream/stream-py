@@ -379,6 +379,12 @@ def test_create_call_with_custom_frame_recording_settings(client: Stream):
     assert response.data.call.settings.frame_recording.quality == "1080p"
 
 
+def test_fps(client: Stream):
+    response = client.video.get_active_calls_status()
+    resolution = response.data.metrics.publishers.all.video.resolution
+    print(resolution.p10)
+
+
 @pytest.mark.skip_in_ci
 def test_create_call_type_with_custom_frame_recording_settings(client: Stream):
     # create a call type with frame recording settings
