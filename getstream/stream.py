@@ -238,6 +238,14 @@ class Stream(BaseStream, CommonClient):
             timeout=timeout,
         )
 
+    def as_async(self) -> "AsyncStream":
+        return AsyncStream(
+            api_key=self.api_key,
+            api_secret=self.api_secret,
+            timeout=self.timeout,
+            base_url=self.base_url,
+        )
+
     @cached_property
     def video(self):
         """
