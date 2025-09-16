@@ -2,7 +2,7 @@ import pytest
 import uuid
 import asyncio
 
-from getstream import Stream
+from getstream import Stream, AsyncStream
 from getstream.base import StreamAPIException
 from getstream.models import (
     CallRequest,
@@ -473,3 +473,31 @@ async def test_event_representation():
     for key, value in event_dict.items():
         assert f"{key}=" in event_str
         assert str(repr(value)) in event_str
+
+
+@pytest.mark.asyncio
+async def test_async_client():
+    from getstream import AsyncStream
+
+    client = AsyncStream(api_key="your_api_key", api_secret="your_api_secret")
+    assert isinstance(client, AsyncStream)
+    assert client.api_key == "your_api_key"
+    assert client.api_secret == "your_api_secret"
+    assert client.timeout == 6.0
+
+
+@pytest.mark.asyncio
+def test_async_create_user(async_client: AsyncStream):
+    from getstream.models import UserRequest
+
+    async_client.upsert_users(
+        UserRequest(
+            id="tommaso-id", name="tommaso", role="admin", custom={"country": "NL"}
+        ),
+        UserRequest(
+            id="thierry-id", name="thierry", role="admin", custom={"country": "US"}
+        ),
+    )
+
+    token = async_client.create_token("tommaso-id")
+    assert token
