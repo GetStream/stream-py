@@ -1,19 +1,21 @@
 import uuid
 from typing import Dict
-
+from dotenv import load_dotenv
 import pytest
 
 from getstream import Stream, AsyncStream
 from getstream.models import UserRequest, FullUserResponse
 from getstream.feeds.feeds import Feed
 
+load_dotenv()
+
 
 def _client():
-    return Stream.from_env()
+    return Stream()
 
 
 def _async_client():
-    return AsyncStream.from_env()
+    return AsyncStream()
 
 
 @pytest.fixture

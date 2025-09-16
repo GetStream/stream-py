@@ -1,11 +1,10 @@
 from functools import cached_property
 import time
-from typing import List
+from typing import List, Optional
 from uuid import uuid4
 
 import jwt
-from pydantic import AnyHttpUrl, ConfigDict
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from getstream.chat.client import ChatClient
 from getstream.chat.async_client import ChatClient as AsyncChatClient
@@ -18,33 +17,53 @@ from getstream.moderation.async_client import ModerationClient as AsyncModeratio
 from getstream.utils import validate_and_clean_url
 from getstream.video.client import VideoClient
 from getstream.video.async_client import VideoClient as AsyncVideoClient
+from typing_extensions import deprecated
 
 
 BASE_URL = "https://chat.stream-io-api.com/"
 
 
 class Settings(BaseSettings):
-    model_config = ConfigDict(
-        env_file=".env", env_file_encoding="utf-8", extra="ignore"
-    )
+    # Env names: STREAM_API_KEY, STREAM_API_SECRET, STREAM_BASE_URL, STREAM_TIMEOUT
+    api_key: str
+    api_secret: str
+    base_url: Optional[str] = None
+    timeout: float = 6.0
 
-    STREAM_API_KEY: str = "test_key"
-    STREAM_API_SECRET: str = "test_secret"
-    STREAM_BASE_URL: AnyHttpUrl = BASE_URL
+    model_config = SettingsConfigDict(
+        env_prefix="STREAM_",
+    )
 
 
 class BaseStream:
-    def create_user(self, name: str = "", id: str = str(uuid4()), image=""):
-        """
-        Creates or updates users. This method performs an "upsert" operation,
-        where it checks if each user already exists and updates their information
-        if they do, or creates a new user entry if they do not.
-        """
-        user = UserRequest(name=name, id=id)
-        users_map = {user.id: user}
-        response = self.update_users(users_map)
-        user = response.data.users[user.id]
-        return user
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        api_secret: Optional[str] = None,
+        timeout: Optional[float] = 6.0,
+        base_url: Optional[str] = BASE_URL,
+    ):
+        if None in (api_key, api_secret, timeout, base_url):
+            s = Settings()  # loads from env and optional .env
+            api_key = api_key or s.api_key
+            api_secret = api_secret or s.api_secret
+            base_url = base_url or (s.base_url or BASE_URL)
+
+        if api_key is None or api_key == "":
+            raise ValueError("api_key is required")
+        if api_secret is None or api_secret == "":
+            raise ValueError("api_secret is required")
+        self.api_key = api_key
+        self.api_secret = api_secret
+
+        if timeout is not None:
+            if not isinstance(timeout, (int, float)) or timeout <= 0.0:
+                raise ValueError("timeout must be a number greater than zero")
+        self.timeout = timeout
+
+        self.base_url = validate_and_clean_url(base_url)
+        self.token = self._create_token()
+        super().__init__(self.api_key, self.base_url, self.token, self.timeout)
 
     def create_token(
         self,
@@ -128,44 +147,6 @@ class AsyncStream(BaseStream, AsyncCommonClient):
     Contains methods to interact with Video and Chat modules of Stream API.
     """
 
-    def __init__(
-        self,
-        api_key: str,
-        api_secret: str,
-        timeout=6.0,
-        base_url=BASE_URL,
-    ):
-        if api_key is None or api_key == "":
-            raise ValueError("api_key is required")
-        if api_secret is None or api_secret == "":
-            raise ValueError("api_secret is required")
-        self.api_key = api_key
-        self.api_secret = api_secret
-
-        if timeout is not None:
-            if not isinstance(timeout, (int, float)) or timeout <= 0.0:
-                raise ValueError("timeout must be a number greater than zero")
-        self.timeout = timeout
-
-        self.base_url = validate_and_clean_url(base_url)
-        self.token = self._create_token()
-        super().__init__(self.api_key, self.base_url, self.token, self.timeout)
-
-    @classmethod
-    def from_env(cls, timeout: float = 6.0) -> "AsyncStream":
-        """
-        Construct a StreamClient by loading its credentials and base_url
-        from environment variables (via our pydantic Settings).
-        """
-        settings = Settings()
-
-        return cls(
-            api_key=settings.STREAM_API_KEY,
-            api_secret=settings.STREAM_API_SECRET,
-            base_url=str(settings.STREAM_BASE_URL),
-            timeout=timeout,
-        )
-
     @cached_property
     def video(self):
         """
@@ -212,6 +193,18 @@ class AsyncStream(BaseStream, AsyncCommonClient):
     def feeds(self):
         raise NotImplementedError("Feeds not supported for async client")
 
+    async def create_user(self, name: str = "", id: str = str(uuid4()), image=""):
+        """
+        Creates or updates users. This method performs an "upsert" operation,
+        where it checks if each user already exists and updates their information
+        if they do, or creates a new user entry if they do not.
+        """
+        user = UserRequest(name=name, id=id)
+        users_map = {user.id: user}
+        response = await self.update_users(users_map)
+        user = response.data.users[user.id]
+        return user
+
     async def upsert_users(self, *users: UserRequest):
         """
         Creates or updates users. This method performs an "upsert" operation,
@@ -229,30 +222,8 @@ class Stream(BaseStream, CommonClient):
     Contains methods to interact with Video and Chat modules of Stream API.
     """
 
-    def __init__(
-        self,
-        api_key: str,
-        api_secret: str,
-        timeout=6.0,
-        base_url=BASE_URL,
-    ):
-        if api_key is None or api_key == "":
-            raise ValueError("api_key is required")
-        if api_secret is None or api_secret == "":
-            raise ValueError("api_secret is required")
-        self.api_key = api_key
-        self.api_secret = api_secret
-
-        if timeout is not None:
-            if not isinstance(timeout, (int, float)) or timeout <= 0.0:
-                raise ValueError("timeout must be a number greater than zero")
-        self.timeout = timeout
-
-        self.base_url = validate_and_clean_url(base_url)
-        self.token = self._create_token()
-        super().__init__(self.api_key, self.base_url, self.token, self.timeout)
-
     @classmethod
+    @deprecated("from_env is deprecated, use __init__ instead")
     def from_env(cls, timeout: float = 6.0) -> "Stream":
         """
         Construct a StreamClient by loading its credentials and base_url
@@ -322,6 +293,18 @@ class Stream(BaseStream, CommonClient):
             timeout=self.timeout,
             stream=self,
         )
+
+    def create_user(self, name: str = "", id: str = str(uuid4()), image=""):
+        """
+        Creates or updates users. This method performs an "upsert" operation,
+        where it checks if each user already exists and updates their information
+        if they do, or creates a new user entry if they do not.
+        """
+        user = UserRequest(name=name, id=id)
+        users_map = {user.id: user}
+        response = self.update_users(users_map)
+        user = response.data.users[user.id]
+        return user
 
     def upsert_users(self, *users: UserRequest):
         """

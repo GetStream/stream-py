@@ -191,7 +191,7 @@ class AsyncBaseClient(BaseConfig, ResponseParserMixin, ABC):
         *args,
         **kwargs,
     ) -> StreamResponse[T]:
-        response = self.client.patch(
+        response = await self.client.patch(
             build_path(path, path_params), params=query_params, *args, **kwargs
         )
         return self._parse_response(response, data_type or Dict[str, Any])
@@ -205,7 +205,7 @@ class AsyncBaseClient(BaseConfig, ResponseParserMixin, ABC):
         *args,
         **kwargs,
     ) -> StreamResponse[T]:
-        response = self.client.get(
+        response = await self.client.get(
             build_path(path, path_params), params=query_params, *args, **kwargs
         )
         return self._parse_response(response, data_type or Dict[str, Any])
@@ -219,7 +219,7 @@ class AsyncBaseClient(BaseConfig, ResponseParserMixin, ABC):
         *args,
         **kwargs,
     ) -> StreamResponse[T]:
-        response = self.client.post(
+        response = await self.client.post(
             build_path(path, path_params), params=query_params, *args, **kwargs
         )
 
@@ -234,7 +234,7 @@ class AsyncBaseClient(BaseConfig, ResponseParserMixin, ABC):
         *args,
         **kwargs,
     ) -> StreamResponse[T]:
-        response = self.client.put(
+        response = await self.client.put(
             build_path(path, path_params), params=query_params, *args, **kwargs
         )
         return self._parse_response(response, data_type or Dict[str, Any])
@@ -248,7 +248,7 @@ class AsyncBaseClient(BaseConfig, ResponseParserMixin, ABC):
         *args,
         **kwargs,
     ) -> StreamResponse[T]:
-        response = self.client.delete(
+        response = await self.client.delete(
             build_path(path, path_params), params=query_params, *args, **kwargs
         )
         return self._parse_response(response, data_type or Dict[str, Any])

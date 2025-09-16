@@ -3020,8 +3020,8 @@ class CallParticipant(DataClassJsonMixin):
         )
     )
     online: bool = dc_field(metadata=dc_config(field_name="online"))
-    role: str = dc_field(metadata=dc_config(field_name="Role"))
     role: str = dc_field(metadata=dc_config(field_name="role"))
+    role: str = dc_field(metadata=dc_config(field_name="Role"))
     user_session_id: str = dc_field(metadata=dc_config(field_name="UserSessionID"))
     custom: Dict[str, object] = dc_field(metadata=dc_config(field_name="custom"))
     teams_role: "Dict[str, str]" = dc_field(metadata=dc_config(field_name="teams_role"))
@@ -8566,8 +8566,9 @@ class Flag(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         )
     )
-    entity_id: str = dc_field(metadata=dc_config(field_name="entity_id"))
-    entity_type: str = dc_field(metadata=dc_config(field_name="entity_type"))
+    created_by_automod: bool = dc_field(
+        metadata=dc_config(field_name="created_by_automod")
+    )
     updated_at: datetime = dc_field(
         metadata=dc_config(
             field_name="updated_at",
@@ -8576,36 +8577,53 @@ class Flag(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         )
     )
-    result: "List[Dict[str, object]]" = dc_field(
-        metadata=dc_config(field_name="result")
-    )
-    entity_creator_id: Optional[str] = dc_field(
-        default=None, metadata=dc_config(field_name="entity_creator_id")
-    )
-    is_streamed_content: Optional[bool] = dc_field(
-        default=None, metadata=dc_config(field_name="is_streamed_content")
-    )
-    moderation_payload_hash: Optional[str] = dc_field(
-        default=None, metadata=dc_config(field_name="moderation_payload_hash")
+    approved_at: Optional[datetime] = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="approved_at",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
     )
     reason: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="reason")
     )
-    review_queue_item_id: Optional[str] = dc_field(
-        default=None, metadata=dc_config(field_name="review_queue_item_id")
+    rejected_at: Optional[datetime] = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="rejected_at",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
     )
-    type: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="type"))
-    labels: Optional[List[str]] = dc_field(
-        default=None, metadata=dc_config(field_name="labels")
+    reviewed_at: Optional[datetime] = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="reviewed_at",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+    )
+    reviewed_by: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="reviewed_by")
+    )
+    target_message_id: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="target_message_id")
     )
     custom: Optional[Dict[str, object]] = dc_field(
         default=None, metadata=dc_config(field_name="custom")
     )
-    moderation_payload: "Optional[ModerationPayload]" = dc_field(
-        default=None, metadata=dc_config(field_name="moderation_payload")
+    details: "Optional[FlagDetails]" = dc_field(
+        default=None, metadata=dc_config(field_name="details")
     )
-    review_queue_item: "Optional[ReviewQueueItem]" = dc_field(
-        default=None, metadata=dc_config(field_name="review_queue_item")
+    target_message: "Optional[Message]" = dc_field(
+        default=None, metadata=dc_config(field_name="target_message")
+    )
+    target_user: "Optional[User]" = dc_field(
+        default=None, metadata=dc_config(field_name="target_user")
     )
     user: "Optional[User]" = dc_field(
         default=None, metadata=dc_config(field_name="user")
@@ -11068,7 +11086,9 @@ class MessageNewEvent(DataClassJsonMixin):
         )
     )
     watcher_count: int = dc_field(metadata=dc_config(field_name="watcher_count"))
-    type: str = dc_field(default="message.new", metadata=dc_config(field_name="type"))
+    type: str = dc_field(
+        default="notification.thread_message_new", metadata=dc_config(field_name="type")
+    )
     team: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="team"))
     thread_participants: "Optional[List[User]]" = dc_field(
         default=None, metadata=dc_config(field_name="thread_participants")
