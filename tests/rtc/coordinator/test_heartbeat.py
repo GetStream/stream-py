@@ -9,15 +9,16 @@ import time
 from unittest.mock import patch
 import websockets
 
-from getstream.video.rtc.coordinator.ws import StreamAPIWS
+from getstream.video.rtc.coordinator.ws import StreamAPIWS, Call
 from getstream.video.rtc.coordinator.errors import (
     StreamWSConnectionError,
     StreamWSMaxRetriesExceeded,
 )
+from getstream import Stream
 
 
 @pytest.mark.asyncio
-async def test_heartbeat_sent_periodically():
+async def test_heartbeat_sent_periodically(client: Stream):
     """Test that heartbeat messages are sent at regular intervals."""
     heartbeats_received = []
 
@@ -43,12 +44,11 @@ async def test_heartbeat_sent_periodically():
     server = await websockets.serve(mock_server, "localhost", 0)
     port = server.sockets[0].getsockname()[1]
     server_uri = f"ws://localhost:{port}"
-
+    call = Call(client.video, "default")
     try:
         # Create client with short heartbeat interval for testing
         client = StreamAPIWS(
-            api_key="test_key",
-            token="test_token",
+            call,
             user_details={"id": "test_user"},
             uri=server_uri,
             healthcheck_interval=0.1,  # 100ms for fast testing
@@ -77,7 +77,7 @@ async def test_heartbeat_sent_periodically():
 
 
 @pytest.mark.asyncio
-async def test_reconnect_on_heartbeat_timeout():
+async def test_reconnect_on_heartbeat_timeout(client: Stream):
     """Test that reconnection is triggered when no messages are received within timeout."""
     connection_attempts = []
 
@@ -107,12 +107,12 @@ async def test_reconnect_on_heartbeat_timeout():
     server = await websockets.serve(mock_server, "localhost", 0)
     port = server.sockets[0].getsockname()[1]
     server_uri = f"ws://localhost:{port}"
+    call = Call(client.video, "default")
 
     try:
         # Create client with short timeout for testing
         client = StreamAPIWS(
-            api_key="test_key",
-            token="test_token",
+            call,
             user_details={"id": "test_user"},
             uri=server_uri,
             healthcheck_interval=0.1,  # 100ms heartbeat interval
@@ -137,7 +137,7 @@ async def test_reconnect_on_heartbeat_timeout():
 
 
 @pytest.mark.asyncio
-async def test_reconnect_on_connection_closed():
+async def test_reconnect_on_connection_closed(client: Stream):
     """Test that reconnection is triggered when server closes the connection."""
     connection_attempts = []
 
@@ -167,11 +167,11 @@ async def test_reconnect_on_connection_closed():
     server = await websockets.serve(mock_server, "localhost", 0)
     port = server.sockets[0].getsockname()[1]
     server_uri = f"ws://localhost:{port}"
+    call = Call(client.video, "default")
 
     try:
         client = StreamAPIWS(
-            api_key="test_key",
-            token="test_token",
+            call,
             user_details={"id": "test_user"},
             uri=server_uri,
             backoff_base=0.1,  # Fast reconnection for testing
@@ -194,7 +194,7 @@ async def test_reconnect_on_connection_closed():
 
 
 @pytest.mark.asyncio
-async def test_max_retries_exceeded():
+async def test_max_retries_exceeded(client: Stream):
     """Test that StreamWSMaxRetriesExceeded is raised when all retries fail."""
 
     # Server that always closes immediately
@@ -204,13 +204,13 @@ async def test_max_retries_exceeded():
     server = await websockets.serve(failing_server, "localhost", 0)
     port = server.sockets[0].getsockname()[1]
     server_uri = f"ws://localhost:{port}"
+    call = Call(client.video, "default")
 
     try:
         # Mock asyncio.sleep to make test run faster
         with patch("asyncio.sleep", side_effect=lambda x: asyncio.sleep(0.01)):
             client = StreamAPIWS(
-                api_key="test_key",
-                token="test_token",
+                call,
                 user_details={"id": "test_user"},
                 uri=server_uri,
                 healthcheck_interval=0.1,
@@ -233,7 +233,7 @@ async def test_max_retries_exceeded():
 
 
 @pytest.mark.asyncio
-async def test_message_reception_updates_last_received():
+async def test_message_reception_updates_last_received(client: Stream):
     """Test that receiving messages updates the last received timestamp."""
 
     async def mock_server(websocket):
@@ -263,11 +263,11 @@ async def test_message_reception_updates_last_received():
     server = await websockets.serve(mock_server, "localhost", 0)
     port = server.sockets[0].getsockname()[1]
     server_uri = f"ws://localhost:{port}"
+    call = Call(client.video, "default")
 
     try:
         client = StreamAPIWS(
-            api_key="test_key",
-            token="test_token",
+            call,
             user_details={"id": "test_user"},
             uri=server_uri,
             healthcheck_interval=1.0,  # Long interval so heartbeats don't interfere
@@ -305,7 +305,7 @@ async def test_message_reception_updates_last_received():
 
 
 @pytest.mark.asyncio
-async def test_background_tasks_cancelled_on_disconnect():
+async def test_background_tasks_cancelled_on_disconnect(client: Stream):
     """Test that background tasks are properly cancelled when disconnecting."""
 
     async def mock_server(websocket):
@@ -319,11 +319,11 @@ async def test_background_tasks_cancelled_on_disconnect():
     server = await websockets.serve(mock_server, "localhost", 0)
     port = server.sockets[0].getsockname()[1]
     server_uri = f"ws://localhost:{port}"
+    call = Call(client.video, "default")
 
     try:
         client = StreamAPIWS(
-            api_key="test_key",
-            token="test_token",
+            call,
             user_details={"id": "test_user"},
             uri=server_uri,
         )
@@ -350,7 +350,7 @@ async def test_background_tasks_cancelled_on_disconnect():
 
 
 @pytest.mark.asyncio
-async def test_heartbeat_includes_client_id():
+async def test_heartbeat_includes_client_id(client: Stream):
     """Test that heartbeats include client_id when available."""
 
     # Track sent messages
@@ -385,12 +385,12 @@ async def test_heartbeat_includes_client_id():
     server = await websockets.serve(mock_server, "localhost", 0)
     port = server.sockets[0].getsockname()[1]
     server_uri = f"ws://localhost:{port}"
+    call = Call(client.video, "default")
 
     try:
         # Create client with short heartbeat interval
         client = StreamAPIWS(
-            api_key="test_key",
-            token="test_token",
+            call,
             user_details={"id": "test_user"},
             uri=server_uri,
             healthcheck_interval=0.1,  # 100ms
@@ -421,7 +421,7 @@ async def test_heartbeat_includes_client_id():
 
 
 @pytest.mark.asyncio
-async def test_heartbeat_without_client_id():
+async def test_heartbeat_without_client_id(client: Stream):
     """Test that heartbeats work when no client_id is available."""
 
     # Track sent messages
@@ -452,12 +452,12 @@ async def test_heartbeat_without_client_id():
     server = await websockets.serve(mock_server, "localhost", 0)
     port = server.sockets[0].getsockname()[1]
     server_uri = f"ws://localhost:{port}"
+    call = Call(client.video, "default")
 
     try:
         # Create client with short heartbeat interval
         client = StreamAPIWS(
-            api_key="test_key",
-            token="test_token",
+            call,
             user_details={"id": "test_user"},
             uri=server_uri,
             healthcheck_interval=0.1,  # 100ms

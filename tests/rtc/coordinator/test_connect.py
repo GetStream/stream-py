@@ -8,7 +8,7 @@ import json
 import pytest
 import websockets
 
-from getstream.video.rtc.coordinator.ws import StreamAPIWS
+from getstream.video.rtc.coordinator.ws import StreamAPIWS, Call
 from getstream.video.rtc.coordinator.errors import (
     StreamWSAuthError,
     StreamWSConnectionError,
@@ -48,7 +48,7 @@ async def test_simple_connection_debug():
 
 
 @pytest.mark.asyncio
-async def test_successful_connection():
+async def test_successful_connection(client: Stream):
     """Test successful connection and authentication."""
 
     # Mock server that sends connection.ok
@@ -75,12 +75,12 @@ async def test_successful_connection():
     server = await websockets.serve(mock_server, "localhost", 0)
     port = server.sockets[0].getsockname()[1]
     server_uri = f"ws://localhost:{port}"
+    call = Call(client.video, "default")
 
     try:
         # Create client and connect
         client = StreamAPIWS(
-            api_key="test_key",
-            token="test_token",
+            call,
             user_details={"id": "test_user"},
             uri=server_uri,
         )
@@ -103,7 +103,7 @@ async def test_successful_connection():
 
 
 @pytest.mark.asyncio
-async def test_authentication_error():
+async def test_authentication_error(client: Stream):
     """Test authentication failure handling."""
 
     # Mock server that sends error response
@@ -127,12 +127,12 @@ async def test_authentication_error():
     server = await websockets.serve(mock_server, "localhost", 0)
     port = server.sockets[0].getsockname()[1]
     server_uri = f"ws://localhost:{port}"
+    call = Call(client.video, "default")
 
     try:
         # Create client
         client = StreamAPIWS(
-            api_key="test_key",
-            token="invalid_token",
+            call,
             user_details={"id": "test_user"},
             uri=server_uri,
         )
@@ -151,12 +151,12 @@ async def test_authentication_error():
 
 
 @pytest.mark.asyncio
-async def test_connection_error():
+async def test_connection_error(client: Stream):
     """Test connection failure handling."""
     # Use an invalid URI to trigger connection error
+    call = Call(client.video, "default")
     client = StreamAPIWS(
-        api_key="test_key",
-        token="test_token",
+        call,
         user_details={"id": "test_user"},
         uri="ws://localhost:99999",  # Invalid port
     )
@@ -169,7 +169,7 @@ async def test_connection_error():
 
 
 @pytest.mark.asyncio
-async def test_invalid_json_response():
+async def test_invalid_json_response(client: Stream):
     """Test handling of invalid JSON from server."""
 
     # Mock server that sends invalid JSON
@@ -188,12 +188,12 @@ async def test_invalid_json_response():
     server = await websockets.serve(mock_server, "localhost", 0)
     port = server.sockets[0].getsockname()[1]
     server_uri = f"ws://localhost:{port}"
+    call = Call(client.video, "default")
 
     try:
         # Create client
         client = StreamAPIWS(
-            api_key="test_key",
-            token="test_token",
+            call,
             user_details={"id": "test_user"},
             uri=server_uri,
         )
@@ -211,7 +211,7 @@ async def test_invalid_json_response():
 
 
 @pytest.mark.asyncio
-async def test_event_emission():
+async def test_event_emission(client: Stream):
     """Test that events are properly emitted."""
 
     # Mock server that sends connection.ok
@@ -231,12 +231,12 @@ async def test_event_emission():
     server = await websockets.serve(mock_server, "localhost", 0)
     port = server.sockets[0].getsockname()[1]
     server_uri = f"ws://localhost:{port}"
+    call = Call(client.video, "default")
 
     try:
         # Create client
         client = StreamAPIWS(
-            api_key="test_key",
-            token="test_token",
+            call,
             user_details={"id": "test_user"},
             uri=server_uri,
         )
@@ -264,7 +264,7 @@ async def test_event_emission():
 
 
 @pytest.mark.asyncio
-async def test_auth_payload_structure():
+async def test_auth_payload_structure(client: Stream):
     """Test that authentication payload has correct structure."""
 
     # Mock server that captures and validates auth payload
@@ -288,12 +288,12 @@ async def test_auth_payload_structure():
     server = await websockets.serve(mock_server, "localhost", 0)
     port = server.sockets[0].getsockname()[1]
     server_uri = f"ws://localhost:{port}"
+    call = Call(client.video, "default")
 
     try:
         # Create client
         client = StreamAPIWS(
-            api_key="test_key",
-            token="test_token_123",
+            call,
             user_details={"id": "user_456", "name": "Test User"},
             uri=server_uri,
         )
@@ -303,7 +303,7 @@ async def test_auth_payload_structure():
 
         # Verify auth payload structure
         assert captured_auth is not None
-        assert captured_auth["token"] == "test_token_123"
+        assert captured_auth["token"] == client.user_token
         assert captured_auth["products"] == ["video"]
         assert captured_auth["user_details"]["id"] == "user_456"
         assert captured_auth["user_details"]["name"] == "Test User"
@@ -316,10 +316,11 @@ async def test_auth_payload_structure():
 
 
 @pytest.mark.asyncio
-async def test_disconnect_without_connect():
+async def test_disconnect_without_connect(client: Stream):
     """Test that disconnect works even if never connected."""
+    call = Call(client.video, "default")
     client = StreamAPIWS(
-        api_key="test_key", token="test_token", user_details={"id": "test_user"}
+        call, user_details={"id": "test_user"}
     )
 
     # Should not raise an exception
@@ -329,9 +330,9 @@ async def test_disconnect_without_connect():
 
 @pytest.mark.asyncio
 async def test_integration_test_simple(client: Stream):
-    token = client.create_token("user_id")
+    call = Call(client.video, "default")
     ws_client = StreamAPIWS(
-        api_key=client.api_key, token=token, user_details={"id": "user_id"}
+        call, user_details={"id": "user_id"}
     )
     response = await ws_client.connect()
     assert response["type"] == "connection.ok"
@@ -340,9 +341,8 @@ async def test_integration_test_simple(client: Stream):
 
 @pytest.mark.asyncio
 async def test_integration_test_bad_auth_raises(client: Stream):
-    ws_client = StreamAPIWS(
-        api_key=client.api_key, token="tok", user_details={"id": "xxx"}
-    )
+    call = Call(Stream(client.api_key, "api_sec").video, "default")
+    ws_client = StreamAPIWS(call, user_details={"id": "xxx"})
 
     # Test that authentication error is raised with invalid token
     with pytest.raises(StreamWSAuthError) as exc_info:
@@ -356,10 +356,9 @@ async def test_integration_test_bad_auth_raises(client: Stream):
 
 @pytest.mark.asyncio
 async def test_integration_test_simple_healthcheck(client: Stream):
-    token = client.create_token("user_id")
+    call = Call(client.video, "default")
     ws_client = StreamAPIWS(
-        api_key=client.api_key,
-        token=token,
+        call,
         user_details={"id": "xx"},
         healthcheck_interval=2.0,
     )
@@ -379,15 +378,14 @@ async def test_integration_test_simple_healthcheck(client: Stream):
 @pytest.mark.asyncio
 async def test_integration_test_user_details_in_response(client: Stream):
     """Test that user details are returned in the 'me' field of the connection response."""
-    token = client.create_token("test_user_123")
     user_details = {
         "id": "test_user_123",
         "name": "Test User yo",
     }
 
+    call = Call(client.video, "default")
     ws_client = StreamAPIWS(
-        api_key=client.api_key,
-        token=token,
+        call,
         user_details=user_details,
         healthcheck_interval=30.0,  # Long interval to avoid interference
     )

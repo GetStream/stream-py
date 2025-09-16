@@ -75,45 +75,39 @@ class TestFeedIntegration:
 
     def _setup_environment(self):
         """Setup test environment with users and feeds"""
-        try:
-            # Create test users
-            # snippet-start: CreateUsers
-            users = {
-                self.test_user_id: UserRequest(
-                    id=self.test_user_id, name="Test User 1", role="user"
-                ),
-                self.test_user_id_2: UserRequest(
-                    id=self.test_user_id_2, name="Test User 2", role="user"
-                ),
-            }
-            response = self.client.update_users(users=users)
-            # snippet-end: CreateUsers
+        # Create test users
+        # snippet-start: CreateUsers
+        users = {
+            self.test_user_id: UserRequest(
+                id=self.test_user_id, name="Test User 1", role="user"
+            ),
+            self.test_user_id_2: UserRequest(
+                id=self.test_user_id_2, name="Test User 2", role="user"
+            ),
+        }
+        response = self.client.update_users(users=users)
+        # snippet-end: CreateUsers
 
-            if response.status_code() >= 400:
-                raise Exception(f"Failed to create users: {response.status_code()}")
+        if response.status_code() >= 400:
+            raise Exception(f"Failed to create users: {response.status_code()}")
 
-            # Create feeds
-            # snippet-start: GetOrCreateFeed
+        # Create feeds
+        # snippet-start: GetOrCreateFeed
 
-            feed_response_1 = self.test_feed.get_or_create(user_id=self.test_user_id)
-            feed_response_2 = self.test_feed_2.get_or_create(
-                user_id=self.test_user_id_2
+        feed_response_1 = self.test_feed.get_or_create(user_id=self.test_user_id)
+        feed_response_2 = self.test_feed_2.get_or_create(
+            user_id=self.test_user_id_2
+        )
+        # snippet-end: GetOrCreateFeed
+
+        if feed_response_1.status_code() >= 400:
+            raise Exception(
+                f"Failed to create feed 1: {feed_response_1.status_code()}"
             )
-            # snippet-end: GetOrCreateFeed
-
-            if feed_response_1.status_code() >= 400:
-                raise Exception(
-                    f"Failed to create feed 1: {feed_response_1.status_code()}"
-                )
-            if feed_response_2.status_code() >= 400:
-                raise Exception(
-                    f"Failed to create feed 2: {feed_response_2.status_code()}"
-                )
-
-        except Exception as e:
-            print(f"⚠️ Setup failed: {e}")
-            # Stop everything
-            exit(1)
+        if feed_response_2.status_code() >= 400:
+            raise Exception(
+                f"Failed to create feed 2: {feed_response_2.status_code()}"
+            )
 
     def _cleanup_resources(self):
         """Cleanup created resources in reverse order"""
