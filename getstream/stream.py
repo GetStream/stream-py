@@ -232,9 +232,9 @@ class Stream(BaseStream, CommonClient):
         settings = Settings()
 
         return cls(
-            api_key=settings.STREAM_API_KEY,
-            api_secret=settings.STREAM_API_SECRET,
-            base_url=str(settings.STREAM_BASE_URL),
+            api_key=settings.api_key,
+            api_secret=settings.api_secret,
+            base_url=settings.base_url,
             timeout=timeout,
         )
 
