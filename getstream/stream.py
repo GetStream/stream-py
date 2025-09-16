@@ -8,13 +8,16 @@ from pydantic import AnyHttpUrl, ConfigDict
 from pydantic_settings import BaseSettings
 
 from getstream.chat.client import ChatClient
+from getstream.chat.async_client import ChatClient as AsyncChatClient
 from getstream.common.async_client import CommonClient as AsyncCommonClient
 from getstream.common.client import CommonClient
 from getstream.feeds.client import FeedsClient
 from getstream.models import UserRequest
 from getstream.moderation.client import ModerationClient
+from getstream.moderation.async_client import ModerationClient as AsyncModerationClient
 from getstream.utils import validate_and_clean_url
 from getstream.video.client import VideoClient
+from getstream.video.async_client import VideoClient as AsyncVideoClient
 
 
 BASE_URL = "https://chat.stream-io-api.com/"
@@ -169,7 +172,7 @@ class AsyncStream(BaseStream, AsyncCommonClient):
         Video stream client.
 
         """
-        return VideoClient(
+        return AsyncVideoClient(
             api_key=self.api_key,
             base_url=self.base_url,
             token=self.token,
@@ -183,7 +186,7 @@ class AsyncStream(BaseStream, AsyncCommonClient):
         Chat stream client.
 
         """
-        return ChatClient(
+        return AsyncChatClient(
             api_key=self.api_key,
             base_url=self.base_url,
             token=self.token,
@@ -197,7 +200,7 @@ class AsyncStream(BaseStream, AsyncCommonClient):
         Moderation stream client.
 
         """
-        return ModerationClient(
+        return AsyncModerationClient(
             api_key=self.api_key,
             base_url=self.base_url,
             token=self.token,
@@ -207,17 +210,7 @@ class AsyncStream(BaseStream, AsyncCommonClient):
 
     @cached_property
     def feeds(self):
-        """
-        Feeds stream client.
-
-        """
-        return FeedsClient(
-            api_key=self.api_key,
-            base_url=self.base_url,
-            token=self.token,
-            timeout=self.timeout,
-            stream=self,
-        )
+        raise NotImplementedError("Feeds not supported for async client")
 
     async def upsert_users(self, *users: UserRequest):
         """

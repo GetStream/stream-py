@@ -487,10 +487,10 @@ async def test_async_client():
 
 
 @pytest.mark.asyncio
-def test_async_create_user(async_client: AsyncStream):
+async def test_async_create_user(async_client: AsyncStream):
     from getstream.models import UserRequest
 
-    async_client.upsert_users(
+    await async_client.upsert_users(
         UserRequest(
             id="tommaso-id", name="tommaso", role="admin", custom={"country": "NL"}
         ),
