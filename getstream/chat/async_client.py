@@ -1,5 +1,5 @@
-from getstream.chat.channel import Channel
-from getstream.chat.rest_client import ChatRestClient
+from getstream.chat.async_channel import Channel
+from getstream.chat.async_rest_client import ChatRestClient
 
 
 class ChatClient(ChatRestClient):

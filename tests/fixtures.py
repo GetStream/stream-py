@@ -3,7 +3,7 @@ from typing import Dict
 
 import pytest
 
-from getstream import Stream
+from getstream import Stream, AsyncStream
 from getstream.models import UserRequest, FullUserResponse
 from getstream.feeds.feeds import Feed
 
@@ -12,9 +12,18 @@ def _client():
     return Stream.from_env()
 
 
+def _async_client():
+    return AsyncStream.from_env()
+
+
 @pytest.fixture
 def client():
     return _client()
+
+
+@pytest.fixture
+def async_client():
+    return _async_client()
 
 
 @pytest.fixture

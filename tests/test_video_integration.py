@@ -20,6 +20,7 @@ from getstream.models import (
     APNS,
     UserRequest,
     QueryUsersPayload,
+    FCM,
 )
 
 from getstream.base import StreamAPIException
@@ -142,6 +143,7 @@ class TestCallTypes:
                     apns=APNS(
                         title="{{ user.display_name }} invites you to a call", body=""
                     ),
+                    fcm=FCM(),
                     enabled=True,
                 ),
                 session_started=EventNotificationSettings(
@@ -149,6 +151,7 @@ class TestCallTypes:
                         body="",
                         title="{{ user.display_name }} invites you to a call",
                     ),
+                    fcm=FCM(),
                     enabled=False,
                 ),
                 call_live_started=EventNotificationSettings(
@@ -156,6 +159,7 @@ class TestCallTypes:
                         body="",
                         title="{{ user.display_name }} invites you to a call",
                     ),
+                    fcm=FCM(),
                     enabled=False,
                 ),
                 call_ring=EventNotificationSettings(
@@ -163,12 +167,14 @@ class TestCallTypes:
                         body="",
                         title="{{ user.display_name }} invites you to a call",
                     ),
+                    fcm=FCM(),
                     enabled=False,
                 ),
                 call_missed=EventNotificationSettings(
                     apns=APNS(
                         title="{{ user.display_name }} invites you to a call", body=""
                     ),
+                    fcm=FCM(),
                     enabled=True,
                 ),
             ),
