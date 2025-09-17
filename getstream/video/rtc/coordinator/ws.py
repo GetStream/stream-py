@@ -13,15 +13,15 @@ from typing import Optional
 
 import websockets
 
-from getstream import Stream
+from getstream import AsyncStream
 from getstream.utils import StreamAsyncIOEventEmitter
-from getstream.video.call import Call
+from getstream.video.async_call import Call
 from .errors import (
     StreamWSAuthError,
     StreamWSConnectionError,
     StreamWSMaxRetriesExceeded,
 )
-from getstream.utils import build_query_param, sync_to_async
+from getstream.utils import build_query_param
 
 from .backoff import exp_backoff
 
@@ -103,8 +103,8 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
             Authentication payload as a dictionary
         """
         if not self.user_token:
-            self.user_token = await sync_to_async(
-                self.call.client.stream.create_token, user_id=self.user_details["id"]
+            self.user_token = self.call.client.stream.create_token(
+                user_id=self.user_details["id"]
             )
         payload = {
             "token": self.user_token,
@@ -181,7 +181,7 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
             return message
 
         # make sure we update connection_id to subscribe to events
-        client = Stream(
+        client = AsyncStream(
             api_key=self.call.client.stream.api_key,
             api_secret=self.call.client.stream.api_secret,
             base_url=self.call.client.stream.base_url,
@@ -199,8 +199,7 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
                 "connection_id": self._client_id,
             }
         )
-        await sync_to_async(
-            client.post,
+        await client.post(
             "/video/call/{type}/{id}",
             path_params=path_params,
             query_params=query_params,
