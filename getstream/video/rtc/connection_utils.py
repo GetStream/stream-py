@@ -19,8 +19,8 @@ import aiortc
 
 from getstream.base import StreamResponse
 from getstream.models import CallRequest
-from getstream.utils import build_body_dict, build_query_param, sync_to_async
-from getstream.video.call import Call
+from getstream.utils import build_body_dict, build_query_param
+from getstream.video.async_call import Call
 from getstream.video.rtc.models import JoinCallResponse
 from getstream.video.rtc.pb.stream.video.sfu.event import events_pb2
 from getstream.video.rtc.pb.stream.video.sfu.models.models_pb2 import (
@@ -157,7 +157,7 @@ async def join_call_coordinator_request(
         A response containing the call information and credentials
     """
     # Create a token for this user
-    token = await sync_to_async(call.client.stream.create_token, user_id=user_id)
+    token = call.client.stream.create_token(user_id=user_id)
 
     # create a new client with this token
     client = call.client.stream.__class__(
@@ -189,8 +189,7 @@ async def join_call_coordinator_request(
     query_params = build_query_param(connection_id=connection_id)
 
     # Make the POST request to join the call
-    return await sync_to_async(
-        client.post,
+    return await client.post(
         "/api/v2/video/call/{type}/{id}/join",
         JoinCallResponse,
         path_params=path_params,
