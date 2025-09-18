@@ -17,6 +17,7 @@ Test order:
 import os
 import uuid
 import pytest
+import time
 from datetime import datetime, timedelta
 from typing import List
 
@@ -145,6 +146,32 @@ class TestFeedIntegration:
         else:
             # For generated model responses, just assert they exist
             assert response is not None, f"Failed to {operation}. Response is null."
+
+    def _retry_config_operation(
+        self, operation_func, operation_name: str, max_retries=10, initial_delay=1
+    ):
+        """
+        Retry operations for config database resources (feed groups/views).
+        Config database propagation can take up to 30 seconds.
+        """
+        last_exception = None
+
+        for attempt in range(max_retries):
+            try:
+                return operation_func()
+            except Exception as e:
+                last_exception = e
+                if attempt < max_retries - 1:  # Don't sleep on the last attempt
+                    delay = initial_delay * (1.5**attempt)  # Exponential backoff
+                    print(f"   Attempt {attempt + 1} failed for {operation_name}: {e}")
+                    print(
+                        f"   Retrying in {delay:.1f}s (config DB propagation can take up to 30s)..."
+                    )
+                    time.sleep(delay)
+
+        # If all retries failed, raise the last exception
+        print(f"   All {max_retries} attempts failed for {operation_name}")
+        raise last_exception
 
     # =================================================================
     # 1. ENVIRONMENT SETUP TEST (demonstrates the setup process)
@@ -1463,10 +1490,13 @@ class TestFeedIntegration:
         assert create_response.data.feed_group.id == feed_group_id
         print(f"✅ Created feed group: {feed_group_id}")
 
-        # Test 3: Get Feed Group
+        # Test 3: Get Feed Group (with retry for config DB propagation)
         print("\n🔍 Testing get feed group...")
         # snippet-start: GetFeedGroup
-        get_response = self.client.feeds.get_feed_group(feed_group_id)
+        get_response = self._retry_config_operation(
+            lambda: self.client.feeds.get_feed_group(feed_group_id),
+            f"get feed group '{feed_group_id}'",
+        )
         # snippet-end: GetFeedGroup
 
         self._assert_response_success(get_response, "get feed group")
@@ -1551,10 +1581,13 @@ class TestFeedIntegration:
         assert create_response.data.feed_view.id == feed_view_id
         print(f"✅ Created feed view: {feed_view_id}")
 
-        # Test 3: Get Feed View
+        # Test 3: Get Feed View (with retry for config DB propagation)
         print("\n🔍 Testing get feed view...")
         # snippet-start: GetFeedView
-        get_response = self.client.feeds.get_feed_view(feed_view_id)
+        get_response = self._retry_config_operation(
+            lambda: self.client.feeds.get_feed_view(feed_view_id),
+            f"get feed view '{feed_view_id}'",
+        )
         # snippet-end: GetFeedView
 
         self._assert_response_success(get_response, "get feed view")
