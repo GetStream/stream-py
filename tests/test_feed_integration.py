@@ -1466,17 +1466,17 @@ class TestFeedIntegration:
         # Test 3: Get Feed Group
         print("\n🔍 Testing get feed group...")
         # snippet-start: GetFeedGroup
-        get_response = self.client.feeds.get_feed_group("feed_group_id")
+        get_response = self.client.feeds.get_feed_group(feed_group_id)
         # snippet-end: GetFeedGroup
 
         self._assert_response_success(get_response, "get feed group")
-        assert get_response.data.feed_group.id == "feed_group_id"
+        assert get_response.data.feed_group.id == feed_group_id
         print(f"✅ Retrieved feed group: {feed_group_id}")
 
         # Test 4: Update Feed Group
         print("\n✏️ Testing update feed group...")
         # snippet-start: UpdateFeedGroup
-        update_response = self.client.feeds.update_feed_group(id="feed_group_id")
+        update_response = self.client.feeds.update_feed_group(id=feed_group_id)
         # snippet-end: UpdateFeedGroup
 
         self._assert_response_success(update_response, "update feed group")
@@ -1543,7 +1543,7 @@ class TestFeedIntegration:
         # snippet-start: CreateFeedView
         create_response = self.client.feeds.create_feed_view(
             id=feed_view_id,
-            activity_selectors=[{"type": "recent"}],
+            activity_selectors=[{"type": "popular"}],
         )
         # snippet-end: CreateFeedView
 
@@ -1554,18 +1554,18 @@ class TestFeedIntegration:
         # Test 3: Get Feed View
         print("\n🔍 Testing get feed view...")
         # snippet-start: GetFeedView
-        get_response = self.client.feeds.get_feed_view("feedViewID")
+        get_response = self.client.feeds.get_feed_view(feed_view_id)
         # snippet-end: GetFeedView
 
         self._assert_response_success(get_response, "get feed view")
-        assert get_response.data.feed_view.id == "feedViewID"
+        assert get_response.data.feed_view.id == feed_view_id
         print(f"✅ Retrieved feed view: {feed_view_id}")
 
         # Test 4: Update Feed View
         print("\n✏️ Testing update feed view...")
         # snippet-start: UpdateFeedView
         update_response = self.client.feeds.update_feed_view(
-            id="feedViewID",
+            id=feed_view_id,
             activity_selectors=[{"type": "popular", "min_popularity": 10}],
         )
         # snippet-end: UpdateFeedView
@@ -1577,7 +1577,7 @@ class TestFeedIntegration:
         print("\n🔄 Testing get or create feed view (existing)...")
         # snippet-start: GetOrCreateFeedViewExisting
         get_or_create_response = self.client.feeds.get_or_create_feed_view(
-            id=feed_view_id, activity_selectors=[{"type": "recent"}]
+            id=feed_view_id, activity_selectors=[{"type": "popular"}]
         )
         # snippet-end: GetOrCreateFeedViewExisting
 
