@@ -20,23 +20,23 @@ class Channel:
         if hasattr(data, "channel") and isinstance(data.channel, ChannelResponse):
             self.custom_data = data.channel.custom
 
-    def delete(
+    async def delete(
         self, hard_delete: Optional[bool] = None
     ) -> StreamResponse[DeleteChannelResponse]:
-        response = self.client.delete_channel(
+        response = await self.client.delete_channel(
             type=self.channel_type, id=self.channel_id, hard_delete=hard_delete
         )
         self._sync_from_response(response.data)
         return response
 
-    def update_channel_partial(
+    async def update_channel_partial(
         self,
         user_id: Optional[str] = None,
         unset: Optional[List[str]] = None,
         set: Optional[Dict[str, object]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[UpdateChannelPartialResponse]:
-        response = self.client.update_channel_partial(
+        response = await self.client.update_channel_partial(
             type=self.channel_type,
             id=self.channel_id,
             user_id=user_id,
@@ -47,7 +47,7 @@ class Channel:
         self._sync_from_response(response.data)
         return response
 
-    def update(
+    async def update(
         self,
         accept_invite: Optional[bool] = None,
         cooldown: Optional[int] = None,
@@ -65,7 +65,7 @@ class Channel:
         message: Optional[MessageRequest] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[UpdateChannelResponse]:
-        response = self.client.update_channel(
+        response = await self.client.update_channel(
             type=self.channel_type,
             id=self.channel_id,
             accept_invite=accept_invite,
@@ -87,10 +87,10 @@ class Channel:
         self._sync_from_response(response.data)
         return response
 
-    def delete_draft(
+    async def delete_draft(
         self, parent_id: Optional[str] = None, user_id: Optional[str] = None
     ) -> StreamResponse[Response]:
-        response = self.client.delete_draft(
+        response = await self.client.delete_draft(
             type=self.channel_type,
             id=self.channel_id,
             parent_id=parent_id,
@@ -99,10 +99,10 @@ class Channel:
         self._sync_from_response(response.data)
         return response
 
-    def get_draft(
+    async def get_draft(
         self, parent_id: Optional[str] = None, user_id: Optional[str] = None
     ) -> StreamResponse[GetDraftResponse]:
-        response = self.client.get_draft(
+        response = await self.client.get_draft(
             type=self.channel_type,
             id=self.channel_id,
             parent_id=parent_id,
@@ -111,36 +111,36 @@ class Channel:
         self._sync_from_response(response.data)
         return response
 
-    def send_event(self, event: EventRequest) -> StreamResponse[EventResponse]:
-        response = self.client.send_event(
+    async def send_event(self, event: EventRequest) -> StreamResponse[EventResponse]:
+        response = await self.client.send_event(
             type=self.channel_type, id=self.channel_id, event=event
         )
         self._sync_from_response(response.data)
         return response
 
-    def delete_file(self, url: Optional[str] = None) -> StreamResponse[Response]:
-        response = self.client.delete_file(
+    async def delete_file(self, url: Optional[str] = None) -> StreamResponse[Response]:
+        response = await self.client.delete_file(
             type=self.channel_type, id=self.channel_id, url=url
         )
         self._sync_from_response(response.data)
         return response
 
-    def upload_file(
+    async def upload_file(
         self, file: Optional[str] = None, user: Optional[OnlyUserID] = None
     ) -> StreamResponse[FileUploadResponse]:
-        response = self.client.upload_file(
+        response = await self.client.upload_file(
             type=self.channel_type, id=self.channel_id, file=file, user=user
         )
         self._sync_from_response(response.data)
         return response
 
-    def hide(
+    async def hide(
         self,
         clear_history: Optional[bool] = None,
         user_id: Optional[str] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[HideChannelResponse]:
-        response = self.client.hide_channel(
+        response = await self.client.hide_channel(
             type=self.channel_type,
             id=self.channel_id,
             clear_history=clear_history,
@@ -150,20 +150,20 @@ class Channel:
         self._sync_from_response(response.data)
         return response
 
-    def delete_image(self, url: Optional[str] = None) -> StreamResponse[Response]:
-        response = self.client.delete_image(
+    async def delete_image(self, url: Optional[str] = None) -> StreamResponse[Response]:
+        response = await self.client.delete_image(
             type=self.channel_type, id=self.channel_id, url=url
         )
         self._sync_from_response(response.data)
         return response
 
-    def upload_image(
+    async def upload_image(
         self,
         file: Optional[str] = None,
         upload_sizes: Optional[List[ImageSize]] = None,
         user: Optional[OnlyUserID] = None,
     ) -> StreamResponse[ImageUploadResponse]:
-        response = self.client.upload_image(
+        response = await self.client.upload_image(
             type=self.channel_type,
             id=self.channel_id,
             file=file,
@@ -173,13 +173,13 @@ class Channel:
         self._sync_from_response(response.data)
         return response
 
-    def update_member_partial(
+    async def update_member_partial(
         self,
         user_id: Optional[str] = None,
         unset: Optional[List[str]] = None,
         set: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[UpdateMemberPartialResponse]:
-        response = self.client.update_member_partial(
+        response = await self.client.update_member_partial(
             type=self.channel_type,
             id=self.channel_id,
             user_id=user_id,
@@ -189,7 +189,7 @@ class Channel:
         self._sync_from_response(response.data)
         return response
 
-    def send_message(
+    async def send_message(
         self,
         message: MessageRequest,
         force_moderation: Optional[bool] = None,
@@ -199,7 +199,7 @@ class Channel:
         skip_push: Optional[bool] = None,
         pending_message_metadata: Optional[Dict[str, str]] = None,
     ) -> StreamResponse[SendMessageResponse]:
-        response = self.client.send_message(
+        response = await self.client.send_message(
             type=self.channel_type,
             id=self.channel_id,
             message=message,
@@ -213,16 +213,16 @@ class Channel:
         self._sync_from_response(response.data)
         return response
 
-    def get_many_messages(
+    async def get_many_messages(
         self, ids: List[str]
     ) -> StreamResponse[GetManyMessagesResponse]:
-        response = self.client.get_many_messages(
+        response = await self.client.get_many_messages(
             type=self.channel_type, id=self.channel_id, ids=ids
         )
         self._sync_from_response(response.data)
         return response
 
-    def get_or_create(
+    async def get_or_create(
         self,
         hide_for_creator: Optional[bool] = None,
         state: Optional[bool] = None,
@@ -232,7 +232,7 @@ class Channel:
         messages: Optional[MessagePaginationParams] = None,
         watchers: Optional[PaginationParams] = None,
     ) -> StreamResponse[ChannelStateResponse]:
-        response = self.client.get_or_create_channel(
+        response = await self.client.get_or_create_channel(
             type=self.channel_type,
             id=self.channel_id,
             hide_for_creator=hide_for_creator,
@@ -246,14 +246,14 @@ class Channel:
         self._sync_from_response(response.data)
         return response
 
-    def mark_read(
+    async def mark_read(
         self,
         message_id: Optional[str] = None,
         thread_id: Optional[str] = None,
         user_id: Optional[str] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[MarkReadResponse]:
-        response = self.client.mark_read(
+        response = await self.client.mark_read(
             type=self.channel_type,
             id=self.channel_id,
             message_id=message_id,
@@ -264,16 +264,16 @@ class Channel:
         self._sync_from_response(response.data)
         return response
 
-    def show(
+    async def show(
         self, user_id: Optional[str] = None, user: Optional[UserRequest] = None
     ) -> StreamResponse[ShowChannelResponse]:
-        response = self.client.show_channel(
+        response = await self.client.show_channel(
             type=self.channel_type, id=self.channel_id, user_id=user_id, user=user
         )
         self._sync_from_response(response.data)
         return response
 
-    def truncate(
+    async def truncate(
         self,
         hard_delete: Optional[bool] = None,
         skip_push: Optional[bool] = None,
@@ -283,7 +283,7 @@ class Channel:
         message: Optional[MessageRequest] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[TruncateChannelResponse]:
-        response = self.client.truncate_channel(
+        response = await self.client.truncate_channel(
             type=self.channel_type,
             id=self.channel_id,
             hard_delete=hard_delete,
@@ -297,14 +297,14 @@ class Channel:
         self._sync_from_response(response.data)
         return response
 
-    def mark_unread(
+    async def mark_unread(
         self,
         message_id: Optional[str] = None,
         thread_id: Optional[str] = None,
         user_id: Optional[str] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[Response]:
-        response = self.client.mark_unread(
+        response = await self.client.mark_unread(
             type=self.channel_type,
             id=self.channel_id,
             message_id=message_id,

@@ -857,7 +857,7 @@ class ActivityResponse(DataClassJsonMixin):
     moderation: "Optional[ModerationV2Response]" = dc_field(
         default=None, metadata=dc_config(field_name="moderation")
     )
-    notification_context: Optional[Dict[str, object]] = dc_field(
+    notification_context: "Optional[NotificationContext]" = dc_field(
         default=None, metadata=dc_config(field_name="notification_context")
     )
     parent: "Optional[ActivityResponse]" = dc_field(
@@ -1177,6 +1177,9 @@ class AggregatedActivityResponse(DataClassJsonMixin):
         )
     )
     user_count: int = dc_field(metadata=dc_config(field_name="user_count"))
+    user_count_truncated: bool = dc_field(
+        metadata=dc_config(field_name="user_count_truncated")
+    )
     activities: "List[ActivityResponse]" = dc_field(
         metadata=dc_config(field_name="activities")
     )
@@ -1450,7 +1453,7 @@ class AsyncExportErrorEvent(DataClassJsonMixin):
     task_id: str = dc_field(metadata=dc_config(field_name="task_id"))
     custom: Dict[str, object] = dc_field(metadata=dc_config(field_name="custom"))
     type: str = dc_field(
-        default="export.moderation_logs.error", metadata=dc_config(field_name="type")
+        default="export.users.error", metadata=dc_config(field_name="type")
     )
     received_at: Optional[datetime] = dc_field(
         default=None,
@@ -1858,6 +1861,9 @@ class BanActionRequest(DataClassJsonMixin):
 
 @dataclass
 class BanOptions(DataClassJsonMixin):
+    delete_messages: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="delete_messages")
+    )
     duration: Optional[int] = dc_field(
         default=None, metadata=dc_config(field_name="duration")
     )
@@ -3020,8 +3026,8 @@ class CallParticipant(DataClassJsonMixin):
         )
     )
     online: bool = dc_field(metadata=dc_config(field_name="online"))
-    role: str = dc_field(metadata=dc_config(field_name="role"))
     role: str = dc_field(metadata=dc_config(field_name="Role"))
+    role: str = dc_field(metadata=dc_config(field_name="role"))
     user_session_id: str = dc_field(metadata=dc_config(field_name="UserSessionID"))
     custom: Dict[str, object] = dc_field(metadata=dc_config(field_name="custom"))
     teams_role: "Dict[str, str]" = dc_field(metadata=dc_config(field_name="teams_role"))
@@ -4185,6 +4191,7 @@ class CallUserMutedEvent(DataClassJsonMixin):
         )
     )
     from_user_id: str = dc_field(metadata=dc_config(field_name="from_user_id"))
+    reason: str = dc_field(metadata=dc_config(field_name="reason"))
     muted_user_ids: List[str] = dc_field(
         metadata=dc_config(field_name="muted_user_ids")
     )
@@ -6078,6 +6085,9 @@ class ConfigResponse(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         )
     )
+    supported_video_call_harm_types: List[str] = dc_field(
+        metadata=dc_config(field_name="supported_video_call_harm_types")
+    )
     ai_image_config: "Optional[AIImageConfig]" = dc_field(
         default=None, metadata=dc_config(field_name="ai_image_config")
     )
@@ -6942,6 +6952,8 @@ class DeleteCommentReactionResponse(DataClassJsonMixin):
 @dataclass
 class DeleteCommentResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    activity: "ActivityResponse" = dc_field(metadata=dc_config(field_name="activity"))
+    comment: "CommentResponse" = dc_field(metadata=dc_config(field_name="comment"))
 
 
 @dataclass
@@ -8249,35 +8261,42 @@ FeedOwnCapabilityType = NewType("FeedOwnCapabilityType", str)
 
 class FeedOwnCapability:
     ADD_ACTIVITY: Final[FeedOwnCapabilityType] = "add-activity"
+    ADD_ACTIVITY_BOOKMARK: Final[FeedOwnCapabilityType] = "add-activity-bookmark"
     ADD_ACTIVITY_REACTION: Final[FeedOwnCapabilityType] = "add-activity-reaction"
     ADD_COMMENT: Final[FeedOwnCapabilityType] = "add-comment"
     ADD_COMMENT_REACTION: Final[FeedOwnCapabilityType] = "add-comment-reaction"
-    BOOKMARK_ACTIVITY: Final[FeedOwnCapabilityType] = "bookmark-activity"
     CREATE_FEED: Final[FeedOwnCapabilityType] = "create-feed"
-    DELETE_BOOKMARK: Final[FeedOwnCapabilityType] = "delete-bookmark"
-    DELETE_COMMENT: Final[FeedOwnCapabilityType] = "delete-comment"
+    DELETE_ANY_ACTIVITY: Final[FeedOwnCapabilityType] = "delete-any-activity"
+    DELETE_ANY_COMMENT: Final[FeedOwnCapabilityType] = "delete-any-comment"
     DELETE_FEED: Final[FeedOwnCapabilityType] = "delete-feed"
-    EDIT_BOOKMARK: Final[FeedOwnCapabilityType] = "edit-bookmark"
+    DELETE_OWN_ACTIVITY: Final[FeedOwnCapabilityType] = "delete-own-activity"
+    DELETE_OWN_ACTIVITY_BOOKMARK: Final[FeedOwnCapabilityType] = (
+        "delete-own-activity-bookmark"
+    )
+    DELETE_OWN_ACTIVITY_REACTION: Final[FeedOwnCapabilityType] = (
+        "delete-own-activity-reaction"
+    )
+    DELETE_OWN_COMMENT: Final[FeedOwnCapabilityType] = "delete-own-comment"
+    DELETE_OWN_COMMENT_REACTION: Final[FeedOwnCapabilityType] = (
+        "delete-own-comment-reaction"
+    )
     FOLLOW: Final[FeedOwnCapabilityType] = "follow"
-    INVITE_FEED: Final[FeedOwnCapabilityType] = "invite-feed"
-    JOIN_FEED: Final[FeedOwnCapabilityType] = "join-feed"
-    LEAVE_FEED: Final[FeedOwnCapabilityType] = "leave-feed"
-    MANAGE_FEED_GROUP: Final[FeedOwnCapabilityType] = "manage-feed-group"
-    MARK_ACTIVITY: Final[FeedOwnCapabilityType] = "mark-activity"
     PIN_ACTIVITY: Final[FeedOwnCapabilityType] = "pin-activity"
     QUERY_FEED_MEMBERS: Final[FeedOwnCapabilityType] = "query-feed-members"
     QUERY_FOLLOWS: Final[FeedOwnCapabilityType] = "query-follows"
     READ_ACTIVITIES: Final[FeedOwnCapabilityType] = "read-activities"
     READ_FEED: Final[FeedOwnCapabilityType] = "read-feed"
-    REMOVE_ACTIVITY: Final[FeedOwnCapabilityType] = "remove-activity"
-    REMOVE_ACTIVITY_REACTION: Final[FeedOwnCapabilityType] = "remove-activity-reaction"
-    REMOVE_COMMENT_REACTION: Final[FeedOwnCapabilityType] = "remove-comment-reaction"
     UNFOLLOW: Final[FeedOwnCapabilityType] = "unfollow"
-    UPDATE_ACTIVITY: Final[FeedOwnCapabilityType] = "update-activity"
-    UPDATE_COMMENT: Final[FeedOwnCapabilityType] = "update-comment"
+    UPDATE_ANY_ACTIVITY: Final[FeedOwnCapabilityType] = "update-any-activity"
+    UPDATE_ANY_COMMENT: Final[FeedOwnCapabilityType] = "update-any-comment"
     UPDATE_FEED: Final[FeedOwnCapabilityType] = "update-feed"
     UPDATE_FEED_FOLLOWERS: Final[FeedOwnCapabilityType] = "update-feed-followers"
     UPDATE_FEED_MEMBERS: Final[FeedOwnCapabilityType] = "update-feed-members"
+    UPDATE_OWN_ACTIVITY: Final[FeedOwnCapabilityType] = "update-own-activity"
+    UPDATE_OWN_ACTIVITY_BOOKMARK: Final[FeedOwnCapabilityType] = (
+        "update-own-activity-bookmark"
+    )
+    UPDATE_OWN_COMMENT: Final[FeedOwnCapabilityType] = "update-own-comment"
 
 
 @dataclass
@@ -8413,6 +8432,13 @@ class FeedViewResponse(DataClassJsonMixin):
     ranking: "Optional[RankingConfig]" = dc_field(
         default=None, metadata=dc_config(field_name="ranking")
     )
+
+
+@dataclass
+class FeedVisibilityResponse(DataClassJsonMixin):
+    description: str = dc_field(metadata=dc_config(field_name="description"))
+    name: str = dc_field(metadata=dc_config(field_name="name"))
+    grants: "Dict[str, List[str]]" = dc_field(metadata=dc_config(field_name="grants"))
 
 
 @dataclass
@@ -9400,6 +9426,14 @@ class GetFeedViewResponse(DataClassJsonMixin):
 
 
 @dataclass
+class GetFeedVisibilityResponse(DataClassJsonMixin):
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    feed_visibility: "FeedVisibilityResponse" = dc_field(
+        metadata=dc_config(field_name="feed_visibility")
+    )
+
+
+@dataclass
 class GetFollowSuggestionsResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
     suggestions: "List[FeedResponse]" = dc_field(
@@ -9873,11 +9907,20 @@ class HLSSettingsResponse(DataClassJsonMixin):
 
 @dataclass
 class HarmConfig(DataClassJsonMixin):
+    cooldown_period: Optional[int] = dc_field(
+        default=None, metadata=dc_config(field_name="cooldown_period")
+    )
     severity: Optional[int] = dc_field(
         default=None, metadata=dc_config(field_name="severity")
     )
+    threshold: Optional[int] = dc_field(
+        default=None, metadata=dc_config(field_name="threshold")
+    )
     action_sequences: "Optional[List[ActionSequence]]" = dc_field(
         default=None, metadata=dc_config(field_name="action_sequences")
+    )
+    harm_types: Optional[List[str]] = dc_field(
+        default=None, metadata=dc_config(field_name="harm_types")
     )
 
 
@@ -10407,6 +10450,14 @@ class ListFeedViewsResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
     views: "Dict[str, FeedViewResponse]" = dc_field(
         metadata=dc_config(field_name="views")
+    )
+
+
+@dataclass
+class ListFeedVisibilitiesResponse(DataClassJsonMixin):
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    feed_visibilities: "Dict[str, FeedVisibilityResponse]" = dc_field(
+        metadata=dc_config(field_name="feed_visibilities")
     )
 
 
@@ -11715,6 +11766,9 @@ class ModerationConfig(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         ),
     )
+    supported_video_call_harm_types: Optional[List[str]] = dc_field(
+        default=None, metadata=dc_config(field_name="supported_video_call_harm_types")
+    )
     ai_image_config: "Optional[AIImageConfig]" = dc_field(
         default=None, metadata=dc_config(field_name="ai_image_config")
     )
@@ -11783,6 +11837,9 @@ class ModerationCustomActionEvent(DataClassJsonMixin):
 
 @dataclass
 class ModerationDashboardPreferences(DataClassJsonMixin):
+    disable_flagging_reviewed_entity: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="disable_flagging_reviewed_entity")
+    )
     flag_user_on_flagged_content: Optional[bool] = dc_field(
         default=None, metadata=dc_config(field_name="flag_user_on_flagged_content")
     )
@@ -12096,6 +12153,16 @@ class NotificationConfig(DataClassJsonMixin):
 
 
 @dataclass
+class NotificationContext(DataClassJsonMixin):
+    target: "Optional[NotificationTarget]" = dc_field(
+        default=None, metadata=dc_config(field_name="target")
+    )
+    trigger: "Optional[NotificationTrigger]" = dc_field(
+        default=None, metadata=dc_config(field_name="trigger")
+    )
+
+
+@dataclass
 class NotificationFeedUpdatedEvent(DataClassJsonMixin):
     created_at: datetime = dc_field(
         metadata=dc_config(
@@ -12233,6 +12300,26 @@ class NotificationStatusResponse(DataClassJsonMixin):
     seen_activities: Optional[List[str]] = dc_field(
         default=None, metadata=dc_config(field_name="seen_activities")
     )
+
+
+@dataclass
+class NotificationTarget(DataClassJsonMixin):
+    id: str = dc_field(metadata=dc_config(field_name="id"))
+    name: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="name"))
+    text: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="text"))
+    type: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="type"))
+    user_id: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="user_id")
+    )
+    attachments: "Optional[List[Attachment]]" = dc_field(
+        default=None, metadata=dc_config(field_name="attachments")
+    )
+
+
+@dataclass
+class NotificationTrigger(DataClassJsonMixin):
+    text: str = dc_field(metadata=dc_config(field_name="text"))
+    type: str = dc_field(metadata=dc_config(field_name="type"))
 
 
 @dataclass
@@ -19544,7 +19631,13 @@ class VelocityFilterConfigRule(DataClassJsonMixin):
 
 @dataclass
 class VideoCallRuleConfig(DataClassJsonMixin):
-    rules: "Optional[Dict[str, HarmConfig]]" = dc_field(
+    flag_all_labels: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="flag_all_labels")
+    )
+    flagged_labels: Optional[List[str]] = dc_field(
+        default=None, metadata=dc_config(field_name="flagged_labels")
+    )
+    rules: "Optional[List[HarmConfig]]" = dc_field(
         default=None, metadata=dc_config(field_name="rules")
     )
 
