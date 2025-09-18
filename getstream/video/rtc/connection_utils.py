@@ -16,6 +16,7 @@ from enum import Enum
 from typing import Any, Optional, Tuple
 
 import aiortc
+from aiortc.rtcrtpsender import RTCRtpSender
 
 from getstream.base import StreamResponse
 from getstream.models import CallRequest
@@ -221,6 +222,20 @@ async def create_join_request(token: str, session_id: str) -> events_pb2.JoinReq
     temp_pub_pc.addTransceiver(direction="sendonly", trackOrKind="audio")
     temp_sub_pc.addTransceiver(direction="recvonly", trackOrKind="video")
     temp_sub_pc.addTransceiver(direction="recvonly", trackOrKind="audio")
+
+    # Prefer non-VP8 codecs by excluding VP8 from codec preferences for video
+    video_codecs_excluding_vp8 = [
+        c
+        for c in RTCRtpSender.getCapabilities("video").codecs
+        if c.name.lower() != "vp8"
+    ]
+    if video_codecs_excluding_vp8:
+        for transceiver in temp_pub_pc.getTransceivers():
+            if transceiver.kind == "video":
+                transceiver.setCodecPreferences(video_codecs_excluding_vp8)
+        for transceiver in temp_sub_pc.getTransceivers():
+            if transceiver.kind == "video":
+                transceiver.setCodecPreferences(video_codecs_excluding_vp8)
 
     pub_offer = await temp_pub_pc.createOffer()
     sub_offer = await temp_sub_pc.createOffer()
