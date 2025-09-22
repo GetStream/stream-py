@@ -80,9 +80,6 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
         self.backoff_base = backoff_base
         self.backoff_factor = backoff_factor
 
-        # Handlers to directly call on message
-        self.handlers = []
-
         self._logger = logger or globals()["logger"]
 
         # Connection state
@@ -234,7 +231,6 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
                             "Received message", extra={"type": event_type}
                         )
                         self.emit(event_type, message)
-                        await asyncio.gather(*[handler(message) for handler in self.handlers])
                     except json.JSONDecodeError as e:
                         self._logger.warning(
                             "Failed to parse message as JSON", exc_info=e
