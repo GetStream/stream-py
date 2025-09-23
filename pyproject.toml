@@ -22,28 +22,11 @@ dependencies = [
     "dataclasses-json>=0.6.0,<0.7",
     "marshmallow>=3.21.0,<4",
     "python-dateutil>=2.8.2",
-    "pytest-timeout>=2.3.1",
     "aiohttp>=3.11.16",
     "pydantic-settings>=2.9.1",
     "pydantic>=2.10.6",
-    "tenacity>=9.1.2",
     "ping3>=4.0.8",
     "aiortc>=1.13.0",
-    "numpy>=2.2.6",
-    "torch>=2.7.1",
-    "torchaudio>=2.7.1",
-    "soundfile>=0.13.1",
-    "scipy>=1.15.3",
-    "twirp>=0.0.7",
-    "protobuf>=6.31.1",
-    "websockets>=15.0.1",
-    "websocket-client>=1.8.0",
-    "structlog>=23.3.0",
-    "cartesia>=2.0.5",
-    "fal-client>=0.7.0",
-    "deepgram-sdk>=4.7.0",
-    "elevenlabs>=2.8.0",
-    "google-genai>=1.30.0",
 ]
 
 [project.optional-dependencies]
@@ -64,6 +47,16 @@ webrtc = [
     "websocket-client>=1.8.0",
     "python-dateutil>=2.8.2",
     "structlog<24",
+    "numpy>=2.2.6",
+    "tenacity>=9.1.2",
+    "torch>=2.7.1",
+    "torchaudio>=2.7.1",
+    "soundfile>=0.13.1",
+    "scipy>=1.15.3",
+    "twirp>=0.0.7",
+    "protobuf>=6.31.1",
+    "websockets>=15.0.1",
+    "websocket-client>=1.8.0",
 ]
 
 [dependency-groups]
@@ -77,6 +70,7 @@ dev = [
     "pytest-asyncio>=1.0.0",
     "grpcio-tools>=1.73.1",
     "mypy-protobuf==3.5.0",
+    "pytest-timeout>=2.3.1",
 ]
 
 [tool.uv.workspace]
