@@ -7,7 +7,7 @@ class BaseConfig:
         api_key,
         base_url=None,
         token=None,
-        headers={},
+        headers=None,
         anonymous=False,
         timeout=None,
         user_agent=None,
@@ -18,13 +18,17 @@ class BaseConfig:
         self.base_url = base_url
         self.params = {"api_key": api_key}
         self.api_key = api_key
+
+        # Avoid shared mutable defaults and copy any provided headers
+        headers_dict = dict(headers) if headers is not None else {}
+
         if token is not None:
-            headers["Authorization"] = token
+            headers_dict["Authorization"] = token
         if user_agent is None:
             user_agent = self._get_user_agent()
-        headers["stream-auth-type"] = self._get_auth_type()
-        headers["X-Stream-Client"] = user_agent
-        self.headers = headers
+        headers_dict["stream-auth-type"] = self._get_auth_type()
+        headers_dict["X-Stream-Client"] = user_agent
+        self.headers = headers_dict
 
     def _get_user_agent(self):
         return f"stream-python-client-{VERSION}"

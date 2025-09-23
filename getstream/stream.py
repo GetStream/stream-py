@@ -212,7 +212,7 @@ class AsyncStream(BaseStream, AsyncCommonClient):
         if they do, or creates a new user entry if they do not.
         """
         users_map = {u.id: u for u in users}
-        return self.update_users(users_map)
+        return await self.update_users(users_map)
 
 
 class Stream(BaseStream, CommonClient):

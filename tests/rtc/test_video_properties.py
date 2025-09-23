@@ -3,7 +3,7 @@ import os
 import asyncio
 from aiortc.contrib.media import MediaPlayer
 from getstream.stream import Stream
-from getstream.video import rtc
+from getstream.video.rtc.connection_utils import prepare_video_track_info
 from getstream.video.rtc.track_util import (
     detect_video_properties,
     BufferedMediaTrack,
@@ -75,6 +75,7 @@ async def test_detect_video_properties():
         # Ensure resources are cleaned up properly
         if buffered_track:
             buffered_track.stop()
+        # MediaPlayer has no public stop(); rely on GC and buffered_track.stop()
         # Give some time for cleanup
         await asyncio.sleep(0.1)
 
@@ -148,6 +149,7 @@ async def test_buffered_media_track():
         # Ensure resources are cleaned up properly
         if buffered_track:
             buffered_track.stop()
+        # MediaPlayer has no public stop(); rely on GC and buffered_track.stop()
         # Give some time for cleanup
         await asyncio.sleep(0.1)
 
@@ -162,9 +164,7 @@ async def test_prepare_video_track_info(client: Stream):
     if not os.path.exists(file_path):
         pytest.skip(f"Test media file not found at {file_path}")
 
-    player = None
     buffered_track = None
-    connection = None
 
     try:
         # Create a media player from the file
@@ -173,14 +173,8 @@ async def test_prepare_video_track_info(client: Stream):
         # Ensure we have a video track
         assert player.video is not None, "No video track found in test file"
 
-        # Create a connection manager
-        call = client.video.call("default", "video-props-test-prepare")
-        connection = await rtc.join(call, "test-user")
-
-        # Test the prepare_video_track_info method
-        track_info, buffered_track = await connection.prepare_video_track_info(
-            player.video
-        )
+        # Prepare video track info directly using the utility function
+        track_info, buffered_track = await prepare_video_track_info(player.video)
 
         # Verify the returned values
         assert track_info is not None, "Track info not returned"
@@ -212,7 +206,6 @@ async def test_prepare_video_track_info(client: Stream):
         # Clean up resources
         if buffered_track:
             buffered_track.stop()
-        if connection and connection.running:
-            await connection.leave()
+        # No connection was created in this test
         # Give some time for cleanup
         await asyncio.sleep(0.1)

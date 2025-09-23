@@ -9,6 +9,7 @@ from getstream.models import (
 )
 from getstream.models import UserRequest
 from getstream import Stream, AsyncStream
+import warnings
 
 
 def test_upsert_users(client: Stream):
@@ -92,4 +93,7 @@ async def test_send_message(async_client: AsyncStream):
 
 
 def test_from_env():
-    Stream.from_env()
+    # Suppress the deprecation warning for this explicit compatibility check
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=DeprecationWarning)
+        Stream.from_env()
