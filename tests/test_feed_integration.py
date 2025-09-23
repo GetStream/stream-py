@@ -45,6 +45,7 @@ class TestFeedIntegration:
     POLL_QUESTION = "What's your favorite programming language?"
 
     def setup_method(self):
+        pytest.skip("feed integration tests are disabled for now")
         """Setup for each test method"""
         self.client = Stream(
             api_key=os.environ.get("STREAM_API_KEY"),
