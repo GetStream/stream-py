@@ -148,7 +148,7 @@ class AsyncStream(BaseStream, AsyncCommonClient):
     """
 
     @cached_property
-    def video(self):
+    def video(self) -> AsyncVideoClient:
         """
         Video stream client.
 
@@ -162,7 +162,7 @@ class AsyncStream(BaseStream, AsyncCommonClient):
         )
 
     @cached_property
-    def chat(self):
+    def chat(self) -> AsyncChatClient:
         """
         Chat stream client.
 
@@ -176,7 +176,7 @@ class AsyncStream(BaseStream, AsyncCommonClient):
         )
 
     @cached_property
-    def moderation(self):
+    def moderation(self) -> AsyncModerationClient:
         """
         Moderation stream client.
 
@@ -247,7 +247,7 @@ class Stream(BaseStream, CommonClient):
         )
 
     @cached_property
-    def video(self):
+    def video(self) -> VideoClient:
         """
         Video stream client.
 
@@ -261,7 +261,7 @@ class Stream(BaseStream, CommonClient):
         )
 
     @cached_property
-    def chat(self):
+    def chat(self) -> ChatClient:
         """
         Chat stream client.
 
@@ -275,7 +275,7 @@ class Stream(BaseStream, CommonClient):
         )
 
     @cached_property
-    def moderation(self):
+    def moderation(self) -> ModerationClient:
         """
         Moderation stream client.
 
@@ -289,7 +289,7 @@ class Stream(BaseStream, CommonClient):
         )
 
     @cached_property
-    def feeds(self):
+    def feeds(self) -> FeedsClient:
         """
         Feeds stream client.
 

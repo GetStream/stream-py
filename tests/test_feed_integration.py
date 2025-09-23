@@ -17,6 +17,7 @@ Test order:
 import os
 import uuid
 import pytest
+import time
 from datetime import datetime, timedelta
 from typing import List
 
@@ -133,6 +134,32 @@ class TestFeedIntegration:
         else:
             # For generated model responses, just assert they exist
             assert response is not None, f"Failed to {operation}. Response is null."
+
+    def _retry_config_operation(
+        self, operation_func, operation_name: str, max_retries=10, initial_delay=1
+    ):
+        """
+        Retry operations for config database resources (feed groups/views).
+        Config database propagation can take up to 30 seconds.
+        """
+        last_exception = None
+
+        for attempt in range(max_retries):
+            try:
+                return operation_func()
+            except Exception as e:
+                last_exception = e
+                if attempt < max_retries - 1:  # Don't sleep on the last attempt
+                    delay = initial_delay * (1.5**attempt)  # Exponential backoff
+                    print(f"   Attempt {attempt + 1} failed for {operation_name}: {e}")
+                    print(
+                        f"   Retrying in {delay:.1f}s (config DB propagation can take up to 30s)..."
+                    )
+                    time.sleep(delay)
+
+        # If all retries failed, raise the last exception
+        print(f"   All {max_retries} attempts failed for {operation_name}")
+        raise last_exception
 
     # =================================================================
     # 1. ENVIRONMENT SETUP TEST (demonstrates the setup process)
@@ -1451,20 +1478,26 @@ class TestFeedIntegration:
         assert create_response.data.feed_group.id == feed_group_id
         print(f"✅ Created feed group: {feed_group_id}")
 
-        # Test 3: Get Feed Group
+        # Test 3: Get Feed Group (with retry for config DB propagation)
         print("\n🔍 Testing get feed group...")
         # snippet-start: GetFeedGroup
-        get_response = self.client.feeds.get_feed_group("feed_group_id")
+        get_response = self._retry_config_operation(
+            lambda: self.client.feeds.get_feed_group(feed_group_id),
+            f"get feed group '{feed_group_id}'",
+        )
         # snippet-end: GetFeedGroup
 
         self._assert_response_success(get_response, "get feed group")
-        assert get_response.data.feed_group.id == "feed_group_id"
+        assert get_response.data.feed_group.id == feed_group_id
         print(f"✅ Retrieved feed group: {feed_group_id}")
 
-        # Test 4: Update Feed Group
+        # Test 4: Update Feed Group (with retry for config DB propagation)
         print("\n✏️ Testing update feed group...")
         # snippet-start: UpdateFeedGroup
-        update_response = self.client.feeds.update_feed_group(id="feed_group_id")
+        update_response = self._retry_config_operation(
+            lambda: self.client.feeds.update_feed_group(id=feed_group_id),
+            f"update feed group '{feed_group_id}'",
+        )
         # snippet-end: UpdateFeedGroup
 
         self._assert_response_success(update_response, "update feed group")
@@ -1473,13 +1506,20 @@ class TestFeedIntegration:
         # Test 5: Get or Create Feed Group (should get existing)
         print("\n🔄 Testing get or create feed group (existing)...")
 
-        # Test 6: Delete Feed Group
+        # Test 6: Delete Feed Group (with retry for config DB propagation)
         print("\n🗑️ Testing delete feed group...")
         # snippet-start: DeleteFeedGroup
-        # self.client.feeds.delete_feed_group("groupID-123", {
-        #     "hard_delete": False  # soft delete
-        # })
+        delete_response = self._retry_config_operation(
+            lambda: self.client.feeds.delete_feed_group(
+                id=feed_group_id,
+                hard_delete=False,  # soft delete
+            ),
+            f"delete feed group '{feed_group_id}'",
+        )
         # snippet-end: DeleteFeedGroup
+
+        self._assert_response_success(delete_response, "delete feed group")
+        print(f"✅ Deleted feed group: {feed_group_id}")
 
         print("✅ Completed Feed Group CRUD operations")
 
@@ -1531,7 +1571,7 @@ class TestFeedIntegration:
         # snippet-start: CreateFeedView
         create_response = self.client.feeds.create_feed_view(
             id=feed_view_id,
-            activity_selectors=[{"type": "recent"}],
+            activity_selectors=[{"type": "popular"}],
         )
         # snippet-end: CreateFeedView
 
@@ -1539,22 +1579,28 @@ class TestFeedIntegration:
         assert create_response.data.feed_view.id == feed_view_id
         print(f"✅ Created feed view: {feed_view_id}")
 
-        # Test 3: Get Feed View
+        # Test 3: Get Feed View (with retry for config DB propagation)
         print("\n🔍 Testing get feed view...")
         # snippet-start: GetFeedView
-        get_response = self.client.feeds.get_feed_view("feedViewID")
+        get_response = self._retry_config_operation(
+            lambda: self.client.feeds.get_feed_view(feed_view_id),
+            f"get feed view '{feed_view_id}'",
+        )
         # snippet-end: GetFeedView
 
         self._assert_response_success(get_response, "get feed view")
-        assert get_response.data.feed_view.id == "feedViewID"
+        assert get_response.data.feed_view.id == feed_view_id
         print(f"✅ Retrieved feed view: {feed_view_id}")
 
-        # Test 4: Update Feed View
+        # Test 4: Update Feed View (with retry for config DB propagation)
         print("\n✏️ Testing update feed view...")
         # snippet-start: UpdateFeedView
-        update_response = self.client.feeds.update_feed_view(
-            id="feedViewID",
-            activity_selectors=[{"type": "popular", "min_popularity": 10}],
+        update_response = self._retry_config_operation(
+            lambda: self.client.feeds.update_feed_view(
+                id=feed_view_id,
+                activity_selectors=[{"type": "popular", "min_popularity": 10}],
+            ),
+            f"update feed view '{feed_view_id}'",
         )
         # snippet-end: UpdateFeedView
 
@@ -1565,7 +1611,7 @@ class TestFeedIntegration:
         print("\n🔄 Testing get or create feed view (existing)...")
         # snippet-start: GetOrCreateFeedViewExisting
         get_or_create_response = self.client.feeds.get_or_create_feed_view(
-            id=feed_view_id, activity_selectors=[{"type": "recent"}]
+            id=feed_view_id, activity_selectors=[{"type": "popular"}]
         )
         # snippet-end: GetOrCreateFeedViewExisting
 
@@ -1574,10 +1620,16 @@ class TestFeedIntegration:
         )
         print(f"✅ Got existing feed view: {feed_view_id}")
 
-        # Test 6: Delete Feed View
+        # Test 6: Delete Feed View (with retry for config DB propagation)
         print("\n🗑️ Testing delete feed view...")
         # snippet-start: DeleteFeedView
-        # self.client.feeds.delete_feed_view("viewID-123")
+        delete_response = self._retry_config_operation(
+            lambda: self.client.feeds.delete_feed_view(id=feed_view_id),
+            f"delete feed view '{feed_view_id}'",
+        )
         # snippet-end: DeleteFeedView
+
+        self._assert_response_success(delete_response, "delete feed view")
+        print(f"✅ Deleted feed view: {feed_view_id}")
 
         print("✅ Completed Feed View CRUD operations")

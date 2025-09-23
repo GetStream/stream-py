@@ -79,6 +79,7 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
         self.max_retries = max_retries
         self.backoff_base = backoff_base
         self.backoff_factor = backoff_factor
+
         self._logger = logger or globals()["logger"]
 
         # Connection state
