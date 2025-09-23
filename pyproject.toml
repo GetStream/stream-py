@@ -22,11 +22,9 @@ dependencies = [
     "dataclasses-json>=0.6.0,<0.7",
     "marshmallow>=3.21.0,<4",
     "python-dateutil>=2.8.2",
-    "aiohttp>=3.11.16",
     "pydantic-settings>=2.9.1",
     "pydantic>=2.10.6",
-    "ping3>=4.0.8",
-    "aiortc>=1.13.0",
+    "pyee>=13.0.0",
 ]
 
 [project.optional-dependencies]
@@ -42,7 +40,6 @@ webrtc = [
     "scipy>=1.15.3,<1.16",
     "twirp>=0.0.7",
     "protobuf>=4.25.1",
-    "pyee>=13.0.0",
     "websockets>=15.0.1,<16",
     "websocket-client>=1.8.0",
     "python-dateutil>=2.8.2",
@@ -54,6 +51,8 @@ webrtc = [
     "soundfile>=0.13.1",
     "scipy>=1.15.3",
     "twirp>=0.0.7",
+    "aiohttp>=3.11.16",
+    "ping3>=4.0.8",
     "protobuf>=6.31.1",
     "websockets>=15.0.1",
     "websocket-client>=1.8.0",

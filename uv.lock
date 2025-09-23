@@ -631,14 +631,12 @@ wheels = [
 name = "getstream"
 source = { editable = "." }
 dependencies = [
-    { name = "aiohttp" },
-    { name = "aiortc" },
     { name = "dataclasses-json" },
     { name = "httpx" },
     { name = "marshmallow" },
-    { name = "ping3" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
+    { name = "pyee" },
     { name = "pyjwt" },
     { name = "python-dateutil" },
 ]
@@ -648,10 +646,11 @@ openai-realtime = [
     { name = "openai", extra = ["realtime"] },
 ]
 webrtc = [
+    { name = "aiohttp" },
     { name = "aiortc" },
     { name = "numpy" },
+    { name = "ping3" },
     { name = "protobuf" },
-    { name = "pyee" },
     { name = "python-dateutil" },
     { name = "scipy" },
     { name = "soundfile" },
@@ -679,8 +678,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aiohttp", specifier = ">=3.11.16" },
-    { name = "aiortc", specifier = ">=1.13.0" },
+    { name = "aiohttp", marker = "extra == 'webrtc'", specifier = ">=3.11.16" },
     { name = "aiortc", marker = "extra == 'webrtc'", specifier = ">=1.13.0" },
     { name = "dataclasses-json", specifier = ">=0.6.0,<0.7" },
     { name = "httpx", specifier = ">=0.28.1" },
@@ -688,12 +686,12 @@ requires-dist = [
     { name = "numpy", marker = "extra == 'webrtc'", specifier = ">=2.2.6" },
     { name = "numpy", marker = "extra == 'webrtc'", specifier = ">=2.2.6,<2.3" },
     { name = "openai", extras = ["realtime"], marker = "extra == 'openai-realtime'", specifier = ">=1.93.0" },
-    { name = "ping3", specifier = ">=4.0.8" },
+    { name = "ping3", marker = "extra == 'webrtc'", specifier = ">=4.0.8" },
     { name = "protobuf", marker = "extra == 'webrtc'", specifier = ">=4.25.1" },
     { name = "protobuf", marker = "extra == 'webrtc'", specifier = ">=6.31.1" },
     { name = "pydantic", specifier = ">=2.10.6" },
     { name = "pydantic-settings", specifier = ">=2.9.1" },
-    { name = "pyee", marker = "extra == 'webrtc'", specifier = ">=13.0.0" },
+    { name = "pyee", specifier = ">=13.0.0" },
     { name = "pyjwt", specifier = ">=2.8.0,<3" },
     { name = "python-dateutil", specifier = ">=2.8.2" },
     { name = "python-dateutil", marker = "extra == 'webrtc'", specifier = ">=2.8.2" },
