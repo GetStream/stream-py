@@ -19,5 +19,6 @@ set -ex
 # cd in API repo, generate new spec and then generate code from it
 ( cd $SOURCE_PATH ; make openapi ; go run ./cmd/chat-manager openapi generate-client --language python --spec ./releases/v2/serverside-api.yaml --output ../stream-py/getstream/ )
 
-# lint generated code with ruff
+# lint + auto-fix, then format generated code with ruff (align with pre-commit)
+uv run ruff check --fix getstream/ tests/
 uv run ruff format getstream/ tests/
