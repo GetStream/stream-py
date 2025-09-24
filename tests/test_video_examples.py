@@ -501,3 +501,23 @@ async def test_async_create_user(async_client: AsyncStream):
 
     token = async_client.create_token("tommaso-id")
     assert token
+
+
+@pytest.mark.asyncio
+async def test_srt(async_client: AsyncStream):
+    user_id = str(uuid.uuid4())
+
+    call = async_client.video.call("default", str(uuid.uuid4()))
+    response = await call.get_or_create(
+        data=CallRequest(
+            created_by_id=user_id,
+            settings_override=CallSettingsRequest(
+                frame_recording=FrameRecordingSettingsRequest(
+                    capture_interval_in_seconds=3, mode="auto-on", quality="1080p"
+                ),
+            ),
+        )
+    )
+
+    assert response.data.call.ingress.srt != ""
+    assert call.create_srt_token("tommaso-id") != ""
