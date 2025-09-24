@@ -1,9 +1,14 @@
 import json
+import asyncio
 from typing import Dict, List, Optional, Union
 from urllib.parse import quote
 from datetime import datetime
 from datetime import timezone
 from urllib.parse import urlparse, urlunparse
+import logging
+import sys
+
+from .event_emitter import StreamAsyncIOEventEmitter
 
 UTC = timezone.utc
 
@@ -146,3 +151,91 @@ def build_body_dict(**kwargs):
 
     data = {key: handle_value(value) for key, value in kwargs.items()}
     return data
+
+
+def configure_logging(level=None, handler=None, format=None):
+    """
+    Configure logging for the Stream library.
+
+    Args:
+        level: The logging level to use (default: logging.INFO)
+        handler: A custom handler to use (default: StreamHandler)
+        format: A custom format string (default: '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    """
+    # Get the root logger for the library
+    logger = logging.getLogger("getstream")
+
+    # Set the level if provided
+    if level is not None:
+        logger.setLevel(level)
+
+    # Create a handler if not provided
+    if handler is None:
+        handler = logging.StreamHandler(sys.stdout)
+
+        # Set the format if provided
+        if format is None:
+            format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        handler.setFormatter(logging.Formatter(format))
+
+    # Add the handler
+    logger.addHandler(handler)
+
+    return logger
+
+
+async def sync_to_async(func, *args, **kwargs):
+    """
+    Run a synchronous function asynchronously in a separate thread.
+
+    This helper schedules the blocking function ``func`` to be executed in a
+    thread from the default ``ThreadPoolExecutor`` via
+    :func:`asyncio.to_thread`.  The returned coroutine is wrapped in
+    :func:`asyncio.shield` so that it cannot be cancelled by a caller's
+    cancellation of the surrounding coroutine.  This mirrors the behaviour
+    of many legacy wrappers that provide an ``async`` interface to a sync
+    API.
+
+    Parameters
+    ----------
+    func : Callable
+        The blocking function to execute.
+    *args
+        Positional arguments to pass to ``func``.
+    **kwargs
+        Keyword arguments to pass to ``func``.
+
+    Returns
+    -------
+    Any
+        The result returned by ``func``.
+
+    Example
+    -------
+    >>> import asyncio
+    >>> async def main():
+    ...     result = await sync_to_async(sum, [1, 2, 3])
+    ...     print(result)
+    ...
+    >>> asyncio.run(main())
+    6
+    """
+    return await asyncio.shield(
+        asyncio.create_task(asyncio.to_thread(func, *args, **kwargs))
+    )
+
+
+__all__ = [
+    # Event emitter
+    "StreamAsyncIOEventEmitter",
+    # Utils functions
+    "encode_datetime",
+    "datetime_from_unix_ns",
+    "build_query_param",
+    "build_body_dict",
+    "validate_and_clean_url",
+    "configure_logging",
+    "UTC",
+    # async
+    "sync_to_async",
+]

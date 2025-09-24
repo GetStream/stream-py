@@ -1,11 +1,15 @@
+import pytest
 import uuid
 
 from getstream.models import (
     UpdateUserPartialRequest,
     QueryUsersPayload,
+    MessageRequest,
+    ChannelInput,
 )
 from getstream.models import UserRequest
-from getstream import Stream
+from getstream import Stream, AsyncStream
+import warnings
 
 
 def test_upsert_users(client: Stream):
@@ -75,3 +79,21 @@ def test_delete_user(client: Stream):
     # check that user id is not in the response
     user_ids = [user.id for user in response.data.users]
     assert user_id not in user_ids
+
+
+@pytest.mark.asyncio
+async def test_send_message(async_client: AsyncStream):
+    channel = async_client.chat.channel("messaging", str(uuid.uuid4()))
+    await channel.get_or_create(
+        data=ChannelInput(created_by_id="test-user-id", custom={"color": "black"})
+    )
+    await channel.send_message(
+        message=MessageRequest(text="Hello, world!", user_id="test-user-id")
+    )
+
+
+def test_from_env():
+    # Suppress the deprecation warning for this explicit compatibility check
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=DeprecationWarning)
+        Stream.from_env()

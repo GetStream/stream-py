@@ -36,7 +36,7 @@ jobs:
 
       - name: Sync environment & install dev extras
         run: |
-          uv sync --dev --all-packages --all-groups --all-extras 
+          uv sync --dev --all-packages --all-groups --all-extras
 
       - name: Build core distributions
         run: |
@@ -70,7 +70,7 @@ jobs:
         with:
           repository-url: https://test.pypi.org/legacy/
           packages-dir: dist
-        environment:
+        env:
           name: testpypi
 
   test-core-index:
@@ -136,7 +136,7 @@ jobs:
         with:
           repository-url: https://test.pypi.org/legacy/
           packages-dir: dist-plugins
-        environment:
+        env:
           name: testpypi
 
   test-plugins-index:
@@ -178,4 +178,4 @@ jobs:
           echo "* Core published to TestPyPI: ✅" >> $GITHUB_STEP_SUMMARY
           echo "* Plugins built & tests: ✅" >> $GITHUB_STEP_SUMMARY
           echo "* Plugins published to TestPyPI: ✅" >> $GITHUB_STEP_SUMMARY
-          echo "* Tests against TestPyPI packages: ✅" >> $GITHUB_STEP_SUMMARY 
+          echo "* Tests against TestPyPI packages: ✅" >> $GITHUB_STEP_SUMMARY

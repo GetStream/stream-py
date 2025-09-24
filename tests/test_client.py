@@ -2,14 +2,20 @@ from getstream import Stream
 import pytest
 
 
-def test_incorrect_client_throws_exception():
-    with pytest.raises(TypeError):
+def test_incorrect_client_throws_exception(monkeypatch):
+    # Ensure env-based defaults are not used for this test
+    monkeypatch.delenv("STREAM_API_KEY", raising=False)
+    monkeypatch.delenv("STREAM_API_SECRET", raising=False)
+
+    # Missing required api_key should raise ValueError during validation
+    with pytest.raises(ValueError):
         Stream(api_secret="your_api_secret")
 
     with pytest.raises(ValueError):
         Stream(api_key="", api_secret="your_api_secret")
 
-    with pytest.raises(TypeError):
+    # Missing required api_secret should raise ValueError during validation
+    with pytest.raises(ValueError):
         Stream(api_key="xxx")
 
     with pytest.raises(ValueError):

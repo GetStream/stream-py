@@ -1,25 +1,31 @@
-import os
 import uuid
 from typing import Dict
-
+from dotenv import load_dotenv
 import pytest
 
-from getstream import Stream
+from getstream import Stream, AsyncStream
 from getstream.models import UserRequest, FullUserResponse
 from getstream.feeds.feeds import Feed
 
+load_dotenv()
+
 
 def _client():
-    return Stream(
-        api_key=os.environ.get("STREAM_API_KEY"),
-        api_secret=os.environ.get("STREAM_API_SECRET"),
-        base_url=os.environ.get("STREAM_BASE_URL"),
-    )
+    return Stream()
+
+
+def _async_client():
+    return AsyncStream()
 
 
 @pytest.fixture
 def client():
     return _client()
+
+
+@pytest.fixture
+def async_client():
+    return _async_client()
 
 
 @pytest.fixture

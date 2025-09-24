@@ -653,6 +653,15 @@ class CommonRestClient(BaseClient):
             json=json,
         )
 
+    def update_push_notification_preferences(
+        self, preferences: List[PushPreferenceInput]
+    ) -> StreamResponse[UpsertPushPreferencesResponse]:
+        json = build_body_dict(preferences=preferences)
+
+        return self.post(
+            "/api/v2/push_preferences", UpsertPushPreferencesResponse, json=json
+        )
+
     def list_push_providers(self) -> StreamResponse[ListPushProvidersResponse]:
         return self.get("/api/v2/push_providers", ListPushProvidersResponse)
 
@@ -673,6 +682,39 @@ class CommonRestClient(BaseClient):
 
         return self.delete(
             "/api/v2/push_providers/{type}/{name}", Response, path_params=path_params
+        )
+
+    def get_push_templates(
+        self, push_provider_type: str, push_provider_name: Optional[str] = None
+    ) -> StreamResponse[GetPushTemplatesResponse]:
+        query_params = build_query_param(
+            push_provider_type=push_provider_type, push_provider_name=push_provider_name
+        )
+
+        return self.get(
+            "/api/v2/push_templates",
+            GetPushTemplatesResponse,
+            query_params=query_params,
+        )
+
+    def upsert_push_template(
+        self,
+        event_type: str,
+        push_provider_type: str,
+        enable_push: Optional[bool] = None,
+        push_provider_name: Optional[str] = None,
+        template: Optional[str] = None,
+    ) -> StreamResponse[UpsertPushTemplateResponse]:
+        json = build_body_dict(
+            event_type=event_type,
+            push_provider_type=push_provider_type,
+            enable_push=enable_push,
+            push_provider_name=push_provider_name,
+            template=template,
+        )
+
+        return self.post(
+            "/api/v2/push_templates", UpsertPushTemplateResponse, json=json
         )
 
     def get_rate_limits(

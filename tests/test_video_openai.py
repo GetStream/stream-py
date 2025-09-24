@@ -155,7 +155,7 @@ class TestOpenAIPatching:
         """Test that patch_realtime_connect correctly patches the client when direct patching is possible."""
         # Create a mock client
         mock_client = MagicMock()
-        mock_client.beta.realtime = MagicMock()
+        mock_client.resources.beta.realtime = MagicMock()
 
         # Call the original function to test its behavior
         patch_realtime_connect(mock_client)
@@ -166,18 +166,23 @@ class TestOpenAIPatching:
 
     def test_patch_realtime_connect_import_error(self):
         """Test that patch_realtime_connect handles import errors gracefully."""
-        # Create a mock client
+        # Create a mock client with the correct structure
         mock_client = MagicMock()
         mock_client.beta.realtime = MagicMock()
 
-        # Mock the warnings module
+        # Patch the imports to raise ImportError
         with patch("getstream.video.openai.warnings") as mock_warnings:
-            # Call the function
-            patch_realtime_connect(mock_client)
+            # We need to patch the import as it happens inside the function
+            # The most reliable way is to patch builtins.__import__
+            def mock_import(name, *args, **kwargs):
+                if name == "openai.resources.beta.realtime.realtime":
+                    raise ImportError("test import error")
+                return __import__(name, *args, **kwargs)
 
-            # Check that at least one warning was issued
-            # Note: The actual implementation might issue more warnings depending on imports
-            assert mock_warnings.warn.call_count >= 1
+            with patch("builtins.__import__", side_effect=mock_import):
+                patch_realtime_connect(mock_client)
+                # Check that a warning was issued
+                assert mock_warnings.warn.call_count >= 1
 
     def test_dict_to_class(self):
         """Test that dict_to_class correctly converts a dictionary to a class instance."""

@@ -19,7 +19,34 @@ def build_path(path: str, path_params: dict) -> str:
     return path.format(**path_params)
 
 
-class BaseClient(BaseConfig, ABC):
+class ResponseParserMixin:
+    def _parse_response(
+        self, response: httpx.Response, data_type: Type[T]
+    ) -> StreamResponse[T]:
+        if response.status_code >= 399:
+            raise StreamAPIException(
+                response=response,
+            )
+
+        try:
+            parsed_result = json.loads(response.text) if response.text else {}
+
+            if hasattr(data_type, "from_dict"):
+                data = data_type.from_dict(parsed_result, infer_missing=True)
+            elif get_origin(data_type) is not dict:
+                raise AttributeError(f"{data_type.__name__} has no 'from_dict' method")
+            else:
+                data = parsed_result
+
+        except ValueError:
+            raise StreamAPIException(
+                response=response,
+            )
+
+        return StreamResponse(response, data)
+
+
+class BaseClient(BaseConfig, ResponseParserMixin, ABC):
     def __init__(
         self,
         api_key,
@@ -45,31 +72,6 @@ class BaseClient(BaseConfig, ABC):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
-
-    def _parse_response(
-        self, response: httpx.Response, data_type: Type[T]
-    ) -> StreamResponse[T]:
-        if response.status_code >= 399:
-            raise StreamAPIException(
-                response=response,
-            )
-
-        try:
-            parsed_result = json.loads(response.text) if response.text else {}
-
-            if hasattr(data_type, "from_dict"):
-                data = data_type.from_dict(parsed_result, infer_missing=True)
-            elif get_origin(data_type) is not dict:
-                raise AttributeError(f"{data_type.__name__} has no 'from_dict' method")
-            else:
-                data = parsed_result
-
-        except ValueError:
-            raise StreamAPIException(
-                response=response,
-            )
-
-        return StreamResponse(response, data)
 
     def patch(
         self,
@@ -147,6 +149,109 @@ class BaseClient(BaseConfig, ABC):
         Close HTTPX client.
         """
         self.client.close()
+
+
+class AsyncBaseClient(BaseConfig, ResponseParserMixin, ABC):
+    def __init__(
+        self,
+        api_key,
+        base_url=None,
+        token=None,
+        timeout=None,
+    ):
+        super().__init__(
+            api_key=api_key,
+            base_url=base_url,
+            token=token,
+            timeout=timeout,
+        )
+        self.client = httpx.AsyncClient(
+            base_url=self.base_url,
+            headers=self.headers,
+            params=self.params,
+            timeout=httpx.Timeout(self.timeout),
+        )
+
+    def __aenter__(self):
+        return self
+
+    def __aexit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+    async def aclose(self):
+        """Close HTTPX async client (closes pools/keep-alives)."""
+        await self.client.aclose()
+
+    async def patch(
+        self,
+        path,
+        data_type: Optional[Type[T]] = None,
+        path_params: Optional[Dict[str, str]] = None,
+        query_params: Optional[Dict[str, str]] = None,
+        *args,
+        **kwargs,
+    ) -> StreamResponse[T]:
+        response = await self.client.patch(
+            build_path(path, path_params), params=query_params, *args, **kwargs
+        )
+        return self._parse_response(response, data_type or Dict[str, Any])
+
+    async def get(
+        self,
+        path,
+        data_type: Optional[Type[T]] = None,
+        path_params: Optional[Dict[str, str]] = None,
+        query_params: Optional[Dict[str, str]] = None,
+        *args,
+        **kwargs,
+    ) -> StreamResponse[T]:
+        response = await self.client.get(
+            build_path(path, path_params), params=query_params, *args, **kwargs
+        )
+        return self._parse_response(response, data_type or Dict[str, Any])
+
+    async def post(
+        self,
+        path,
+        data_type: Optional[Type[T]] = None,
+        path_params: Optional[Dict[str, str]] = None,
+        query_params: Optional[Dict[str, str]] = None,
+        *args,
+        **kwargs,
+    ) -> StreamResponse[T]:
+        response = await self.client.post(
+            build_path(path, path_params), params=query_params, *args, **kwargs
+        )
+
+        return self._parse_response(response, data_type or Dict[str, Any])
+
+    async def put(
+        self,
+        path,
+        data_type: Optional[Type[T]] = None,
+        path_params: Optional[Dict[str, str]] = None,
+        query_params: Optional[Dict[str, str]] = None,
+        *args,
+        **kwargs,
+    ) -> StreamResponse[T]:
+        response = await self.client.put(
+            build_path(path, path_params), params=query_params, *args, **kwargs
+        )
+        return self._parse_response(response, data_type or Dict[str, Any])
+
+    async def delete(
+        self,
+        path,
+        data_type: Optional[Type[T]] = None,
+        path_params: Optional[Dict[str, str]] = None,
+        query_params: Optional[Dict[str, str]] = None,
+        *args,
+        **kwargs,
+    ) -> StreamResponse[T]:
+        response = await self.client.delete(
+            build_path(path, path_params), params=query_params, *args, **kwargs
+        )
+        return self._parse_response(response, data_type or Dict[str, Any])
 
 
 class StreamAPIException(Exception):
