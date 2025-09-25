@@ -13,6 +13,7 @@ from getstream.models import (
     BackstageSettingsRequest,
     SessionSettingsRequest,
     FrameRecordingSettingsRequest,
+    MemberRequest,
 )
 from getstream.video.call import Call
 from datetime import datetime, timezone, timedelta
@@ -507,7 +508,7 @@ async def test_async_create_user(async_client: AsyncStream):
 async def test_srt(async_client: AsyncStream):
     user_id = str(uuid.uuid4())
 
-    call = async_client.video.call("default", str(uuid.uuid4()))
+    call = async_client.video.call("livestream", "eRfEfBI5UQxYRyIhR8BAa")
     response = await call.get_or_create(
         data=CallRequest(
             created_by_id=user_id,
@@ -519,5 +520,7 @@ async def test_srt(async_client: AsyncStream):
         )
     )
 
+    await call.update_call_members(update_members=[MemberRequest(user_id=user_id)])
+
     assert response.data.call.ingress.srt != ""
-    assert call.create_srt_token("tommaso-id") != ""
+    assert call.create_srt_credentials(user_id).address != ""
