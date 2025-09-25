@@ -15,7 +15,6 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
-    "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
     "httpx>=0.28.1",
@@ -49,7 +48,6 @@ webrtc = [
     "tenacity>=9.1.2",
     "torch>=2.7.1",
     "torchaudio>=2.7.1",
-    "soundfile>=0.13.1",
     "scipy>=1.15.3",
     "twirp>=0.0.7",
     "aiohttp>=3.11.16",
