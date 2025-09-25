@@ -1,6 +1,12 @@
+from dataclasses import dataclass
 from typing import Optional, Dict
 
 from getstream.models import CallResponse
+
+
+@dataclass
+class SRTCredentials:
+    address: str
 
 
 class BaseCall:
@@ -42,7 +48,7 @@ class BaseCall:
         # Wrap the connection manager to check for errors in the first message
         return ConnectionManagerWrapper(connection_manager, self.call_type, self.id)
 
-    def create_srt_token(self, user_id: str) -> str:
+    def create_srt_credentials(self, user_id: str) -> SRTCredentials:
         if self._data is None:
             raise TypeError(
                 "call object is not initialized, make sure to call .get or .get_or_create first"
@@ -51,6 +57,8 @@ class BaseCall:
         token = self.client.stream.create_token(user_id)
         passphrase = token.split(".")[2]
 
-        return self._data.ingress.srt.address.replace(
-            "{passphrase}", passphrase
-        ).replace("{token}", token)
+        return SRTCredentials(
+            address=self._data.ingress.srt.address.replace(
+                "{passphrase}", passphrase
+            ).replace("{token}", token)
+        )
