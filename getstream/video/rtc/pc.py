@@ -59,14 +59,14 @@ class PublisherPeerConnection(aiortc.RTCPeerConnection):
     async def handle_answer(self, response):
         """Handles the SDP answer received from the SFU for the publisher connection."""
 
-        logger.info(f"Publisher received answer {response.sdp}")
+        logger.debug(f"Publisher received answer {response.sdp}")
 
         remote_description = aiortc.RTCSessionDescription(
             type="answer", sdp=response.sdp
         )
 
         await self.setRemoteDescription(remote_description)
-        logger.info(
+        logger.debug(
             f"Publisher remote description set successfully. {self.localDescription}"
         )
 

@@ -128,8 +128,8 @@ class PeerConnectionManager:
                     ):
                         video_info.mid = str(curr_mid)
                         track_infos.append(video_info)
-                logger.info(f"Patched SDP offer: {patched_sdp}")
-                logger.info(f"Tracks: {track_infos}")
+                logger.debug(f"Patched SDP offer: {patched_sdp}")
+                logger.debug(f"Tracks: {track_infos}")
                 response = (
                     await self.connection_manager.twirp_signaling_client.SetPublisher(
                         ctx=self.connection_manager.twirp_context,

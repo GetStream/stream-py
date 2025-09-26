@@ -160,7 +160,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             # Set the local description. aiortc will manage the SDP content.
             await self.subscriber_pc.setLocalDescription(answer)
 
-            logger.info(
+            logger.debug(
                 f"""Sending answer with local description:
             {self.subscriber_pc.localDescription.sdp}"""
             )
@@ -175,7 +175,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                     ),
                     server_path_prefix="",  # Note: Our wrapper doesn't need this, underlying client handles prefix
                 )
-                logger.info("Subscriber answer sent successfully.")
+                logger.debug("Subscriber answer sent successfully.")
             except SfuRpcError as e:
                 logger.error(f"Failed to send subscriber answer: {e}")
                 # Decide how to handle: maybe close connection, notify user, etc.
