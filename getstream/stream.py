@@ -194,7 +194,7 @@ class AsyncStream(BaseStream, AsyncCommonClient):
     def feeds(self):
         raise NotImplementedError("Feeds not supported for async client")
 
-    @telemetry.operation_name("create_user")
+    @telemetry.operation_name("getstream.api.common.create_user")
     async def create_user(self, name: str = "", id: str = str(uuid4()), image=""):
         """
         Creates or updates users. This method performs an "upsert" operation,
@@ -207,7 +207,7 @@ class AsyncStream(BaseStream, AsyncCommonClient):
         user = response.data.users[user.id]
         return user
 
-    @telemetry.operation_name("upsert_users")
+    @telemetry.operation_name("getstream.api.common.upsert_users")
     async def upsert_users(self, *users: UserRequest):
         """
         Creates or updates users. This method performs an "upsert" operation,
@@ -305,7 +305,7 @@ class Stream(BaseStream, CommonClient):
             stream=self,
         )
 
-    @telemetry.operation_name("create_user")
+    @telemetry.operation_name("getstream.api.common.create_user")
     def create_user(self, name: str = "", id: str = str(uuid4()), image=""):
         """
         Creates or updates users. This method performs an "upsert" operation,
@@ -318,7 +318,7 @@ class Stream(BaseStream, CommonClient):
         user = response.data.users[user.id]
         return user
 
-    @telemetry.operation_name("upsert_users")
+    @telemetry.operation_name("getstream.api.common.upsert_users")
     def upsert_users(self, *users: UserRequest):
         """
         Creates or updates users. This method performs an "upsert" operation,
