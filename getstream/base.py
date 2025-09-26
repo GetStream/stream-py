@@ -1,4 +1,6 @@
 import json
+import time
+import inspect
 from typing import Any, Dict, Optional, Type, get_origin
 
 from getstream.models import APIError
@@ -9,6 +11,12 @@ import httpx
 from getstream.config import BaseConfig
 from urllib.parse import quote
 from abc import ABC
+from getstream.common.telemetry import (
+    common_attributes,
+    record_metrics,
+    span_request,
+    current_operation,
+)
 
 
 def build_path(path: str, path_params: dict) -> str:
@@ -73,6 +81,74 @@ class BaseClient(BaseConfig, ResponseParserMixin, ABC):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
 
+    def _normalize_endpoint_from_path(self, path: str) -> str:
+        # Convert /api/v2/video/call/{type}/{id} -> api.v2.video.call.$type.$id
+        norm_parts = []
+        for p in path.strip("/").split("/"):
+            if not p:
+                continue
+            if p.startswith("{") and p.endswith("}"):
+                name = p[1:-1].strip()
+                if name:
+                    norm_parts.append(f"${name}")
+            else:
+                norm_parts.append(p)
+        return ".".join(norm_parts) if norm_parts else "root"
+
+    def _endpoint_name(self, path: str) -> str:
+        op = current_operation(None)
+        if op:
+            return op
+        try:
+            frame = inspect.currentframe()
+            caller = frame.f_back  # BaseClient.<method>
+            op = caller.f_back.f_code.co_name if caller and caller.f_back else None
+        except Exception:
+            op = None
+        if op:
+            return f"{self.__class__.__name__}.{op}"
+        return self._normalize_endpoint_from_path(path)
+
+    def _request_sync(
+        self, method: str, path: str, *, query_params=None, args=(), kwargs=None
+    ):
+        kwargs = kwargs or {}
+        path_params = kwargs.get("path_params")
+        url_path = (
+            build_path(path, path_params) if path_params else build_path(path, None)
+        )
+        url_full = f"{self.base_url}{url_path}"
+        endpoint = self._endpoint_name(path)
+        attrs = common_attributes(
+            api_key=self.api_key, endpoint=endpoint, method=method, url=url_full
+        )
+        start = time.perf_counter()
+        # Span name uses logical operation (endpoint) rather than raw HTTP
+        with span_request(
+            endpoint, attributes=attrs, request_body=kwargs.get("json")
+        ) as span:
+            call_kwargs = dict(kwargs)
+            call_kwargs.pop("path_params", None)
+            response = getattr(self.client, method.lower())(
+                url_path, params=query_params, *args, **call_kwargs
+            )
+            try:
+                span and span.set_attribute(
+                    "http.response.status_code", response.status_code
+                )
+            except Exception:
+                pass
+        duration_ms = (time.perf_counter() - start) * 1000.0
+        metric_attrs = common_attributes(
+            api_key=self.api_key,
+            endpoint=endpoint,
+            method=method,
+            url=url_full,
+            status_code=getattr(response, "status_code", None),
+        )
+        record_metrics(duration_ms, attributes=metric_attrs)
+        return response
+
     def patch(
         self,
         path,
@@ -82,8 +158,12 @@ class BaseClient(BaseConfig, ResponseParserMixin, ABC):
         *args,
         **kwargs,
     ) -> StreamResponse[T]:
-        response = self.client.patch(
-            build_path(path, path_params), params=query_params, *args, **kwargs
+        response = self._request_sync(
+            "PATCH",
+            path,
+            query_params=query_params,
+            args=args,
+            kwargs=kwargs | {"path_params": path_params},
         )
         return self._parse_response(response, data_type or Dict[str, Any])
 
@@ -96,8 +176,12 @@ class BaseClient(BaseConfig, ResponseParserMixin, ABC):
         *args,
         **kwargs,
     ) -> StreamResponse[T]:
-        response = self.client.get(
-            build_path(path, path_params), params=query_params, *args, **kwargs
+        response = self._request_sync(
+            "GET",
+            path,
+            query_params=query_params,
+            args=args,
+            kwargs=kwargs | {"path_params": path_params},
         )
         return self._parse_response(response, data_type or Dict[str, Any])
 
@@ -110,10 +194,13 @@ class BaseClient(BaseConfig, ResponseParserMixin, ABC):
         *args,
         **kwargs,
     ) -> StreamResponse[T]:
-        response = self.client.post(
-            build_path(path, path_params), params=query_params, *args, **kwargs
+        response = self._request_sync(
+            "POST",
+            path,
+            query_params=query_params,
+            args=args,
+            kwargs=kwargs | {"path_params": path_params},
         )
-
         return self._parse_response(response, data_type or Dict[str, Any])
 
     def put(
@@ -125,8 +212,12 @@ class BaseClient(BaseConfig, ResponseParserMixin, ABC):
         *args,
         **kwargs,
     ) -> StreamResponse[T]:
-        response = self.client.put(
-            build_path(path, path_params), params=query_params, *args, **kwargs
+        response = self._request_sync(
+            "PUT",
+            path,
+            query_params=query_params,
+            args=args,
+            kwargs=kwargs | {"path_params": path_params},
         )
         return self._parse_response(response, data_type or Dict[str, Any])
 
@@ -139,8 +230,12 @@ class BaseClient(BaseConfig, ResponseParserMixin, ABC):
         *args,
         **kwargs,
     ) -> StreamResponse[T]:
-        response = self.client.delete(
-            build_path(path, path_params), params=query_params, *args, **kwargs
+        response = self._request_sync(
+            "DELETE",
+            path,
+            query_params=query_params,
+            args=args,
+            kwargs=kwargs | {"path_params": path_params},
         )
         return self._parse_response(response, data_type or Dict[str, Any])
 
@@ -182,6 +277,69 @@ class AsyncBaseClient(BaseConfig, ResponseParserMixin, ABC):
         """Close HTTPX async client (closes pools/keep-alives)."""
         await self.client.aclose()
 
+    def _normalize_endpoint_from_path(self, path: str) -> str:
+        norm_parts = []
+        for p in path.strip("/").split("/"):
+            if not p:
+                continue
+            if p.startswith("{") and p.endswith("}"):
+                name = p[1:-1].strip()
+                if name:
+                    norm_parts.append(f"${name}")
+            else:
+                norm_parts.append(p)
+        return ".".join(norm_parts) if norm_parts else "root"
+
+    def _endpoint_name(self, path: str) -> str:
+        try:
+            frame = inspect.currentframe()
+            caller = frame.f_back
+            op = caller.f_back.f_code.co_name if caller and caller.f_back else None
+        except Exception:
+            op = None
+        if op:
+            return f"{self.__class__.__name__}.{op}"
+        return self._normalize_endpoint_from_path(path)
+
+    async def _request_async(
+        self, method: str, path: str, *, query_params=None, args=(), kwargs=None
+    ):
+        kwargs = kwargs or {}
+        path_params = kwargs.get("path_params")
+        url_path = (
+            build_path(path, path_params) if path_params else build_path(path, None)
+        )
+        url_full = f"{self.base_url}{url_path}"
+        endpoint = self._endpoint_name(path)
+        attrs = common_attributes(
+            api_key=self.api_key, endpoint=endpoint, method=method, url=url_full
+        )
+        start = time.perf_counter()
+        with span_request(
+            endpoint, attributes=attrs, request_body=kwargs.get("json")
+        ) as span:
+            call_kwargs = dict(kwargs)
+            call_kwargs.pop("path_params", None)
+            response = await getattr(self.client, method.lower())(
+                url_path, params=query_params, *args, **call_kwargs
+            )
+            try:
+                span and span.set_attribute(
+                    "http.response.status_code", response.status_code
+                )
+            except Exception:
+                pass
+        duration_ms = (time.perf_counter() - start) * 1000.0
+        metric_attrs = common_attributes(
+            api_key=self.api_key,
+            endpoint=endpoint,
+            method=method,
+            url=url_full,
+            status_code=getattr(response, "status_code", None),
+        )
+        record_metrics(duration_ms, attributes=metric_attrs)
+        return response
+
     async def patch(
         self,
         path,
@@ -191,8 +349,12 @@ class AsyncBaseClient(BaseConfig, ResponseParserMixin, ABC):
         *args,
         **kwargs,
     ) -> StreamResponse[T]:
-        response = await self.client.patch(
-            build_path(path, path_params), params=query_params, *args, **kwargs
+        response = await self._request_async(
+            "PATCH",
+            path,
+            query_params=query_params,
+            args=args,
+            kwargs=kwargs | {"path_params": path_params},
         )
         return self._parse_response(response, data_type or Dict[str, Any])
 
@@ -205,8 +367,12 @@ class AsyncBaseClient(BaseConfig, ResponseParserMixin, ABC):
         *args,
         **kwargs,
     ) -> StreamResponse[T]:
-        response = await self.client.get(
-            build_path(path, path_params), params=query_params, *args, **kwargs
+        response = await self._request_async(
+            "GET",
+            path,
+            query_params=query_params,
+            args=args,
+            kwargs=kwargs | {"path_params": path_params},
         )
         return self._parse_response(response, data_type or Dict[str, Any])
 
@@ -219,10 +385,13 @@ class AsyncBaseClient(BaseConfig, ResponseParserMixin, ABC):
         *args,
         **kwargs,
     ) -> StreamResponse[T]:
-        response = await self.client.post(
-            build_path(path, path_params), params=query_params, *args, **kwargs
+        response = await self._request_async(
+            "POST",
+            path,
+            query_params=query_params,
+            args=args,
+            kwargs=kwargs | {"path_params": path_params},
         )
-
         return self._parse_response(response, data_type or Dict[str, Any])
 
     async def put(
@@ -234,8 +403,12 @@ class AsyncBaseClient(BaseConfig, ResponseParserMixin, ABC):
         *args,
         **kwargs,
     ) -> StreamResponse[T]:
-        response = await self.client.put(
-            build_path(path, path_params), params=query_params, *args, **kwargs
+        response = await self._request_async(
+            "PUT",
+            path,
+            query_params=query_params,
+            args=args,
+            kwargs=kwargs | {"path_params": path_params},
         )
         return self._parse_response(response, data_type or Dict[str, Any])
 
@@ -248,8 +421,12 @@ class AsyncBaseClient(BaseConfig, ResponseParserMixin, ABC):
         *args,
         **kwargs,
     ) -> StreamResponse[T]:
-        response = await self.client.delete(
-            build_path(path, path_params), params=query_params, *args, **kwargs
+        response = await self._request_async(
+            "DELETE",
+            path,
+            query_params=query_params,
+            args=args,
+            kwargs=kwargs | {"path_params": path_params},
         )
         return self._parse_response(response, data_type or Dict[str, Any])
 

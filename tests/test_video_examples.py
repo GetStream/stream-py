@@ -524,3 +524,143 @@ async def test_srt(async_client: AsyncStream):
 
     assert response.data.call.ingress.srt != ""
     assert call.create_srt_credentials(user_id).address != ""
+
+
+def test_otel_tracing_and_metrics_baseclient():
+    """Verify BaseClient emits OTel spans and metrics with attributes."""
+    from opentelemetry import trace, metrics
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+    from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
+        InMemorySpanExporter,
+    )
+    from opentelemetry.sdk.metrics import MeterProvider
+    from opentelemetry.sdk.metrics.export import InMemoryMetricReader
+
+    # Configure in-memory exporters; avoid overriding if already set
+    span_exporter = InMemorySpanExporter()
+    provider = trace.get_tracer_provider()
+    if isinstance(provider, TracerProvider):
+        provider.add_span_processor(SimpleSpanProcessor(span_exporter))
+    else:
+        tp = TracerProvider()
+        tp.add_span_processor(SimpleSpanProcessor(span_exporter))
+        trace.set_tracer_provider(tp)
+
+    metric_reader = InMemoryMetricReader()
+    mp = MeterProvider(metric_readers=[metric_reader])
+    metrics.set_meter_provider(mp)
+
+    # Dummy rest client subclass using BaseClient
+    from getstream.base import BaseClient
+    import httpx
+
+    from typing import Dict as _Dict, Any as _Any
+
+    class DummyClient(BaseClient):
+        def ping(self):
+            return self.get("/ping", data_type=_Dict[str, _Any])
+
+    # Mock transport that returns minimal JSON
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"ok": True}, request=request)
+
+    transport = httpx.MockTransport(handler)
+
+    client = DummyClient(
+        api_key="test_key_abcdefg", base_url="http://test", token="tok", timeout=1.0
+    )
+    # Replace underlying httpx client to avoid real network
+    client.client = httpx.Client(base_url=client.base_url, transport=transport)
+
+    # Perform request
+    resp = client.ping()
+    assert resp.status_code() == 200
+    assert resp.data["ok"] is True
+
+    # Validate spans
+    spans = span_exporter.get_finished_spans()
+    assert len(spans) >= 1
+    s = spans[-1]
+    # Endpoint should reference the client; method may be the RestClient method name fallback
+    endpoint_attr = s.attributes.get("stream.endpoint")
+    assert isinstance(endpoint_attr, str) and endpoint_attr.startswith("DummyClient.")
+    assert s.attributes.get("http.request.method") == "GET"
+    assert s.attributes.get("http.response.status_code") == 200
+    # API key is redacted
+    assert s.attributes.get("stream.api_key").startswith("test_k")
+    assert s.attributes.get("stream.api_key").endswith("***")
+
+    # Validate metrics contain our endpoint attribute
+    md = metric_reader.get_metrics_data()
+    names_seen = set()
+    endpoints = set()
+    for rm in md.resource_metrics:
+        for sm in rm.scope_metrics:
+            for metric in sm.metrics:
+                names_seen.add(metric.name)
+                if metric.name in (
+                    "getstream.client.request.duration",
+                    "getstream.client.request.count",
+                ):
+                    for dp in metric.data.data_points:  # type: ignore[attr-defined]
+                        attrs = dict(dp.attributes)  # type: ignore[attr-defined]
+                        if "stream.endpoint" in attrs:
+                            endpoints.add(attrs["stream.endpoint"])
+    assert {
+        "getstream.client.request.duration",
+        "getstream.client.request.count",
+    }.issubset(names_seen)
+    assert any(
+        isinstance(ep, str) and ep.startswith("DummyClient.") for ep in endpoints
+    )
+
+
+def test_otel_baggage_call_cid_video(monkeypatch):
+    """Verify Call auto-attaches call_cid baggage and spans inherit it."""
+    from opentelemetry import trace
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+    from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
+        InMemorySpanExporter,
+    )
+
+    # Tracing only (metrics validated in previous test)
+    span_exporter = InMemorySpanExporter()
+    provider = trace.get_tracer_provider()
+    # If provider is not SDK TracerProvider yet, set it; otherwise, reuse and add processor
+    if isinstance(provider, TracerProvider):
+        provider.add_span_processor(SimpleSpanProcessor(span_exporter))
+    else:
+        tp = TracerProvider()
+        tp.add_span_processor(SimpleSpanProcessor(span_exporter))
+        trace.set_tracer_provider(tp)
+
+    # Prepare a Video client with mocked transport
+    from getstream import Stream
+    from getstream.video.client import VideoClient
+    import httpx
+
+    stream = Stream(
+        api_key="test_key_abcdefg",
+        api_secret="shhh",
+        base_url="http://test",
+        timeout=1.0,
+    )
+    video: VideoClient = stream.video
+
+    # Mock transport to satisfy any request with empty JSON
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={}, request=request)
+
+    transport = httpx.MockTransport(handler)
+    video.client = httpx.Client(base_url=video.base_url, transport=transport)
+
+    call = video.call("default", "cid123")
+    # Execute a simple GET call (will parse empty body permissively)
+    call.get()
+
+    spans = span_exporter.get_finished_spans()
+    assert len(spans) >= 1
+    s = spans[-1]
+    assert s.attributes.get("stream.call_cid") == "default:cid123"

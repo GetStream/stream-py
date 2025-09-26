@@ -2,9 +2,11 @@
 from getstream.models import *
 from getstream.stream_response import StreamResponse
 from getstream.video import BaseCall
+from getstream.common.telemetry import attach_call_cid
 
 
 class Call(BaseCall):
+    @attach_call_cid
     def get(
         self,
         members_limit: Optional[int] = None,
@@ -23,6 +25,7 @@ class Call(BaseCall):
         self._sync_from_response(response.data)
         return response
 
+    @attach_call_cid
     def update(
         self,
         starts_at: Optional[datetime] = None,
@@ -39,6 +42,7 @@ class Call(BaseCall):
         self._sync_from_response(response.data)
         return response
 
+    @attach_call_cid
     def get_or_create(
         self,
         members_limit: Optional[int] = None,
@@ -59,6 +63,7 @@ class Call(BaseCall):
         self._sync_from_response(response.data)
         return response
 
+    @attach_call_cid
     def block_user(self, user_id: str) -> StreamResponse[BlockUserResponse]:
         response = self.client.block_user(
             type=self.call_type, id=self.id, user_id=user_id
@@ -66,6 +71,7 @@ class Call(BaseCall):
         self._sync_from_response(response.data)
         return response
 
+    @attach_call_cid
     def send_closed_caption(
         self,
         speaker_id: str,
@@ -94,11 +100,13 @@ class Call(BaseCall):
         self._sync_from_response(response.data)
         return response
 
+    @attach_call_cid
     def delete(self, hard: Optional[bool] = None) -> StreamResponse[DeleteCallResponse]:
         response = self.client.delete_call(type=self.call_type, id=self.id, hard=hard)
         self._sync_from_response(response.data)
         return response
 
+    @attach_call_cid
     def send_call_event(
         self,
         user_id: Optional[str] = None,
@@ -111,6 +119,7 @@ class Call(BaseCall):
         self._sync_from_response(response.data)
         return response
 
+    @attach_call_cid
     def collect_user_feedback(
         self,
         rating: int,
@@ -133,6 +142,7 @@ class Call(BaseCall):
         self._sync_from_response(response.data)
         return response
 
+    @attach_call_cid
     def go_live(
         self,
         recording_storage_name: Optional[str] = None,
@@ -155,6 +165,7 @@ class Call(BaseCall):
         self._sync_from_response(response.data)
         return response
 
+    @attach_call_cid
     def kick_user(
         self,
         user_id: str,
@@ -173,11 +184,13 @@ class Call(BaseCall):
         self._sync_from_response(response.data)
         return response
 
+    @attach_call_cid
     def end(self) -> StreamResponse[EndCallResponse]:
         response = self.client.end_call(type=self.call_type, id=self.id)
         self._sync_from_response(response.data)
         return response
 
+    @attach_call_cid
     def update_call_members(
         self,
         remove_members: Optional[List[str]] = None,
@@ -192,6 +205,7 @@ class Call(BaseCall):
         self._sync_from_response(response.data)
         return response
 
+    @attach_call_cid
     def mute_users(
         self,
         audio: Optional[bool] = None,
@@ -218,6 +232,7 @@ class Call(BaseCall):
         self._sync_from_response(response.data)
         return response
 
+    @attach_call_cid
     def query_call_participants(
         self,
         limit: Optional[int] = None,
@@ -232,6 +247,7 @@ class Call(BaseCall):
         self._sync_from_response(response.data)
         return response
 
+    @attach_call_cid
     def video_pin(self, session_id: str, user_id: str) -> StreamResponse[PinResponse]:
         response = self.client.video_pin(
             type=self.call_type, id=self.id, session_id=session_id, user_id=user_id
@@ -239,11 +255,13 @@ class Call(BaseCall):
         self._sync_from_response(response.data)
         return response
 
+    @attach_call_cid
     def list_recordings(self) -> StreamResponse[ListRecordingsResponse]:
         response = self.client.list_recordings(type=self.call_type, id=self.id)
         self._sync_from_response(response.data)
         return response
 
+    @attach_call_cid
     def get_call_report(
         self, session_id: Optional[str] = None
     ) -> StreamResponse[GetCallReportResponse]:
@@ -253,6 +271,7 @@ class Call(BaseCall):
         self._sync_from_response(response.data)
         return response
 
+    @attach_call_cid
     def start_rtmp_broadcasts(
         self, broadcasts: List[RTMPBroadcastRequest]
     ) -> StreamResponse[StartRTMPBroadcastsResponse]:
@@ -262,11 +281,13 @@ class Call(BaseCall):
         self._sync_from_response(response.data)
         return response
 
+    @attach_call_cid
     def stop_all_rtmp_broadcasts(self) -> StreamResponse[StopAllRTMPBroadcastsResponse]:
         response = self.client.stop_all_rtmp_broadcasts(type=self.call_type, id=self.id)
         self._sync_from_response(response.data)
         return response
 
+    @attach_call_cid
     def stop_rtmp_broadcast(
         self,
         name: str,
@@ -279,11 +300,13 @@ class Call(BaseCall):
         self._sync_from_response(response.data)
         return response
 
+    @attach_call_cid
     def start_hls_broadcasting(self) -> StreamResponse[StartHLSBroadcastingResponse]:
         response = self.client.start_hls_broadcasting(type=self.call_type, id=self.id)
         self._sync_from_response(response.data)
         return response
 
+    @attach_call_cid
     def start_closed_captions(
         self,
         enable_transcription: Optional[bool] = None,
@@ -302,6 +325,7 @@ class Call(BaseCall):
         self._sync_from_response(response.data)
         return response
 
+    @attach_call_cid
     def start_frame_recording(
         self, recording_external_storage: Optional[str] = None
     ) -> StreamResponse[StartFrameRecordingResponse]:
@@ -313,6 +337,7 @@ class Call(BaseCall):
         self._sync_from_response(response.data)
         return response
 
+    @attach_call_cid
     def start_recording(
         self, recording_external_storage: Optional[str] = None
     ) -> StreamResponse[StartRecordingResponse]:
@@ -324,6 +349,7 @@ class Call(BaseCall):
         self._sync_from_response(response.data)
         return response
 
+    @attach_call_cid
     def start_transcription(
         self,
         enable_closed_captions: Optional[bool] = None,
@@ -340,11 +366,13 @@ class Call(BaseCall):
         self._sync_from_response(response.data)
         return response
 
+    @attach_call_cid
     def stop_hls_broadcasting(self) -> StreamResponse[StopHLSBroadcastingResponse]:
         response = self.client.stop_hls_broadcasting(type=self.call_type, id=self.id)
         self._sync_from_response(response.data)
         return response
 
+    @attach_call_cid
     def stop_closed_captions(
         self, stop_transcription: Optional[bool] = None
     ) -> StreamResponse[StopClosedCaptionsResponse]:
@@ -354,11 +382,13 @@ class Call(BaseCall):
         self._sync_from_response(response.data)
         return response
 
+    @attach_call_cid
     def stop_frame_recording(self) -> StreamResponse[StopFrameRecordingResponse]:
         response = self.client.stop_frame_recording(type=self.call_type, id=self.id)
         self._sync_from_response(response.data)
         return response
 
+    @attach_call_cid
     def stop_live(
         self,
         continue_closed_caption: Optional[bool] = None,
@@ -379,11 +409,13 @@ class Call(BaseCall):
         self._sync_from_response(response.data)
         return response
 
+    @attach_call_cid
     def stop_recording(self) -> StreamResponse[StopRecordingResponse]:
         response = self.client.stop_recording(type=self.call_type, id=self.id)
         self._sync_from_response(response.data)
         return response
 
+    @attach_call_cid
     def stop_transcription(
         self, stop_closed_captions: Optional[bool] = None
     ) -> StreamResponse[StopTranscriptionResponse]:
@@ -393,11 +425,13 @@ class Call(BaseCall):
         self._sync_from_response(response.data)
         return response
 
+    @attach_call_cid
     def list_transcriptions(self) -> StreamResponse[ListTranscriptionsResponse]:
         response = self.client.list_transcriptions(type=self.call_type, id=self.id)
         self._sync_from_response(response.data)
         return response
 
+    @attach_call_cid
     def unblock_user(self, user_id: str) -> StreamResponse[UnblockUserResponse]:
         response = self.client.unblock_user(
             type=self.call_type, id=self.id, user_id=user_id
@@ -405,6 +439,7 @@ class Call(BaseCall):
         self._sync_from_response(response.data)
         return response
 
+    @attach_call_cid
     def video_unpin(
         self, session_id: str, user_id: str
     ) -> StreamResponse[UnpinResponse]:
@@ -414,6 +449,7 @@ class Call(BaseCall):
         self._sync_from_response(response.data)
         return response
 
+    @attach_call_cid
     def update_user_permissions(
         self,
         user_id: str,
@@ -430,6 +466,7 @@ class Call(BaseCall):
         self._sync_from_response(response.data)
         return response
 
+    @attach_call_cid
     def delete_recording(
         self, session: str, filename: str
     ) -> StreamResponse[DeleteRecordingResponse]:
@@ -439,6 +476,7 @@ class Call(BaseCall):
         self._sync_from_response(response.data)
         return response
 
+    @attach_call_cid
     def delete_transcription(
         self, session: str, filename: str
     ) -> StreamResponse[DeleteTranscriptionResponse]:
