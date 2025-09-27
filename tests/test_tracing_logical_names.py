@@ -39,6 +39,9 @@ def test_chat_channel_span_name_and_endpoint():
     spans = exporter.get_finished_spans()
     assert spans, "no spans captured"
     s = spans[-1]
-    assert s.name == "channel.get_or_create"
-    assert s.attributes.get("stream.endpoint") == "channel.get_or_create"
+    assert s.name == "getstream.api.chat.get_or_create_channel"
+    assert (
+        s.attributes.get("stream.endpoint")
+        == "getstream.api.chat.get_or_create_channel"
+    )
     assert s.attributes.get("stream.channel_cid") == "messaging:123"

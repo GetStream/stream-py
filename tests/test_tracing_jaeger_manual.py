@@ -2,7 +2,7 @@ import os
 import uuid
 import pytest
 from getstream import Stream
-from models import ChannelInput, CallRequest
+from getstream.models import ChannelInput, CallRequest
 
 
 @pytest.mark.integration
