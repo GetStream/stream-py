@@ -53,7 +53,7 @@ def test_create_call_with_members(client: Stream):
         MemberRequest,
     )
 
-    call = client.video.call("default", uuid.uuid4())
+    call = client.video.call("default", str(uuid.uuid4()))
     call.get_or_create(
         data=CallRequest(
             created_by_id="tommaso-id",
@@ -243,7 +243,7 @@ def test_create_call_with_backstage_and_join_ahead_set(client: Stream, call: Cal
     starts_at = datetime.now(timezone.utc) + timedelta(minutes=30)
 
     # create a call and set backstage and join ahead time to 5 minutes
-    call = client.video.call("livestream", uuid.uuid4())
+    call = client.video.call("livestream", str(uuid.uuid4()))
     response = call.get_or_create(
         data=CallRequest(
             starts_at=starts_at,
@@ -300,6 +300,14 @@ def test_create_call_with_custom_session_inactivity_timeout(call: Call):
 
 @pytest.mark.skip_in_ci
 def test_create_call_type_with_custom_session_inactivity_timeout(client: Stream):
+    call_types = [c for c in client.get_app().data.app.call_types.values()]
+    if len(call_types) > 20:
+        for c in call_types:
+            try:
+                client.video.delete_call_type(c.name)
+            except StreamAPIException:
+                pass
+
     # create a call type with a session inactivity timeout of 5 minutes
     response = client.video.create_call_type(
         name="long_inactivity_timeout_" + str(uuid.uuid4()),
@@ -317,7 +325,7 @@ def test_start_stop_frame_recording(client: Stream):
     user_id = str(uuid.uuid4())
 
     # create a call and set its frame recording settings
-    call = client.video.call("default", uuid.uuid4())
+    call = client.video.call("default", str(uuid.uuid4()))
     call.get_or_create(data=CallRequest(created_by_id=user_id))
 
     with pytest.raises(StreamAPIException) as e_info:
@@ -363,7 +371,7 @@ def test_create_call_with_custom_frame_recording_settings(client: Stream):
     user_id = str(uuid.uuid4())
 
     # create a call and set its frame recording settings
-    call = client.video.call("default", uuid.uuid4())
+    call = client.video.call("default", str(uuid.uuid4()))
     response = call.get_or_create(
         data=CallRequest(
             created_by_id=user_id,
@@ -526,7 +534,7 @@ async def test_srt(async_client: AsyncStream):
     assert call.create_srt_credentials(user_id).address != ""
 
 
-def test_otel_tracing_and_metrics_baseclient():
+def test_otel_tracing_and_metrics_base_client():
     """Verify BaseClient emits OTel spans and metrics with attributes."""
     from opentelemetry import trace, metrics
     from opentelemetry.sdk.trace import TracerProvider
