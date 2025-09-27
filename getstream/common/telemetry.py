@@ -286,6 +286,88 @@ def attach_channel_cid_async(
     return wrapper
 
 
+class _NullSpan:  # pragma: no cover - used when OTel is missing
+    def set_attribute(self, *args, **kwargs):
+        return None
+
+    def set_attributes(self, *args, **kwargs):
+        return None
+
+    def add_event(self, *args, **kwargs):
+        return None
+
+    def record_exception(self, *args, **kwargs):
+        return None
+
+    def set_status(self, *args, **kwargs):
+        return None
+
+    def end(self):
+        return None
+
+    def is_recording(self) -> bool:
+        return False
+
+
+@contextmanager
+def start_as_current_span(
+    name: str,
+    *,
+    kind: Optional["SpanKind"] = None,
+    attributes: Optional[Dict[str, Any]] = None,
+):
+    """Lightweight span context manager that no-ops if OTel isn't available."""
+    if not _HAS_OTEL or _TRACER is None:  # pragma: no cover
+        yield _NullSpan()
+        return
+    use_kind = kind if kind is not None else SpanKind.INTERNAL
+    with _TRACER.start_as_current_span(name, kind=use_kind) as span:  # type: ignore[arg-type]
+        if attributes:
+            try:
+                span.set_attributes(attributes)  # type: ignore[attr-defined]
+            except Exception:
+                pass
+        yield span
+
+
+def with_span(
+    name: str,
+    *,
+    kind: Optional["SpanKind"] = None,
+    attributes: Optional[Dict[str, Any]] = None,
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    """Decorator to wrap a function in a span (sync or async)."""
+
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        if inspect.iscoroutinefunction(func):
+
+            async def async_wrapper(*args, **kwargs):
+                with start_as_current_span(name, kind=kind, attributes=attributes):
+                    return await func(*args, **kwargs)
+
+            return async_wrapper
+
+        def wrapper(*args, **kwargs):
+            with start_as_current_span(name, kind=kind, attributes=attributes):
+                return func(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
+
+
+def add_event(name: str, attributes: Optional[Dict[str, Any]] = None) -> None:
+    """Add an event to the current span if recording; otherwise no-op."""
+    if not _HAS_OTEL or trace is None:  # pragma: no cover
+        return
+    try:
+        span = trace.get_current_span()
+        if span is not None and getattr(span, "is_recording", lambda: False)():
+            span.add_event(name, attributes or {})
+    except Exception:
+        return
+
+
 def operation_name(
     operation: str,
 ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:

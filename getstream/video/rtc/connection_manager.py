@@ -1,5 +1,5 @@
-import asyncio
 import json
+import asyncio
 import logging
 import uuid
 from typing import Optional, Dict, Any
@@ -8,6 +8,7 @@ import aioice
 import aiortc
 from twirp.context import Context
 
+from common import telemetry
 from getstream.utils import StreamAsyncIOEventEmitter
 from getstream.video.rtc.coordinator.ws import StreamAPIWS
 from getstream.video.rtc.pb.stream.video.sfu.event import events_pb2
@@ -207,38 +208,49 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         self.connection_state = ConnectionState.JOINING
 
         # Step 1: Determine region
-        if not region:
-            try:
-                region = HTTPHintLocationDiscovery(logger=logger).discover()
-            except Exception as e:
-                logger.warning(f"Failed to discover location: {e}")
-                location = "FRA"
-        logger.debug(f"Using location: {region}")
-        location = region
+        with telemetry.start_as_current_span(
+            "location-discovery",
+        ) as span:
+            if not region:
+                try:
+                    region = HTTPHintLocationDiscovery(logger=logger).discover()
+                except Exception as e:
+                    logger.warning(f"Failed to discover location: {e}")
+                    location = "FRA"
+            logger.debug(f"Using location: {region}")
+            location = region
+            span.set_attribute("location", location)
 
         # Step 2: Create coordinator websocket
-        self._coordinator_ws_client = StreamAPIWS(
-            call=self.call,
-            user_details={"id": self.user_id},
-        )
-        self._coordinator_ws_client.on_wildcard("*", _log_event)
-        await self._coordinator_ws_client.connect()
+        with telemetry.start_as_current_span(
+            "coordinator-ws-connect",
+        ):
+            self._coordinator_ws_client = StreamAPIWS(
+                call=self.call,
+                user_details={"id": self.user_id},
+            )
+            self._coordinator_ws_client.on_wildcard("*", _log_event)
+            await self._coordinator_ws_client.connect()
 
         # Step 3: Join call via coordinator
-        if not (ws_url or token):
-            join_response = await join_call(
-                self.call,
-                self.user_id,
-                location,
-                self.create,
-                self.local_sfu,
-                self._coordinator_ws_client._client_id,
-                **self.kwargs,
-            )
-            ws_url = join_response.data.credentials.server.ws_endpoint
-            token = join_response.data.credentials.token
-            self.join_response = join_response
-            logger.debug(f"coordinator join response: {join_response.data}")
+        with telemetry.start_as_current_span(
+            "coordinator-join-call",
+        ) as span:
+            if not (ws_url or token):
+                join_response = await join_call(
+                    self.call,
+                    self.user_id,
+                    location,
+                    self.create,
+                    self.local_sfu,
+                    self._coordinator_ws_client._client_id,
+                    **self.kwargs,
+                )
+                ws_url = join_response.data.credentials.server.ws_endpoint
+                token = join_response.data.credentials.token
+                self.join_response = join_response
+                logger.debug(f"coordinator join response: {join_response.data}")
+                span.set_attribute("join_response", join_response.data)
 
         # Use provided session_id or current one
         current_session_id = session_id or self.session_id
@@ -298,6 +310,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
 
         logger.info("Successfully connected to SFU")
 
+    @telemetry.with_span("connect")
     async def connect(self):
         """
         Connect to SFU.
@@ -320,6 +333,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         """
         await self._stop_event.wait()
 
+    @telemetry.with_span("leave")
     async def leave(self):
         """Gracefully leave the call and close connections."""
         logger.info("Leaving the call")
