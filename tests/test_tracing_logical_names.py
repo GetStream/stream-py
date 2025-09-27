@@ -8,7 +8,7 @@ def _setup_tracer():
 
     exporter = InMemorySpanExporter()
     provider = trace.get_tracer_provider()
-    if isinstance(provider, TracerProvider):
+    if hasattr(provider, "add_span_processor"):
         provider.add_span_processor(SimpleSpanProcessor(exporter))
     else:
         tp = TracerProvider()

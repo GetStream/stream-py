@@ -10,9 +10,13 @@ def test_operation_name_decorator_sets_span_name():
     import httpx
 
     exporter = InMemorySpanExporter()
-    tp = TracerProvider()
-    tp.add_span_processor(SimpleSpanProcessor(exporter))
-    trace.set_tracer_provider(tp)
+    provider = trace.get_tracer_provider()
+    if hasattr(provider, "add_span_processor"):
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+    else:
+        tp = TracerProvider()
+        tp.add_span_processor(SimpleSpanProcessor(exporter))
+        trace.set_tracer_provider(tp)
 
     class Dummy(BaseClient):
         @operation_name("common.dummy_op")
