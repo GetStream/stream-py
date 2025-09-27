@@ -322,8 +322,8 @@ class ChatRestClient(AsyncBaseClient):
             json=json,
         )
 
-    @telemetry.operation_name("getstream.api.chat.delete_file")
-    async def delete_file(
+    @telemetry.operation_name("getstream.api.chat.delete_channel_file")
+    async def delete_channel_file(
         self, type: str, id: str, url: Optional[str] = None
     ) -> StreamResponse[Response]:
         query_params = build_query_param(url=url)
@@ -338,14 +338,14 @@ class ChatRestClient(AsyncBaseClient):
             path_params=path_params,
         )
 
-    @telemetry.operation_name("getstream.api.chat.upload_file")
-    async def upload_file(
+    @telemetry.operation_name("getstream.api.chat.upload_channel_file")
+    async def upload_channel_file(
         self,
         type: str,
         id: str,
         file: Optional[str] = None,
         user: Optional[OnlyUserID] = None,
-    ) -> StreamResponse[FileUploadResponse]:
+    ) -> StreamResponse[UploadChannelFileResponse]:
         path_params = {
             "type": type,
             "id": id,
@@ -353,7 +353,7 @@ class ChatRestClient(AsyncBaseClient):
         json = build_body_dict(file=file, user=user)
         return await self.post(
             "/api/v2/chat/channels/{type}/{id}/file",
-            FileUploadResponse,
+            UploadChannelFileResponse,
             path_params=path_params,
             json=json,
         )
@@ -379,8 +379,8 @@ class ChatRestClient(AsyncBaseClient):
             json=json,
         )
 
-    @telemetry.operation_name("getstream.api.chat.delete_image")
-    async def delete_image(
+    @telemetry.operation_name("getstream.api.chat.delete_channel_image")
+    async def delete_channel_image(
         self, type: str, id: str, url: Optional[str] = None
     ) -> StreamResponse[Response]:
         query_params = build_query_param(url=url)
@@ -395,15 +395,15 @@ class ChatRestClient(AsyncBaseClient):
             path_params=path_params,
         )
 
-    @telemetry.operation_name("getstream.api.chat.upload_image")
-    async def upload_image(
+    @telemetry.operation_name("getstream.api.chat.upload_channel_image")
+    async def upload_channel_image(
         self,
         type: str,
         id: str,
         file: Optional[str] = None,
         upload_sizes: Optional[List[ImageSize]] = None,
         user: Optional[OnlyUserID] = None,
-    ) -> StreamResponse[ImageUploadResponse]:
+    ) -> StreamResponse[UploadChannelResponse]:
         path_params = {
             "type": type,
             "id": id,
@@ -411,7 +411,7 @@ class ChatRestClient(AsyncBaseClient):
         json = build_body_dict(file=file, upload_sizes=upload_sizes, user=user)
         return await self.post(
             "/api/v2/chat/channels/{type}/{id}/image",
-            ImageUploadResponse,
+            UploadChannelResponse,
             path_params=path_params,
             json=json,
         )

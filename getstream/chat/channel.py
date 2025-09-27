@@ -126,18 +126,20 @@ class Channel:
         return response
 
     @attach_channel_cid
-    def delete_file(self, url: Optional[str] = None) -> StreamResponse[Response]:
-        response = self.client.delete_file(
+    def delete_channel_file(
+        self, url: Optional[str] = None
+    ) -> StreamResponse[Response]:
+        response = self.client.delete_channel_file(
             type=self.channel_type, id=self.channel_id, url=url
         )
         self._sync_from_response(response.data)
         return response
 
     @attach_channel_cid
-    def upload_file(
+    def upload_channel_file(
         self, file: Optional[str] = None, user: Optional[OnlyUserID] = None
-    ) -> StreamResponse[FileUploadResponse]:
-        response = self.client.upload_file(
+    ) -> StreamResponse[UploadChannelFileResponse]:
+        response = self.client.upload_channel_file(
             type=self.channel_type, id=self.channel_id, file=file, user=user
         )
         self._sync_from_response(response.data)
@@ -161,21 +163,23 @@ class Channel:
         return response
 
     @attach_channel_cid
-    def delete_image(self, url: Optional[str] = None) -> StreamResponse[Response]:
-        response = self.client.delete_image(
+    def delete_channel_image(
+        self, url: Optional[str] = None
+    ) -> StreamResponse[Response]:
+        response = self.client.delete_channel_image(
             type=self.channel_type, id=self.channel_id, url=url
         )
         self._sync_from_response(response.data)
         return response
 
     @attach_channel_cid
-    def upload_image(
+    def upload_channel_image(
         self,
         file: Optional[str] = None,
         upload_sizes: Optional[List[ImageSize]] = None,
         user: Optional[OnlyUserID] = None,
-    ) -> StreamResponse[ImageUploadResponse]:
-        response = self.client.upload_image(
+    ) -> StreamResponse[UploadChannelResponse]:
+        response = self.client.upload_channel_image(
             type=self.channel_type,
             id=self.channel_id,
             file=file,
