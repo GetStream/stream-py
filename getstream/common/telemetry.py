@@ -38,6 +38,11 @@ REDACT_KEYS = {
         "authorization,password,token,secret,api_key,authorization_bearer,auth",
     ).split(",")
 }
+REDACT_API_KEY = os.getenv("STREAM_OTEL_REDACT_API_KEY", "true").lower() in {
+    "1",
+    "true",
+    "yes",
+}
 
 
 def _noop_cm():  # pragma: no cover - used when OTel missing
@@ -65,14 +70,6 @@ else:  # pragma: no cover - no-op instruments
     _TRACER = None
     REQ_HIST = None
     REQ_COUNT = None
-
-
-def redact_api_key(api_key: str | None) -> str | None:
-    if not api_key:
-        return None
-    if len(api_key) <= 6:
-        return "***"
-    return f"{api_key[:6]}***"
 
 
 def safe_dump(payload: Any, max_chars: int | None = None) -> str:
@@ -112,9 +109,8 @@ def common_attributes(
         attrs["url.full"] = url
     if status_code is not None:
         attrs["http.response.status_code"] = int(status_code)
-    red = redact_api_key(api_key)
-    if red:
-        attrs["stream.api_key"] = red
+    if api_key:
+        attrs["stream.api_key"] = api_key
     if _HAS_OTEL and baggage is not None:
         call_cid = baggage.get_baggage("stream.call_cid")
         if call_cid:
@@ -144,9 +140,8 @@ def metric_attributes(
     }
     if status_code is not None:
         attrs["http.response.status_code"] = int(status_code)
-    red = redact_api_key(api_key)
-    if red:
-        attrs["stream.api_key"] = red
+    if api_key:
+        attrs["stream.api_key"] = api_key
     return attrs
 
 
