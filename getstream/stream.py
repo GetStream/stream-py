@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from functools import cached_property
 import time
 from typing import List, Optional
@@ -6,6 +8,7 @@ from uuid import uuid4
 import jwt
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from getstream.common import telemetry
 from getstream.chat.client import ChatClient
 from getstream.chat.async_client import ChatClient as AsyncChatClient
 from getstream.common.async_client import CommonClient as AsyncCommonClient
@@ -193,6 +196,7 @@ class AsyncStream(BaseStream, AsyncCommonClient):
     def feeds(self):
         raise NotImplementedError("Feeds not supported for async client")
 
+    @telemetry.operation_name("getstream.api.common.create_user")
     async def create_user(self, name: str = "", id: str = str(uuid4()), image=""):
         """
         Creates or updates users. This method performs an "upsert" operation,
@@ -205,6 +209,7 @@ class AsyncStream(BaseStream, AsyncCommonClient):
         user = response.data.users[user.id]
         return user
 
+    @telemetry.operation_name("getstream.api.common.upsert_users")
     async def upsert_users(self, *users: UserRequest):
         """
         Creates or updates users. This method performs an "upsert" operation,
@@ -224,7 +229,7 @@ class Stream(BaseStream, CommonClient):
 
     @classmethod
     @deprecated("from_env is deprecated, use __init__ instead")
-    def from_env(cls, timeout: float = 6.0) -> "Stream":
+    def from_env(cls, timeout: float = 6.0) -> Stream:
         """
         Construct a StreamClient by loading its credentials and base_url
         from environment variables (via our pydantic Settings).
@@ -302,6 +307,7 @@ class Stream(BaseStream, CommonClient):
             stream=self,
         )
 
+    @telemetry.operation_name("getstream.api.common.create_user")
     def create_user(self, name: str = "", id: str = str(uuid4()), image=""):
         """
         Creates or updates users. This method performs an "upsert" operation,
@@ -314,6 +320,7 @@ class Stream(BaseStream, CommonClient):
         user = response.data.users[user.id]
         return user
 
+    @telemetry.operation_name("getstream.api.common.upsert_users")
     def upsert_users(self, *users: UserRequest):
         """
         Creates or updates users. This method performs an "upsert" operation,

@@ -56,6 +56,10 @@ webrtc = [
     "websockets>=15.0.1",
     "websocket-client>=1.8.0",
 ]
+telemetry = [
+    "opentelemetry-api>=1.26.0",
+    "opentelemetry-sdk>=1.26.0",
+]
 
 [dependency-groups]
 dev = [
@@ -69,6 +73,9 @@ dev = [
     "grpcio-tools>=1.73.1",
     "mypy-protobuf==3.5.0",
     "pytest-timeout>=2.3.1",
+    "opentelemetry-exporter-otlp>=1.37.0",
+    "opentelemetry-exporter-prometheus>=0.58b0",
+    "prometheus-client>=0.23.1",
 ]
 
 [tool.uv.workspace]

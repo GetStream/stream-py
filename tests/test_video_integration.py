@@ -300,7 +300,7 @@ class TestCallTypes:
     @pytest.mark.skip_in_ci
     def test_delete_call_type(self, client: Stream):
         try:
-            response = client.video.delete_call_type(name=CALL_TYPE_NAME)
+            client.video.delete_call_type(name=CALL_TYPE_NAME)
         except Exception:
             time.sleep(2)
             response = client.video.delete_call_type(name=CALL_TYPE_NAME)
