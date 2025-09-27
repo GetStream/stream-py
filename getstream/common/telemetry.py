@@ -4,8 +4,12 @@ import json
 import os
 import time
 from contextlib import contextmanager
-from typing import Any, Dict, Optional, Callable, Awaitable
+from typing import Any, Dict, Optional, Callable, Awaitable, TYPE_CHECKING
 import inspect
+
+if TYPE_CHECKING:
+    from getstream.chat.channel import Channel
+    from getstream.video import BaseCall
 
 # Optional OpenTelemetry imports with graceful fallback
 try:
@@ -37,11 +41,6 @@ REDACT_KEYS = {
         "STREAM_OTEL_REDACT_KEYS",
         "authorization,password,token,secret,api_key,authorization_bearer,auth",
     ).split(",")
-}
-REDACT_API_KEY = os.getenv("STREAM_OTEL_REDACT_API_KEY", "true").lower() in {
-    "1",
-    "true",
-    "yes",
 }
 
 
@@ -205,22 +204,6 @@ def span_request(
                 pass
 
 
-@contextmanager
-def with_call_context(call_cid: str):
-    """Attach `stream.call_cid` baggage for the scope of the context (no-op if OTel missing)."""
-    if not _HAS_OTEL or baggage is None or otel_context is None:  # pragma: no cover
-        yield
-        return
-    ctx = baggage.set_baggage(
-        "stream.call_cid", call_cid, context=otel_context.get_current()
-    )
-    token = otel_context.attach(ctx)
-    try:
-        yield
-    finally:
-        otel_context.detach(token)
-
-
 def current_operation(default: Optional[str] = None) -> Optional[str]:
     """Return current logical operation name from baggage (stream.operation)."""
     if not _HAS_OTEL or baggage is None:
@@ -231,18 +214,12 @@ def current_operation(default: Optional[str] = None) -> Optional[str]:
 
 # Decorators for auto-attaching baggage around method calls
 def attach_call_cid(func: Callable[..., Any]) -> Callable[..., Any]:
-    def wrapper(self, *args, **kwargs):
-        cid = None
-        try:
-            cid = f"{getattr(self, 'call_type', None)}:{getattr(self, 'id', None)}"
-        except Exception:
-            cid = None
-        op = f"call.{getattr(func, '__name__', 'unknown')}"
-        if cid and _HAS_OTEL and baggage is not None and otel_context is not None:
+    def wrapper(self: BaseCall, *args, **kwargs):
+        cid = f"{self.call_type}:{self.id}"
+        if _HAS_OTEL and baggage is not None and otel_context is not None:
             ctx = baggage.set_baggage(
                 "stream.call_cid", cid, context=otel_context.get_current()
             )
-            ctx = baggage.set_baggage("stream.operation", op, context=ctx)
             token = otel_context.attach(ctx)
             try:
                 return func(self, *args, **kwargs)
@@ -256,18 +233,12 @@ def attach_call_cid(func: Callable[..., Any]) -> Callable[..., Any]:
 def attach_call_cid_async(
     func: Callable[..., Awaitable[Any]],
 ) -> Callable[..., Awaitable[Any]]:
-    async def wrapper(self, *args, **kwargs):
-        cid = None
-        try:
-            cid = f"{getattr(self, 'call_type', None)}:{getattr(self, 'id', None)}"
-        except Exception:
-            cid = None
-        op = f"call.{getattr(func, '__name__', 'unknown')}"
-        if cid and _HAS_OTEL and baggage is not None and otel_context is not None:
+    async def wrapper(self: BaseCall, *args, **kwargs):
+        cid = f"{self.call_type}:{self.id}"
+        if _HAS_OTEL and baggage is not None and otel_context is not None:
             ctx = baggage.set_baggage(
                 "stream.call_cid", cid, context=otel_context.get_current()
             )
-            ctx = baggage.set_baggage("stream.operation", op, context=ctx)
             token = otel_context.attach(ctx)
             try:
                 return await func(self, *args, **kwargs)
@@ -279,19 +250,13 @@ def attach_call_cid_async(
 
 
 def attach_channel_cid(func: Callable[..., Any]) -> Callable[..., Any]:
-    def wrapper(self, *args, **kwargs):
-        cid = None
-        try:
-            cid = f"{getattr(self, 'channel_type', None)}:{getattr(self, 'channel_id', None)}"
-        except Exception:
-            cid = None
-        op = f"channel.{getattr(func, '__name__', 'unknown')}"
-        if cid and _HAS_OTEL and baggage is not None and otel_context is not None:
+    def wrapper(self: Channel, *args, **kwargs):
+        cid = f"{self.channel_type}:{self.channel_id}"
+        if _HAS_OTEL and baggage is not None and otel_context is not None:
             # Attach channel_cid to baggage under a different key than call_cid
             ctx = baggage.set_baggage(
                 "stream.channel_cid", cid, context=otel_context.get_current()
             )
-            ctx = baggage.set_baggage("stream.operation", op, context=ctx)
             token = otel_context.attach(ctx)
             try:
                 return func(self, *args, **kwargs)
@@ -305,18 +270,12 @@ def attach_channel_cid(func: Callable[..., Any]) -> Callable[..., Any]:
 def attach_channel_cid_async(
     func: Callable[..., Awaitable[Any]],
 ) -> Callable[..., Awaitable[Any]]:
-    async def wrapper(self, *args, **kwargs):
-        cid = None
-        try:
-            cid = f"{getattr(self, 'channel_type', None)}:{getattr(self, 'channel_id', None)}"
-        except Exception:
-            cid = None
-        op = f"channel.{getattr(func, '__name__', 'unknown')}"
-        if cid and _HAS_OTEL and baggage is not None and otel_context is not None:
+    async def wrapper(self: Channel, *args, **kwargs):
+        cid = f"{self.channel_type}:{self.channel_id}"
+        if _HAS_OTEL and baggage is not None and otel_context is not None:
             ctx = baggage.set_baggage(
                 "stream.channel_cid", cid, context=otel_context.get_current()
             )
-            ctx = baggage.set_baggage("stream.operation", op, context=ctx)
             token = otel_context.attach(ctx)
             try:
                 return await func(self, *args, **kwargs)

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from functools import cached_property
 import time
 from typing import List, Optional
@@ -227,7 +229,7 @@ class Stream(BaseStream, CommonClient):
 
     @classmethod
     @deprecated("from_env is deprecated, use __init__ instead")
-    def from_env(cls, timeout: float = 6.0) -> "Stream":
+    def from_env(cls, timeout: float = 6.0) -> Stream:
         """
         Construct a StreamClient by loading its credentials and base_url
         from environment variables (via our pydantic Settings).
