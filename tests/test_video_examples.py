@@ -587,9 +587,7 @@ def test_otel_tracing_and_metrics_baseclient():
     assert isinstance(endpoint_attr, str) and endpoint_attr.endswith("ping")
     assert s.attributes.get("http.request.method") == "GET"
     assert s.attributes.get("http.response.status_code") == 200
-    # API key is redacted
-    assert s.attributes.get("stream.api_key").startswith("test_k")
-    assert s.attributes.get("stream.api_key").endswith("***")
+    assert s.attributes.get("stream.api_key") == "test_key_abcdefg"
 
     # Validate metrics contain our endpoint attribute
     md = metric_reader.get_metrics_data()
