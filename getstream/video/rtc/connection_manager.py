@@ -8,7 +8,7 @@ import aioice
 import aiortc
 from twirp.context import Context
 
-from common import telemetry
+from getstream.common import telemetry
 from getstream.utils import StreamAsyncIOEventEmitter
 from getstream.video.rtc.coordinator.ws import StreamAPIWS
 from getstream.video.rtc.pb.stream.video.sfu.event import events_pb2
