@@ -125,6 +125,31 @@ def common_attributes(
     return attrs
 
 
+def metric_attributes(
+    *,
+    api_key: Optional[str],
+    endpoint: str,
+    method: str,
+    status_code: Optional[int] = None,
+) -> Dict[str, Any]:
+    """Build low-cardinality metric attributes.
+
+    - Excludes url.full
+    - Excludes stream.call_cid and stream.channel_cid
+    - Keeps redacted stream.api_key, endpoint, method, status_code
+    """
+    attrs: Dict[str, Any] = {
+        "stream.endpoint": endpoint,
+        "http.request.method": method,
+    }
+    if status_code is not None:
+        attrs["http.response.status_code"] = int(status_code)
+    red = redact_api_key(api_key)
+    if red:
+        attrs["stream.api_key"] = red
+    return attrs
+
+
 def record_metrics(duration_ms: float, *, attributes: Dict[str, Any]) -> None:
     if not _HAS_OTEL or REQ_HIST is None or REQ_COUNT is None:
         return

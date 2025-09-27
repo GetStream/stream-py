@@ -582,9 +582,9 @@ def test_otel_tracing_and_metrics_baseclient():
     spans = span_exporter.get_finished_spans()
     assert len(spans) >= 1
     s = spans[-1]
-    # Endpoint should reference the client; method may be the RestClient method name fallback
+    # Endpoint should be the normalized path if no logical operation is set
     endpoint_attr = s.attributes.get("stream.endpoint")
-    assert isinstance(endpoint_attr, str) and endpoint_attr.startswith("DummyClient.")
+    assert isinstance(endpoint_attr, str) and endpoint_attr.endswith("ping")
     assert s.attributes.get("http.request.method") == "GET"
     assert s.attributes.get("http.response.status_code") == 200
     # API key is redacted
@@ -611,9 +611,7 @@ def test_otel_tracing_and_metrics_baseclient():
         "getstream.client.request.duration",
         "getstream.client.request.count",
     }.issubset(names_seen)
-    assert any(
-        isinstance(ep, str) and ep.startswith("DummyClient.") for ep in endpoints
-    )
+    assert any(isinstance(ep, str) and ep.endswith("ping") for ep in endpoints)
 
 
 def test_otel_baggage_call_cid_video(monkeypatch):

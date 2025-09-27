@@ -2,7 +2,7 @@
 from getstream.common.telemetry import attach_call_cid_async
 from getstream.models import *
 from getstream.stream_response import StreamResponse
-from video import BaseCall
+from getstream.video import BaseCall
 
 
 class Call(BaseCall):

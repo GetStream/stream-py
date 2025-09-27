@@ -1,6 +1,5 @@
 import json
 import time
-import inspect
 from typing import Any, Dict, Optional, Type, get_origin
 
 from getstream.models import APIError
@@ -16,6 +15,7 @@ from getstream.common.telemetry import (
     record_metrics,
     span_request,
     current_operation,
+    metric_attributes,
 )
 
 
@@ -54,7 +54,38 @@ class ResponseParserMixin:
         return StreamResponse(response, data)
 
 
-class BaseClient(BaseConfig, ResponseParserMixin, ABC):
+class TelemetryEndpointMixin:
+    def _normalize_endpoint_from_path(self, path: str) -> str:
+        # Convert /api/v2/video/call/{type}/{id} -> api.v2.video.call.$type.$id
+        norm_parts = []
+        for p in path.strip("/").split("/"):
+            if not p:
+                continue
+            if p.startswith("{") and p.endswith("}"):
+                name = p[1:-1].strip()
+                if name:
+                    norm_parts.append(f"${name}")
+            else:
+                norm_parts.append(p)
+        return ".".join(norm_parts) if norm_parts else "root"
+
+    def _prepare_request(self, method: str, path: str, query_params, kwargs):
+        path_params = kwargs.get("path_params") if kwargs else None
+        url_path = (
+            build_path(path, path_params) if path_params else build_path(path, None)
+        )
+        url_full = f"{self.base_url}{url_path}"
+        endpoint = self._endpoint_name(path)
+        span_attrs = common_attributes(
+            api_key=self.api_key,
+            endpoint=endpoint,
+            method=method,
+            url=url_full,
+        )
+        return url_path, url_full, endpoint, span_attrs
+
+
+class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
     def __init__(
         self,
         api_key,
@@ -81,46 +112,18 @@ class BaseClient(BaseConfig, ResponseParserMixin, ABC):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
 
-    def _normalize_endpoint_from_path(self, path: str) -> str:
-        # Convert /api/v2/video/call/{type}/{id} -> api.v2.video.call.$type.$id
-        norm_parts = []
-        for p in path.strip("/").split("/"):
-            if not p:
-                continue
-            if p.startswith("{") and p.endswith("}"):
-                name = p[1:-1].strip()
-                if name:
-                    norm_parts.append(f"${name}")
-            else:
-                norm_parts.append(p)
-        return ".".join(norm_parts) if norm_parts else "root"
-
     def _endpoint_name(self, path: str) -> str:
         op = current_operation(None)
         if op:
             return op
-        try:
-            frame = inspect.currentframe()
-            caller = frame.f_back  # BaseClient.<method>
-            op = caller.f_back.f_code.co_name if caller and caller.f_back else None
-        except Exception:
-            op = None
-        if op:
-            return f"{self.__class__.__name__}.{op}"
         return self._normalize_endpoint_from_path(path)
 
     def _request_sync(
         self, method: str, path: str, *, query_params=None, args=(), kwargs=None
     ):
         kwargs = kwargs or {}
-        path_params = kwargs.get("path_params")
-        url_path = (
-            build_path(path, path_params) if path_params else build_path(path, None)
-        )
-        url_full = f"{self.base_url}{url_path}"
-        endpoint = self._endpoint_name(path)
-        attrs = common_attributes(
-            api_key=self.api_key, endpoint=endpoint, method=method, url=url_full
+        url_path, url_full, endpoint, attrs = self._prepare_request(
+            method, path, query_params, kwargs
         )
         start = time.perf_counter()
         # Span name uses logical operation (endpoint) rather than raw HTTP
@@ -139,11 +142,11 @@ class BaseClient(BaseConfig, ResponseParserMixin, ABC):
             except Exception:
                 pass
         duration_ms = (time.perf_counter() - start) * 1000.0
-        metric_attrs = common_attributes(
+        # Metrics should be low-cardinality: exclude url/call_cid/channel_cid
+        metric_attrs = metric_attributes(
             api_key=self.api_key,
             endpoint=endpoint,
             method=method,
-            url=url_full,
             status_code=getattr(response, "status_code", None),
         )
         record_metrics(duration_ms, attributes=metric_attrs)
@@ -246,7 +249,7 @@ class BaseClient(BaseConfig, ResponseParserMixin, ABC):
         self.client.close()
 
 
-class AsyncBaseClient(BaseConfig, ResponseParserMixin, ABC):
+class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
     def __init__(
         self,
         api_key,
@@ -277,42 +280,18 @@ class AsyncBaseClient(BaseConfig, ResponseParserMixin, ABC):
         """Close HTTPX async client (closes pools/keep-alives)."""
         await self.client.aclose()
 
-    def _normalize_endpoint_from_path(self, path: str) -> str:
-        norm_parts = []
-        for p in path.strip("/").split("/"):
-            if not p:
-                continue
-            if p.startswith("{") and p.endswith("}"):
-                name = p[1:-1].strip()
-                if name:
-                    norm_parts.append(f"${name}")
-            else:
-                norm_parts.append(p)
-        return ".".join(norm_parts) if norm_parts else "root"
-
     def _endpoint_name(self, path: str) -> str:
-        try:
-            frame = inspect.currentframe()
-            caller = frame.f_back
-            op = caller.f_back.f_code.co_name if caller and caller.f_back else None
-        except Exception:
-            op = None
+        op = current_operation(None)
         if op:
-            return f"{self.__class__.__name__}.{op}"
+            return op
         return self._normalize_endpoint_from_path(path)
 
     async def _request_async(
         self, method: str, path: str, *, query_params=None, args=(), kwargs=None
     ):
         kwargs = kwargs or {}
-        path_params = kwargs.get("path_params")
-        url_path = (
-            build_path(path, path_params) if path_params else build_path(path, None)
-        )
-        url_full = f"{self.base_url}{url_path}"
-        endpoint = self._endpoint_name(path)
-        attrs = common_attributes(
-            api_key=self.api_key, endpoint=endpoint, method=method, url=url_full
+        url_path, url_full, endpoint, attrs = self._prepare_request(
+            method, path, query_params, kwargs
         )
         start = time.perf_counter()
         with span_request(
@@ -330,11 +309,11 @@ class AsyncBaseClient(BaseConfig, ResponseParserMixin, ABC):
             except Exception:
                 pass
         duration_ms = (time.perf_counter() - start) * 1000.0
-        metric_attrs = common_attributes(
+        # Metrics should be low-cardinality: exclude url/call_cid/channel_cid
+        metric_attrs = metric_attributes(
             api_key=self.api_key,
             endpoint=endpoint,
             method=method,
-            url=url_full,
             status_code=getattr(response, "status_code", None),
         )
         record_metrics(duration_ms, attributes=metric_attrs)
