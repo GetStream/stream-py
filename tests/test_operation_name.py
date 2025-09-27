@@ -15,7 +15,7 @@ def test_operation_name_decorator_sets_span_name():
     trace.set_tracer_provider(tp)
 
     class Dummy(BaseClient):
-        @operation_name("dummy.op")
+        @operation_name("common.dummy_op")
         def do(self):
             return self.get("/ping")
 
@@ -28,4 +28,4 @@ def test_operation_name_decorator_sets_span_name():
     c.do()
 
     spans = exporter.get_finished_spans()
-    assert spans and spans[-1].name == "dummy.op"
+    assert spans and spans[-1].name == "common.dummy_op"
