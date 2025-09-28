@@ -1,7 +1,14 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
 from dataclasses import dataclass
-from typing import Optional, Dict
+from typing import Optional, Dict, Union
 
 from getstream.models import CallResponse
+
+if TYPE_CHECKING:
+    from getstream.video.client import VideoClient
+    from getstream.video.async_client import VideoClient as AsyncVideoClient
 
 
 @dataclass
@@ -11,7 +18,11 @@ class SRTCredentials:
 
 class BaseCall:
     def __init__(
-        self, client, call_type: str, call_id: str = None, custom_data: Dict = None
+        self,
+        client: Union[VideoClient | AsyncVideoClient],
+        call_type: str,
+        call_id: str = None,
+        custom_data: Dict = None,
     ):
         self.id = call_id
         self.call_type = call_type

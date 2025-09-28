@@ -113,10 +113,7 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
         self.close()
 
     def _endpoint_name(self, path: str) -> str:
-        op = current_operation(None)
-        if op:
-            return op
-        return self._normalize_endpoint_from_path(path)
+        return current_operation(self._normalize_endpoint_from_path(path))
 
     def _request_sync(
         self, method: str, path: str, *, query_params=None, args=(), kwargs=None
@@ -281,10 +278,7 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
         await self.client.aclose()
 
     def _endpoint_name(self, path: str) -> str:
-        op = current_operation(None)
-        if op:
-            return op
-        return self._normalize_endpoint_from_path(path)
+        return current_operation(self._normalize_endpoint_from_path(path))
 
     async def _request_async(
         self, method: str, path: str, *, query_params=None, args=(), kwargs=None
