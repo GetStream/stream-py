@@ -139,7 +139,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
     async def _on_subscriber_offer(self, event: events_pb2.SubscriberOffer):
         logger.info("Subscriber offer received")
 
-        with telemetry.start_as_current_span("rtx.on_subscriber_offer") as span:
+        with telemetry.start_as_current_span("rtc.on_subscriber_offer") as span:
             await self.subscriber_negotiation_lock.acquire()
 
             try:
@@ -163,20 +163,20 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                 span.set_attribute("remote_description.sdp", fixed_sdp)
 
                 with telemetry.start_as_current_span(
-                    "rtx.on_subscriber_offer.set_remote_description"
+                    "rtc.on_subscriber_offer.set_remote_description"
                 ):
                     await self.subscriber_pc.setRemoteDescription(remote_description)
 
                 # Create the answer based on the remote offer (which includes our candidates)
                 with telemetry.start_as_current_span(
-                    "rtx.on_subscriber_offer.create_answer"
+                    "rtc.on_subscriber_offer.create_answer"
                 ) as span:
                     answer = await self.subscriber_pc.createAnswer()
                     span.set_attribute("answer.sdp", answer.sdp)
 
                 # Set the local description. aiortc will manage the SDP content.
                 with telemetry.start_as_current_span(
-                    "rtx.on_subscriber_offer.set_local_description"
+                    "rtc.on_subscriber_offer.set_local_description"
                 ):
                     await self.subscriber_pc.setLocalDescription(answer)
 
@@ -391,7 +391,8 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
 
     async def add_tracks(self, audio=None, video=None):
         """Add multiple audio and video tracks in a single negotiation."""
-        await self._peer_manager.add_tracks(audio, video)
+        with telemetry.start_as_current_span("rtc.add_tracks"):
+            await self._peer_manager.add_tracks(audio, video)
 
     async def start_recording(
         self, recording_types, user_ids=None, output_dir="recordings"

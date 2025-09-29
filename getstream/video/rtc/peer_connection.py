@@ -9,6 +9,7 @@ from typing import Optional
 import aiortc
 from aiortc.contrib.media import MediaRelay
 
+from getstream.common import telemetry
 from getstream.video.rtc.connection_utils import (
     create_audio_track_info,
     prepare_video_track_info,
@@ -75,8 +76,6 @@ class PeerConnectionManager:
 
         relayed_audio = None
         relayed_video = None
-        audio_relay = None
-        video_relay = None
         audio_info = None
         video_info = None
         track_infos = []
@@ -103,8 +102,14 @@ class PeerConnectionManager:
             if video:
                 self.publisher_pc.addTrack(relayed_video)
                 logger.info(f"Added relayed video track {relayed_video.id}")
-            offer = await self.publisher_pc.createOffer()
-            await self.publisher_pc.setLocalDescription(offer)
+
+            with telemetry.start_as_current_span("rtc.publisher_pc.create_offer"):
+                offer = await self.publisher_pc.createOffer()
+
+            with telemetry.start_as_current_span(
+                "rtc.publisher_pc.set_local_description"
+            ):
+                await self.publisher_pc.setLocalDescription(offer)
 
             try:
                 patched_sdp = patch_sdp_offer(self.publisher_pc.localDescription.sdp)
@@ -142,7 +147,10 @@ class PeerConnectionManager:
                     )
                 )
                 await self.publisher_pc.handle_answer(response)
-                await self.publisher_pc.wait_for_connected()
+                with telemetry.start_as_current_span(
+                    "rtc.publisher_pc.wait_for_connected"
+                ):
+                    await self.publisher_pc.wait_for_connected()
             except SfuRpcError as e:
                 logger.error(f"Failed to set publisher: {e}")
                 raise
