@@ -5,6 +5,7 @@ import logging
 import time
 from typing import Any, Callable, Awaitable
 
+from getstream.common import telemetry
 from getstream.utils import StreamAsyncIOEventEmitter
 from .pb.stream.video.sfu.event import events_pb2
 
@@ -52,6 +53,8 @@ class WebSocketClient(StreamAsyncIOEventEmitter):
         self.ping_thread = None
         self.last_health_check_time = 0
         self.ping_interval = 10  # seconds
+        # Capture the current span so we can re-attach it in background threads
+        self.parent_span = telemetry.get_current_span()
 
     async def connect(self):
         """
@@ -102,7 +105,9 @@ class WebSocketClient(StreamAsyncIOEventEmitter):
 
     def _run_websocket(self):
         """Run the WebSocket connection in the background."""
-        self.ws.run_forever()
+        # Ensure handlers run under the same parent span (contextvars don't propagate across threads)
+        with telemetry.attach_span(self.parent_span):
+            self.ws.run_forever()
 
     def _on_open(self, ws):
         """Handle WebSocket open event."""
@@ -128,7 +133,7 @@ class WebSocketClient(StreamAsyncIOEventEmitter):
             self.first_message = event
             self.first_message_event.set()
 
-        # Dispatch to event handlers using emit
+        # Dispatch to event handlers on the main loop; re-attach the parent span inside the coroutine
         asyncio.run_coroutine_threadsafe(self._dispatch_event(event), self.main_loop)
 
     def _on_error(self, ws, error):
@@ -202,8 +207,9 @@ class WebSocketClient(StreamAsyncIOEventEmitter):
         event_type = event.WhichOneof("event_payload")
         if event_type:
             payload = getattr(event, event_type)
-            # Emit the event using the parent class emit method
-            self.emit(event_type, payload)
+            # Ensure callbacks run within the captured parent span context as well
+            with telemetry.attach_span(self.parent_span):
+                self.emit(event_type, payload)
 
     def on_event(self, event_type: str, callback: Callable[[Any], Awaitable[None]]):
         """

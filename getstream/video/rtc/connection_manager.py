@@ -110,81 +110,101 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         """Handle ICE trickle from SFU."""
         logger.debug(f"Received ICE trickle for peer type {event.peer_type}")
 
-        try:
-            ice_candidate = json.loads(event.ice_candidate)
-            candidate_sdp = ice_candidate.get("candidate")
-            if not candidate_sdp:
-                return
+        with telemetry.start_as_current_span("rtc.on_ice_trickle") as span:
+            try:
+                ice_candidate = json.loads(event.ice_candidate)
+                span.set_attribute("ice_candidate", ice_candidate)
 
-            candidate = aiortc.rtcicetransport.candidate_from_aioice(
-                aioice.Candidate.from_sdp(candidate_sdp)
-            )
-            candidate.sdpMid = ice_candidate.get("sdpMid")
-            candidate.sdpMLineIndex = ice_candidate.get("sdpMLineIndex")
+                candidate_sdp = ice_candidate.get("candidate")
+                span.set_attribute("candidate_sdp", candidate_sdp)
+                if not candidate_sdp:
+                    return
 
-            if (
-                event.peer_type == models_pb2.PEER_TYPE_SUBSCRIBER
-                and self.subscriber_pc
-            ):
-                await self.subscriber_pc.addIceCandidate(candidate)
-            elif self.publisher_pc:
-                await self.publisher_pc.addIceCandidate(candidate)
-        except Exception as e:
-            logger.debug(f"Error handling ICE trickle: {e}")
+                candidate = aiortc.rtcicetransport.candidate_from_aioice(
+                    aioice.Candidate.from_sdp(candidate_sdp)
+                )
+                candidate.sdpMid = ice_candidate.get("sdpMid")
+                candidate.sdpMLineIndex = ice_candidate.get("sdpMLineIndex")
+
+                if (
+                    event.peer_type == models_pb2.PEER_TYPE_SUBSCRIBER
+                    and self.subscriber_pc
+                ):
+                    await self.subscriber_pc.addIceCandidate(candidate)
+                elif self.publisher_pc:
+                    await self.publisher_pc.addIceCandidate(candidate)
+            except Exception as e:
+                logger.debug(f"Error handling ICE trickle: {e}")
 
     async def _on_subscriber_offer(self, event: events_pb2.SubscriberOffer):
         logger.info("Subscriber offer received")
 
-        await self.subscriber_negotiation_lock.acquire()
-
-        try:
-            # Fix any invalid msid-semantic format in the SDP
-            fixed_sdp = fix_sdp_msid_semantic(event.sdp)
-            # Fix any invalid rtcp-fb lines
-            fixed_sdp = fix_sdp_rtcp_fb(fixed_sdp)
-            # Parse SDP to create track_id to stream_id mapping
-            self.participants_state.set_track_stream_mapping(
-                parse_track_stream_mapping(fixed_sdp)
-            )
-            # The SDP offer from the SFU might already contain candidates (trickled)
-            # or have a different structure. We set it as the remote description.
-            # The aiortc library handles merging and interpretation.
-            remote_description = aiortc.RTCSessionDescription(
-                type="offer", sdp=fixed_sdp
-            )
-            logger.debug(f"""Setting remote description with SDP:
-            {remote_description.sdp}""")
-            await self.subscriber_pc.setRemoteDescription(remote_description)
-
-            # Create the answer based on the remote offer (which includes our candidates)
-            answer = await self.subscriber_pc.createAnswer()
-            # Set the local description. aiortc will manage the SDP content.
-            await self.subscriber_pc.setLocalDescription(answer)
-
-            logger.debug(
-                f"""Sending answer with local description:
-            {self.subscriber_pc.localDescription.sdp}"""
-            )
+        with telemetry.start_as_current_span("rtx.on_subscriber_offer") as span:
+            await self.subscriber_negotiation_lock.acquire()
 
             try:
-                await self.twirp_signaling_client.SendAnswer(
-                    ctx=self.twirp_context,
-                    request=signal_pb2.SendAnswerRequest(
-                        peer_type=models_pb2.PEER_TYPE_SUBSCRIBER,
-                        sdp=self.subscriber_pc.localDescription.sdp,
-                        session_id=self.session_id,
-                    ),
-                    server_path_prefix="",  # Note: Our wrapper doesn't need this, underlying client handles prefix
+                # Fix any invalid msid-semantic format in the SDP
+                fixed_sdp = fix_sdp_msid_semantic(event.sdp)
+                # Fix any invalid rtcp-fb lines
+                fixed_sdp = fix_sdp_rtcp_fb(fixed_sdp)
+                span.set_attribute("sdp", fixed_sdp)
+                # Parse SDP to create track_id to stream_id mapping
+                self.participants_state.set_track_stream_mapping(
+                    parse_track_stream_mapping(fixed_sdp)
                 )
-                logger.debug("Subscriber answer sent successfully.")
-            except SfuRpcError as e:
-                logger.error(f"Failed to send subscriber answer: {e}")
-                # Decide how to handle: maybe close connection, notify user, etc.
-                # For now, just log the error.
-            except Exception as e:
-                logger.error(f"Unexpected error sending subscriber answer: {e}")
-        finally:
-            self.subscriber_negotiation_lock.release()
+                # The SDP offer from the SFU might already contain candidates (trickled)
+                # or have a different structure. We set it as the remote description.
+                # The aiortc library handles merging and interpretation.
+                remote_description = aiortc.RTCSessionDescription(
+                    type="offer", sdp=fixed_sdp
+                )
+                logger.debug(f"""Setting remote description with SDP:
+                {remote_description.sdp}""")
+                span.set_attribute("remote_description.sdp", fixed_sdp)
+
+                with telemetry.start_as_current_span(
+                    "rtx.on_subscriber_offer.set_remote_description"
+                ):
+                    await self.subscriber_pc.setRemoteDescription(remote_description)
+
+                # Create the answer based on the remote offer (which includes our candidates)
+                with telemetry.start_as_current_span(
+                    "rtx.on_subscriber_offer.create_answer"
+                ):
+                    answer = await self.subscriber_pc.createAnswer()
+
+                span.set_attribute("answer.sdp", answer.sdp)
+
+                # Set the local description. aiortc will manage the SDP content.
+                with telemetry.start_as_current_span(
+                    "rtx.on_subscriber_offer.set_local_description"
+                ):
+                    await self.subscriber_pc.setLocalDescription(answer)
+
+                logger.debug(
+                    f"""Sending answer with local description:
+                {self.subscriber_pc.localDescription.sdp}"""
+                )
+
+                try:
+                    await self.twirp_signaling_client.SendAnswer(
+                        ctx=self.twirp_context,
+                        request=signal_pb2.SendAnswerRequest(
+                            peer_type=models_pb2.PEER_TYPE_SUBSCRIBER,
+                            sdp=self.subscriber_pc.localDescription.sdp,
+                            session_id=self.session_id,
+                        ),
+                        server_path_prefix="",  # Note: Our wrapper doesn't need this, underlying client handles prefix
+                    )
+                    logger.debug("Subscriber answer sent successfully.")
+                except SfuRpcError as e:
+                    logger.error(f"Failed to send subscriber answer: {e}")
+                    # Decide how to handle: maybe close connection, notify user, etc.
+                    # For now, just log the error.
+                except Exception as e:
+                    logger.error(f"Unexpected error sending subscriber answer: {e}")
+            finally:
+                self.subscriber_negotiation_lock.release()
 
     async def _connect_internal(
         self,

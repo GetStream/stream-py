@@ -54,7 +54,26 @@ class ResponseParserMixin:
         return StreamResponse(response, data)
 
 
-class TelemetryEndpointMixin:
+class TelemetryEndpointMixin(ABC):
+    """
+    Mixin that prepares request metadata for telemetry/tracing.
+
+    Note for type-checkers/IDEs:
+    - This mixin is designed to be used alongside clients that provide
+      `base_url`, `api_key`, and an `_endpoint_name(path)` method
+      (see `BaseClient` and `AsyncBaseClient`).
+    - We declare these attributes here so static analysis tools understand
+      they are available at runtime via the concrete client classes.
+    """
+
+    # Provided by BaseConfig in concrete clients
+    base_url: Optional[str]
+    api_key: Optional[str]
+
+    # Provided by concrete clients (e.g. BaseClient/AsyncBaseClient)
+    def _endpoint_name(self, path: str) -> str:  # pragma: no cover - interface hint
+        raise NotImplementedError
+
     def _normalize_endpoint_from_path(self, path: str) -> str:
         # Convert /api/v2/video/call/{type}/{id} -> api.v2.video.call.$type.$id
         norm_parts = []

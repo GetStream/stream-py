@@ -2,6 +2,8 @@
 import logging
 import functools
 import asyncio  # Import asyncio if not already present
+
+from getstream.common import telemetry
 from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
 from getstream.video.rtc.pb.stream.video.sfu.signal_rpc.signal_twirp import (
     AsyncSignalServerClient,
@@ -25,17 +27,55 @@ class SfuRpcError(Exception):
 
 
 # Helper function to check response error
-def _check_response_for_error(response, method_name):
-    """Checks the response for a populated error field and raises SfuRpcError if found."""
-    # Check HasField first before accessing attributes of response.error
-    if hasattr(response, "HasField") and response.HasField("error"):
-        if response.error.code != models_pb2.ERROR_CODE_UNSPECIFIED:
-            raise SfuRpcError(
-                code=response.error.code,
-                message=response.error.message,
-                method_name=method_name,
-            )
-    return response
+def _check_response_for_error(response, method_name, span=None):
+    """Checks the response for an error and annotates the span.
+
+    - If an error is present, adds error code/message to the span and raises.
+    - Otherwise, marks the call as ok on the span.
+    """
+    try:
+        if span is not None:
+            # Always record which RPC method we hit
+            try:
+                span.set_attribute("twirp.method", method_name)
+            except Exception:
+                pass
+
+        if hasattr(response, "HasField") and response.HasField("error"):
+            code = getattr(response.error, "code", models_pb2.ERROR_CODE_UNSPECIFIED)
+            message = getattr(response.error, "message", "")
+            if code != models_pb2.ERROR_CODE_UNSPECIFIED:
+                # Annotate span with error details
+                if span is not None:
+                    try:
+                        span.set_attribute("twirp.error", True)
+                        span.set_attribute("twirp.error_code", int(code))
+                        if message:
+                            span.set_attribute("twirp.error_message", message)
+                        # Set error status when available
+                        if hasattr(telemetry, "Status") and hasattr(
+                            telemetry, "StatusCode"
+                        ):
+                            span.set_status(
+                                telemetry.Status(
+                                    telemetry.StatusCode.ERROR, str(message)
+                                )
+                            )
+                    except Exception:
+                        pass
+                # Raise structured error
+                raise SfuRpcError(code=code, message=message, method_name=method_name)
+
+        # No error present
+        if span is not None:
+            try:
+                span.set_attribute("twirp.error", False)
+            except Exception:
+                pass
+        return response
+    except Exception:
+        # Ensure we re-raise for caller handling
+        raise
 
 
 # Check if async capabilities are available
@@ -66,11 +106,21 @@ class SignalClient(AsyncSignalServerClient):
 
             @functools.wraps(original_attr)
             async def wrapped_method(*args, **kwargs):
-                # Call the original async method retrieved earlier
-                response = await original_attr(*args, **kwargs)
-                # Check response using the globally defined helper
-                # Pass the original method name for clearer error messages
-                return _check_response_for_error(response, name)
+                with telemetry.start_as_current_span(f"signaling.twirp.{name}") as span:
+                    # Call the original async method retrieved earlier
+                    response = await original_attr(*args, **kwargs)
+                    # Check response and annotate span
+                    return _check_response_for_error(response, name, span=span)
+
+            # Return the dynamic wrapper
+            return wrapped_method
+        elif callable(original_attr) and not name.startswith("_"):
+
+            @functools.wraps(original_attr)
+            async def wrapped_method(*args, **kwargs):
+                with telemetry.start_as_current_span(f"signaling.twirp.{name}") as span:
+                    response = original_attr(*args, **kwargs)
+                    return _check_response_for_error(response, name, span=span)
 
             # Return the dynamic wrapper
             return wrapped_method

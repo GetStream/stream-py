@@ -15,6 +15,8 @@ if TYPE_CHECKING:
 try:
     from opentelemetry import baggage, context as otel_context, metrics, trace
     from opentelemetry.trace import SpanKind, Status, StatusCode
+    from opentelemetry.trace.span import Span
+    from opentelemetry.context.context import Context
 
     _HAS_OTEL = True
 except Exception:  # pragma: no cover - fallback when OTel not installed
@@ -23,8 +25,10 @@ except Exception:  # pragma: no cover - fallback when OTel not installed
     metrics = None  # type: ignore
     trace = None  # type: ignore
     SpanKind = object  # type: ignore
+    Span = object  # type: ignore
     Status = object  # type: ignore
     StatusCode = object  # type: ignore
+    Context = object  # type: ignore
     _HAS_OTEL = False
 
 
@@ -328,6 +332,46 @@ def start_as_current_span(
             except Exception:
                 pass
         yield span
+
+
+def get_current_span():
+    if not _HAS_OTEL or _TRACER is None:  # pragma: no cover
+        return _NullSpan()
+    return trace.get_current_span()
+
+
+def set_span_in_context(span: "Span", context: Optional["Context"] = None):
+    """Attach the given span into the current context.
+
+    Returns an attach token suitable for later detaching via `detach_context`.
+    If OpenTelemetry is unavailable, returns None.
+    """
+    if not _HAS_OTEL or _TRACER is None or otel_context is None:  # pragma: no cover
+        return None
+    ctx = trace.set_span_in_context(span, context or otel_context.get_current())
+    token = otel_context.attach(ctx)
+    return token
+
+
+def detach_context(token: Optional[object]) -> None:
+    """Detach a previously attached context token (safe no-op)."""
+    if not _HAS_OTEL or otel_context is None or token is None:  # pragma: no cover
+        return
+    try:
+        otel_context.detach(token)
+    except Exception:
+        # Best-effort; do not raise during detach
+        pass
+
+
+@contextmanager
+def attach_span(span: "Span"):
+    """Context manager to attach a span to the current context for the block."""
+    token = set_span_in_context(span)
+    try:
+        yield
+    finally:
+        detach_context(token)
 
 
 def with_span(
