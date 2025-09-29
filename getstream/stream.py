@@ -68,7 +68,9 @@ class BaseStream:
         self.base_url = validate_and_clean_url(base_url)
         self.user_agent = user_agent
         self.token = self._create_token()
-        super().__init__(self.api_key, self.base_url, self.token, self.timeout, self.user_agent)
+        super().__init__(
+            self.api_key, self.base_url, self.token, self.timeout, self.user_agent
+        )
 
     def create_token(
         self,

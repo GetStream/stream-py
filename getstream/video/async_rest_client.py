@@ -7,7 +7,14 @@ from getstream.utils import build_query_param, build_body_dict
 
 
 class VideoRestClient(AsyncBaseClient):
-    def __init__(self, api_key: str, base_url: str, timeout: float, token: str, user_agent: str = None):
+    def __init__(
+        self,
+        api_key: str,
+        base_url: str,
+        timeout: float,
+        token: str,
+        user_agent: str = None,
+    ):
         """
         Initializes VideoClient with BaseClient instance
         :param api_key: A string representing the client's API key

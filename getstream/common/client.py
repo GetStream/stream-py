@@ -4,5 +4,9 @@ from getstream.common.rest_client import CommonRestClient
 class CommonClient(CommonRestClient):
     def __init__(self, api_key: str, base_url, token, timeout, user_agent=None):
         super().__init__(
-            api_key=api_key, base_url=base_url, token=token, timeout=timeout, user_agent=user_agent
+            api_key=api_key,
+            base_url=base_url,
+            token=token,
+            timeout=timeout,
+            user_agent=user_agent,
         )
