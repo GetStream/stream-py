@@ -113,7 +113,6 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         with telemetry.start_as_current_span("rtc.on_ice_trickle") as span:
             try:
                 ice_candidate = json.loads(event.ice_candidate)
-                span.set_attribute("ice_candidate", ice_candidate)
 
                 candidate_sdp = ice_candidate.get("candidate")
                 span.set_attribute("candidate_sdp", candidate_sdp)
