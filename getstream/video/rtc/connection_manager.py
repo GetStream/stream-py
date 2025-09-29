@@ -170,10 +170,9 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                 # Create the answer based on the remote offer (which includes our candidates)
                 with telemetry.start_as_current_span(
                     "rtx.on_subscriber_offer.create_answer"
-                ):
+                ) as span:
                     answer = await self.subscriber_pc.createAnswer()
-
-                span.set_attribute("answer.sdp", answer.sdp)
+                    span.set_attribute("answer.sdp", answer.sdp)
 
                 # Set the local description. aiortc will manage the SDP content.
                 with telemetry.start_as_current_span(
