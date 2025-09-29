@@ -45,6 +45,7 @@ class BaseStream:
         api_secret: Optional[str] = None,
         timeout: Optional[float] = 6.0,
         base_url: Optional[str] = BASE_URL,
+        user_agent: Optional[str] = None,
     ):
         if None in (api_key, api_secret, timeout, base_url):
             s = Settings()  # loads from env and optional .env
@@ -65,8 +66,11 @@ class BaseStream:
         self.timeout = timeout
 
         self.base_url = validate_and_clean_url(base_url)
+        self.user_agent = user_agent
         self.token = self._create_token()
-        super().__init__(self.api_key, self.base_url, self.token, self.timeout)
+        super().__init__(
+            self.api_key, self.base_url, self.token, self.timeout, self.user_agent
+        )
 
     def create_token(
         self,
@@ -162,6 +166,7 @@ class AsyncStream(BaseStream, AsyncCommonClient):
             token=self.token,
             timeout=self.timeout,
             stream=self,
+            user_agent=self.user_agent,
         )
 
     @cached_property
@@ -176,6 +181,7 @@ class AsyncStream(BaseStream, AsyncCommonClient):
             token=self.token,
             timeout=self.timeout,
             stream=self,
+            user_agent=self.user_agent,
         )
 
     @cached_property
@@ -190,6 +196,7 @@ class AsyncStream(BaseStream, AsyncCommonClient):
             token=self.token,
             timeout=self.timeout,
             stream=self,
+            user_agent=self.user_agent,
         )
 
     @cached_property
@@ -249,6 +256,7 @@ class Stream(BaseStream, CommonClient):
             api_secret=self.api_secret,
             timeout=self.timeout,
             base_url=self.base_url,
+            user_agent=self.user_agent,
         )
 
     @cached_property
@@ -263,6 +271,7 @@ class Stream(BaseStream, CommonClient):
             token=self.token,
             timeout=self.timeout,
             stream=self,
+            user_agent=self.user_agent,
         )
 
     @cached_property
@@ -277,6 +286,7 @@ class Stream(BaseStream, CommonClient):
             token=self.token,
             timeout=self.timeout,
             stream=self,
+            user_agent=self.user_agent,
         )
 
     @cached_property
@@ -291,6 +301,7 @@ class Stream(BaseStream, CommonClient):
             token=self.token,
             timeout=self.timeout,
             stream=self,
+            user_agent=self.user_agent,
         )
 
     @cached_property
@@ -305,6 +316,7 @@ class Stream(BaseStream, CommonClient):
             token=self.token,
             timeout=self.timeout,
             stream=self,
+            user_agent=self.user_agent,
         )
 
     @telemetry.operation_name("getstream.api.common.create_user")

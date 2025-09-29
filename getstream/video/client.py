@@ -3,19 +3,21 @@ from getstream.video.call import Call
 
 
 class VideoClient(VideoRestClient):
-    def __init__(self, api_key: str, base_url, token, timeout, stream):
+    def __init__(self, api_key: str, base_url, token, timeout, stream, user_agent=None):
         """
         Initializes VideoClient with BaseClient instance
         :param api_key: A string representing the client's API key
         :param base_url: A string representing the base uniform resource locator
         :param token: A string instance representing the client's token
         :param timeout: A number representing the time limit for a request
+        :param user_agent: Optional custom user agent string
         """
         super().__init__(
             api_key=api_key,
             base_url=base_url,
             token=token,
             timeout=timeout,
+            user_agent=user_agent,
         )
         self.stream = stream
 
