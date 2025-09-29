@@ -1,49 +1,128 @@
 [project]
 name = "getstream"
-version = "2.2.0"
-description = ""
+dynamic = [ "version" ]
+description = "GetStream Python SDK - Build scalable activity feeds, chat, and video calling applications"
 authors = [
     { name = "sachaarbonel", email = "sacha.arbonel@hotmail.fr" },
     { name = "tbarbugli", email = "tbarbugli@gmail.com" },
 ]
-requires-python = ">=3.9,<4.0.0"
+requires-python = ">=3.10,<4.0.0"
 readme = "README.md"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
 dependencies = [
-    "httpx>=0.27.0,<0.28",
+    "httpx>=0.28.1",
     "pyjwt>=2.8.0,<3",
     "dataclasses-json>=0.6.0,<0.7",
     "marshmallow>=3.21.0,<4",
+    "python-dateutil>=2.8.2",
+    "pydantic-settings>=2.9.1",
+    "pydantic>=2.10.6",
+    "pyee>=13.0.0",
+]
+
+[project.optional-dependencies]
+openai-realtime = [
+  "openai[realtime]>=1.93.0",
+]
+webrtc = [
+    "aiortc>=1.13.0",
+    "numpy>=2.2.6,<2.3",
+    "torch>=2.7.1",
+    "torchaudio>=2.7.1",
+    "soundfile>=0.13.1",
+    "scipy>=1.15.3,<1.16",
+    "twirp>=0.0.7",
+    "protobuf>=4.25.1",
+    "websockets>=15.0.1,<16",
+    "websocket-client>=1.8.0",
+    "python-dateutil>=2.8.2",
+    "structlog<24",
+    "numpy>=2.2.6",
+    "tenacity>=9.1.2",
+    "torch>=2.7.1",
+    "torchaudio>=2.7.1",
+    "scipy>=1.15.3",
+    "twirp>=0.0.7",
+    "aiohttp>=3.11.16",
+    "ping3>=4.0.8",
+    "protobuf>=6.31.1",
+    "websockets>=15.0.1",
+    "websocket-client>=1.8.0",
+]
+telemetry = [
+    "opentelemetry-api>=1.26.0",
+    "opentelemetry-sdk>=1.26.0",
 ]
 
 [dependency-groups]
 dev = [
     "python-dateutil>=2.8.2,<3",
-    "python-dotenv>=1.0.0,<2",
-    "pytest>=7.3.1,<8",
-    "flake8>=6.0.0,<7",
-]
-dev-dependencies = [
-    "python-dotenv>=1.0.1,<2",
-    "ruff>=0.4.1,<0.5",
-    "pre-commit>=3.7.0,<4",
-    "pytest-asyncio>=0.23.8"
+    "python-dotenv>=1.1.1,<2",
+    "pytest>=8.4.1",
+    "pytest-timeout>=2.4.0",
+    "ruff>=0.12.1",
+    "pre-commit>=4.2.0",
+    "pytest-asyncio>=1.0.0",
+    "grpcio-tools>=1.73.1",
+    "mypy-protobuf==3.5.0",
+    "pytest-timeout>=2.3.1",
+    "opentelemetry-exporter-otlp>=1.37.0",
+    "opentelemetry-exporter-prometheus>=0.58b0",
+    "prometheus-client>=0.23.1",
 ]
 
-[tool.uv]
-default-groups = [
-    "dev",
-    "dev-dependencies",
+[tool.uv.workspace]
+members = [
+    "examples/test",
 ]
+ exclude = [
+    "**/__pycache__",
+    "**/tests/__pycache__",
+    "**/*.pyc",
+    "**/dist/",
+    "**/*.egg-info/",
+    "**/.pytest_cache/",
+    "**/.mypy_cache/",
+    "**/.ruff_cache/",
+    "examples/",
+ ]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.version]
+path = "getstream/version.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["getstream"]
+exclude = [
+  "examples/**",
+  "protocol/**",
+  "scripts/**",
+  "tests/**",
+]
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+  "examples/**",
+  "protocol/**",
+  "scripts/**",
+  "tests/**",
+]
+
+[tool.ruff]
+exclude = [
+    "getstream/video/rtc/pb",
+    ".venv"
+]
+
 [tool.ruff.lint]
 ignore = ["F405", "F403"]
-
-[project.optional-dependencies]
-openai-realtime = [
-  "openai[realtime]==1.65.4",
-  "trio >=0.22.2",
-]
