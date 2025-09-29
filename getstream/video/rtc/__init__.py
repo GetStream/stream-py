@@ -1,7 +1,7 @@
 import logging
 from typing import Optional
 
-from getstream.video.call import Call
+from getstream.video.async_call import Call
 from getstream.video.rtc.location_discovery import (
     HTTPHintLocationDiscovery,
     HEADER_CLOUDFRONT_POP,

@@ -101,6 +101,13 @@ class TelemetryEndpointMixin(ABC):
             method=method,
             url=url_full,
         )
+        # Enrich with contextual IDs when available (set by decorators)
+        call_cid = getattr(self, "_call_cid", None)
+        if call_cid:
+            span_attrs["stream.call_cid"] = call_cid
+        channel_cid = getattr(self, "_channel_cid", None)
+        if channel_cid:
+            span_attrs["stream.channel_cid"] = channel_cid
         return url_path, url_full, endpoint, span_attrs
 
 
@@ -132,7 +139,8 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
         self.close()
 
     def _endpoint_name(self, path: str) -> str:
-        return current_operation(self._normalize_endpoint_from_path(path))
+        op = getattr(self, "_operation_name", None)
+        return op or current_operation(self._normalize_endpoint_from_path(path))
 
     def _request_sync(
         self, method: str, path: str, *, query_params=None, args=(), kwargs=None
@@ -297,7 +305,8 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
         await self.client.aclose()
 
     def _endpoint_name(self, path: str) -> str:
-        return current_operation(self._normalize_endpoint_from_path(path))
+        op = getattr(self, "_operation_name", None)
+        return op or current_operation(self._normalize_endpoint_from_path(path))
 
     async def _request_async(
         self, method: str, path: str, *, query_params=None, args=(), kwargs=None

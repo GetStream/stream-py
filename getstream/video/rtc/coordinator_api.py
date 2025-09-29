@@ -7,7 +7,7 @@ from typing import Optional
 
 from getstream.base import StreamResponse
 from getstream.models import CallRequest
-from getstream.video.call import Call
+from getstream.video.async_call import Call
 from getstream.utils import build_body_dict
 
 # Import the types we need from __init__ without creating circular imports
@@ -73,7 +73,7 @@ async def join_call_coordinator_request(
     )
 
     # Make the POST request to join the call
-    return client.post(
+    return await client.post(
         "/api/v2/video/call/{type}/{id}/join",
         JoinCallResponse,
         path_params=path_params,

@@ -16,7 +16,7 @@ from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
 from getstream.video.rtc.pb.stream.video.sfu.signal_rpc import signal_pb2
 from getstream.video.rtc.twirp_client_wrapper import SfuRpcError, SignalClient
 
-from getstream.video.call import Call
+from getstream.video.async_call import Call
 from getstream.video.rtc.connection_utils import (
     ConnectionState,
     SfuConnectionError,
