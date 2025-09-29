@@ -7,19 +7,21 @@ from getstream.utils import build_query_param, build_body_dict
 
 
 class VideoRestClient(AsyncBaseClient):
-    def __init__(self, api_key: str, base_url: str, timeout: float, token: str):
+    def __init__(self, api_key: str, base_url: str, timeout: float, token: str, user_agent: str = None):
         """
         Initializes VideoClient with BaseClient instance
         :param api_key: A string representing the client's API key
         :param base_url: A string representing the base uniform resource locator
         :param timeout: A number representing the time limit for a request
         :param token: A string instance representing the client's token
+        :param user_agent: Optional custom user agent string
         """
         super().__init__(
             api_key=api_key,
             base_url=base_url,
             timeout=timeout,
             token=token,
+            user_agent=user_agent,
         )
 
     @telemetry.operation_name("getstream.api.video.get_active_calls_status")

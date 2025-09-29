@@ -118,12 +118,14 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
         base_url=None,
         token=None,
         timeout=None,
+        user_agent=None,
     ):
         super().__init__(
             api_key=api_key,
             base_url=base_url,
             token=token,
             timeout=timeout,
+            user_agent=user_agent,
         )
         self.client = httpx.Client(
             base_url=self.base_url,
@@ -280,12 +282,14 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
         base_url=None,
         token=None,
         timeout=None,
+        user_agent=None,
     ):
         super().__init__(
             api_key=api_key,
             base_url=base_url,
             token=token,
             timeout=timeout,
+            user_agent=user_agent,
         )
         self.client = httpx.AsyncClient(
             base_url=self.base_url,
