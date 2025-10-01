@@ -1646,7 +1646,7 @@ class AudioSettingsRequest(DataClassJsonMixin):
     redundant_coding_enabled: Optional[bool] = dc_field(
         default=None, metadata=dc_config(field_name="redundant_coding_enabled")
     )
-    hifi_audio_enabled = Optional[bool] = dc_field(
+    hifi_audio_enabled: Optional[bool] = dc_field(
         default=None, metadata=dc_config(field_name="hifi_audio_enabled")
     )
     speaker_default_on: Optional[bool] = dc_field(
