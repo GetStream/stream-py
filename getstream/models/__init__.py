@@ -1622,13 +1622,13 @@ class AudioSettings(DataClassJsonMixin):
     redundant_coding_enabled: bool = dc_field(
         metadata=dc_config(field_name="redundant_coding_enabled")
     )
-    hifi_audio_enabled: bool = dc_field(default=None, metadata=dc_config(field_name="hifi_audio_enabled"))
     speaker_default_on: bool = dc_field(
         metadata=dc_config(field_name="speaker_default_on")
     )
     noise_cancellation: "Optional[NoiseCancellationSettings]" = dc_field(
         default=None, metadata=dc_config(field_name="noise_cancellation")
     )
+    hifi_audio_enabled: bool = dc_field(default=None, metadata=dc_config(field_name="hifi_audio_enabled"))
 
 
 @dataclass
