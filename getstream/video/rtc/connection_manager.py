@@ -268,7 +268,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                 token = join_response.data.credentials.token
                 self.join_response = join_response
                 logger.debug(f"coordinator join response: {join_response.data}")
-                span.set_attribute("join_response", join_response.data)
+                span.set_attribute("credentials", join_response.data.credentials.to_json())
 
         # Use provided session_id or current one
         current_session_id = session_id or self.session_id
@@ -277,15 +277,18 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
 
         # Step 4: Connect to WebSocket
         try:
-            self._ws_client, sfu_event = await connect_websocket(
-                token=token,
-                ws_url=ws_url,
-                session_id=current_session_id,
-                options=self._connection_options,
-            )
+            with telemetry.start_as_current_span(
+                    "sfu-signaling-ws-connect",
+            ) as span:
+                self._ws_client, sfu_event = await connect_websocket(
+                    token=token,
+                    ws_url=ws_url,
+                    session_id=current_session_id,
+                    options=self._connection_options,
+                )
 
-            self._ws_client.on_wildcard("*", _log_event)
-            self._ws_client.on_event("ice_trickle", self._on_ice_trickle)
+                self._ws_client.on_wildcard("*", _log_event)
+                self._ws_client.on_event("ice_trickle", self._on_ice_trickle)
 
             # Connect track subscription events to subscription manager
             self._ws_client.on_event(

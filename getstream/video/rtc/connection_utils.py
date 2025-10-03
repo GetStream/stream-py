@@ -105,7 +105,7 @@ async def join_call(
     local_sfu: bool,
     connection_id: str,
     **kwargs,
-):
+) -> StreamResponse[JoinCallResponse]:
     """Join call via coordinator API."""
     try:
         join_response = await join_call_coordinator_request(
@@ -153,6 +153,7 @@ async def join_call_coordinator_request(
         notify: Whether to notify other users
         video: Whether to enable video
         location: The preferred location
+        connection_id: The WS connection ID,necessary to receive to WS events for this call
 
     Returns:
         A response containing the call information and credentials
@@ -180,7 +181,7 @@ async def join_call_coordinator_request(
 
     # Build the request body
     json_body = build_body_dict(
-        location=location or "FRA",  # Default to Frankfurt if not specified
+        location=location,
         create=create,
         notify=notify,
         ring=ring,

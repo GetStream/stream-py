@@ -102,6 +102,7 @@ def common_attributes(
     method: str,
     url: Optional[str] = None,
     status_code: Optional[int] = None,
+    client_request_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     attrs: Dict[str, Any] = {
         "stream.endpoint": endpoint,
@@ -113,6 +114,8 @@ def common_attributes(
         attrs["http.response.status_code"] = int(status_code)
     if api_key:
         attrs["stream.api_key"] = api_key
+    if client_request_id:
+        attrs["stream.client_request_id"] = client_request_id
     return attrs
 
 
@@ -161,14 +164,8 @@ def span_request(
     """
     include_bodies = INCLUDE_BODIES if include_bodies is None else include_bodies
     if not _HAS_OTEL or _TRACER is None:  # pragma: no cover
-        start = time.perf_counter()
-        try:
-            yield None
-        finally:
-            _ = time.perf_counter() - start
         return
 
-    start = time.perf_counter()
     with _TRACER.start_as_current_span(name, kind=SpanKind.CLIENT) as span:  # type: ignore[arg-type]
         if attributes:
             try:
@@ -191,12 +188,6 @@ def span_request(
             except Exception:
                 pass
             raise
-        finally:
-            duration_ms = (time.perf_counter() - start) * 1000.0
-            try:
-                span.set_attribute("getstream.request.duration_ms", duration_ms)  # type: ignore[attr-defined]
-            except Exception:
-                pass
 
 
 def current_operation(default: Optional[str] = None) -> Optional[str]:

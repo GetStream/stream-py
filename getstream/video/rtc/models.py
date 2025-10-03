@@ -49,3 +49,4 @@ class JoinCallResponse(DataClassJsonMixin):
     members: List[MemberResponse] = dc_field(metadata=dc_config(field_name="members"))
     credentials: Credentials = dc_field(metadata=dc_config(field_name="credentials"))
     stats_options: dict = dc_field(metadata=dc_config(field_name="stats_options"))
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
