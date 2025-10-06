@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import json
 import os
-import time
 from contextlib import contextmanager
 from typing import Any, Dict, Optional, Callable, Awaitable, TYPE_CHECKING
+from contextvars import ContextVar
 import inspect
 
 if TYPE_CHECKING:
@@ -56,7 +56,10 @@ def _noop_cm():  # pragma: no cover - used when OTel missing
 
 
 if _HAS_OTEL:
-    _TRACER = trace.get_tracer("getstream")
+    # Tracer must be retrieved lazily to respect late provider configuration
+    def _get_tracer():
+        return trace.get_tracer("getstream")
+
     _METER = metrics.get_meter("getstream")
 
     REQ_HIST = _METER.create_histogram(
@@ -69,7 +72,10 @@ if _HAS_OTEL:
         description="SDK client requests",
     )
 else:  # pragma: no cover - no-op instruments
-    _TRACER = None
+
+    def _get_tracer():  # pragma: no cover - no-op
+        return None
+
     REQ_HIST = None
     REQ_COUNT = None
 
@@ -102,6 +108,7 @@ def common_attributes(
     method: str,
     url: Optional[str] = None,
     status_code: Optional[int] = None,
+    client_request_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     attrs: Dict[str, Any] = {
         "stream.endpoint": endpoint,
@@ -113,6 +120,8 @@ def common_attributes(
         attrs["http.response.status_code"] = int(status_code)
     if api_key:
         attrs["stream.api_key"] = api_key
+    if client_request_id:
+        attrs["stream.client_request_id"] = client_request_id
     return attrs
 
 
@@ -160,19 +169,26 @@ def span_request(
     when enabled. Records duration on the span as attribute for debugging.
     """
     include_bodies = INCLUDE_BODIES if include_bodies is None else include_bodies
-    if not _HAS_OTEL or _TRACER is None:  # pragma: no cover
-        start = time.perf_counter()
-        try:
-            yield None
-        finally:
-            _ = time.perf_counter() - start
+    if not _HAS_OTEL:  # pragma: no cover
         return
-
-    start = time.perf_counter()
-    with _TRACER.start_as_current_span(name, kind=SpanKind.CLIENT) as span:  # type: ignore[arg-type]
-        if attributes:
+    tracer = _get_tracer()
+    if tracer is None:  # pragma: no cover
+        return
+    with tracer.start_as_current_span(name, kind=SpanKind.CLIENT) as span:  # type: ignore[arg-type]
+        base_attrs: Dict[str, Any] = dict(attributes or {})
+        # auto-propagate contextual IDs to request spans
+        try:
+            cid = get_current_call_cid()
+            if cid:
+                base_attrs["stream.call_cid"] = cid
+            ch = get_current_channel_cid()
+            if ch:
+                base_attrs["stream.channel_cid"] = ch
+        except Exception:
+            pass
+        if base_attrs:
             try:
-                span.set_attributes(attributes)  # type: ignore[attr-defined]
+                span.set_attributes(base_attrs)  # type: ignore[attr-defined]
             except Exception:
                 pass
         if include_bodies and request_body is not None:
@@ -191,12 +207,6 @@ def span_request(
             except Exception:
                 pass
             raise
-        finally:
-            duration_ms = (time.perf_counter() - start) * 1000.0
-            try:
-                span.set_attribute("getstream.request.duration_ms", duration_ms)  # type: ignore[attr-defined]
-            except Exception:
-                pass
 
 
 def current_operation(default: Optional[str] = None) -> Optional[str]:
@@ -204,26 +214,33 @@ def current_operation(default: Optional[str] = None) -> Optional[str]:
     return default
 
 
-# Decorators for auto-attaching baggage around method calls
+# Lightweight, context-local storage for call/channel CIDs
+_CTX_CALL_CID: ContextVar[Optional[str]] = ContextVar("_stream_call_cid", default=None)
+_CTX_CHANNEL_CID: ContextVar[Optional[str]] = ContextVar(
+    "_stream_channel_cid", default=None
+)
+
+
+def get_current_call_cid() -> Optional[str]:
+    return _CTX_CALL_CID.get()
+
+
+def get_current_channel_cid() -> Optional[str]:
+    return _CTX_CHANNEL_CID.get()
+
+
+# Decorators for auto-attaching contextual IDs around method calls
 def attach_call_cid(func: Callable[..., Any]) -> Callable[..., Any]:
     def wrapper(self: BaseCall, *args, **kwargs):
         cid = f"{self.call_type}:{self.id}"
-        client = getattr(self, "client", None)
-        prev = getattr(client, "_call_cid", None) if client is not None else None
-        if client is not None:
-            setattr(client, "_call_cid", cid)
+        token = _CTX_CALL_CID.set(cid)
         try:
             return func(self, *args, **kwargs)
         finally:
-            if client is not None:
-                if prev is not None:
-                    setattr(client, "_call_cid", prev)
-                else:
-                    try:
-                        delattr(client, "_call_cid")
-                    except Exception:
-                        pass
+            _CTX_CALL_CID.reset(token)
 
+    # also expose for introspection if needed
+    setattr(wrapper, "_call_cid_attacher", True)
     return wrapper
 
 
@@ -232,44 +249,26 @@ def attach_call_cid_async(
 ) -> Callable[..., Awaitable[Any]]:
     async def wrapper(self: BaseCall, *args, **kwargs):
         cid = f"{self.call_type}:{self.id}"
-        client = getattr(self, "client", None)
-        prev = getattr(client, "_call_cid", None) if client is not None else None
-        if client is not None:
-            setattr(client, "_call_cid", cid)
+        token = _CTX_CALL_CID.set(cid)
         try:
             return await func(self, *args, **kwargs)
         finally:
-            if client is not None:
-                if prev is not None:
-                    setattr(client, "_call_cid", prev)
-                else:
-                    try:
-                        delattr(client, "_call_cid")
-                    except Exception:
-                        pass
+            _CTX_CALL_CID.reset(token)
 
+    setattr(wrapper, "_call_cid_attacher", True)
     return wrapper
 
 
 def attach_channel_cid(func: Callable[..., Any]) -> Callable[..., Any]:
     def wrapper(self: Channel, *args, **kwargs):
         cid = f"{self.channel_type}:{self.channel_id}"
-        client = getattr(self, "client", None)
-        prev = getattr(client, "_channel_cid", None) if client is not None else None
-        if client is not None:
-            setattr(client, "_channel_cid", cid)
+        token = _CTX_CHANNEL_CID.set(cid)
         try:
             return func(self, *args, **kwargs)
         finally:
-            if client is not None:
-                if prev is not None:
-                    setattr(client, "_channel_cid", prev)
-                else:
-                    try:
-                        delattr(client, "_channel_cid")
-                    except Exception:
-                        pass
+            _CTX_CHANNEL_CID.reset(token)
 
+    setattr(wrapper, "_channel_cid_attacher", True)
     return wrapper
 
 
@@ -278,22 +277,13 @@ def attach_channel_cid_async(
 ) -> Callable[..., Awaitable[Any]]:
     async def wrapper(self: Channel, *args, **kwargs):
         cid = f"{self.channel_type}:{self.channel_id}"
-        client = getattr(self, "client", None)
-        prev = getattr(client, "_channel_cid", None) if client is not None else None
-        if client is not None:
-            setattr(client, "_channel_cid", cid)
+        token = _CTX_CHANNEL_CID.set(cid)
         try:
             return await func(self, *args, **kwargs)
         finally:
-            if client is not None:
-                if prev is not None:
-                    setattr(client, "_channel_cid", prev)
-                else:
-                    try:
-                        delattr(client, "_channel_cid")
-                    except Exception:
-                        pass
+            _CTX_CHANNEL_CID.reset(token)
 
+    setattr(wrapper, "_channel_cid_attacher", True)
     return wrapper
 
 
@@ -328,21 +318,36 @@ def start_as_current_span(
     attributes: Optional[Dict[str, Any]] = None,
 ):
     """Lightweight span context manager that no-ops if OTel isn't available."""
-    if not _HAS_OTEL or _TRACER is None:  # pragma: no cover
+    if not _HAS_OTEL:  # pragma: no cover
         yield _NullSpan()
         return
     use_kind = kind if kind is not None else SpanKind.INTERNAL
-    with _TRACER.start_as_current_span(name, kind=use_kind) as span:  # type: ignore[arg-type]
-        if attributes:
+    tracer = _get_tracer()
+    if tracer is None:  # pragma: no cover
+        yield _NullSpan()
+        return
+    with tracer.start_as_current_span(name, kind=use_kind) as span:  # type: ignore[arg-type]
+        base_attrs: Dict[str, Any] = dict(attributes or {})
+        # auto-propagate contextual IDs
+        try:
+            cid = get_current_call_cid()
+            if cid:
+                base_attrs["stream.call_cid"] = cid
+            ch = get_current_channel_cid()
+            if ch:
+                base_attrs["stream.channel_cid"] = ch
+        except Exception:
+            pass
+        if base_attrs:
             try:
-                span.set_attributes(attributes)  # type: ignore[attr-defined]
+                span.set_attributes(base_attrs)  # type: ignore[attr-defined]
             except Exception:
                 pass
         yield span
 
 
 def get_current_span():
-    if not _HAS_OTEL or _TRACER is None:  # pragma: no cover
+    if not _HAS_OTEL:  # pragma: no cover
         return _NullSpan()
     return trace.get_current_span()
 
@@ -353,7 +358,7 @@ def set_span_in_context(span: "Span", context: Optional["Context"] = None):
     Returns an attach token suitable for later detaching via `detach_context`.
     If OpenTelemetry is unavailable, returns None.
     """
-    if not _HAS_OTEL or _TRACER is None or otel_context is None:  # pragma: no cover
+    if not _HAS_OTEL or otel_context is None:  # pragma: no cover
         return None
     ctx = trace.set_span_in_context(span, context or otel_context.get_current())
     token = otel_context.attach(ctx)

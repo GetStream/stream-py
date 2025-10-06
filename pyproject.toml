@@ -25,6 +25,7 @@ dependencies = [
     "pydantic-settings>=2.9.1",
     "pydantic>=2.10.6",
     "pyee>=13.0.0",
+    "ijson>=3.4.0",
 ]
 
 [project.optional-dependencies]

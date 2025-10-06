@@ -97,15 +97,43 @@ class ConnectionOptions:
     previous_session_id: Optional[str] = None
 
 
+def user_client(call: Call, user_id: str):
+    token = call.client.stream.create_token(user_id=user_id)
+    client = call.client.stream.__class__(
+        api_key=call.client.stream.api_key,
+        api_secret=call.client.stream.api_secret,
+        base_url=call.client.stream.base_url,
+    )
+    # set up authentication
+    client.token = token
+    client.headers["authorization"] = token
+    client.client.headers["authorization"] = token
+    return client
+
+
+async def watch_call(call: Call, user_id: str, connection_id: str):
+    client = user_client(call, user_id)
+
+    # Make the POST request to join the call
+    return await client.post(
+        "/api/v2/video/call/{type}/{id}",
+        JoinCallResponse,
+        path_params={
+            "type": call.call_type,
+            "id": call.id,
+        },
+        query_params=build_query_param(connection_id=connection_id),
+    )
+
+
 async def join_call(
-    call,
+    call: Call,
     user_id: str,
     location: str,
     create: bool,
     local_sfu: bool,
-    connection_id: str,
     **kwargs,
-):
+) -> StreamResponse[JoinCallResponse]:
     """Join call via coordinator API."""
     try:
         join_response = await join_call_coordinator_request(
@@ -113,7 +141,6 @@ async def join_call(
             user_id,
             location=location,
             create=create,
-            connection_id=connection_id,
             **kwargs,
         )
         if local_sfu:
@@ -140,7 +167,6 @@ async def join_call_coordinator_request(
     notify: Optional[bool] = None,
     video: Optional[bool] = None,
     location: Optional[str] = None,
-    connection_id: Optional[str] = None,
 ) -> StreamResponse[JoinCallResponse]:
     """Make a request to join a call via the coordinator.
 
@@ -157,20 +183,7 @@ async def join_call_coordinator_request(
     Returns:
         A response containing the call information and credentials
     """
-    # Create a token for this user
-    token = call.client.stream.create_token(user_id=user_id)
-
-    # create a new client with this token
-    client = call.client.stream.__class__(
-        api_key=call.client.stream.api_key,
-        api_secret=call.client.stream.api_secret,
-        base_url=call.client.stream.base_url,
-    )
-
-    # set up authentication
-    client.token = token
-    client.headers["authorization"] = token
-    client.client.headers["authorization"] = token
+    client = user_client(call, user_id)
 
     # Prepare path parameters for the request
     path_params = {
@@ -180,21 +193,19 @@ async def join_call_coordinator_request(
 
     # Build the request body
     json_body = build_body_dict(
-        location=location or "FRA",  # Default to Frankfurt if not specified
+        location=location,
         create=create,
         notify=notify,
         ring=ring,
         video=video,
         data=data,
     )
-    query_params = build_query_param(connection_id=connection_id)
 
     # Make the POST request to join the call
     return await client.post(
         "/api/v2/video/call/{type}/{id}/join",
         JoinCallResponse,
         path_params=path_params,
-        query_params=query_params,
         json=json_body,
     )
 
