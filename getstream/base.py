@@ -188,16 +188,17 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
                 )
             except Exception:
                 pass
-        duration_ms = (time.perf_counter() - start) * 1000.0
-        # Metrics should be low-cardinality: exclude url/call_cid/channel_cid
-        metric_attrs = metric_attributes(
-            api_key=self.api_key,
-            endpoint=endpoint,
-            method=method,
-            status_code=getattr(response, "status_code", None),
-        )
-        record_metrics(duration_ms, attributes=metric_attrs)
-        return self._parse_response(response, data_type or Dict[str, Any])
+
+            duration_ms = (time.perf_counter() - start) * 1000.0
+            # Metrics should be low-cardinality: exclude url/call_cid/channel_cid
+            metric_attrs = metric_attributes(
+                api_key=self.api_key,
+                endpoint=endpoint,
+                method=method,
+                status_code=getattr(response, "status_code", None),
+            )
+            record_metrics(duration_ms, attributes=metric_attrs)
+            return self._parse_response(response, data_type or Dict[str, Any])
 
     def patch(
         self,
