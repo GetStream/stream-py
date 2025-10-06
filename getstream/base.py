@@ -21,6 +21,7 @@ from getstream.common.telemetry import (
 )
 import ijson
 
+
 def build_path(path: str, path_params: dict) -> str:
     if path_params is None:
         return path
@@ -30,7 +31,6 @@ def build_path(path: str, path_params: dict) -> str:
 
 
 class ResponseParserMixin:
-
     @with_span("parse_response")
     def _parse_response(
         self, response: httpx.Response, data_type: Type[T]
@@ -154,7 +154,14 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
         return op or current_operation(self._normalize_endpoint_from_path(path))
 
     def _request_sync(
-        self, method: str, path: str, *, query_params=None, args=(), kwargs=None, data_type: Optional[Type[T]] = None
+        self,
+        method: str,
+        path: str,
+        *,
+        query_params=None,
+        args=(),
+        kwargs=None,
+        data_type: Optional[Type[T]] = None,
     ):
         kwargs = kwargs or {}
         url_path, url_full, endpoint, attrs = self._prepare_request(
@@ -325,7 +332,14 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
         return op or current_operation(self._normalize_endpoint_from_path(path))
 
     async def _request_async(
-        self, method: str, path: str, *, query_params=None, args=(), kwargs=None, data_type: Optional[Type[T]] = None
+        self,
+        method: str,
+        path: str,
+        *,
+        query_params=None,
+        args=(),
+        kwargs=None,
+        data_type: Optional[Type[T]] = None,
     ):
         kwargs = kwargs or {}
         query_params = query_params or {}
@@ -341,8 +355,6 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
             response = await getattr(self.client, method.lower())(
                 url_path, params=query_params, *args, **call_kwargs
             )
-            headers = response.headers
-            request_id = response.headers.get("x-client-request-id")
             duration = parse_duration_from_body(response.content)
             if duration:
                 span.set_attribute("http.server.duration", duration)
