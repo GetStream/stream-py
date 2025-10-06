@@ -1,3 +1,8 @@
+from getstream import Stream
+from getstream.models import ChannelInput
+import httpx
+
+
 def _setup_tracer():
     from opentelemetry import trace
     from opentelemetry.sdk.trace import TracerProvider
@@ -19,10 +24,6 @@ def _setup_tracer():
 
 def test_chat_channel_span_name_and_endpoint():
     exporter = _setup_tracer()
-
-    from getstream import Stream
-    from getstream.models import ChannelInput
-    import httpx
 
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={}, request=request)
