@@ -18,6 +18,8 @@ from getstream.common.telemetry import (
     current_operation,
     metric_attributes,
     with_span,
+    get_current_call_cid,
+    get_current_channel_cid,
 )
 import ijson
 
@@ -111,10 +113,10 @@ class TelemetryEndpointMixin(ABC):
             client_request_id=client_request_id,
         )
         # Enrich with contextual IDs when available (set by decorators)
-        call_cid = getattr(self, "_call_cid", None)
+        call_cid = get_current_call_cid()
         if call_cid:
             span_attrs["stream.call_cid"] = call_cid
-        channel_cid = getattr(self, "_channel_cid", None)
+        channel_cid = get_current_channel_cid()
         if channel_cid:
             span_attrs["stream.channel_cid"] = channel_cid
         return url_path, url_full, endpoint, span_attrs
