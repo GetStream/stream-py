@@ -23,6 +23,7 @@ from getstream.video.rtc.connection_utils import (
     ConnectionOptions,
     connect_websocket,
     join_call,
+    watch_call,
 )
 from getstream.video.rtc.track_util import (
     fix_sdp_msid_semantic,
@@ -35,7 +36,6 @@ from getstream.video.rtc.participants import ParticipantsState
 from getstream.video.rtc.tracks import SubscriptionConfig, SubscriptionManager
 from getstream.video.rtc.reconnection import ReconnectionManager
 from getstream.video.rtc.peer_connection import PeerConnectionManager
-from getstream.video.rtc.location_discovery import HTTPHintLocationDiscovery
 from getstream.video.rtc.models import JoinCallResponse
 
 logger = logging.getLogger(__name__)
@@ -91,6 +91,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
 
         self.twirp_signaling_client = None
         self.twirp_context: Optional[Context] = None
+        self._coordinator_task: Optional[asyncio.Task] = None
 
     @property
     def connection_state(self) -> ConnectionState:
@@ -204,6 +205,31 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             finally:
                 self.subscriber_negotiation_lock.release()
 
+    async def _connect_coordinator_ws(self):
+        """
+        Connects to the coordinator websocket and subscribes to events.
+        """
+
+        with telemetry.start_as_current_span(
+            "coordinator-setup",
+        ):
+            with telemetry.start_as_current_span(
+                "coordinator-ws-connect",
+            ):
+                self._coordinator_ws_client = StreamAPIWS(
+                    call=self.call,
+                    user_details={"id": self.user_id},
+                )
+                self._coordinator_ws_client.on_wildcard("*", _log_event)
+                await self._coordinator_ws_client.connect()
+
+            with telemetry.start_as_current_span(
+                "watch-call",
+            ):
+                await watch_call(
+                    self.call, self.user_id, self._coordinator_ws_client._client_id
+                )
+
     async def _connect_internal(
         self,
         region: Optional[str] = None,
@@ -226,31 +252,20 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         self.connection_state = ConnectionState.JOINING
 
         # Step 1: Determine region
-        with telemetry.start_as_current_span(
-            "location-discovery",
-        ) as span:
-            if not region:
-                try:
-                    region = HTTPHintLocationDiscovery(logger=logger).discover()
-                except Exception as e:
-                    logger.warning(f"Failed to discover location: {e}")
-                    location = "FRA"
-            logger.debug(f"Using location: {region}")
-            location = region
-            span.set_attribute("location", location)
+        # with telemetry.start_as_current_span(
+        #     "location-discovery",
+        # ) as span:
+        #     if not region:
+        #         try:
+        #             region = HTTPHintLocationDiscovery(logger=logger).discover()
+        #         except Exception as e:
+        #             logger.warning(f"Failed to discover location: {e}")
+        #             location = "FRA"
+        #     logger.debug(f"Using location: {region}")
+        #     location = region
+        #     span.set_attribute("location", location)
 
-        # Step 2: Create coordinator websocket
-        with telemetry.start_as_current_span(
-            "coordinator-ws-connect",
-        ):
-            self._coordinator_ws_client = StreamAPIWS(
-                call=self.call,
-                user_details={"id": self.user_id},
-            )
-            self._coordinator_ws_client.on_wildcard("*", _log_event)
-            await self._coordinator_ws_client.connect()
-
-        # Step 3: Join call via coordinator
+        # Step 2: Join call via coordinator
         with telemetry.start_as_current_span(
             "coordinator-join-call",
         ) as span:
@@ -258,27 +273,28 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                 join_response = await join_call(
                     self.call,
                     self.user_id,
-                    location,
+                    "auto",
                     self.create,
                     self.local_sfu,
-                    self._coordinator_ws_client._client_id,
                     **self.kwargs,
                 )
                 ws_url = join_response.data.credentials.server.ws_endpoint
                 token = join_response.data.credentials.token
                 self.join_response = join_response
                 logger.debug(f"coordinator join response: {join_response.data}")
-                span.set_attribute("credentials", join_response.data.credentials.to_json())
+                span.set_attribute(
+                    "credentials", join_response.data.credentials.to_json()
+                )
 
         # Use provided session_id or current one
         current_session_id = session_id or self.session_id
 
         await self._peer_manager.setup_subscriber()
 
-        # Step 4: Connect to WebSocket
+        # Step 3: Connect to WebSocket
         try:
             with telemetry.start_as_current_span(
-                    "sfu-signaling-ws-connect",
+                "sfu-signaling-ws-connect",
             ) as span:
                 self._ws_client, sfu_event = await connect_websocket(
                     token=token,
@@ -340,6 +356,21 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         like "server is full" and network issues.
         """
         logger.info("Connecting to SFU")
+        # Fire-and-forget the coordinator WS connection so we don't block here
+        if self._coordinator_task is None or self._coordinator_task.done():
+            self._coordinator_task = asyncio.create_task(
+                self._connect_coordinator_ws(), name="coordinator-ws-connect"
+            )
+
+            def _on_coordinator_task_done(task: asyncio.Task):
+                try:
+                    task.result()
+                except asyncio.CancelledError:
+                    pass
+                except Exception:
+                    logger.exception("Coordinator WS task failed")
+
+            self._coordinator_task.add_done_callback(_on_coordinator_task_done)
         await self._connect_internal()
 
     async def wait(self):
@@ -367,6 +398,15 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         if self._ws_client:
             self._ws_client.close()
             self._ws_client = None
+        if self._coordinator_task and not self._coordinator_task.done():
+            self._coordinator_task.cancel()
+            try:
+                await self._coordinator_task
+            except asyncio.CancelledError:
+                pass
+            finally:
+                self._coordinator_task = None
+
         if self._coordinator_ws_client:
             await self._coordinator_ws_client.disconnect()
             self._coordinator_ws_client = None
