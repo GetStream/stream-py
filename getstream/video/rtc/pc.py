@@ -7,6 +7,9 @@ from aiortc.contrib.media import MediaRelay
 
 from getstream.video.rtc.track_util import AudioTrackHandler
 from pyee.asyncio import AsyncIOEventEmitter
+from aiortc.rtcrtpsender import RTCRtpSender
+from aiortc.rtcrtpparameters import RTCRtpCodecCapability
+
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +20,18 @@ def parse_track_id(id: str) -> tuple[str, str]:
     """
     participant_id, track_type, _ = id.split(":")
     return participant_id, track_type
+
+
+def publish_codec_preferences() -> list[RTCRtpCodecCapability]:
+    return [
+        c
+        for c in RTCRtpSender.getCapabilities("video").codecs
+        if c.name.lower() != "vp8"
+    ]
+
+
+def subscribe_codec_preferences() -> list[RTCRtpCodecCapability]:
+    return RTCRtpSender.getCapabilities("video").codecs
 
 
 class PublisherPeerConnection(aiortc.RTCPeerConnection):
@@ -35,6 +50,10 @@ class PublisherPeerConnection(aiortc.RTCPeerConnection):
         super().__init__(configuration)
         self.manager = manager
         self._connected_event = asyncio.Event()
+
+        for transceiver in self.getTransceivers():
+            if transceiver.kind == "video":
+                transceiver.setCodecPreferences(publish_codec_preferences())
 
         @self.on("icegatheringstatechange")
         def on_icegatheringstatechange():
