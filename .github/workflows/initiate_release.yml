@@ -31,7 +31,7 @@ jobs:
           git config --global user.name 'github-actions'
           git config --global user.email 'release@getstream.io'
           git checkout -q -b "release-$VERSION"
-          git commit -am "chore(release): $VERSION --allow-empty"
+          git commit --allow-empty -am "chore(release): $VERSION"
           git push -q -u origin "release-$VERSION"
       - name: Open pull request
         env:
