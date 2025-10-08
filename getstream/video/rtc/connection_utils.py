@@ -220,7 +220,10 @@ async def create_join_request(token: str, session_id: str) -> events_pb2.JoinReq
         A JoinRequest protobuf message configured with data
     """
 
-    from video.rtc.pc import subscribe_codec_preferences, publish_codec_preferences
+    from getstream.video.rtc.pc import (
+        subscribe_codec_preferences,
+        publish_codec_preferences,
+    )
 
     # Create a JoinRequest
     join_request = events_pb2.JoinRequest()
