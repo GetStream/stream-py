@@ -33,7 +33,7 @@ openai-realtime = [
   "openai[realtime]>=1.93.0",
 ]
 webrtc = [
-    "aiortc@git+https://github.com/GetStream/aiortc.git@getstream-patches",
+    "aiortc-getstream==1.13.0.post1",
     "numpy>=2.2.6,<2.3",
     "torch>=2.7.1",
     "torchaudio>=2.7.1",
