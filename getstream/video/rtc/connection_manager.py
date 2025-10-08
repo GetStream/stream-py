@@ -329,12 +329,12 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                         sfu_event.join_response.fast_reconnect_deadline_seconds
                     )
             else:
-                logger.warning(f"No join response from WebSocket: {sfu_event}")
+                logger.exception(f"No join response from WebSocket: {sfu_event}")
 
             logger.debug(f"WebSocket connected successfully to {ws_url}")
         except Exception as e:
-            logger.error(f"Failed to connect WebSocket to {ws_url}: {e}")
-            raise SfuConnectionError(f"WebSocket connection failed: {e}")
+            logger.exception(f"Failed to connect WebSocket to {ws_url}: {e}")
+            raise SfuConnectionError(f"WebSocket connection failed: {e}") from e
 
         # Step 5: Create SFU signaling client
         twirp_server_url = self.join_response.data.credentials.server.url
