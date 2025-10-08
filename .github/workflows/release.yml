@@ -56,6 +56,13 @@ jobs:
               fh.write(f'version={version}\n')
           PY
 
+      - name: Create release on GitHub
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ steps.get_version.outputs.version }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          generateReleaseNotes: true
+
       - name: Publish core to PyPI
         env:
           TWINE_USERNAME: __token__
