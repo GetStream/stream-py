@@ -10,6 +10,7 @@ T = typing.TypeVar("T")
 
 class StreamResponse(Generic[T]):
     def __init__(self, response: httpx.Response, data: T):
+        self.__response = response
         self.__headers = response.headers
         self.__status_code = response.status_code
         self.__rate_limit = extract_rate_limit(response)
