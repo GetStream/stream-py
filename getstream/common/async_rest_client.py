@@ -153,10 +153,19 @@ class CommonRestClient(AsyncBaseClient):
         self,
         name: str,
         words: List[str],
+        is_leet_check_enabled: Optional[bool] = None,
+        is_plural_check_enabled: Optional[bool] = None,
         team: Optional[str] = None,
         type: Optional[str] = None,
     ) -> StreamResponse[CreateBlockListResponse]:
-        json = build_body_dict(name=name, words=words, team=team, type=type)
+        json = build_body_dict(
+            name=name,
+            words=words,
+            is_leet_check_enabled=is_leet_check_enabled,
+            is_plural_check_enabled=is_plural_check_enabled,
+            team=team,
+            type=type,
+        )
         return await self.post("/api/v2/blocklists", CreateBlockListResponse, json=json)
 
     @telemetry.operation_name("getstream.api.common.delete_block_list")
@@ -191,12 +200,22 @@ class CommonRestClient(AsyncBaseClient):
 
     @telemetry.operation_name("getstream.api.common.update_block_list")
     async def update_block_list(
-        self, name: str, team: Optional[str] = None, words: Optional[List[str]] = None
+        self,
+        name: str,
+        is_leet_check_enabled: Optional[bool] = None,
+        is_plural_check_enabled: Optional[bool] = None,
+        team: Optional[str] = None,
+        words: Optional[List[str]] = None,
     ) -> StreamResponse[UpdateBlockListResponse]:
         path_params = {
             "name": name,
         }
-        json = build_body_dict(team=team, words=words)
+        json = build_body_dict(
+            is_leet_check_enabled=is_leet_check_enabled,
+            is_plural_check_enabled=is_plural_check_enabled,
+            team=team,
+            words=words,
+        )
         return await self.put(
             "/api/v2/blocklists/{name}",
             UpdateBlockListResponse,

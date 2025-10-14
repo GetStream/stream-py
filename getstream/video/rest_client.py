@@ -857,24 +857,12 @@ class VideoRestClient(BaseClient):
         session: str,
         user: str,
         user_session: str,
-        metrics: Optional[str] = None,
         since: Optional[str] = None,
         until: Optional[str] = None,
-        step: Optional[int] = None,
         max_points: Optional[int] = None,
-        track_type: Optional[str] = None,
-        remote_user_id: Optional[str] = None,
-        remote_user_session_id: Optional[str] = None,
     ) -> StreamResponse[GetCallSessionParticipantStatsDetailsResponse]:
         query_params = build_query_param(
-            metrics=metrics,
-            since=since,
-            until=until,
-            step=step,
-            max_points=max_points,
-            track_type=track_type,
-            remote_user_id=remote_user_id,
-            remote_user_session_id=remote_user_session_id,
+            since=since, until=until, max_points=max_points
         )
         path_params = {
             "call_type": call_type,
@@ -910,6 +898,37 @@ class VideoRestClient(BaseClient):
         return self.get(
             "/api/v2/video/call_stats/{call_type}/{call_id}/{session}/participants",
             QueryCallSessionParticipantStatsResponse,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
+    @telemetry.operation_name(
+        "getstream.api.video.get_call_session_participant_stats_timeline"
+    )
+    def get_call_session_participant_stats_timeline(
+        self,
+        call_type: str,
+        call_id: str,
+        session: str,
+        user: str,
+        user_session: str,
+        start_time: Optional[str] = None,
+        end_time: Optional[str] = None,
+        severity: Optional[List[str]] = None,
+    ) -> StreamResponse[QueryCallSessionParticipantStatsTimelineResponse]:
+        query_params = build_query_param(
+            start_time=start_time, end_time=end_time, severity=severity
+        )
+        path_params = {
+            "call_type": call_type,
+            "call_id": call_id,
+            "session": session,
+            "user": user,
+            "user_session": user_session,
+        }
+        return self.get(
+            "/api/v2/video/call_stats/{call_type}/{call_id}/{session}/participants/{user}/{user_session}/timeline",
+            QueryCallSessionParticipantStatsTimelineResponse,
             query_params=query_params,
             path_params=path_params,
         )
