@@ -38,3 +38,23 @@ def test_incorrect_client_throws_exception(monkeypatch):
 
     with pytest.raises(ValueError):
         Stream(api_key="xxx", api_secret="xxx", base_url="ftp://example.com")
+
+
+def test_client_does_not_raise_exception_without_tracer(client: Stream, monkeypatch):
+    # Monkey patch _get_tracer to always return None
+    from getstream.common import telemetry
+
+    monkeypatch.setattr(telemetry, "_get_tracer", lambda: None)
+
+    response = client.get_app()
+    assert response.data is not None
+
+
+def test_client_works_with_no_otel(client: Stream, monkeypatch):
+    # Monkey patch _get_tracer to always return None
+    from getstream.common import telemetry
+
+    monkeypatch.setattr(telemetry, "_HAS_OTEL", False)
+
+    response = client.get_app()
+    assert response.data is not None
