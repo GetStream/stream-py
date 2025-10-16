@@ -170,6 +170,7 @@ def span_request(
     """
     include_bodies = INCLUDE_BODIES if include_bodies is None else include_bodies
     if not _HAS_OTEL:  # pragma: no cover
+        yield _NullSpan()
         return
     tracer = _get_tracer()
     if tracer is None:  # pragma: no cover
