@@ -173,7 +173,8 @@ def span_request(
         yield _NullSpan()
         return
     tracer = _get_tracer()
-    if tracer is None:  # pragma: no cover
+    if tracer is None:
+        yield _NullSpan()  # pragma: no cover
         return
     with tracer.start_as_current_span(name, kind=SpanKind.CLIENT) as span:  # type: ignore[arg-type]
         base_attrs: Dict[str, Any] = dict(attributes or {})
