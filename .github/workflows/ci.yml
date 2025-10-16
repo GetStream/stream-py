@@ -19,7 +19,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13"]
-        uv-flags: ["--all-extras", ""]
+        uv-flags: ["--all-extras", "--extra webrtc"]
     steps:
       - name: Check out repo
         uses: actions/checkout@v4
