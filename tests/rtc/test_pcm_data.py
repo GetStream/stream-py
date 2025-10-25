@@ -293,3 +293,86 @@ def test_to_float32_converts_int16_and_preserves_metadata():
     f32_2 = f32.to_float32()
     assert f32_2.samples.dtype == np.float32
     assert np.allclose(f32_2.samples, f32.samples, atol=1e-7)
+
+
+def test_append_mono_s16_concatenates_and_preserves_format():
+    sr = 16000
+    a = np.array([1, 2, 3, 4], dtype=np.int16)
+    b = np.array([5, 6], dtype=np.int16)
+
+    pcm_a = PcmData(samples=a, sample_rate=sr, format="s16", channels=1)
+    pcm_b = PcmData(samples=b, sample_rate=sr, format="s16", channels=1)
+
+    out = pcm_a.append(pcm_b)
+
+    assert out.format == "s16"
+    assert out.channels == 1
+    assert isinstance(out.samples, np.ndarray)
+    assert out.samples.dtype == np.int16
+    assert out.samples.ndim == 1
+    assert out.sample_rate == sr
+    assert np.array_equal(out.samples, np.array([1, 2, 3, 4, 5, 6], dtype=np.int16))
+
+
+def test_append_resamples_and_converts_to_match_target_format():
+    # Target is float32 stereo 48kHz
+    base = np.array([[0.0, 0.1, -0.1], [0.0, 0.1, -0.1]], dtype=np.float32)
+    pcm_target = PcmData(samples=base, sample_rate=48000, format="f32", channels=2)
+
+    # Other is s16 mono 16kHz
+    other_raw = np.array([1000, -1000, 1000, -1000, 1000, -1000], dtype=np.int16)
+    pcm_other = PcmData(samples=other_raw, sample_rate=16000, format="s16", channels=1)
+
+    # Pre-compute expected resampled length by using the same resample pipeline
+    other_resampled = pcm_other.resample(48000, target_channels=2).to_float32()
+    if other_resampled.samples.ndim == 2:
+        expected_added = other_resampled.samples.shape[1]
+    else:
+        expected_added = other_resampled.samples.shape[0]
+
+    out = pcm_target.append(pcm_other)
+
+    # Check format/channels preserved and dtype matches
+    assert out.format == "f32"
+    assert out.channels == 2
+    assert isinstance(out.samples, np.ndarray) and out.samples.dtype == np.float32
+    assert out.samples.shape[0] == 2
+
+    # First part must equal the original base (append should not alter original)
+    assert np.allclose(out.samples[:, : base.shape[1]], base)
+
+    # Total length should be base + resampled other
+    assert out.samples.shape[1] == base.shape[1] + expected_added
+
+
+def test_append_empty_buffer_float32_adjusts_other_and_keeps_meta():
+    # Create an empty buffer specifying desired output meta using alternate format name
+    buffer = PcmData(format="float32", sample_rate=16000, channels=1)
+
+    # Other is int16 stereo at 48kHz, small ramp
+    other = np.array(
+        [[1000, -1000, 500, -500], [-1000, 1000, -500, 500]], dtype=np.int16
+    )
+    pcm_other = PcmData(samples=other, sample_rate=48000, format="s16", channels=2)
+
+    # Expected result if we first resample/downmix then convert to float32
+    expected_pcm = pcm_other.resample(16000, target_channels=1).to_float32()
+
+    # Append to the empty buffer
+    out = buffer.append(pcm_other)
+
+    # Metadata should be preserved from buffer
+    assert out.format in ("f32", "float32")
+    assert out.sample_rate == 16000
+    assert out.channels == 1
+
+    # Data should match expected (mono float32)
+    assert isinstance(out.samples, np.ndarray)
+    assert out.samples.dtype == np.float32
+    assert out.samples.ndim == 1
+    # Normalize expected to 1D if needed
+    if isinstance(expected_pcm.samples, np.ndarray) and expected_pcm.samples.ndim == 2:
+        expected_samples = expected_pcm.samples.reshape(-1)
+    else:
+        expected_samples = expected_pcm.samples
+    assert np.allclose(out.samples[-expected_samples.shape[0] :], expected_samples)

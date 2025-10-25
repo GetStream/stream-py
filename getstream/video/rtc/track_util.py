@@ -38,7 +38,7 @@ class PcmData(NamedTuple):
 
     format: str
     sample_rate: int
-    samples: NDArray
+    samples: NDArray = np.array([], dtype=np.int16)
     pts: Optional[int] = None  # Presentation timestamp
     dts: Optional[int] = None  # Decode timestamp
     time_base: Optional[float] = None  # Time base for converting timestamps to seconds
@@ -521,7 +521,8 @@ class PcmData(NamedTuple):
                 ).samples
 
         # Convert to float32 and scale if needed
-        if self.format == "s16" or (
+        fmt = (self.format or "").lower()
+        if fmt in ("s16", "int16") or (
             isinstance(arr, np.ndarray) and arr.dtype == np.int16
         ):
             arr_f32 = arr.astype(np.float32) / 32768.0
@@ -538,6 +539,174 @@ class PcmData(NamedTuple):
             time_base=self.time_base,
             channels=self.channels,
         )
+
+    def append(self, other: "PcmData") -> "PcmData":
+        """Append another PcmData to this one and return a new instance.
+
+        The input chunk is adjusted to match this instance's sample rate,
+        channel count, and sample format before concatenation.
+
+        Notes:
+        - Preserves shape semantics: mono as 1D, multi-channel as 2D [channels, samples].
+        - Keeps metadata (sample_rate, format, channels, pts/dts/time_base) from self.
+        - Does not modify self; returns a new PcmData.
+        """
+
+        # Early exits for empty cases
+        def _is_empty(arr: Any) -> bool:
+            try:
+                return isinstance(arr, np.ndarray) and arr.size == 0
+            except Exception:
+                return False
+
+        # Normalize numpy arrays from bytes-like if needed
+        def _ensure_ndarray(pcm: "PcmData") -> np.ndarray:
+            if isinstance(pcm.samples, np.ndarray):
+                return pcm.samples
+            return PcmData.from_bytes(
+                pcm.to_bytes(),
+                sample_rate=pcm.sample_rate,
+                format=pcm.format,
+                channels=pcm.channels,
+            ).samples
+
+        # Adjust other to match sample rate and channels first
+        other_adj = other
+        if (
+            other_adj.sample_rate != self.sample_rate
+            or other_adj.channels != self.channels
+        ):
+            other_adj = other_adj.resample(
+                self.sample_rate, target_channels=self.channels
+            )
+
+        # Then adjust format to match
+        fmt = (self.format or "").lower()
+        if fmt in ("f32", "float32"):
+            other_adj = other_adj.to_float32()
+        elif fmt in ("s16", "int16"):
+            # Ensure int16 dtype and mark as s16
+            arr = _ensure_ndarray(other_adj)
+            if arr.dtype != np.int16:
+                if other_adj.format == "f32":
+                    arr = (np.clip(arr.astype(np.float32), -1.0, 1.0) * 32767.0).astype(
+                        np.int16
+                    )
+                else:
+                    arr = arr.astype(np.int16)
+            other_adj = PcmData(
+                samples=arr,
+                sample_rate=other_adj.sample_rate,
+                format="s16",
+                pts=other_adj.pts,
+                dts=other_adj.dts,
+                time_base=other_adj.time_base,
+                channels=other_adj.channels,
+            )
+        else:
+            # For unknown formats, fallback to bytes round-trip in self's format
+            other_adj = PcmData.from_bytes(
+                other_adj.to_bytes(),
+                sample_rate=self.sample_rate,
+                format=self.format,
+                channels=self.channels,
+            )
+
+        # Ensure ndarrays for concatenation
+        self_arr = _ensure_ndarray(self)
+        other_arr = _ensure_ndarray(other_adj)
+
+        # If either is empty, return the other while preserving self's metadata
+        if _is_empty(self_arr):
+            # Conform shape to target channels semantics and dtype
+            if isinstance(other_arr, np.ndarray):
+                if (self.channels or 1) == 1 and other_arr.ndim > 1:
+                    other_arr = other_arr.reshape(-1)
+                target_dtype = (
+                    np.float32
+                    if (self.format or "").lower() in ("f32", "float32")
+                    else np.int16
+                )
+                other_arr = other_arr.astype(target_dtype, copy=False)
+            return PcmData(
+                samples=other_arr,
+                sample_rate=self.sample_rate,
+                format=self.format,
+                pts=self.pts,
+                dts=self.dts,
+                time_base=self.time_base,
+                channels=self.channels,
+            )
+        if _is_empty(other_arr):
+            return self
+
+        ch = max(1, int(self.channels or 1))
+
+        # Concatenate respecting shape conventions
+        if ch == 1:
+            # Mono: keep 1D shape
+            if self_arr.ndim > 1:
+                self_arr = self_arr.reshape(-1)
+            if other_arr.ndim > 1:
+                other_arr = other_arr.reshape(-1)
+            out = np.concatenate([self_arr, other_arr])
+            # Enforce dtype based on format
+            if (self.format or "").lower() in (
+                "f32",
+                "float32",
+            ) and out.dtype != np.float32:
+                out = out.astype(np.float32)
+            elif (self.format or "").lower() in (
+                "s16",
+                "int16",
+            ) and out.dtype != np.int16:
+                out = out.astype(np.int16)
+            return PcmData(
+                samples=out,
+                sample_rate=self.sample_rate,
+                format=self.format,
+                pts=self.pts,
+                dts=self.dts,
+                time_base=self.time_base,
+                channels=self.channels,
+            )
+        else:
+            # Multi-channel: normalize to (channels, samples)
+            def _to_cmaj(arr: np.ndarray, channels: int) -> np.ndarray:
+                if arr.ndim == 2:
+                    if arr.shape[0] == channels:
+                        return arr
+                    if arr.shape[1] == channels:
+                        return arr.T
+                    # Ambiguous; assume time-major and transpose
+                    return arr.T
+                # 1D input: replicate across channels
+                return np.tile(arr.reshape(1, -1), (channels, 1))
+
+            self_cmaj = _to_cmaj(self_arr, ch)
+            other_cmaj = _to_cmaj(other_arr, ch)
+            out = np.concatenate([self_cmaj, other_cmaj], axis=1)
+            # Enforce dtype based on format
+            if (self.format or "").lower() in (
+                "f32",
+                "float32",
+            ) and out.dtype != np.float32:
+                out = out.astype(np.float32)
+            elif (self.format or "").lower() in (
+                "s16",
+                "int16",
+            ) and out.dtype != np.int16:
+                out = out.astype(np.int16)
+
+            return PcmData(
+                samples=out,
+                sample_rate=self.sample_rate,
+                format=self.format,
+                pts=self.pts,
+                dts=self.dts,
+                time_base=self.time_base,
+                channels=self.channels,
+            )
 
     @classmethod
     def from_response(
