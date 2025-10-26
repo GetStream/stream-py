@@ -1,4 +1,6 @@
 import asyncio
+import io
+import wave
 
 import av
 import numpy as np
@@ -132,16 +134,14 @@ class PcmData(NamedTuple):
         format: str = "s16",
         channels: int = 1,
     ) -> "PcmData":
-        """Create PcmData from raw PCM bytes (interleaved for multi-channel).
+        """Build from raw PCM bytes (interleaved).
 
-        Args:
-            audio_bytes: Raw PCM data as bytes.
-            sample_rate: Sample rate in Hz.
-            format: Audio sample format, e.g. "s16" or "f32".
-            channels: Number of channels (1=mono, 2=stereo).
-
-        Returns:
-            PcmData object with numpy samples (mono: 1D, multi-channel: 2D [channels, samples]).
+        Example:
+        >>> import numpy as np
+        >>> b = np.array([1, -1, 2, -2], dtype=np.int16).tobytes()
+        >>> pcm = PcmData.from_bytes(b, sample_rate=16000, format="s16", channels=2)
+        >>> pcm.samples.shape[0]  # channels-first
+        2
         """
         # Determine dtype and bytes per sample
         dtype: Any
@@ -203,10 +203,12 @@ class PcmData(NamedTuple):
         format: str = "s16",
         channels: int = 1,
     ) -> "PcmData":
-        """Create PcmData from bytes or numpy arrays.
+        """Build from bytes or numpy arrays.
 
-        - bytes-like: interpreted as interleaved PCM per channel.
-        - numpy arrays: accepts 1D [samples], 2D [channels, samples] or [samples, channels].
+        Example:
+        >>> import numpy as np
+        >>> PcmData.from_data(np.array([1, 2], np.int16), 16000, "s16", 1).channels
+        1
         """
         if isinstance(data, (bytes, bytearray, memoryview)):
             return cls.from_bytes(
@@ -264,18 +266,13 @@ class PcmData(NamedTuple):
         target_channels: Optional[int] = None,
         resampler: Optional[Any] = None,
     ) -> "PcmData":
-        """
-        Resample PcmData to a different sample rate and/or channels using AV library.
+        """Resample to target sample rate/channels.
 
-        Args:
-            target_sample_rate: Target sample rate in Hz
-            target_channels: Target number of channels (defaults to current)
-            resampler: Optional persistent AudioResampler instance to use. If None,
-                      creates a new resampler (for one-off use). Pass a persistent
-                      resampler to avoid discontinuities when resampling streaming chunks.
-
-        Returns:
-            New PcmData object with resampled audio
+        Example:
+        >>> import numpy as np
+        >>> pcm = PcmData(np.arange(8, dtype=np.int16), 16000, "s16", 1)
+        >>> pcm.resample(16000, target_channels=2).channels
+        2
         """
         if target_channels is None:
             target_channels = self.channels
@@ -410,11 +407,13 @@ class PcmData(NamedTuple):
             return self
 
     def to_bytes(self) -> bytes:
-        """Return interleaved PCM bytes (s16 or f32 depending on format).
+        """Return interleaved PCM bytes.
 
-        For multi-channel audio, this returns packed/interleaved bytes in the order
-        [L0, R0, L1, R1, ...]. The internal convention is (channels, samples).
-        If the stored ndarray is (samples, channels), we transpose it.
+        Example:
+        >>> import numpy as np
+        >>> pcm = PcmData(np.array([[1, -1]], np.int16), 16000, "s16", 1)
+        >>> len(pcm.to_bytes()) > 0
+        True
         """
         arr = self.samples
         if isinstance(arr, np.ndarray):
@@ -449,15 +448,14 @@ class PcmData(NamedTuple):
             return b""
 
     def to_wav_bytes(self) -> bytes:
-        """Return a complete WAV file (header + frames) as bytes.
+        """Return WAV bytes (header + frames).
 
-        Notes:
-        - If the data format is not s16, it will be converted to s16.
-        - Channels and sample rate are taken from the PcmData instance.
+        Example:
+        >>> import numpy as np
+        >>> pcm = PcmData(np.array([0, 0], np.int16), 16000, "s16", 1)
+        >>> with open("out.wav", "wb") as f:  # write to disk
+        ...     _ = f.write(pcm.to_wav_bytes())
         """
-        import io
-        import wave
-
         # Ensure s16 frames
         if self.format != "s16":
             arr = self.samples
@@ -492,12 +490,13 @@ class PcmData(NamedTuple):
         return buf.getvalue()
 
     def to_float32(self) -> "PcmData":
-        """Return a new PcmData with samples converted to float32 in [-1.0, 1.0].
+        """Convert samples to float32 in [-1, 1].
 
-        - If current format is "s16", scales int16 to float32 by 1/32768.
-        - If already "f32", ensures dtype is np.float32 and preserves values.
-        - Preserves sample_rate, pts, dts, time_base and channels.
-        - Preserves shape semantics (mono 1D, multi-channel 2D [channels, samples]).
+        Example:
+        >>> import numpy as np
+        >>> pcm = PcmData(np.array([0, 1], np.int16), 16000, "s16", 1)
+        >>> pcm.to_float32().samples.dtype == np.float32
+        True
         """
         arr = self.samples
 
@@ -541,15 +540,14 @@ class PcmData(NamedTuple):
         )
 
     def append(self, other: "PcmData") -> "PcmData":
-        """Append another PcmData to this one and return a new instance.
+        """Append another chunk after adjusting it to match self.
 
-        The input chunk is adjusted to match this instance's sample rate,
-        channel count, and sample format before concatenation.
-
-        Notes:
-        - Preserves shape semantics: mono as 1D, multi-channel as 2D [channels, samples].
-        - Keeps metadata (sample_rate, format, channels, pts/dts/time_base) from self.
-        - Does not modify self; returns a new PcmData.
+        Example:
+        >>> import numpy as np
+        >>> a = PcmData(np.array([1, 2], np.int16), 16000, "s16", 1)
+        >>> b = PcmData(np.array([3, 4], np.int16), 16000, "s16", 1)
+        >>> a.append(b).samples.tolist()
+        [1, 2, 3, 4]
         """
 
         # Early exits for empty cases
@@ -717,14 +715,11 @@ class PcmData(NamedTuple):
         channels: int = 1,
         format: str = "s16",
     ) -> Union["PcmData", Iterator["PcmData"], AsyncIterator["PcmData"]]:
-        """Create PcmData stream(s) from a provider response.
+        """Normalize provider response to PcmData or iterators of it.
 
-        Supported inputs:
-        - bytes/bytearray/memoryview -> returns PcmData
-        - async iterator of bytes or objects with .data -> returns async iterator of PcmData
-        - iterator of bytes or objects with .data -> returns iterator of PcmData
-        - already PcmData -> returns PcmData
-        - single object with .data -> returns PcmData from its data
+        Example:
+        >>> PcmData.from_response(b"\x00\x00", sample_rate=16000, format="s16").sample_rate
+        16000
         """
 
         # bytes-like returns a single PcmData
