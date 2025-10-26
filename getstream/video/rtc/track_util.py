@@ -207,7 +207,7 @@ class PcmData(NamedTuple):
 
         Example:
         >>> import numpy as np
-        >>> PcmData.from_data(np.array([1, 2], np.int16), 16000, "s16", 1).channels
+        >>> PcmData.from_data(np.array([1, 2], np.int16), sample_rate=16000, format="s16", channels=1).channels
         1
         """
         if isinstance(data, (bytes, bytearray, memoryview)):
@@ -270,7 +270,7 @@ class PcmData(NamedTuple):
 
         Example:
         >>> import numpy as np
-        >>> pcm = PcmData(np.arange(8, dtype=np.int16), 16000, "s16", 1)
+        >>> pcm = PcmData(samples=np.arange(8, dtype=np.int16), sample_rate=16000, format="s16", channels=1)
         >>> pcm.resample(16000, target_channels=2).channels
         2
         """
@@ -411,7 +411,7 @@ class PcmData(NamedTuple):
 
         Example:
         >>> import numpy as np
-        >>> pcm = PcmData(np.array([[1, -1]], np.int16), 16000, "s16", 1)
+        >>> pcm = PcmData(samples=np.array([[1, -1]], np.int16), sample_rate=16000, format="s16", channels=1)
         >>> len(pcm.to_bytes()) > 0
         True
         """
@@ -452,7 +452,7 @@ class PcmData(NamedTuple):
 
         Example:
         >>> import numpy as np
-        >>> pcm = PcmData(np.array([0, 0], np.int16), 16000, "s16", 1)
+        >>> pcm = PcmData(samples=np.array([0, 0], np.int16), sample_rate=16000, format="s16", channels=1)
         >>> with open("out.wav", "wb") as f:  # write to disk
         ...     _ = f.write(pcm.to_wav_bytes())
         """
@@ -494,7 +494,7 @@ class PcmData(NamedTuple):
 
         Example:
         >>> import numpy as np
-        >>> pcm = PcmData(np.array([0, 1], np.int16), 16000, "s16", 1)
+        >>> pcm = PcmData(samples=np.array([0, 1], np.int16), sample_rate=16000, format="s16", channels=1)
         >>> pcm.to_float32().samples.dtype == np.float32
         True
         """
@@ -544,8 +544,8 @@ class PcmData(NamedTuple):
 
         Example:
         >>> import numpy as np
-        >>> a = PcmData(np.array([1, 2], np.int16), 16000, "s16", 1)
-        >>> b = PcmData(np.array([3, 4], np.int16), 16000, "s16", 1)
+        >>> a = PcmData(samples=np.array([1, 2], np.int16), sample_rate=16000, format="s16", channels=1)
+        >>> b = PcmData(samples=np.array([3, 4], np.int16), sample_rate=16000, format="s16", channels=1)
         >>> a.append(b).samples.tolist()
         [1, 2, 3, 4]
         """
@@ -718,7 +718,7 @@ class PcmData(NamedTuple):
         """Normalize provider response to PcmData or iterators of it.
 
         Example:
-        >>> PcmData.from_response(b"\x00\x00", sample_rate=16000, format="s16").sample_rate
+        >>> PcmData.from_response(bytes([0, 0]), sample_rate=16000, format="s16").sample_rate
         16000
         """
 
