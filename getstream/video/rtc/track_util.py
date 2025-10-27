@@ -1,7 +1,6 @@
 import asyncio
 import io
 import wave
-from collections import deque
 from enum import Enum
 
 import av
@@ -1654,93 +1653,6 @@ def _normalize_audio_format(
             )
 
     return pcm
-
-
-class AudioRingBuffer:
-    """
-    Ring buffer for audio with automatic format handling.
-
-    Useful for pre-speech buffering in VAD applications.
-
-    Example:
-        >>> buffer = AudioRingBuffer(max_duration_ms=200, sample_rate=16000, format=AudioFormat.F32)
-        >>> pcm = PcmData(samples=np.array([1, 2, 3], dtype=np.float32), sample_rate=16000, format=AudioFormat.F32)
-        >>> buffer.append(pcm)
-        >>> buffered_pcm = buffer.to_pcm()
-        >>> len(buffered_pcm.samples)
-        3
-    """
-
-    def __init__(
-        self,
-        max_duration_ms: float,
-        sample_rate: int = 16000,
-        format: AudioFormatType = AudioFormat.F32,
-    ):
-        """
-        Initialize ring buffer.
-
-        Args:
-            max_duration_ms: Maximum buffer duration in milliseconds
-            sample_rate: Sample rate for the buffer
-            format: Audio format (AudioFormat.S16 or AudioFormat.F32)
-        """
-        # Validate format
-        AudioFormat.validate(format)
-        self.max_samples = int(sample_rate * max_duration_ms / 1000)
-        self.sample_rate = sample_rate
-        self.format = format
-        self.buffer = deque(maxlen=self.max_samples)
-
-    def append(self, pcm: PcmData) -> None:
-        """
-        Add audio samples to buffer, automatically resampling/converting if needed.
-
-        Args:
-            pcm: Audio data to append
-        """
-        # Use helper function to normalize format
-        pcm = _normalize_audio_format(pcm, self.sample_rate, self.format)
-
-        # Flatten samples and add to buffer
-        samples = pcm.samples
-        if isinstance(samples, np.ndarray):
-            samples = samples.flatten()
-        elif isinstance(samples, (list, tuple)):
-            pass  # Already iterable
-        else:
-            # Unsupported type - should not happen after normalization
-            raise TypeError(
-                f"Expected numpy array, list, or tuple for samples, got {type(samples)}"
-            )
-
-        self.buffer.extend(samples)
-
-    def to_pcm(self) -> PcmData:
-        """
-        Convert buffer contents to PcmData.
-
-        Returns:
-            PcmData containing buffered audio
-        """
-        dtype = np.float32 if self.format == "f32" else np.int16
-        return PcmData(
-            samples=np.array(list(self.buffer), dtype=dtype)
-            if self.buffer
-            else np.array([], dtype=dtype),
-            sample_rate=self.sample_rate,
-            format=self.format,
-            channels=1,
-        )
-
-    def clear(self) -> None:
-        """Clear the buffer."""
-        self.buffer.clear()
-
-    @property
-    def duration_ms(self) -> float:
-        """Get current buffer duration in milliseconds."""
-        return (len(self.buffer) / self.sample_rate) * 1000 if self.buffer else 0.0
 
 
 class AudioTrackHandler:
