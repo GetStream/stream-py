@@ -16,7 +16,6 @@ from typing import (
     Union,
     Iterator,
     AsyncIterator,
-    List,
     Literal,
 )
 
@@ -1096,6 +1095,222 @@ class PcmData(NamedTuple):
 
         return self.chunks(window_samples, overlap=overlap, pad_last=pad_last)
 
+    def tail(
+        self,
+        duration_s: float,
+        pad: bool = False,
+        pad_at: str = "end",
+    ) -> "PcmData":
+        """
+        Keep only the last N seconds of audio.
+
+        Args:
+            duration_s: Duration in seconds
+            pad: If True, pad with zeros when audio is shorter than requested
+            pad_at: Where to add padding ('start' or 'end'), default is 'end'
+
+        Returns:
+            PcmData with the last N seconds
+
+        Example:
+            >>> import numpy as np
+            >>> # 10 seconds of audio at 16kHz = 160000 samples
+            >>> pcm = PcmData(samples=np.arange(160000, dtype=np.int16), sample_rate=16000, format=AudioFormat.S16)
+            >>> # Get last 5 seconds
+            >>> tail = pcm.tail(duration_s=5.0)
+            >>> tail.duration
+            5.0
+            >>> # Get last 8 seconds, pad at start if needed
+            >>> short_pcm = PcmData(samples=np.arange(16000, dtype=np.int16), sample_rate=16000, format=AudioFormat.S16)
+            >>> padded = short_pcm.tail(duration_s=8.0, pad=True, pad_at='start')
+            >>> padded.duration
+            8.0
+        """
+        target_samples = int(self.sample_rate * duration_s)
+
+        # Validate pad_at parameter
+        if pad_at not in ("start", "end"):
+            raise ValueError(f"pad_at must be 'start' or 'end', got {pad_at!r}")
+
+        # Get samples array
+        samples = self.samples
+        if not isinstance(samples, np.ndarray):
+            # Convert to ndarray first
+            samples = PcmData.from_bytes(
+                self.to_bytes(),
+                sample_rate=self.sample_rate,
+                format=self.format,
+                channels=self.channels,
+            ).samples
+
+        # Handle multi-channel audio
+        if samples.ndim == 2 and self.channels > 1:
+            # Shape is (channels, samples)
+            num_samples = samples.shape[1]
+            if num_samples >= target_samples:
+                # Truncate: keep last target_samples
+                new_samples = samples[:, -target_samples:]
+            elif pad:
+                # Pad to reach target_samples
+                pad_width = target_samples - num_samples
+                if pad_at == "start":
+                    new_samples = np.pad(
+                        samples,
+                        ((0, 0), (pad_width, 0)),
+                        mode="constant",
+                        constant_values=0,
+                    )
+                else:  # pad_at == 'end'
+                    new_samples = np.pad(
+                        samples,
+                        ((0, 0), (0, pad_width)),
+                        mode="constant",
+                        constant_values=0,
+                    )
+            else:
+                # Return as-is (shorter than requested, no padding)
+                new_samples = samples
+        else:
+            # Mono or 1D case
+            samples_1d = samples.flatten() if samples.ndim > 1 else samples
+            num_samples = len(samples_1d)
+
+            if num_samples >= target_samples:
+                # Truncate: keep last target_samples
+                new_samples = samples_1d[-target_samples:]
+            elif pad:
+                # Pad to reach target_samples
+                pad_width = target_samples - num_samples
+                if pad_at == "start":
+                    new_samples = np.pad(
+                        samples_1d, (pad_width, 0), mode="constant", constant_values=0
+                    )
+                else:  # pad_at == 'end'
+                    new_samples = np.pad(
+                        samples_1d, (0, pad_width), mode="constant", constant_values=0
+                    )
+            else:
+                # Return as-is (shorter than requested, no padding)
+                new_samples = samples_1d
+
+        return PcmData(
+            samples=new_samples,
+            sample_rate=self.sample_rate,
+            format=self.format,
+            pts=self.pts,
+            dts=self.dts,
+            time_base=self.time_base,
+            channels=self.channels,
+        )
+
+    def head(
+        self,
+        duration_s: float,
+        pad: bool = False,
+        pad_at: str = "end",
+    ) -> "PcmData":
+        """
+        Keep only the first N seconds of audio.
+
+        Args:
+            duration_s: Duration in seconds
+            pad: If True, pad with zeros when audio is shorter than requested
+            pad_at: Where to add padding ('start' or 'end'), default is 'end'
+
+        Returns:
+            PcmData with the first N seconds
+
+        Example:
+            >>> import numpy as np
+            >>> # 10 seconds of audio at 16kHz = 160000 samples
+            >>> pcm = PcmData(samples=np.arange(160000, dtype=np.int16), sample_rate=16000, format=AudioFormat.S16)
+            >>> # Get first 3 seconds
+            >>> head = pcm.head(duration_s=3.0)
+            >>> head.duration
+            3.0
+            >>> # Get first 8 seconds, pad at end if needed
+            >>> short_pcm = PcmData(samples=np.arange(16000, dtype=np.int16), sample_rate=16000, format=AudioFormat.S16)
+            >>> padded = short_pcm.head(duration_s=8.0, pad=True, pad_at='end')
+            >>> padded.duration
+            8.0
+        """
+        target_samples = int(self.sample_rate * duration_s)
+
+        # Validate pad_at parameter
+        if pad_at not in ("start", "end"):
+            raise ValueError(f"pad_at must be 'start' or 'end', got {pad_at!r}")
+
+        # Get samples array
+        samples = self.samples
+        if not isinstance(samples, np.ndarray):
+            # Convert to ndarray first
+            samples = PcmData.from_bytes(
+                self.to_bytes(),
+                sample_rate=self.sample_rate,
+                format=self.format,
+                channels=self.channels,
+            ).samples
+
+        # Handle multi-channel audio
+        if samples.ndim == 2 and self.channels > 1:
+            # Shape is (channels, samples)
+            num_samples = samples.shape[1]
+            if num_samples >= target_samples:
+                # Truncate: keep first target_samples
+                new_samples = samples[:, :target_samples]
+            elif pad:
+                # Pad to reach target_samples
+                pad_width = target_samples - num_samples
+                if pad_at == "start":
+                    new_samples = np.pad(
+                        samples,
+                        ((0, 0), (pad_width, 0)),
+                        mode="constant",
+                        constant_values=0,
+                    )
+                else:  # pad_at == 'end'
+                    new_samples = np.pad(
+                        samples,
+                        ((0, 0), (0, pad_width)),
+                        mode="constant",
+                        constant_values=0,
+                    )
+            else:
+                # Return as-is (shorter than requested, no padding)
+                new_samples = samples
+        else:
+            # Mono or 1D case
+            samples_1d = samples.flatten() if samples.ndim > 1 else samples
+            num_samples = len(samples_1d)
+
+            if num_samples >= target_samples:
+                # Truncate: keep first target_samples
+                new_samples = samples_1d[:target_samples]
+            elif pad:
+                # Pad to reach target_samples
+                pad_width = target_samples - num_samples
+                if pad_at == "start":
+                    new_samples = np.pad(
+                        samples_1d, (pad_width, 0), mode="constant", constant_values=0
+                    )
+                else:  # pad_at == 'end'
+                    new_samples = np.pad(
+                        samples_1d, (0, pad_width), mode="constant", constant_values=0
+                    )
+            else:
+                # Return as-is (shorter than requested, no padding)
+                new_samples = samples_1d
+
+        return PcmData(
+            samples=new_samples,
+            sample_rate=self.sample_rate,
+            format=self.format,
+            pts=self.pts,
+            dts=self.dts,
+            time_base=self.time_base,
+            channels=self.channels,
+        )
+
 
 def patch_sdp_offer(sdp: str) -> str:
     """
@@ -1526,160 +1741,6 @@ class AudioRingBuffer:
     def duration_ms(self) -> float:
         """Get current buffer duration in milliseconds."""
         return (len(self.buffer) / self.sample_rate) * 1000 if self.buffer else 0.0
-
-
-class AudioSegmentCollector:
-    """
-    Collects audio segments with pre/post buffering.
-
-    Common pattern for VAD and speech recognition applications.
-
-    Example:
-        >>> collector = AudioSegmentCollector(pre_speech_ms=200, post_speech_ms=500)
-        >>> chunk = PcmData(samples=np.array([1, 2], dtype=np.float32), sample_rate=16000, format=AudioFormat.F32)
-        >>> # Add non-speech chunk (goes to pre-buffer)
-        >>> segment = collector.add_chunk(chunk, is_speech=False)
-        >>> segment is None
-        True
-        >>> # Add speech chunk (starts collecting)
-        >>> segment = collector.add_chunk(chunk, is_speech=True)
-        >>> segment is None
-        True
-        >>> # Add silence until post_speech_ms is reached
-        >>> # ... eventually returns complete segment
-    """
-
-    def __init__(
-        self,
-        pre_speech_ms: float = 200,
-        post_speech_ms: float = 500,
-        max_duration_s: float = 30.0,
-        sample_rate: int = 16000,
-        format: AudioFormatType = AudioFormat.F32,
-    ):
-        """
-        Initialize segment collector.
-
-        Args:
-            pre_speech_ms: Milliseconds of audio to keep before speech starts
-            post_speech_ms: Milliseconds of silence to wait before ending segment
-            max_duration_s: Maximum segment duration in seconds
-            sample_rate: Sample rate for collected audio
-            format: Audio format (AudioFormat.S16 or AudioFormat.F32)
-        """
-        # Validate format
-        AudioFormat.validate(format)
-        self.pre_buffer = AudioRingBuffer(pre_speech_ms, sample_rate, format)
-        self.segment_buffer: List[float] = []
-        self.post_speech_ms = post_speech_ms
-        self.post_speech_samples = int(sample_rate * post_speech_ms / 1000)
-        self.max_samples = int(max_duration_s * sample_rate)
-        self.sample_rate = sample_rate
-        self.format = format
-        self.is_collecting = False
-        self.silence_samples = 0
-
-    def add_chunk(self, chunk: PcmData, is_speech: bool) -> Optional[PcmData]:
-        """
-        Add a chunk and return completed segment if ready.
-
-        Args:
-            chunk: Audio chunk to add
-            is_speech: Whether this chunk contains speech
-
-        Returns:
-            Complete segment as PcmData when speech ends, None otherwise
-        """
-        # Use helper function to normalize format
-        chunk = _normalize_audio_format(chunk, self.sample_rate, self.format)
-
-        chunk_samples = chunk.samples
-        if isinstance(chunk_samples, np.ndarray):
-            chunk_samples = chunk_samples.flatten()
-
-        if not self.is_collecting:
-            # Not collecting yet, add to pre-buffer
-            self.pre_buffer.append(chunk)
-
-            if is_speech:
-                # Start collecting with pre-buffer
-                pre_buffer_pcm = self.pre_buffer.to_pcm()
-                pre_samples = pre_buffer_pcm.samples
-
-                # Only include pre-buffer if it has content
-                if len(pre_samples) > 0:
-                    if isinstance(pre_samples, np.ndarray):
-                        self.segment_buffer = pre_samples.tolist()
-                    else:
-                        self.segment_buffer = list(pre_samples)
-                else:
-                    self.segment_buffer = []
-
-                # Add current chunk
-                if isinstance(chunk_samples, np.ndarray):
-                    self.segment_buffer.extend(chunk_samples.tolist())
-                else:
-                    self.segment_buffer.extend(chunk_samples)
-
-                self.is_collecting = True
-                self.silence_samples = 0
-        else:
-            # Currently collecting
-            if isinstance(chunk_samples, np.ndarray):
-                self.segment_buffer.extend(chunk_samples.tolist())
-            else:
-                self.segment_buffer.extend(chunk_samples)
-
-            if not is_speech:
-                # Track silence duration
-                self.silence_samples += len(chunk_samples)
-
-                # Check if we've had enough silence to end segment
-                if self.silence_samples >= self.post_speech_samples:
-                    segment = self._create_segment()
-                    self.reset()
-                    return segment
-            else:
-                # Reset silence counter when speech is detected
-                self.silence_samples = 0
-
-            # Check max duration
-            if len(self.segment_buffer) >= self.max_samples:
-                segment = self._create_segment()
-                self.reset()
-                return segment
-
-        return None
-
-    def _create_segment(self) -> PcmData:
-        """Create PcmData from collected segment."""
-        dtype = np.float32 if self.format == "f32" else np.int16
-        return PcmData(
-            samples=np.array(self.segment_buffer, dtype=dtype),
-            sample_rate=self.sample_rate,
-            format=self.format,
-            channels=1,
-        )
-
-    def reset(self) -> None:
-        """Reset collector to initial state."""
-        self.segment_buffer = []
-        self.is_collecting = False
-        self.silence_samples = 0
-        self.pre_buffer.clear()
-
-    def force_finish(self) -> Optional[PcmData]:
-        """
-        Force finish current segment if collecting.
-
-        Returns:
-            Current segment if collecting, None otherwise
-        """
-        if self.is_collecting and self.segment_buffer:
-            segment = self._create_segment()
-            self.reset()
-            return segment
-        return None
 
 
 class AudioTrackHandler:

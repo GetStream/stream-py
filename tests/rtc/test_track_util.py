@@ -8,7 +8,6 @@ from getstream.video.rtc.track_util import (
     AudioTrackHandler,
     PcmData,
     AudioRingBuffer,
-    AudioSegmentCollector,
     AudioFormat,
 )
 import getstream.video.rtc.track_util as track_util
@@ -346,6 +345,7 @@ async def test_run_track_to_ndarray_error(_monkeypatch_audio_frame):
     assert len(received_data) == 0
 
 
+@pytest.mark.asyncio
 class TestPcmDataChunking:
     """Test PcmData chunking and sliding window methods."""
 
@@ -637,226 +637,6 @@ class TestAudioRingBuffer:
         assert buffer.duration_ms == 50.0
 
 
-class TestAudioSegmentCollector:
-    """Test AudioSegmentCollector functionality."""
-
-    def test_basic(self):
-        """Test basic segment collection."""
-        collector = AudioSegmentCollector(
-            pre_speech_ms=20,  # Small values for testing
-            post_speech_ms=30,
-            sample_rate=1000,  # 1kHz for simple calculations
-            format=AudioFormat.F32,
-        )
-
-        # Create test chunks
-        silence_chunk = PcmData(
-            samples=np.zeros(10, dtype=np.float32),
-            sample_rate=1000,
-            format=AudioFormat.F32,
-            channels=1,
-        )
-        speech_chunk = PcmData(
-            samples=np.ones(10, dtype=np.float32),
-            sample_rate=1000,
-            format=AudioFormat.F32,
-            channels=1,
-        )
-
-        # Add pre-speech silence
-        result = collector.add_chunk(silence_chunk, is_speech=False)
-        assert result is None
-
-        # Start speech - should not return segment yet
-        result = collector.add_chunk(speech_chunk, is_speech=True)
-        assert result is None
-        assert collector.is_collecting is True
-
-        # Add more speech
-        result = collector.add_chunk(speech_chunk, is_speech=True)
-        assert result is None
-
-        # Add silence (not enough to trigger end)
-        result = collector.add_chunk(silence_chunk, is_speech=False)
-        assert result is None
-
-        # Add more silence to trigger segment end (30ms = 30 samples at 1kHz)
-        for _ in range(3):  # 30 samples total
-            result = collector.add_chunk(silence_chunk, is_speech=False)
-            if result is not None:
-                break
-
-        # Should have returned a segment
-        assert result is not None
-        assert isinstance(result, PcmData)
-        # Segment should include pre-buffer, speech, and trailing silence
-        assert len(result.samples) > 20  # At least pre-buffer + speech
-
-    def test_max_duration(self):
-        """Test max duration limit."""
-        collector = AudioSegmentCollector(
-            pre_speech_ms=10,
-            post_speech_ms=1000,  # Long post-speech so it doesn't trigger
-            max_duration_s=0.1,  # 100ms max
-            sample_rate=1000,
-            format=AudioFormat.F32,
-        )
-
-        speech_chunk = PcmData(
-            samples=np.ones(20, dtype=np.float32),
-            sample_rate=1000,
-            format=AudioFormat.F32,
-            channels=1,
-        )
-
-        # Start collecting
-        collector.add_chunk(speech_chunk, is_speech=True)
-
-        # Add chunks until max duration is reached
-        result = None
-        for _ in range(10):  # Add up to 200ms of audio
-            result = collector.add_chunk(speech_chunk, is_speech=True)
-            if result is not None:
-                break
-
-        # Should have hit max duration
-        assert result is not None
-        # Max 100 samples + 10 pre-buffer samples = 110 samples
-        assert len(result.samples) <= 110
-
-    def test_pre_buffer(self):
-        """Test that pre-buffer is included in segment."""
-        collector = AudioSegmentCollector(
-            pre_speech_ms=20,
-            post_speech_ms=20,
-            sample_rate=1000,
-            format=AudioFormat.F32,
-        )
-
-        # Add identifiable pre-speech samples
-        pre_speech = PcmData(
-            samples=np.full(20, -1.0, dtype=np.float32),
-            sample_rate=1000,
-            format=AudioFormat.F32,
-            channels=1,
-        )
-        collector.add_chunk(pre_speech, is_speech=False)
-
-        # Add speech
-        speech = PcmData(
-            samples=np.ones(10, dtype=np.float32),
-            sample_rate=1000,
-            format=AudioFormat.F32,
-            channels=1,
-        )
-        collector.add_chunk(speech, is_speech=True)
-
-        # Add enough silence to end
-        silence = PcmData(
-            samples=np.zeros(20, dtype=np.float32),
-            sample_rate=1000,
-            format=AudioFormat.F32,
-            channels=1,
-        )
-        result = collector.add_chunk(silence, is_speech=False)
-
-        assert result is not None
-        # Check that pre-buffer values are at the start
-        assert result.samples[0] == -1.0  # Pre-buffer value
-
-    def test_reset(self):
-        """Test resetting the collector."""
-        collector = AudioSegmentCollector(sample_rate=1000, format=AudioFormat.F32)
-
-        # Start collecting
-        speech = PcmData(
-            samples=np.ones(10, dtype=np.float32),
-            sample_rate=1000,
-            format=AudioFormat.F32,
-            channels=1,
-        )
-        collector.add_chunk(speech, is_speech=True)
-        assert collector.is_collecting is True
-
-        # Reset
-        collector.reset()
-
-        # Should be back to initial state
-        assert collector.is_collecting is False
-        assert len(collector.segment_buffer) == 0
-        assert collector.silence_samples == 0
-
-    def test_force_finish(self):
-        """Test force finishing a segment."""
-        collector = AudioSegmentCollector(
-            sample_rate=1000, format=AudioFormat.F32, pre_speech_ms=0
-        )
-
-        # Start collecting
-        speech = PcmData(
-            samples=np.ones(10, dtype=np.float32),
-            sample_rate=1000,
-            format=AudioFormat.F32,
-            channels=1,
-        )
-        collector.add_chunk(speech, is_speech=True)
-
-        # Force finish
-        result = collector.force_finish()
-
-        assert result is not None
-        assert len(result.samples) == 10
-        assert collector.is_collecting is False
-
-        # Force finish when not collecting should return None
-        result = collector.force_finish()
-        assert result is None
-
-    def test_format_conversion(self):
-        """Test segment collector with format conversion."""
-        collector = AudioSegmentCollector(sample_rate=16000, format=AudioFormat.F32)
-
-        # Add s16 audio
-        s16_chunk = PcmData(
-            samples=np.array([16384], dtype=np.int16),
-            sample_rate=16000,
-            format=AudioFormat.S16,
-            channels=1,
-        )
-
-        collector.add_chunk(s16_chunk, is_speech=True)
-        result = collector.force_finish()
-
-        assert result is not None
-        assert result.format == "f32"
-        # Check conversion: 16384 / 32768 = 0.5
-        np.testing.assert_allclose(result.samples[0], 0.5, rtol=1e-4)
-
-    def test_resampling(self):
-        """Test segment collector with resampling."""
-        # Use pre_speech_ms=0 to avoid pre-buffer complications in test
-        collector = AudioSegmentCollector(
-            sample_rate=16000, format=AudioFormat.F32, pre_speech_ms=0
-        )
-
-        # Add 48kHz audio
-        chunk_48k = PcmData(
-            samples=np.ones(480, dtype=np.float32),
-            sample_rate=48000,
-            format=AudioFormat.F32,
-            channels=1,
-        )
-
-        collector.add_chunk(chunk_48k, is_speech=True)
-        result = collector.force_finish()
-
-        assert result is not None
-        assert result.sample_rate == 16000
-        # 480 samples at 48kHz -> ~160 samples at 16kHz
-        # Allowing wider range due to resampler implementation details
-        assert 140 <= len(result.samples) <= 170
-
-
 class TestPcmDataNoOpOptimizations:
     """Test that PcmData methods avoid unnecessary work when data is already in target format."""
 
@@ -991,3 +771,317 @@ class TestPcmDataNoOpOptimizations:
         assert result.samples.dtype == np.float32, "Samples should be float32"
         # 480 samples at 48kHz -> ~160 samples at 16kHz
         assert 140 <= len(result.samples) <= 170
+
+
+class TestPcmDataHeadTail:
+    """Test PcmData head() and tail() methods for audio truncation and padding."""
+
+    def test_tail_truncate_longer_audio(self):
+        """Test tail() truncates audio longer than requested duration."""
+        # 10 seconds of audio at 16kHz = 160000 samples
+        # Use modulo to keep values within int16 range
+        pcm = PcmData(
+            samples=(np.arange(160000) % 32000).astype(np.int16),
+            sample_rate=16000,
+            format=AudioFormat.S16,
+            channels=1,
+        )
+
+        # Get last 5 seconds
+        tail = pcm.tail(duration_s=5.0)
+
+        assert tail.duration == 5.0
+        assert len(tail.samples) == 80000  # 5s * 16000 samples/s
+        # Should contain the last 80000 samples
+        np.testing.assert_array_equal(
+            tail.samples, (np.arange(80000, 160000) % 32000).astype(np.int16)
+        )
+
+    def test_tail_return_whole_audio_when_shorter_no_pad(self):
+        """Test tail() returns whole audio when shorter than requested and pad=False."""
+        # 1 second of audio
+        pcm = PcmData(
+            samples=np.arange(16000, dtype=np.int16),
+            sample_rate=16000,
+            format=AudioFormat.S16,
+            channels=1,
+        )
+
+        # Request 8 seconds but don't pad
+        tail = pcm.tail(duration_s=8.0, pad=False)
+
+        # Should get the whole 1 second
+        assert tail.duration == 1.0
+        assert len(tail.samples) == 16000
+        np.testing.assert_array_equal(tail.samples, np.arange(16000, dtype=np.int16))
+
+    def test_tail_pad_at_start(self):
+        """Test tail() pads with zeros at start when audio is shorter."""
+        # 1 second of audio
+        pcm = PcmData(
+            samples=np.arange(16000, dtype=np.int16),
+            sample_rate=16000,
+            format=AudioFormat.S16,
+            channels=1,
+        )
+
+        # Request 8 seconds, pad at start
+        tail = pcm.tail(duration_s=8.0, pad=True, pad_at="start")
+
+        assert tail.duration == 8.0
+        assert len(tail.samples) == 128000  # 8s * 16000
+        # First 7 seconds should be zeros
+        np.testing.assert_array_equal(
+            tail.samples[:112000], np.zeros(112000, dtype=np.int16)
+        )
+        # Last 1 second should be original data
+        np.testing.assert_array_equal(
+            tail.samples[112000:], np.arange(16000, dtype=np.int16)
+        )
+
+    def test_tail_pad_at_end(self):
+        """Test tail() pads with zeros at end when audio is shorter."""
+        # 1 second of audio
+        pcm = PcmData(
+            samples=np.arange(16000, dtype=np.int16),
+            sample_rate=16000,
+            format=AudioFormat.S16,
+            channels=1,
+        )
+
+        # Request 3 seconds, pad at end
+        tail = pcm.tail(duration_s=3.0, pad=True, pad_at="end")
+
+        assert tail.duration == 3.0
+        assert len(tail.samples) == 48000  # 3s * 16000
+        # First 1 second should be original data
+        np.testing.assert_array_equal(
+            tail.samples[:16000], np.arange(16000, dtype=np.int16)
+        )
+        # Last 2 seconds should be zeros
+        np.testing.assert_array_equal(
+            tail.samples[16000:], np.zeros(32000, dtype=np.int16)
+        )
+
+    def test_tail_stereo(self):
+        """Test tail() works with stereo audio."""
+        # 2 seconds of stereo audio
+        # Use values within int16 range
+        left = np.arange(32000, dtype=np.int16)
+        right = (np.arange(32000) + 100).astype(
+            np.int16
+        )  # Offset to differentiate channels
+        samples = np.array([left, right])  # Shape: (2, 32000)
+
+        pcm = PcmData(
+            samples=samples,
+            sample_rate=16000,
+            format=AudioFormat.S16,
+            channels=2,
+        )
+
+        # Get last 1 second
+        tail = pcm.tail(duration_s=1.0)
+
+        assert tail.duration == 1.0
+        assert tail.channels == 2
+        assert tail.samples.shape == (2, 16000)
+        # Check last second of each channel
+        np.testing.assert_array_equal(
+            tail.samples[0], np.arange(16000, 32000, dtype=np.int16)
+        )
+        np.testing.assert_array_equal(
+            tail.samples[1], (np.arange(16000, 32000) + 100).astype(np.int16)
+        )
+
+    def test_head_truncate_longer_audio(self):
+        """Test head() truncates audio longer than requested duration."""
+        # 10 seconds of audio at 16kHz = 160000 samples
+        pcm = PcmData(
+            samples=np.arange(160000, dtype=np.int16),
+            sample_rate=16000,
+            format=AudioFormat.S16,
+            channels=1,
+        )
+
+        # Get first 3 seconds
+        head = pcm.head(duration_s=3.0)
+
+        assert head.duration == 3.0
+        assert len(head.samples) == 48000  # 3s * 16000 samples/s
+        # Should contain the first 48000 samples
+        np.testing.assert_array_equal(head.samples, np.arange(48000, dtype=np.int16))
+
+    def test_head_return_whole_audio_when_shorter_no_pad(self):
+        """Test head() returns whole audio when shorter than requested and pad=False."""
+        # 1 second of audio
+        pcm = PcmData(
+            samples=np.arange(16000, dtype=np.int16),
+            sample_rate=16000,
+            format=AudioFormat.S16,
+            channels=1,
+        )
+
+        # Request 8 seconds but don't pad
+        head = pcm.head(duration_s=8.0, pad=False)
+
+        # Should get the whole 1 second
+        assert head.duration == 1.0
+        assert len(head.samples) == 16000
+        np.testing.assert_array_equal(head.samples, np.arange(16000, dtype=np.int16))
+
+    def test_head_pad_at_end(self):
+        """Test head() pads with zeros at end when audio is shorter (default behavior)."""
+        # 1 second of audio
+        pcm = PcmData(
+            samples=np.arange(16000, dtype=np.int16),
+            sample_rate=16000,
+            format=AudioFormat.S16,
+            channels=1,
+        )
+
+        # Request 3 seconds, pad at end (default)
+        head = pcm.head(duration_s=3.0, pad=True)
+
+        assert head.duration == 3.0
+        assert len(head.samples) == 48000  # 3s * 16000
+        # First 1 second should be original data
+        np.testing.assert_array_equal(
+            head.samples[:16000], np.arange(16000, dtype=np.int16)
+        )
+        # Last 2 seconds should be zeros
+        np.testing.assert_array_equal(
+            head.samples[16000:], np.zeros(32000, dtype=np.int16)
+        )
+
+    def test_head_pad_at_start(self):
+        """Test head() pads with zeros at start when audio is shorter."""
+        # 1 second of audio
+        pcm = PcmData(
+            samples=np.arange(16000, dtype=np.int16),
+            sample_rate=16000,
+            format=AudioFormat.S16,
+            channels=1,
+        )
+
+        # Request 3 seconds, pad at start
+        head = pcm.head(duration_s=3.0, pad=True, pad_at="start")
+
+        assert head.duration == 3.0
+        assert len(head.samples) == 48000  # 3s * 16000
+        # First 2 seconds should be zeros
+        np.testing.assert_array_equal(
+            head.samples[:32000], np.zeros(32000, dtype=np.int16)
+        )
+        # Last 1 second should be original data
+        np.testing.assert_array_equal(
+            head.samples[32000:], np.arange(16000, dtype=np.int16)
+        )
+
+    def test_head_stereo(self):
+        """Test head() works with stereo audio."""
+        # 2 seconds of stereo audio
+        left = np.arange(32000, dtype=np.int16)
+        right = np.arange(32000, 64000, dtype=np.int16)
+        samples = np.array([left, right])  # Shape: (2, 32000)
+
+        pcm = PcmData(
+            samples=samples,
+            sample_rate=16000,
+            format=AudioFormat.S16,
+            channels=2,
+        )
+
+        # Get first 1 second
+        head = pcm.head(duration_s=1.0)
+
+        assert head.duration == 1.0
+        assert head.channels == 2
+        assert head.samples.shape == (2, 16000)
+        # Check first second of each channel
+        np.testing.assert_array_equal(head.samples[0], np.arange(16000, dtype=np.int16))
+        np.testing.assert_array_equal(
+            head.samples[1], np.arange(32000, 48000, dtype=np.int16)
+        )
+
+    def test_tail_f32_format(self):
+        """Test tail() works with f32 format."""
+        pcm = PcmData(
+            samples=np.arange(16000, dtype=np.float32) / 32768.0,
+            sample_rate=16000,
+            format=AudioFormat.F32,
+            channels=1,
+        )
+
+        tail = pcm.tail(duration_s=0.5, pad=True, pad_at="start")
+
+        assert tail.duration == 0.5
+        assert tail.format == AudioFormat.F32
+        assert tail.samples.dtype == np.float32
+        # Last 0.5s should be original data
+        expected = np.arange(8000, 16000, dtype=np.float32) / 32768.0
+        np.testing.assert_array_almost_equal(tail.samples[-8000:], expected)
+
+    def test_parameter_validation(self):
+        """Test that invalid parameters raise appropriate errors."""
+        pcm = PcmData(
+            samples=np.arange(16000, dtype=np.int16),
+            sample_rate=16000,
+            format=AudioFormat.S16,
+            channels=1,
+        )
+
+        # Invalid pad_at value
+        with np.testing.assert_raises(ValueError):
+            pcm.tail(duration_s=1.0, pad_at="middle")
+
+    def test_real_world_use_case(self):
+        """Test the original use case: truncate to last 8s, pad at start if needed."""
+
+        # Simulate the user's truncate_audio_to_last_n_seconds function
+        def truncate_audio_to_last_n_seconds(
+            audio_array, n_seconds=8, sample_rate=16000
+        ):
+            """Original function from user's code."""
+            max_samples = n_seconds * sample_rate
+            if len(audio_array) > max_samples:
+                return audio_array[-max_samples:]
+            elif len(audio_array) < max_samples:
+                padding = max_samples - len(audio_array)
+                return np.pad(
+                    audio_array, (padding, 0), mode="constant", constant_values=0
+                )
+            return audio_array
+
+        # Test case 1: Long audio (should truncate)
+        long_audio = np.arange(200000, dtype=np.int16)
+        pcm_long = PcmData(
+            samples=long_audio, sample_rate=16000, format=AudioFormat.S16
+        )
+
+        result_original = truncate_audio_to_last_n_seconds(long_audio)
+        result_new = pcm_long.tail(duration_s=8.0, pad=True, pad_at="start")
+
+        np.testing.assert_array_equal(result_new.samples, result_original)
+
+        # Test case 2: Short audio (should pad at start)
+        short_audio = np.arange(16000, dtype=np.int16)
+        pcm_short = PcmData(
+            samples=short_audio, sample_rate=16000, format=AudioFormat.S16
+        )
+
+        result_original = truncate_audio_to_last_n_seconds(short_audio)
+        result_new = pcm_short.tail(duration_s=8.0, pad=True, pad_at="start")
+
+        np.testing.assert_array_equal(result_new.samples, result_original)
+
+        # Test case 3: Exact length (should return as-is)
+        exact_audio = np.arange(128000, dtype=np.int16)
+        pcm_exact = PcmData(
+            samples=exact_audio, sample_rate=16000, format=AudioFormat.S16
+        )
+
+        result_original = truncate_audio_to_last_n_seconds(exact_audio)
+        result_new = pcm_exact.tail(duration_s=8.0, pad=True, pad_at="start")
+
+        np.testing.assert_array_equal(result_new.samples, result_original)
