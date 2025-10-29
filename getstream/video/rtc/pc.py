@@ -5,6 +5,7 @@ from typing import Optional, Any
 import aiortc
 from aiortc.contrib.media import MediaRelay
 
+from getstream.common import telemetry
 from getstream.video.rtc.track_util import AudioTrackHandler
 from pyee.asyncio import AsyncIOEventEmitter
 from aiortc.rtcrtpsender import RTCRtpSender
@@ -84,10 +85,12 @@ class PublisherPeerConnection(aiortc.RTCPeerConnection):
             type="answer", sdp=response.sdp
         )
 
-        await self.setRemoteDescription(remote_description)
-        logger.debug(
-            f"Publisher remote description set successfully. {self.localDescription}"
-        )
+        with telemetry.start_as_current_span("publisher.pc.handle_answer") as span:
+            span.set_attribute("remoteDescription", remote_description.sdp)
+            await self.setRemoteDescription(remote_description)
+            logger.debug(
+                f"Publisher remote description set successfully. {self.localDescription}"
+            )
 
     async def wait_for_connected(self, timeout: float = 15.0):
         # If already connected, return immediately

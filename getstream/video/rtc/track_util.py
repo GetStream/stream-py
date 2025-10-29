@@ -79,7 +79,8 @@ class AudioFormat(str, Enum):
 
 
 # Type alias for audio format parameters
-AudioFormatType = Literal["s16", "f32"]
+# Accepts both AudioFormat enum members and string literals for backwards compatibility
+AudioFormatType = Union[AudioFormat, Literal["s16", "f32"]]
 
 
 class PcmData(NamedTuple):

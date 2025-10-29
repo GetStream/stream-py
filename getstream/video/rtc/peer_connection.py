@@ -103,12 +103,16 @@ class PeerConnectionManager:
                 self.publisher_pc.addTrack(relayed_video)
                 logger.info(f"Added relayed video track {relayed_video.id}")
 
-            with telemetry.start_as_current_span("rtc.publisher_pc.create_offer"):
+            with telemetry.start_as_current_span(
+                "rtc.publisher_pc.create_offer"
+            ) as span:
                 offer = await self.publisher_pc.createOffer()
+                span.set_attribute("sdp", offer.sdp)
 
             with telemetry.start_as_current_span(
                 "rtc.publisher_pc.set_local_description"
-            ):
+            ) as span:
+                span.set_attribute("sdp", offer.sdp)
                 await self.publisher_pc.setLocalDescription(offer)
 
             try:
