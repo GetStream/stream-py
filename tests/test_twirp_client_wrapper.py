@@ -6,12 +6,11 @@ from unittest.mock import AsyncMock, patch, MagicMock
 # import twirp.async_client # <-- REMOVE THIS DEBUG IMPORT
 
 # Modules to test
-from getstream.video.rtc.twirp_client_wrapper import SignalClient, SfuRpcError
+from getstream.video.rtc.twirp_client_wrapper import SignalClient, SfuRpcError, Context
 
 # Protobufs needed for requests/responses and error codes
 from getstream.video.rtc.pb.stream.video.sfu.signal_rpc import signal_pb2
 from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
-from twirp.context import Context
 
 # No longer need to patch the base class path
 # ASYNC_CLIENT_PATH = "getstream.video.rtc.twirp_client_wrapper.AsyncSignalServerClient"
