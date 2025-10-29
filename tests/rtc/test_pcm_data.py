@@ -376,3 +376,200 @@ def test_append_empty_buffer_float32_adjusts_other_and_keeps_meta():
     else:
         expected_samples = expected_pcm.samples
     assert np.allclose(out.samples[-expected_samples.shape[0] :], expected_samples)
+
+
+def test_copy_creates_independent_copy():
+    """Test that copy() creates a deep copy that can be modified independently."""
+    sr = 16000
+    original_samples = np.array([1, 2, 3, 4], dtype=np.int16)
+    pcm_original = PcmData(
+        sample_rate=sr, format="s16", samples=original_samples.copy(), channels=1
+    )
+
+    # Create a copy
+    pcm_copy = pcm_original.copy()
+
+    # Verify initial state - both should have same values but different objects
+    assert pcm_copy.sample_rate == pcm_original.sample_rate
+    assert pcm_copy.format == pcm_original.format
+    assert pcm_copy.channels == pcm_original.channels
+    assert np.array_equal(pcm_copy.samples, pcm_original.samples)
+    assert pcm_copy.samples is not pcm_original.samples  # Different array objects
+
+    # Modify the copy
+    pcm_copy.samples[0] = 999
+
+    # Original should be unchanged
+    assert pcm_original.samples[0] == 1
+    assert pcm_copy.samples[0] == 999
+
+
+def test_append_modifies_in_place():
+    """Test that append() modifies the original PcmData in-place and returns self."""
+    sr = 16000
+    a = np.array([1, 2, 3, 4], dtype=np.int16)
+    b = np.array([5, 6], dtype=np.int16)
+
+    pcm_a = PcmData(sample_rate=sr, format="s16", samples=a, channels=1)
+    pcm_b = PcmData(sample_rate=sr, format="s16", samples=b, channels=1)
+
+    # Store the id to verify it's the same object
+    original_id = id(pcm_a)
+
+    # Append and check that it returns self
+    result = pcm_a.append(pcm_b)
+
+    assert id(result) == original_id  # Same object
+    assert result is pcm_a  # Identity check
+
+    # Check that pcm_a was modified in-place
+    expected = np.array([1, 2, 3, 4, 5, 6], dtype=np.int16)
+    assert np.array_equal(pcm_a.samples, expected)
+    assert np.array_equal(result.samples, expected)
+
+
+def test_copy_append_does_not_modify_original():
+    """Test the critical use case: pcm.copy().append(other) doesn't modify pcm."""
+    sr = 16000
+    a = np.array([1, 2, 3, 4], dtype=np.int16)
+    b = np.array([5, 6], dtype=np.int16)
+
+    pcm_a = PcmData(sample_rate=sr, format="s16", samples=a, channels=1)
+    pcm_b = PcmData(sample_rate=sr, format="s16", samples=b, channels=1)
+
+    # Create a copy and append to it
+    pcm_copy = pcm_a.copy().append(pcm_b)
+
+    # Original should be unchanged
+    assert np.array_equal(pcm_a.samples, np.array([1, 2, 3, 4], dtype=np.int16))
+
+    # Copy should have the appended data
+    assert np.array_equal(
+        pcm_copy.samples, np.array([1, 2, 3, 4, 5, 6], dtype=np.int16)
+    )
+
+    # They should be different objects
+    assert pcm_a is not pcm_copy
+    assert pcm_a.samples is not pcm_copy.samples
+
+
+def test_truncate_wipes_samples_preserves_metadata():
+    """Test that truncate() wipes samples but preserves all metadata."""
+    sr = 16000
+    samples = np.array([1, 2, 3, 4, 5], dtype=np.int16)
+    pcm = PcmData(
+        sample_rate=sr,
+        format="s16",
+        samples=samples,
+        channels=1,
+        pts=1000,
+        dts=2000,
+        time_base=0.001,
+    )
+
+    # Store original metadata
+    original_sr = pcm.sample_rate
+    original_format = pcm.format
+    original_channels = pcm.channels
+    original_pts = pcm.pts
+    original_dts = pcm.dts
+    original_time_base = pcm.time_base
+
+    # Truncate and verify it returns self
+    result = pcm.truncate()
+    assert result is pcm
+
+    # Samples should be empty
+    assert isinstance(pcm.samples, np.ndarray)
+    assert len(pcm.samples) == 0
+    assert pcm.samples.dtype == np.int16  # Correct dtype for s16
+
+    # Metadata should be preserved
+    assert pcm.sample_rate == original_sr
+    assert pcm.format == original_format
+    assert pcm.channels == original_channels
+    assert pcm.pts == original_pts
+    assert pcm.dts == original_dts
+    assert pcm.time_base == original_time_base
+
+
+def test_truncate_f32_uses_correct_dtype():
+    """Test that truncate() uses float32 dtype for f32 format."""
+    sr = 16000
+    samples = np.array([0.1, 0.2, 0.3], dtype=np.float32)
+    pcm = PcmData(sample_rate=sr, format="f32", samples=samples, channels=1)
+
+    pcm.truncate()
+
+    # Samples should be empty with float32 dtype
+    assert isinstance(pcm.samples, np.ndarray)
+    assert len(pcm.samples) == 0
+    assert pcm.samples.dtype == np.float32
+
+
+def test_copy_preserves_all_metadata():
+    """Test that copy() preserves all metadata including timestamps."""
+    sr = 16000
+    samples = np.array([1, 2, 3], dtype=np.int16)
+    pcm_original = PcmData(
+        sample_rate=sr,
+        format="s16",
+        samples=samples,
+        channels=2,
+        pts=12345,
+        dts=67890,
+        time_base=0.00001,
+    )
+
+    pcm_copy = pcm_original.copy()
+
+    # Verify all metadata is copied
+    assert pcm_copy.sample_rate == pcm_original.sample_rate
+    assert pcm_copy.format == pcm_original.format
+    assert pcm_copy.channels == pcm_original.channels
+    assert pcm_copy.pts == pcm_original.pts
+    assert pcm_copy.dts == pcm_original.dts
+    assert pcm_copy.time_base == pcm_original.time_base
+    assert np.array_equal(pcm_copy.samples, pcm_original.samples)
+
+
+def test_append_chaining_with_copy():
+    """Test that append() can be chained and works correctly with copy()."""
+    sr = 16000
+    a = np.array([1, 2], dtype=np.int16)
+    b = np.array([3, 4], dtype=np.int16)
+    c = np.array([5, 6], dtype=np.int16)
+
+    pcm_a = PcmData(sample_rate=sr, format="s16", samples=a, channels=1)
+    pcm_b = PcmData(sample_rate=sr, format="s16", samples=b, channels=1)
+    pcm_c = PcmData(sample_rate=sr, format="s16", samples=c, channels=1)
+
+    # Chain append on a copy
+    result = pcm_a.copy().append(pcm_b).append(pcm_c)
+
+    # Original should be unchanged
+    assert np.array_equal(pcm_a.samples, np.array([1, 2], dtype=np.int16))
+
+    # Result should have all samples
+    assert np.array_equal(result.samples, np.array([1, 2, 3, 4, 5, 6], dtype=np.int16))
+
+
+def test_truncate_after_append():
+    """Test that truncate() can be used to clear accumulated samples."""
+    sr = 16000
+    a = np.array([1, 2, 3], dtype=np.int16)
+    b = np.array([4, 5, 6], dtype=np.int16)
+
+    pcm_a = PcmData(sample_rate=sr, format="s16", samples=a, channels=1)
+    pcm_b = PcmData(sample_rate=sr, format="s16", samples=b, channels=1)
+
+    # Append then truncate
+    pcm_a.append(pcm_b)
+    assert len(pcm_a.samples) == 6
+
+    pcm_a.truncate()
+    assert len(pcm_a.samples) == 0
+
+    # Can append again after truncate
+    pcm_a.append(pcm_b)
+    assert np.array_equal(pcm_a.samples, np.array([4, 5, 6], dtype=np.int16))

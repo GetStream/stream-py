@@ -1,4 +1,5 @@
 import asyncio
+import copy
 import io
 import wave
 from enum import Enum
@@ -9,7 +10,6 @@ import re
 from typing import (
     Dict,
     Any,
-    NamedTuple,
     Callable,
     Optional,
     Union,
@@ -83,9 +83,9 @@ class AudioFormat(str, Enum):
 AudioFormatType = Union[AudioFormat, Literal["s16", "f32"]]
 
 
-class PcmData(NamedTuple):
+class PcmData:
     """
-    A named tuple representing PCM audio data.
+    A class representing PCM audio data.
 
     Attributes:
         format: The format of the audio data (use AudioFormat.S16 or AudioFormat.F32)
@@ -97,13 +97,37 @@ class PcmData(NamedTuple):
         channels: Number of audio channels (1=mono, 2=stereo)
     """
 
-    format: AudioFormatType
-    sample_rate: int
-    samples: NDArray = np.array([], dtype=np.int16)
-    pts: Optional[int] = None  # Presentation timestamp
-    dts: Optional[int] = None  # Decode timestamp
-    time_base: Optional[float] = None  # Time base for converting timestamps to seconds
-    channels: int = 1  # Number of channels (1=mono, 2=stereo)
+    def __init__(
+        self,
+        sample_rate: int,
+        format: AudioFormatType,
+        samples: NDArray = None,
+        pts: Optional[int] = None,
+        dts: Optional[int] = None,
+        time_base: Optional[float] = None,
+        channels: int = 1,
+    ):
+        """
+        Initialize PcmData.
+
+        Args:
+            sample_rate: The sample rate of the audio data
+            format: The format of the audio data (use AudioFormat.S16 or AudioFormat.F32)
+            samples: The audio samples as a numpy array (default: empty int16 array)
+            pts: The presentation timestamp of the audio data
+            dts: The decode timestamp of the audio data
+            time_base: The time base for converting timestamps to seconds
+            channels: Number of audio channels (1=mono, 2=stereo)
+        """
+        self.format: AudioFormatType = format
+        self.sample_rate: int = sample_rate
+        self.samples: NDArray = (
+            np.array([], dtype=np.int16) if samples is None else samples
+        )
+        self.pts: Optional[int] = pts
+        self.dts: Optional[int] = dts
+        self.time_base: Optional[float] = time_base
+        self.channels: int = channels
 
     @property
     def stereo(self) -> bool:
@@ -489,9 +513,9 @@ class PcmData(NamedTuple):
             output_pcm_format = "f32" if input_format == "fltp" else "s16"
 
             return PcmData(
-                samples=resampled_samples,
                 sample_rate=target_sample_rate,
                 format=output_pcm_format,
+                samples=resampled_samples,
                 pts=self.pts,
                 dts=self.dts,
                 time_base=self.time_base,
@@ -561,9 +585,9 @@ class PcmData(NamedTuple):
                         arr = arr.astype(np.float32)
                     arr = (np.clip(arr, -1.0, 1.0) * 32767.0).astype(np.int16)
                 frames = PcmData(
-                    samples=arr,
                     sample_rate=self.sample_rate,
                     format="s16",
+                    samples=arr,
                     pts=self.pts,
                     dts=self.dts,
                     time_base=self.time_base,
@@ -640,9 +664,9 @@ class PcmData(NamedTuple):
             arr_f32 = arr.astype(np.float32, copy=False)
 
         return PcmData(
-            samples=arr_f32,
             sample_rate=self.sample_rate,
             format="f32",
+            samples=arr_f32,
             pts=self.pts,
             dts=self.dts,
             time_base=self.time_base,
@@ -650,13 +674,16 @@ class PcmData(NamedTuple):
         )
 
     def append(self, other: "PcmData") -> "PcmData":
-        """Append another chunk after adjusting it to match self.
+        """Append another chunk in-place after adjusting it to match self.
+
+        Modifies this PcmData object and returns self for chaining.
 
         Example:
         >>> import numpy as np
-        >>> a = PcmData(samples=np.array([1, 2], np.int16), sample_rate=16000, format="s16", channels=1)
-        >>> b = PcmData(samples=np.array([3, 4], np.int16), sample_rate=16000, format="s16", channels=1)
-        >>> a.append(b).samples.tolist()
+        >>> a = PcmData(sample_rate=16000, format="s16", samples=np.array([1, 2], np.int16), channels=1)
+        >>> b = PcmData(sample_rate=16000, format="s16", samples=np.array([3, 4], np.int16), channels=1)
+        >>> a.append(b)  # modifies a in-place
+        >>> a.samples.tolist()
         [1, 2, 3, 4]
         """
 
@@ -703,9 +730,9 @@ class PcmData(NamedTuple):
                 else:
                     arr = arr.astype(np.int16)
             other_adj = PcmData(
-                samples=arr,
                 sample_rate=other_adj.sample_rate,
                 format="s16",
+                samples=arr,
                 pts=other_adj.pts,
                 dts=other_adj.dts,
                 time_base=other_adj.time_base,
@@ -724,7 +751,7 @@ class PcmData(NamedTuple):
         self_arr = _ensure_ndarray(self)
         other_arr = _ensure_ndarray(other_adj)
 
-        # If either is empty, return the other while preserving self's metadata
+        # If self is empty, replace with other while preserving self's metadata
         if _is_empty(self_arr):
             # Conform shape to target channels semantics and dtype
             if isinstance(other_arr, np.ndarray):
@@ -736,15 +763,8 @@ class PcmData(NamedTuple):
                     else np.int16
                 )
                 other_arr = other_arr.astype(target_dtype, copy=False)
-            return PcmData(
-                samples=other_arr,
-                sample_rate=self.sample_rate,
-                format=self.format,
-                pts=self.pts,
-                dts=self.dts,
-                time_base=self.time_base,
-                channels=self.channels,
-            )
+            self.samples = other_arr
+            return self
         if _is_empty(other_arr):
             return self
 
@@ -769,15 +789,8 @@ class PcmData(NamedTuple):
                 "int16",
             ) and out.dtype != np.int16:
                 out = out.astype(np.int16)
-            return PcmData(
-                samples=out,
-                sample_rate=self.sample_rate,
-                format=self.format,
-                pts=self.pts,
-                dts=self.dts,
-                time_base=self.time_base,
-                channels=self.channels,
-            )
+            self.samples = out
+            return self
         else:
             # Multi-channel: normalize to (channels, samples)
             def _to_cmaj(arr: np.ndarray, channels: int) -> np.ndarray:
@@ -806,15 +819,63 @@ class PcmData(NamedTuple):
             ) and out.dtype != np.int16:
                 out = out.astype(np.int16)
 
-            return PcmData(
-                samples=out,
-                sample_rate=self.sample_rate,
-                format=self.format,
-                pts=self.pts,
-                dts=self.dts,
-                time_base=self.time_base,
-                channels=self.channels,
-            )
+            self.samples = out
+            return self
+
+    def copy(self) -> "PcmData":
+        """Create a deep copy of this PcmData object.
+
+        Returns a new PcmData instance with copied samples and metadata,
+        allowing independent modifications without affecting the original.
+
+        Example:
+        >>> import numpy as np
+        >>> a = PcmData(sample_rate=16000, format="s16", samples=np.array([1, 2], np.int16), channels=1)
+        >>> b = a.copy()
+        >>> b.append(PcmData(sample_rate=16000, format="s16", samples=np.array([3, 4], np.int16), channels=1))
+        >>> a.samples.tolist()  # original unchanged
+        [1, 2]
+        >>> b.samples.tolist()  # copy was modified
+        [1, 2, 3, 4]
+        """
+        return PcmData(
+            sample_rate=self.sample_rate,
+            format=self.format,
+            samples=self.samples.copy()
+            if isinstance(self.samples, np.ndarray)
+            else copy.deepcopy(self.samples),
+            pts=self.pts,
+            dts=self.dts,
+            time_base=self.time_base,
+            channels=self.channels,
+        )
+
+    def truncate(self) -> "PcmData":
+        """Wipe all samples in this PcmData object in-place.
+
+        Replaces the samples with an empty array of the appropriate dtype,
+        preserving all other metadata (sample_rate, format, channels, etc.).
+
+        Returns self for chaining.
+
+        Example:
+        >>> import numpy as np
+        >>> a = PcmData(sample_rate=16000, format="s16", samples=np.array([1, 2, 3], np.int16), channels=1)
+        >>> a.truncate()
+        >>> len(a.samples)
+        0
+        >>> a.sample_rate
+        16000
+        """
+        # Determine the appropriate dtype based on format
+        fmt = (self.format or "").lower()
+        if fmt in ("f32", "float32"):
+            dtype = np.float32
+        else:
+            dtype = np.int16
+
+        self.samples = np.array([], dtype=dtype)
+        return self
 
     @classmethod
     def from_response(
@@ -1018,9 +1079,9 @@ class PcmData(NamedTuple):
                     chunk_pts = self.pts + int(i / self.sample_rate / self.time_base)
 
                 yield PcmData(
-                    samples=chunk_samples,
                     sample_rate=self.sample_rate,
                     format=self.format,
+                    samples=chunk_samples,
                     pts=chunk_pts,
                     dts=self.dts,
                     time_base=self.time_base,
@@ -1058,9 +1119,9 @@ class PcmData(NamedTuple):
                     chunk_pts = self.pts + int(i / self.sample_rate / self.time_base)
 
                 yield PcmData(
-                    samples=chunk_samples,
                     sample_rate=self.sample_rate,
                     format=self.format,
+                    samples=chunk_samples,
                     pts=chunk_pts,
                     dts=self.dts,
                     time_base=self.time_base,
@@ -1194,9 +1255,9 @@ class PcmData(NamedTuple):
                 new_samples = samples_1d
 
         return PcmData(
-            samples=new_samples,
             sample_rate=self.sample_rate,
             format=self.format,
+            samples=new_samples,
             pts=self.pts,
             dts=self.dts,
             time_base=self.time_base,
@@ -1302,9 +1363,9 @@ class PcmData(NamedTuple):
                 new_samples = samples_1d
 
         return PcmData(
-            samples=new_samples,
             sample_rate=self.sample_rate,
             format=self.format,
+            samples=new_samples,
             pts=self.pts,
             dts=self.dts,
             time_base=self.time_base,
@@ -1761,8 +1822,8 @@ class AudioTrackHandler:
             self._on_audio_frame(
                 PcmData(
                     sample_rate=48_000,
-                    samples=pcm_ndarray,
                     format="s16",
+                    samples=pcm_ndarray,
                     pts=pts,
                     dts=dts,
                     time_base=time_base,
