@@ -504,15 +504,21 @@ class PcmData:
             ):
                 resampled_samples = resampled_samples.flatten()
 
-            # Ensure int16 dtype for s16
-            if (
-                isinstance(resampled_samples, np.ndarray)
-                and resampled_samples.dtype != np.int16
-            ):
-                resampled_samples = resampled_samples.astype(np.int16)
+            # Determine output format based on input format
+            output_pcm_format = (
+                AudioFormat.F32 if input_format == "fltp" else AudioFormat.S16
+            )
 
-            # Maintain the original format
-            output_pcm_format = "f32" if input_format == "fltp" else "s16"
+            # Ensure correct dtype matches the output format
+            if isinstance(resampled_samples, np.ndarray):
+                if output_pcm_format == "s16" and resampled_samples.dtype != np.int16:
+                    # Convert to int16 for s16 format
+                    resampled_samples = resampled_samples.astype(np.int16)
+                elif (
+                    output_pcm_format == "f32" and resampled_samples.dtype != np.float32
+                ):
+                    # Ensure float32 for f32 format
+                    resampled_samples = resampled_samples.astype(np.float32)
 
             return PcmData(
                 sample_rate=target_sample_rate,
@@ -562,11 +568,7 @@ class PcmData:
         # Fallback
         if isinstance(arr, (bytes, bytearray)):
             return bytes(arr)
-        try:
-            return bytes(arr)
-        except Exception:
-            logger.warning("Cannot convert samples to bytes; returning empty")
-            return b""
+        return bytes(arr)
 
     def to_wav_bytes(self) -> bytes:
         """Return WAV bytes (header + frames).

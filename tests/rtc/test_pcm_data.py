@@ -629,3 +629,102 @@ def test_clear_multiple_times():
     # Metadata should still be intact
     assert pcm.sample_rate == sr
     assert pcm.format == "s16"
+
+
+def test_resample_float32_preserves_float32_dtype():
+    """
+    REGRESSION TEST: Float32 audio must stay as float32 after resampling.
+
+    Previously, resample() would silently downgrade float32 to int16, then mark
+    it as f32 format, completely mangling high-dynamic-range audio.
+    """
+    # Create float32 audio with high dynamic range
+    sample_rate_in = 16000
+    sample_rate_out = 48000
+    num_samples = 1000
+
+    # Use values that would be truncated if converted to int16
+    # E.g., 0.5 becomes 0 when converted to int16 directly
+    samples_f32 = np.linspace(-1.0, 1.0, num_samples, dtype=np.float32)
+
+    pcm_16k = PcmData(
+        sample_rate=sample_rate_in,
+        format="f32",
+        samples=samples_f32,
+        channels=1,
+    )
+
+    # Resample to 48kHz
+    pcm_48k = pcm_16k.resample(sample_rate_out)
+
+    # CRITICAL: Format must still be f32
+    assert pcm_48k.format == "f32", f"Format should be 'f32', got '{pcm_48k.format}'"
+
+    # CRITICAL: Samples must be float32, not int16
+    assert pcm_48k.samples.dtype == np.float32, (
+        f"Samples should be float32, got {pcm_48k.samples.dtype}. "
+        f"This means float32 audio was silently downgraded to int16!"
+    )
+
+    # Verify values are still in float range, not truncated to int16 range
+    assert np.any(np.abs(pcm_48k.samples) < 1.0), (
+        "No fractional values found - data may have been truncated to integers"
+    )
+
+
+def test_resample_float32_to_stereo_preserves_float32():
+    """Test that float32 stays float32 when resampling AND converting to stereo."""
+    sample_rate_in = 16000
+    sample_rate_out = 48000
+
+    # Create float32 mono audio
+    samples_f32 = np.array([0.1, 0.2, 0.3, 0.4, 0.5] * 100, dtype=np.float32)
+
+    pcm_16k_mono = PcmData(
+        sample_rate=sample_rate_in,
+        format="f32",
+        samples=samples_f32,
+        channels=1,
+    )
+
+    # Resample to 48kHz stereo
+    pcm_48k_stereo = pcm_16k_mono.resample(sample_rate_out, target_channels=2)
+
+    # Format must be f32
+    assert pcm_48k_stereo.format == "f32"
+
+    # Dtype must be float32
+    assert pcm_48k_stereo.samples.dtype == np.float32, (
+        f"Expected float32, got {pcm_48k_stereo.samples.dtype}"
+    )
+
+    # Should be stereo
+    assert pcm_48k_stereo.channels == 2
+    assert pcm_48k_stereo.samples.ndim == 2
+    assert pcm_48k_stereo.samples.shape[0] == 2
+
+
+def test_resample_int16_stays_int16():
+    """Verify that int16 audio correctly stays int16 (baseline test)."""
+    sample_rate_in = 16000
+    sample_rate_out = 48000
+
+    # Create int16 audio
+    samples_i16 = np.array([100, 200, 300, 400, 500] * 100, dtype=np.int16)
+
+    pcm_16k = PcmData(
+        sample_rate=sample_rate_in,
+        format="s16",
+        samples=samples_i16,
+        channels=1,
+    )
+
+    # Resample to 48kHz
+    pcm_48k = pcm_16k.resample(sample_rate_out)
+
+    # Format must be s16
+    assert pcm_48k.format == "s16"
+
+    assert pcm_48k.samples.dtype == np.int16, (
+        f"Expected int16, got {pcm_48k.samples.dtype}"
+    )
