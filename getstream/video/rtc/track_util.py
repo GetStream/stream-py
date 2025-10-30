@@ -1710,9 +1710,9 @@ def _normalize_audio_format(
             if isinstance(samples, np.ndarray):
                 samples = (np.clip(samples, -1.0, 1.0) * 32767.0).astype(np.int16)
             pcm = PcmData(
-                samples=samples,
                 sample_rate=pcm.sample_rate,
                 format="s16",
+                samples=samples,
                 channels=pcm.channels,
             )
 
