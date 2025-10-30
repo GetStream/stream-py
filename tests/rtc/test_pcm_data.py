@@ -920,3 +920,77 @@ def test_from_data_handles_conversion_automatically():
 
     assert pcm.format == "s16"
     assert pcm.samples.dtype == np.int16
+
+
+def test_direct_float32_to_int16_conversion_needs_clipping():
+    """
+    Direct test showing that float32→int16 conversion needs clipping and scaling.
+
+    This demonstrates the bug: directly casting float32 to int16 produces wrong values.
+    """
+    # Test values with typical audio scenarios
+    test_values_f32 = np.array([0.5, 1.0, 2.0, -1.5, -1.0, 0.0], dtype=np.float32)
+
+    # What happens with direct cast (THE BUG)?
+    buggy_conversion = test_values_f32.astype(np.int16)
+
+    # This produces: [0, 1, 2, -1, -1, 0] - completely wrong!
+    # 0.5 becomes 0 (should be ~16383)
+    # 2.0 becomes 2 (should be 32767 after clipping)
+    assert buggy_conversion[0] == 0  # 0.5 wrongly becomes 0
+    assert buggy_conversion[2] == 2  # 2.0 wrongly becomes 2
+
+    # Correct conversion with clipping and scaling
+    max_int16 = np.iinfo(np.int16).max  # 32767
+    correct_conversion = np.clip(test_values_f32, -1.0, 1.0) * max_int16
+    correct_conversion = np.round(correct_conversion).astype(np.int16)
+
+    # Should be: [16384, 32767, 32767, -32767, -32767, 0]
+    # Note: 0.5 * 32767 = 16383.5, rounds to 16384
+    assert correct_conversion[0] == 16384  # 0.5 * 32767, rounded
+    assert correct_conversion[1] == 32767  # 1.0 * 32767
+    assert correct_conversion[2] == 32767  # 2.0 clipped to 1.0, then * 32767
+    assert correct_conversion[3] == -32767  # -1.5 clipped to -1.0, then * 32767
+    assert correct_conversion[4] == -32767  # -1.0 * 32767
+    assert correct_conversion[5] == 0  # 0.0 * 32767
+
+
+def test_resample_with_extreme_values_should_clip():
+    """
+    Test that resample() properly clips extreme float values when converting to int16.
+
+    Scenario: PyAV might return float32 values outside [-1.0, 1.0] after resampling.
+    When converting back to int16, these must be clipped and scaled properly.
+    """
+    # Create int16 audio with values that when converted to float32 and back
+    # might go through the problematic conversion path
+    sample_rate_in = 16000
+    sample_rate_out = 48000
+
+    # Create int16 samples near the limits
+    samples_i16 = np.array([16383, 32767, -16383, -32767, 0], dtype=np.int16)
+
+    pcm_16k = PcmData(
+        sample_rate=sample_rate_in,
+        format="s16",
+        samples=samples_i16,
+        channels=1,
+    )
+
+    # Resample - this goes through PyAV which may return float32
+    pcm_48k = pcm_16k.resample(sample_rate_out)
+
+    # Result should still be int16 with valid range
+    assert pcm_48k.format == "s16"
+    assert pcm_48k.samples.dtype == np.int16
+
+    # All values should be in valid int16 range
+    assert np.all(pcm_48k.samples >= -32768)
+    assert np.all(pcm_48k.samples <= 32767)
+
+    # Values should not be close to zero (which would indicate incorrect scaling)
+    # After resampling, we should have more samples but similar magnitudes
+    max_val = np.max(np.abs(pcm_48k.samples))
+    assert max_val > 10000, (
+        f"Resampled values seem too small: max={max_val}, might indicate scaling bug"
+    )

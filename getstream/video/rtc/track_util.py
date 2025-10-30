@@ -550,7 +550,16 @@ class PcmData:
             if isinstance(resampled_samples, np.ndarray):
                 if output_pcm_format == "s16" and resampled_samples.dtype != np.int16:
                     # Convert to int16 for s16 format
-                    resampled_samples = resampled_samples.astype(np.int16)
+                    if resampled_samples.dtype == np.float32:
+                        # Float32 to int16: clip to [-1.0, 1.0], scale, round, convert
+                        # This prevents overflow and ensures proper scaling
+                        max_int16 = np.iinfo(np.int16).max  # 32767
+                        resampled_samples = np.clip(resampled_samples, -1.0, 1.0)
+                        resampled_samples = np.round(
+                            resampled_samples * max_int16
+                        ).astype(np.int16)
+                    else:
+                        resampled_samples = resampled_samples.astype(np.int16)
                 elif (
                     output_pcm_format == "f32" and resampled_samples.dtype != np.float32
                 ):
