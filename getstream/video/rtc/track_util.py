@@ -850,18 +850,19 @@ class PcmData:
             channels=self.channels,
         )
 
-    def truncate(self) -> "PcmData":
-        """Wipe all samples in this PcmData object in-place.
+    def clear(self) -> None:
+        """Clear all samples in this PcmData object in-place.
 
-        Replaces the samples with an empty array of the appropriate dtype,
-        preserving all other metadata (sample_rate, format, channels, etc.).
+        Similar to list.clear() or dict.clear(), this method removes all samples
+        from the PcmData object while preserving all other metadata (sample_rate,
+        format, channels, timestamps, etc.).
 
-        Returns self for chaining.
+        Returns None to match the behavior of standard Python collection methods.
 
         Example:
         >>> import numpy as np
         >>> a = PcmData(sample_rate=16000, format="s16", samples=np.array([1, 2, 3], np.int16), channels=1)
-        >>> a.truncate()
+        >>> a.clear()
         >>> len(a.samples)
         0
         >>> a.sample_rate
@@ -875,7 +876,6 @@ class PcmData:
             dtype = np.int16
 
         self.samples = np.array([], dtype=dtype)
-        return self
 
     @classmethod
     def from_response(

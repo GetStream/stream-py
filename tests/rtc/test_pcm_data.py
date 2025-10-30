@@ -453,60 +453,6 @@ def test_copy_append_does_not_modify_original():
     assert pcm_a.samples is not pcm_copy.samples
 
 
-def test_truncate_wipes_samples_preserves_metadata():
-    """Test that truncate() wipes samples but preserves all metadata."""
-    sr = 16000
-    samples = np.array([1, 2, 3, 4, 5], dtype=np.int16)
-    pcm = PcmData(
-        sample_rate=sr,
-        format="s16",
-        samples=samples,
-        channels=1,
-        pts=1000,
-        dts=2000,
-        time_base=0.001,
-    )
-
-    # Store original metadata
-    original_sr = pcm.sample_rate
-    original_format = pcm.format
-    original_channels = pcm.channels
-    original_pts = pcm.pts
-    original_dts = pcm.dts
-    original_time_base = pcm.time_base
-
-    # Truncate and verify it returns self
-    result = pcm.truncate()
-    assert result is pcm
-
-    # Samples should be empty
-    assert isinstance(pcm.samples, np.ndarray)
-    assert len(pcm.samples) == 0
-    assert pcm.samples.dtype == np.int16  # Correct dtype for s16
-
-    # Metadata should be preserved
-    assert pcm.sample_rate == original_sr
-    assert pcm.format == original_format
-    assert pcm.channels == original_channels
-    assert pcm.pts == original_pts
-    assert pcm.dts == original_dts
-    assert pcm.time_base == original_time_base
-
-
-def test_truncate_f32_uses_correct_dtype():
-    """Test that truncate() uses float32 dtype for f32 format."""
-    sr = 16000
-    samples = np.array([0.1, 0.2, 0.3], dtype=np.float32)
-    pcm = PcmData(sample_rate=sr, format="f32", samples=samples, channels=1)
-
-    pcm.truncate()
-
-    # Samples should be empty with float32 dtype
-    assert isinstance(pcm.samples, np.ndarray)
-    assert len(pcm.samples) == 0
-    assert pcm.samples.dtype == np.float32
-
-
 def test_copy_preserves_all_metadata():
     """Test that copy() preserves all metadata including timestamps."""
     sr = 16000
@@ -554,8 +500,82 @@ def test_append_chaining_with_copy():
     assert np.array_equal(result.samples, np.array([1, 2, 3, 4, 5, 6], dtype=np.int16))
 
 
-def test_truncate_after_append():
-    """Test that truncate() can be used to clear accumulated samples."""
+# ===== Tests for clear() method (like list.clear()) =====
+
+
+def test_clear_wipes_samples_like_list_clear():
+    """Test that clear() works like list.clear() - removes all items, returns None."""
+    sr = 16000
+    samples = np.array([1, 2, 3, 4, 5], dtype=np.int16)
+    pcm = PcmData(sample_rate=sr, format="s16", samples=samples, channels=1)
+
+    # clear() should return None, like list.clear()
+    result = pcm.clear()
+    assert result is None
+
+    # Samples should be empty
+    assert isinstance(pcm.samples, np.ndarray)
+    assert len(pcm.samples) == 0
+    assert pcm.samples.dtype == np.int16
+
+
+def test_clear_preserves_metadata():
+    """Test that clear() preserves all metadata like list.clear() preserves list identity."""
+    sr = 16000
+    samples = np.array([1, 2, 3, 4, 5], dtype=np.int16)
+    pcm = PcmData(
+        sample_rate=sr,
+        format="s16",
+        samples=samples,
+        channels=2,
+        pts=1000,
+        dts=2000,
+        time_base=0.001,
+    )
+
+    # Store original metadata and id
+    original_id = id(pcm)
+    original_sr = pcm.sample_rate
+    original_format = pcm.format
+    original_channels = pcm.channels
+    original_pts = pcm.pts
+    original_dts = pcm.dts
+    original_time_base = pcm.time_base
+
+    # Clear
+    pcm.clear()
+
+    # Object identity preserved (like list.clear())
+    assert id(pcm) == original_id
+
+    # Samples should be empty
+    assert len(pcm.samples) == 0
+
+    # Metadata should be preserved
+    assert pcm.sample_rate == original_sr
+    assert pcm.format == original_format
+    assert pcm.channels == original_channels
+    assert pcm.pts == original_pts
+    assert pcm.dts == original_dts
+    assert pcm.time_base == original_time_base
+
+
+def test_clear_f32_uses_correct_dtype():
+    """Test that clear() uses float32 dtype for f32 format."""
+    sr = 16000
+    samples = np.array([0.1, 0.2, 0.3], dtype=np.float32)
+    pcm = PcmData(sample_rate=sr, format="f32", samples=samples, channels=1)
+
+    pcm.clear()
+
+    # Samples should be empty with float32 dtype
+    assert isinstance(pcm.samples, np.ndarray)
+    assert len(pcm.samples) == 0
+    assert pcm.samples.dtype == np.float32
+
+
+def test_clear_after_append():
+    """Test that clear() can be used to clear accumulated samples."""
     sr = 16000
     a = np.array([1, 2, 3], dtype=np.int16)
     b = np.array([4, 5, 6], dtype=np.int16)
@@ -563,13 +583,49 @@ def test_truncate_after_append():
     pcm_a = PcmData(sample_rate=sr, format="s16", samples=a, channels=1)
     pcm_b = PcmData(sample_rate=sr, format="s16", samples=b, channels=1)
 
-    # Append then truncate
+    # Append then clear
     pcm_a.append(pcm_b)
     assert len(pcm_a.samples) == 6
 
-    pcm_a.truncate()
+    pcm_a.clear()
     assert len(pcm_a.samples) == 0
 
-    # Can append again after truncate
+    # Can append again after clear
     pcm_a.append(pcm_b)
     assert np.array_equal(pcm_a.samples, np.array([4, 5, 6], dtype=np.int16))
+
+
+def test_clear_returns_none():
+    """Test that clear() returns None like list.clear()."""
+    sr = 16000
+    samples = np.array([1, 2, 3], dtype=np.int16)
+
+    pcm = PcmData(sample_rate=sr, format="s16", samples=samples, channels=1)
+    result = pcm.clear()
+
+    # Should return None like list.clear()
+    assert result is None
+
+    # Samples should be empty
+    assert len(pcm.samples) == 0
+
+
+def test_clear_multiple_times():
+    """Test that clear() can be called multiple times safely."""
+    sr = 16000
+    samples = np.array([1, 2, 3], dtype=np.int16)
+    pcm = PcmData(sample_rate=sr, format="s16", samples=samples, channels=1)
+
+    # Clear multiple times
+    pcm.clear()
+    assert len(pcm.samples) == 0
+
+    pcm.clear()  # Should work on empty PcmData
+    assert len(pcm.samples) == 0
+
+    pcm.clear()  # Should work again
+    assert len(pcm.samples) == 0
+
+    # Metadata should still be intact
+    assert pcm.sample_rate == sr
+    assert pcm.format == "s16"
