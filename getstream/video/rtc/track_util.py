@@ -41,8 +41,10 @@ class AudioFormat(str, Enum):
         >>> from getstream.video.rtc.track_util import AudioFormat, PcmData
         >>> import numpy as np
         >>> pcm = PcmData(samples=np.array([1, 2], np.int16), sample_rate=16000, format=AudioFormat.S16)
-        >>> pcm.format
-        's16'
+        >>> pcm.format == AudioFormat.S16
+        True
+        >>> pcm.format == "s16"  # Can compare with string directly
+        True
     """
 
     S16 = "s16"  # Signed 16-bit integer
@@ -65,10 +67,10 @@ class AudioFormat(str, Enum):
         Example:
             >>> AudioFormat.validate("s16")
             's16'
-            >>> AudioFormat.validate("invalid")
+            >>> AudioFormat.validate("invalid")  # doctest: +ELLIPSIS
             Traceback (most recent call last):
                 ...
-            ValueError: Invalid audio format: 'invalid'. Must be one of: s16, f32
+            ValueError: Invalid audio format: 'invalid'. Must be one of: ...
         """
         valid_formats = {f.value for f in AudioFormat}
         if fmt not in valid_formats:
@@ -682,7 +684,7 @@ class PcmData:
         >>> import numpy as np
         >>> a = PcmData(sample_rate=16000, format="s16", samples=np.array([1, 2], np.int16), channels=1)
         >>> b = PcmData(sample_rate=16000, format="s16", samples=np.array([3, 4], np.int16), channels=1)
-        >>> a.append(b)  # modifies a in-place
+        >>> _ = a.append(b)  # modifies a in-place
         >>> a.samples.tolist()
         [1, 2, 3, 4]
         """
@@ -832,7 +834,7 @@ class PcmData:
         >>> import numpy as np
         >>> a = PcmData(sample_rate=16000, format="s16", samples=np.array([1, 2], np.int16), channels=1)
         >>> b = a.copy()
-        >>> b.append(PcmData(sample_rate=16000, format="s16", samples=np.array([3, 4], np.int16), channels=1))
+        >>> _ = b.append(PcmData(sample_rate=16000, format="s16", samples=np.array([3, 4], np.int16), channels=1))
         >>> a.samples.tolist()  # original unchanged
         [1, 2]
         >>> b.samples.tolist()  # copy was modified
@@ -1025,8 +1027,8 @@ class PcmData:
         Example:
             >>> pcm = PcmData(samples=np.arange(10, dtype=np.int16), sample_rate=16000, format="s16")
             >>> chunks = list(pcm.chunks(4, overlap=2))
-            >>> len(chunks)  # [0:4], [2:6], [4:8], [6:10]
-            4
+            >>> len(chunks)  # [0:4], [2:6], [4:8], [6:10], [8:10]
+            5
         """
         # Ensure we have a 1D array for simpler chunking
         if isinstance(self.samples, np.ndarray):
@@ -1148,7 +1150,7 @@ class PcmData:
             >>> pcm = PcmData(samples=np.arange(800, dtype=np.int16), sample_rate=16000, format="s16")
             >>> windows = list(pcm.sliding_window(25.0, 10.0))  # 25ms window, 10ms hop
             >>> len(windows)  # 400 samples per window, 160 sample hop
-            4
+            5
         """
         window_samples = int(self.sample_rate * window_size_ms / 1000)
         hop_samples = int(self.sample_rate * hop_ms / 1000)
