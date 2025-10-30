@@ -1,7 +1,12 @@
 # -*- coding: utf-8 -*-
-import logging
-import functools
 import asyncio  # Import asyncio if not already present
+import functools
+import logging
+
+import structlog
+from structlog.stdlib import LoggerFactory, add_log_level
+from structlog.types import BindableLogger
+from twirp.context import Context as TwirpContext
 
 from getstream.common import telemetry
 from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
@@ -11,6 +16,42 @@ from getstream.video.rtc.pb.stream.video.sfu.signal_rpc.signal_twirp import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _get_twirp_default_logger() -> BindableLogger:
+    """Re-generate the default structlog config used inside `twirp` without overriding
+     the root logger level.
+    A trimmed down copy of `twirp.logging.configure`"""
+
+    structlog.configure(
+        logger_factory=LoggerFactory(),
+        processors=[
+            add_log_level,
+            # Add timestamp
+            structlog.processors.TimeStamper("iso"),
+            # Add stack information
+            structlog.processors.StackInfoRenderer(),
+            # Set exception field using exec info
+            structlog.processors.format_exc_info,
+            # Render event_dict as JSON
+            structlog.processors.JSONRenderer(),
+        ],
+    )
+    return structlog.get_logger()
+
+
+_TWIRP_DEFAULT_LOGGER = _get_twirp_default_logger()
+
+
+class Context(TwirpContext):
+    """A wrapper around `twirp.context.Context` to fix the logging issue.
+    Use it as a replacement.
+    """
+
+    def __init__(self, *args, headers=None):
+        # Passing our own logger here because twirp configures the root logger
+        # under the hood, making every other library noisy.
+        super().__init__(*args, logger=_TWIRP_DEFAULT_LOGGER, headers=headers)
 
 
 # Define a custom exception for SFU RPC errors
@@ -137,4 +178,5 @@ class SignalClient(AsyncSignalServerClient):
 __all__ = [
     "SfuRpcError",
     "SignalClient",
+    "Context",
 ]
