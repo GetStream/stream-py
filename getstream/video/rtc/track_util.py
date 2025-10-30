@@ -115,7 +115,7 @@ class PcmData:
         Args:
             sample_rate: The sample rate of the audio data
             format: The format of the audio data (use AudioFormat.S16 or AudioFormat.F32)
-            samples: The audio samples as a numpy array (default: empty int16 array)
+            samples: The audio samples as a numpy array (default: empty array with dtype matching format)
             pts: The presentation timestamp of the audio data
             dts: The decode timestamp of the audio data
             time_base: The time base for converting timestamps to seconds
@@ -123,9 +123,18 @@ class PcmData:
         """
         self.format: AudioFormatType = format
         self.sample_rate: int = sample_rate
-        self.samples: NDArray = (
-            np.array([], dtype=np.int16) if samples is None else samples
-        )
+
+        # Determine default dtype based on format when samples is None
+        if samples is None:
+            # Use same pattern as clear() method for consistency
+            fmt = (format or "").lower()
+            if fmt in ("f32", "float32"):
+                dtype = np.float32
+            else:
+                dtype = np.int16
+            samples = np.array([], dtype=dtype)
+
+        self.samples: NDArray = samples
         self.pts: Optional[int] = pts
         self.dts: Optional[int] = dts
         self.time_base: Optional[float] = time_base

@@ -728,3 +728,100 @@ def test_resample_int16_stays_int16():
     assert pcm_48k.samples.dtype == np.int16, (
         f"Expected int16, got {pcm_48k.samples.dtype}"
     )
+
+
+# ===== Tests for constructor default samples dtype =====
+
+
+def test_constructor_default_samples_respects_f32_format():
+    """
+    REGRESSION TEST: Constructor must create float32 empty array for f32 format.
+
+    Previously, constructor always created int16 empty array regardless of format,
+    causing dtype mismatch when format="f32" but samples.dtype=int16.
+    """
+    # Create PcmData with f32 format but no samples - should default to float32 empty array
+    pcm = PcmData(sample_rate=16000, format="f32", channels=1)
+
+    # Verify format is f32
+    assert pcm.format == "f32"
+
+    # CRITICAL: Samples must be float32, not int16
+    assert pcm.samples.dtype == np.float32, (
+        f"Expected float32 empty array for f32 format, got {pcm.samples.dtype}"
+    )
+
+    # Should be empty
+    assert len(pcm.samples) == 0
+
+
+def test_constructor_default_samples_respects_s16_format():
+    """Verify constructor creates int16 empty array for s16 format (baseline)."""
+    # Create PcmData with s16 format but no samples - should default to int16 empty array
+    pcm = PcmData(sample_rate=16000, format="s16", channels=1)
+
+    # Verify format is s16
+    assert pcm.format == "s16"
+
+    # Samples must be int16
+    assert pcm.samples.dtype == np.int16, (
+        f"Expected int16 empty array for s16 format, got {pcm.samples.dtype}"
+    )
+
+    # Should be empty
+    assert len(pcm.samples) == 0
+
+
+def test_constructor_default_samples_respects_enum_f32():
+    """Verify constructor works with AudioFormat enum for f32."""
+    from getstream.video.rtc.track_util import AudioFormat
+
+    # Create PcmData with AudioFormat.F32 enum
+    pcm = PcmData(sample_rate=16000, format=AudioFormat.F32, channels=1)
+
+    # Verify format
+    assert pcm.format == AudioFormat.F32
+
+    # CRITICAL: Samples must be float32
+    assert pcm.samples.dtype == np.float32, (
+        f"Expected float32 empty array for AudioFormat.F32, got {pcm.samples.dtype}"
+    )
+
+    # Should be empty
+    assert len(pcm.samples) == 0
+
+
+def test_constructor_default_samples_respects_enum_s16():
+    """Verify constructor works with AudioFormat enum for s16."""
+    from getstream.video.rtc.track_util import AudioFormat
+
+    # Create PcmData with AudioFormat.S16 enum
+    pcm = PcmData(sample_rate=16000, format=AudioFormat.S16, channels=1)
+
+    # Verify format
+    assert pcm.format == AudioFormat.S16
+
+    # Samples must be int16
+    assert pcm.samples.dtype == np.int16, (
+        f"Expected int16 empty array for AudioFormat.S16, got {pcm.samples.dtype}"
+    )
+
+    # Should be empty
+    assert len(pcm.samples) == 0
+
+
+def test_constructor_default_samples_handles_float32_string():
+    """Verify constructor handles 'float32' format string."""
+    # Create PcmData with 'float32' format string
+    pcm = PcmData(sample_rate=16000, format="float32", channels=1)
+
+    # Verify format
+    assert pcm.format == "float32"
+
+    # Samples must be float32
+    assert pcm.samples.dtype == np.float32, (
+        f"Expected float32 empty array for 'float32' format, got {pcm.samples.dtype}"
+    )
+
+    # Should be empty
+    assert len(pcm.samples) == 0
