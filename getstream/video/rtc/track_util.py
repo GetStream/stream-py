@@ -120,6 +120,9 @@ class PcmData:
             dts: The decode timestamp of the audio data
             time_base: The time base for converting timestamps to seconds
             channels: Number of audio channels (1=mono, 2=stereo)
+
+        Raises:
+            TypeError: If samples dtype does not match the declared format
         """
         self.format: AudioFormatType = format
         self.sample_rate: int = sample_rate
@@ -133,6 +136,31 @@ class PcmData:
             else:
                 dtype = np.int16
             samples = np.array([], dtype=dtype)
+
+        # Strict validation: ensure samples dtype matches format
+        if isinstance(samples, np.ndarray):
+            fmt = (format or "").lower()
+            expected_dtype = np.float32 if fmt in ("f32", "float32") else np.int16
+
+            if samples.dtype != expected_dtype:
+                # Provide helpful error message with conversion suggestions
+                actual_dtype_name = (
+                    "float32"
+                    if samples.dtype == np.float32
+                    else "int16"
+                    if samples.dtype == np.int16
+                    else str(samples.dtype)
+                )
+                expected_dtype_name = (
+                    "float32" if expected_dtype == np.float32 else "int16"
+                )
+
+                raise TypeError(
+                    f"Dtype mismatch: format='{format}' requires samples with dtype={expected_dtype_name}, "
+                    f"but got dtype={actual_dtype_name}. "
+                    f"To fix: use .to_float32() for f32 format, or ensure samples match the declared format. "
+                    f"For automatic conversion, use PcmData.from_data() instead."
+                )
 
         self.samples: NDArray = samples
         self.pts: Optional[int] = pts

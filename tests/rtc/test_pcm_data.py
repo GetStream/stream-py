@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from getstream.video.rtc.track_util import PcmData
 
@@ -825,3 +826,97 @@ def test_constructor_default_samples_handles_float32_string():
 
     # Should be empty
     assert len(pcm.samples) == 0
+
+
+# ===== Tests for strict dtype validation =====
+
+
+def test_constructor_raises_on_int16_with_f32_format():
+    """Test that constructor raises TypeError when passing int16 samples with f32 format."""
+    samples = np.array([1, 2, 3], dtype=np.int16)
+
+    with pytest.raises(TypeError) as exc_info:
+        PcmData(sample_rate=16000, format="f32", samples=samples, channels=1)
+
+    # Verify error message is helpful
+    error_msg = str(exc_info.value)
+    assert "Dtype mismatch" in error_msg
+    assert "format='f32'" in error_msg
+    assert "float32" in error_msg
+    assert "int16" in error_msg
+    assert "to_float32()" in error_msg or "from_data()" in error_msg
+
+
+def test_constructor_raises_on_float32_with_s16_format():
+    """Test that constructor raises TypeError when passing float32 samples with s16 format."""
+    samples = np.array([0.1, 0.2, 0.3], dtype=np.float32)
+
+    with pytest.raises(TypeError) as exc_info:
+        PcmData(sample_rate=16000, format="s16", samples=samples, channels=1)
+
+    # Verify error message is helpful
+    error_msg = str(exc_info.value)
+    assert "Dtype mismatch" in error_msg
+    assert "format='s16'" in error_msg
+    assert "int16" in error_msg
+    assert "float32" in error_msg
+
+
+def test_constructor_raises_on_int16_with_enum_f32_format():
+    """Test that constructor raises TypeError with AudioFormat.F32 enum."""
+    from getstream.video.rtc.track_util import AudioFormat
+
+    samples = np.array([1, 2, 3], dtype=np.int16)
+
+    with pytest.raises(TypeError) as exc_info:
+        PcmData(sample_rate=16000, format=AudioFormat.F32, samples=samples, channels=1)
+
+    error_msg = str(exc_info.value)
+    assert "Dtype mismatch" in error_msg
+    assert "float32" in error_msg
+
+
+def test_constructor_raises_on_float32_with_enum_s16_format():
+    """Test that constructor raises TypeError with AudioFormat.S16 enum."""
+    from getstream.video.rtc.track_util import AudioFormat
+
+    samples = np.array([0.1, 0.2, 0.3], dtype=np.float32)
+
+    with pytest.raises(TypeError) as exc_info:
+        PcmData(sample_rate=16000, format=AudioFormat.S16, samples=samples, channels=1)
+
+    error_msg = str(exc_info.value)
+    assert "Dtype mismatch" in error_msg
+    assert "int16" in error_msg
+
+
+def test_constructor_accepts_matching_int16_with_s16():
+    """Verify constructor accepts int16 samples with s16 format (should work)."""
+    samples = np.array([1, 2, 3], dtype=np.int16)
+    pcm = PcmData(sample_rate=16000, format="s16", samples=samples, channels=1)
+
+    assert pcm.format == "s16"
+    assert pcm.samples.dtype == np.int16
+    assert np.array_equal(pcm.samples, samples)
+
+
+def test_constructor_accepts_matching_float32_with_f32():
+    """Verify constructor accepts float32 samples with f32 format (should work)."""
+    samples = np.array([0.1, 0.2, 0.3], dtype=np.float32)
+    pcm = PcmData(sample_rate=16000, format="f32", samples=samples, channels=1)
+
+    assert pcm.format == "f32"
+    assert pcm.samples.dtype == np.float32
+    assert np.array_equal(pcm.samples, samples)
+
+
+def test_from_data_handles_conversion_automatically():
+    """Verify from_data() still handles automatic conversion (doesn't go through strict validation the same way)."""
+    # from_data should handle conversion internally
+    samples_int16 = np.array([1, 2, 3], dtype=np.int16)
+
+    # This should work because from_data converts internally before calling __init__
+    pcm = PcmData.from_data(samples_int16, sample_rate=16000, format="s16", channels=1)
+
+    assert pcm.format == "s16"
+    assert pcm.samples.dtype == np.int16
