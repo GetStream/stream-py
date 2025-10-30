@@ -353,7 +353,7 @@ class TestPcmDataChunking:
         # Create test audio with 10 samples
         samples = np.arange(10, dtype=np.int16)
         pcm = PcmData(
-            samples=samples, sample_rate=16000, format=AudioFormat.S16, channels=1
+            sample_rate=16000, format=AudioFormat.S16, samples=samples, channels=1
         )
 
         # Get chunks of size 4
