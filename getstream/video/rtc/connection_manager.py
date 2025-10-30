@@ -176,7 +176,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                 # Set the local description. aiortc will manage the SDP content.
                 with telemetry.start_as_current_span(
                     "rtc.on_subscriber_offer.set_local_description"
-                ):
+                ) as span:
                     await self.subscriber_pc.setLocalDescription(answer)
 
                 logger.debug(

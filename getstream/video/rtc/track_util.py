@@ -1,6 +1,8 @@
 import asyncio
+import copy
 import io
 import wave
+from enum import Enum
 
 import av
 import numpy as np
@@ -8,12 +10,12 @@ import re
 from typing import (
     Dict,
     Any,
-    NamedTuple,
     Callable,
     Optional,
     Union,
     Iterator,
     AsyncIterator,
+    Literal,
 )
 
 import logging
@@ -25,26 +27,146 @@ from numpy.typing import NDArray
 logger = logging.getLogger(__name__)
 
 
-class PcmData(NamedTuple):
+class AudioFormat(str, Enum):
     """
-    A named tuple representing PCM audio data.
+    Audio format constants for PCM data.
+
+    Inherits from str to maintain backward compatibility with string-based APIs.
 
     Attributes:
-        format: The format of the audio data.
+        S16: Signed 16-bit integer format (range: -32768 to 32767)
+        F32: 32-bit floating point format (range: -1.0 to 1.0)
+
+    Example:
+        >>> from getstream.video.rtc.track_util import AudioFormat, PcmData
+        >>> import numpy as np
+        >>> pcm = PcmData(samples=np.array([1, 2], np.int16), sample_rate=16000, format=AudioFormat.S16)
+        >>> pcm.format == AudioFormat.S16
+        True
+        >>> pcm.format == "s16"  # Can compare with string directly
+        True
+    """
+
+    S16 = "s16"  # Signed 16-bit integer
+    F32 = "f32"  # 32-bit float
+
+    @staticmethod
+    def validate(fmt: str) -> str:
+        """
+        Validate that a format string is one of the supported audio formats.
+
+        Args:
+            fmt: Format string to validate
+
+        Returns:
+            The validated format string
+
+        Raises:
+            ValueError: If format is not supported
+
+        Example:
+            >>> AudioFormat.validate("s16")
+            's16'
+            >>> AudioFormat.validate("invalid")  # doctest: +ELLIPSIS
+            Traceback (most recent call last):
+                ...
+            ValueError: Invalid audio format: 'invalid'. Must be one of: ...
+        """
+        valid_formats = {f.value for f in AudioFormat}
+        if fmt not in valid_formats:
+            raise ValueError(
+                f"Invalid audio format: {fmt!r}. Must be one of: {', '.join(sorted(valid_formats))}"
+            )
+        return fmt
+
+
+# Type alias for audio format parameters
+# Accepts both AudioFormat enum members and string literals for backwards compatibility
+AudioFormatType = Union[AudioFormat, Literal["s16", "f32"]]
+
+
+class PcmData:
+    """
+    A class representing PCM audio data.
+
+    Attributes:
+        format: The format of the audio data (use AudioFormat.S16 or AudioFormat.F32)
         sample_rate: The sample rate of the audio data.
         samples: The audio samples as a numpy array.
         pts: The presentation timestamp of the audio data.
         dts: The decode timestamp of the audio data.
         time_base: The time base for converting timestamps to seconds.
+        channels: Number of audio channels (1=mono, 2=stereo)
     """
 
-    format: str
-    sample_rate: int
-    samples: NDArray = np.array([], dtype=np.int16)
-    pts: Optional[int] = None  # Presentation timestamp
-    dts: Optional[int] = None  # Decode timestamp
-    time_base: Optional[float] = None  # Time base for converting timestamps to seconds
-    channels: int = 1  # Number of channels (1=mono, 2=stereo)
+    def __init__(
+        self,
+        sample_rate: int,
+        format: AudioFormatType,
+        samples: NDArray = None,
+        pts: Optional[int] = None,
+        dts: Optional[int] = None,
+        time_base: Optional[float] = None,
+        channels: int = 1,
+    ):
+        """
+        Initialize PcmData.
+
+        Args:
+            sample_rate: The sample rate of the audio data
+            format: The format of the audio data (use AudioFormat.S16 or AudioFormat.F32)
+            samples: The audio samples as a numpy array (default: empty array with dtype matching format)
+            pts: The presentation timestamp of the audio data
+            dts: The decode timestamp of the audio data
+            time_base: The time base for converting timestamps to seconds
+            channels: Number of audio channels (1=mono, 2=stereo)
+
+        Raises:
+            TypeError: If samples dtype does not match the declared format
+        """
+        self.format: AudioFormatType = format
+        self.sample_rate: int = sample_rate
+
+        # Determine default dtype based on format when samples is None
+        if samples is None:
+            # Use same pattern as clear() method for consistency
+            fmt = (format or "").lower()
+            if fmt in ("f32", "float32"):
+                dtype = np.float32
+            else:
+                dtype = np.int16
+            samples = np.array([], dtype=dtype)
+
+        # Strict validation: ensure samples dtype matches format
+        if isinstance(samples, np.ndarray):
+            fmt = (format or "").lower()
+            expected_dtype = np.float32 if fmt in ("f32", "float32") else np.int16
+
+            if samples.dtype != expected_dtype:
+                # Provide helpful error message with conversion suggestions
+                actual_dtype_name = (
+                    "float32"
+                    if samples.dtype == np.float32
+                    else "int16"
+                    if samples.dtype == np.int16
+                    else str(samples.dtype)
+                )
+                expected_dtype_name = (
+                    "float32" if expected_dtype == np.float32 else "int16"
+                )
+
+                raise TypeError(
+                    f"Dtype mismatch: format='{format}' requires samples with dtype={expected_dtype_name}, "
+                    f"but got dtype={actual_dtype_name}. "
+                    f"To fix: use .to_float32() for f32 format, or ensure samples match the declared format. "
+                    f"For automatic conversion, use PcmData.from_data() instead."
+                )
+
+        self.samples: NDArray = samples
+        self.pts: Optional[int] = pts
+        self.dts: Optional[int] = dts
+        self.time_base: Optional[float] = time_base
+        self.channels: int = channels
 
     @property
     def stereo(self) -> bool:
@@ -131,18 +253,26 @@ class PcmData(NamedTuple):
         cls,
         audio_bytes: bytes,
         sample_rate: int = 16000,
-        format: str = "s16",
+        format: AudioFormatType = AudioFormat.S16,
         channels: int = 1,
     ) -> "PcmData":
         """Build from raw PCM bytes (interleaved).
 
+        Args:
+            audio_bytes: Raw PCM audio bytes
+            sample_rate: Sample rate in Hz (default: 16000)
+            format: Audio format (default: AudioFormat.S16)
+            channels: Number of channels (default: 1 for mono)
+
         Example:
         >>> import numpy as np
         >>> b = np.array([1, -1, 2, -2], dtype=np.int16).tobytes()
-        >>> pcm = PcmData.from_bytes(b, sample_rate=16000, format="s16", channels=2)
+        >>> pcm = PcmData.from_bytes(b, sample_rate=16000, format=AudioFormat.S16, channels=2)
         >>> pcm.samples.shape[0]  # channels-first
         2
         """
+        # Validate format
+        AudioFormat.validate(format)
         # Determine dtype and bytes per sample
         dtype: Any
         width: int
@@ -200,16 +330,24 @@ class PcmData(NamedTuple):
         cls,
         data: Union[bytes, bytearray, memoryview, NDArray],
         sample_rate: int = 16000,
-        format: str = "s16",
+        format: AudioFormatType = AudioFormat.S16,
         channels: int = 1,
     ) -> "PcmData":
         """Build from bytes or numpy arrays.
 
+        Args:
+            data: Input audio data (bytes or numpy array)
+            sample_rate: Sample rate in Hz (default: 16000)
+            format: Audio format (default: AudioFormat.S16)
+            channels: Number of channels (default: 1 for mono)
+
         Example:
         >>> import numpy as np
-        >>> PcmData.from_data(np.array([1, 2], np.int16), sample_rate=16000, format="s16", channels=1).channels
+        >>> PcmData.from_data(np.array([1, 2], np.int16), sample_rate=16000, format=AudioFormat.S16, channels=1).channels
         1
         """
+        # Validate format
+        AudioFormat.validate(format)
         if isinstance(data, (bytes, bytearray, memoryview)):
             return cls.from_bytes(
                 bytes(data), sample_rate=sample_rate, format=format, channels=channels
@@ -280,10 +418,19 @@ class PcmData(NamedTuple):
             return self
 
         # Prepare ndarray shape for AV input frame.
-        # Use planar input (s16p) with shape (channels, samples).
+        # Use planar format matching the input data type.
         in_layout = "mono" if self.channels == 1 else "stereo"
         cmaj = self.samples
+
+        # Determine the format based on the input dtype
         if isinstance(cmaj, np.ndarray):
+            if cmaj.dtype == np.float32 or (
+                self.format and self.format.lower() in ("f32", "float32")
+            ):
+                input_format = "fltp"  # planar float32
+            else:
+                input_format = "s16p"  # planar int16
+
             if cmaj.ndim == 1:
                 # (samples,) -> (channels, samples)
                 if self.channels > 1:
@@ -308,15 +455,23 @@ class PcmData(NamedTuple):
                         # Likely (samples, channels)
                         cmaj = cmaj.T
             cmaj = np.ascontiguousarray(cmaj)
-        frame = av.AudioFrame.from_ndarray(cmaj, format="s16p", layout=in_layout)
+        else:
+            input_format = "s16p"  # default to s16p for non-ndarray
+
+        frame = av.AudioFrame.from_ndarray(cmaj, format=input_format, layout=in_layout)
         frame.sample_rate = self.sample_rate
 
         # Use provided resampler or create a new one
         if resampler is None:
             # Create new resampler for one-off use
             out_layout = "mono" if target_channels == 1 else "stereo"
+            # Keep the same format as input (convert planar to packed for output)
+            if input_format == "fltp":
+                output_format = "flt"  # packed float32
+            else:
+                output_format = "s16"  # packed int16
             resampler = av.AudioResampler(
-                format="s16", layout=out_layout, rate=target_sample_rate
+                format=output_format, layout=out_layout, rate=target_sample_rate
             )
 
         # Resample the frame
@@ -386,17 +541,35 @@ class PcmData(NamedTuple):
             ):
                 resampled_samples = resampled_samples.flatten()
 
-            # Ensure int16 dtype for s16
-            if (
-                isinstance(resampled_samples, np.ndarray)
-                and resampled_samples.dtype != np.int16
-            ):
-                resampled_samples = resampled_samples.astype(np.int16)
+            # Determine output format based on input format
+            output_pcm_format = (
+                AudioFormat.F32 if input_format == "fltp" else AudioFormat.S16
+            )
+
+            # Ensure correct dtype matches the output format
+            if isinstance(resampled_samples, np.ndarray):
+                if output_pcm_format == "s16" and resampled_samples.dtype != np.int16:
+                    # Convert to int16 for s16 format
+                    if resampled_samples.dtype == np.float32:
+                        # Float32 to int16: clip to [-1.0, 1.0], scale, round, convert
+                        # This prevents overflow and ensures proper scaling
+                        max_int16 = np.iinfo(np.int16).max  # 32767
+                        resampled_samples = np.clip(resampled_samples, -1.0, 1.0)
+                        resampled_samples = np.round(
+                            resampled_samples * max_int16
+                        ).astype(np.int16)
+                    else:
+                        resampled_samples = resampled_samples.astype(np.int16)
+                elif (
+                    output_pcm_format == "f32" and resampled_samples.dtype != np.float32
+                ):
+                    # Ensure float32 for f32 format
+                    resampled_samples = resampled_samples.astype(np.float32)
 
             return PcmData(
-                samples=resampled_samples,
                 sample_rate=target_sample_rate,
-                format="s16",
+                format=output_pcm_format,
+                samples=resampled_samples,
                 pts=self.pts,
                 dts=self.dts,
                 time_base=self.time_base,
@@ -441,11 +614,7 @@ class PcmData(NamedTuple):
         # Fallback
         if isinstance(arr, (bytes, bytearray)):
             return bytes(arr)
-        try:
-            return bytes(arr)
-        except Exception:
-            logger.warning("Cannot convert samples to bytes; returning empty")
-            return b""
+        return bytes(arr)
 
     def to_wav_bytes(self) -> bytes:
         """Return WAV bytes (header + frames).
@@ -466,9 +635,9 @@ class PcmData(NamedTuple):
                         arr = arr.astype(np.float32)
                     arr = (np.clip(arr, -1.0, 1.0) * 32767.0).astype(np.int16)
                 frames = PcmData(
-                    samples=arr,
                     sample_rate=self.sample_rate,
                     format="s16",
+                    samples=arr,
                     pts=self.pts,
                     dts=self.dts,
                     time_base=self.time_base,
@@ -492,12 +661,27 @@ class PcmData(NamedTuple):
     def to_float32(self) -> "PcmData":
         """Convert samples to float32 in [-1, 1].
 
+        If the audio is already in f32 format, returns self without modification.
+
         Example:
         >>> import numpy as np
-        >>> pcm = PcmData(samples=np.array([0, 1], np.int16), sample_rate=16000, format="s16", channels=1)
+        >>> pcm = PcmData(samples=np.array([0, 1], np.int16), sample_rate=16000, format=AudioFormat.S16, channels=1)
         >>> pcm.to_float32().samples.dtype == np.float32
         True
+        >>> # Already f32 - returns self
+        >>> pcm_f32 = PcmData(samples=np.array([0.5], np.float32), sample_rate=16000, format=AudioFormat.F32)
+        >>> pcm_f32.to_float32() is pcm_f32
+        True
         """
+        # If already f32 format, return self without modification
+        if self.format in (AudioFormat.F32, "f32", "float32"):
+            # Additional check: verify the samples are actually float32
+            if (
+                isinstance(self.samples, np.ndarray)
+                and self.samples.dtype == np.float32
+            ):
+                return self
+
         arr = self.samples
 
         # Normalize to a numpy array for conversion
@@ -530,9 +714,9 @@ class PcmData(NamedTuple):
             arr_f32 = arr.astype(np.float32, copy=False)
 
         return PcmData(
-            samples=arr_f32,
             sample_rate=self.sample_rate,
             format="f32",
+            samples=arr_f32,
             pts=self.pts,
             dts=self.dts,
             time_base=self.time_base,
@@ -540,13 +724,16 @@ class PcmData(NamedTuple):
         )
 
     def append(self, other: "PcmData") -> "PcmData":
-        """Append another chunk after adjusting it to match self.
+        """Append another chunk in-place after adjusting it to match self.
+
+        Modifies this PcmData object and returns self for chaining.
 
         Example:
         >>> import numpy as np
-        >>> a = PcmData(samples=np.array([1, 2], np.int16), sample_rate=16000, format="s16", channels=1)
-        >>> b = PcmData(samples=np.array([3, 4], np.int16), sample_rate=16000, format="s16", channels=1)
-        >>> a.append(b).samples.tolist()
+        >>> a = PcmData(sample_rate=16000, format="s16", samples=np.array([1, 2], np.int16), channels=1)
+        >>> b = PcmData(sample_rate=16000, format="s16", samples=np.array([3, 4], np.int16), channels=1)
+        >>> _ = a.append(b)  # modifies a in-place
+        >>> a.samples.tolist()
         [1, 2, 3, 4]
         """
 
@@ -593,9 +780,9 @@ class PcmData(NamedTuple):
                 else:
                     arr = arr.astype(np.int16)
             other_adj = PcmData(
-                samples=arr,
                 sample_rate=other_adj.sample_rate,
                 format="s16",
+                samples=arr,
                 pts=other_adj.pts,
                 dts=other_adj.dts,
                 time_base=other_adj.time_base,
@@ -614,7 +801,7 @@ class PcmData(NamedTuple):
         self_arr = _ensure_ndarray(self)
         other_arr = _ensure_ndarray(other_adj)
 
-        # If either is empty, return the other while preserving self's metadata
+        # If self is empty, replace with other while preserving self's metadata
         if _is_empty(self_arr):
             # Conform shape to target channels semantics and dtype
             if isinstance(other_arr, np.ndarray):
@@ -626,15 +813,8 @@ class PcmData(NamedTuple):
                     else np.int16
                 )
                 other_arr = other_arr.astype(target_dtype, copy=False)
-            return PcmData(
-                samples=other_arr,
-                sample_rate=self.sample_rate,
-                format=self.format,
-                pts=self.pts,
-                dts=self.dts,
-                time_base=self.time_base,
-                channels=self.channels,
-            )
+            self.samples = other_arr
+            return self
         if _is_empty(other_arr):
             return self
 
@@ -659,15 +839,8 @@ class PcmData(NamedTuple):
                 "int16",
             ) and out.dtype != np.int16:
                 out = out.astype(np.int16)
-            return PcmData(
-                samples=out,
-                sample_rate=self.sample_rate,
-                format=self.format,
-                pts=self.pts,
-                dts=self.dts,
-                time_base=self.time_base,
-                channels=self.channels,
-            )
+            self.samples = out
+            return self
         else:
             # Multi-channel: normalize to (channels, samples)
             def _to_cmaj(arr: np.ndarray, channels: int) -> np.ndarray:
@@ -696,15 +869,63 @@ class PcmData(NamedTuple):
             ) and out.dtype != np.int16:
                 out = out.astype(np.int16)
 
-            return PcmData(
-                samples=out,
-                sample_rate=self.sample_rate,
-                format=self.format,
-                pts=self.pts,
-                dts=self.dts,
-                time_base=self.time_base,
-                channels=self.channels,
-            )
+            self.samples = out
+            return self
+
+    def copy(self) -> "PcmData":
+        """Create a deep copy of this PcmData object.
+
+        Returns a new PcmData instance with copied samples and metadata,
+        allowing independent modifications without affecting the original.
+
+        Example:
+        >>> import numpy as np
+        >>> a = PcmData(sample_rate=16000, format="s16", samples=np.array([1, 2], np.int16), channels=1)
+        >>> b = a.copy()
+        >>> _ = b.append(PcmData(sample_rate=16000, format="s16", samples=np.array([3, 4], np.int16), channels=1))
+        >>> a.samples.tolist()  # original unchanged
+        [1, 2]
+        >>> b.samples.tolist()  # copy was modified
+        [1, 2, 3, 4]
+        """
+        return PcmData(
+            sample_rate=self.sample_rate,
+            format=self.format,
+            samples=self.samples.copy()
+            if isinstance(self.samples, np.ndarray)
+            else copy.deepcopy(self.samples),
+            pts=self.pts,
+            dts=self.dts,
+            time_base=self.time_base,
+            channels=self.channels,
+        )
+
+    def clear(self) -> None:
+        """Clear all samples in this PcmData object in-place.
+
+        Similar to list.clear() or dict.clear(), this method removes all samples
+        from the PcmData object while preserving all other metadata (sample_rate,
+        format, channels, timestamps, etc.).
+
+        Returns None to match the behavior of standard Python collection methods.
+
+        Example:
+        >>> import numpy as np
+        >>> a = PcmData(sample_rate=16000, format="s16", samples=np.array([1, 2, 3], np.int16), channels=1)
+        >>> a.clear()
+        >>> len(a.samples)
+        0
+        >>> a.sample_rate
+        16000
+        """
+        # Determine the appropriate dtype based on format
+        fmt = (self.format or "").lower()
+        if fmt in ("f32", "float32"):
+            dtype = np.float32
+        else:
+            dtype = np.int16
+
+        self.samples = np.array([], dtype=dtype)
 
     @classmethod
     def from_response(
@@ -713,14 +934,22 @@ class PcmData(NamedTuple):
         *,
         sample_rate: int = 16000,
         channels: int = 1,
-        format: str = "s16",
+        format: AudioFormatType = AudioFormat.S16,
     ) -> Union["PcmData", Iterator["PcmData"], AsyncIterator["PcmData"]]:
         """Normalize provider response to PcmData or iterators of it.
 
+        Args:
+            response: Audio response (bytes, iterator, or async iterator)
+            sample_rate: Sample rate in Hz (default: 16000)
+            channels: Number of channels (default: 1)
+            format: Audio format (default: AudioFormat.S16)
+
         Example:
-        >>> PcmData.from_response(bytes([0, 0]), sample_rate=16000, format="s16").sample_rate
+        >>> PcmData.from_response(bytes([0, 0]), sample_rate=16000, format=AudioFormat.S16).sample_rate
         16000
         """
+        # Validate format
+        AudioFormat.validate(format)
 
         # bytes-like returns a single PcmData
         if isinstance(response, (bytes, bytearray, memoryview)):
@@ -827,6 +1056,370 @@ class PcmData(NamedTuple):
 
         raise TypeError(
             f"Unsupported response type for PcmData.from_response: {type(response)}"
+        )
+
+    def chunks(
+        self, chunk_size: int, overlap: int = 0, pad_last: bool = False
+    ) -> Iterator["PcmData"]:
+        """
+        Iterate over fixed-size chunks of audio data.
+
+        Args:
+            chunk_size: Number of samples per chunk
+            overlap: Number of samples to overlap between chunks (for windowing)
+            pad_last: If True, pad the last chunk with zeros to match chunk_size
+
+        Yields:
+            PcmData objects with chunk_size samples each
+
+        Example:
+            >>> pcm = PcmData(samples=np.arange(10, dtype=np.int16), sample_rate=16000, format="s16")
+            >>> chunks = list(pcm.chunks(4, overlap=2))
+            >>> len(chunks)  # [0:4], [2:6], [4:8], [6:10], [8:10]
+            5
+        """
+        # Ensure we have a 1D array for simpler chunking
+        if isinstance(self.samples, np.ndarray):
+            if self.samples.ndim == 2 and self.channels == 1:
+                samples = self.samples.flatten()
+            elif self.samples.ndim == 2:
+                # For multi-channel, work with channel-major format
+                samples = self.samples
+            else:
+                samples = self.samples
+        else:
+            # Convert bytes/other to ndarray first
+            temp = PcmData.from_bytes(
+                self.to_bytes(),
+                sample_rate=self.sample_rate,
+                format=self.format,
+                channels=self.channels,
+            )
+            samples = temp.samples
+
+        # Handle overlap
+        step = max(1, chunk_size - overlap)
+
+        if self.channels > 1 and isinstance(samples, np.ndarray) and samples.ndim == 2:
+            # Multi-channel case: chunk along the samples axis
+            num_samples = samples.shape[1]
+            for i in range(0, num_samples, step):
+                end_idx = min(i + chunk_size, num_samples)
+                chunk_samples = samples[:, i:end_idx]
+
+                # Check if we need to pad
+                if chunk_samples.shape[1] < chunk_size:
+                    if pad_last and chunk_samples.shape[1] > 0:
+                        pad_width = chunk_size - chunk_samples.shape[1]
+                        chunk_samples = np.pad(
+                            chunk_samples,
+                            ((0, 0), (0, pad_width)),
+                            mode="constant",
+                            constant_values=0,
+                        )
+                    elif chunk_samples.shape[1] == 0:
+                        break
+                    elif not pad_last:
+                        # Yield incomplete chunk if it has samples
+                        pass
+
+                # Calculate timestamp for this chunk
+                chunk_pts = None
+                if self.pts is not None and self.time_base is not None:
+                    chunk_pts = self.pts + int(i / self.sample_rate / self.time_base)
+
+                yield PcmData(
+                    sample_rate=self.sample_rate,
+                    format=self.format,
+                    samples=chunk_samples,
+                    pts=chunk_pts,
+                    dts=self.dts,
+                    time_base=self.time_base,
+                    channels=self.channels,
+                )
+        else:
+            # Mono or 1D case
+            samples_1d = (
+                samples.flatten() if isinstance(samples, np.ndarray) else samples
+            )
+            total_samples = len(samples_1d)
+
+            for i in range(0, total_samples, step):
+                end_idx = min(i + chunk_size, total_samples)
+                chunk_samples = samples_1d[i:end_idx]
+
+                # Check if we need to pad
+                if len(chunk_samples) < chunk_size:
+                    if pad_last and len(chunk_samples) > 0:
+                        chunk_samples = np.pad(
+                            chunk_samples,
+                            (0, chunk_size - len(chunk_samples)),
+                            mode="constant",
+                            constant_values=0,
+                        )
+                    elif len(chunk_samples) == 0:
+                        break
+                    elif not pad_last:
+                        # Yield incomplete chunk if it has samples
+                        pass
+
+                # Calculate timestamp for this chunk
+                chunk_pts = None
+                if self.pts is not None and self.time_base is not None:
+                    chunk_pts = self.pts + int(i / self.sample_rate / self.time_base)
+
+                yield PcmData(
+                    sample_rate=self.sample_rate,
+                    format=self.format,
+                    samples=chunk_samples,
+                    pts=chunk_pts,
+                    dts=self.dts,
+                    time_base=self.time_base,
+                    channels=1
+                    if isinstance(chunk_samples, np.ndarray) and chunk_samples.ndim == 1
+                    else self.channels,
+                )
+
+    def sliding_window(
+        self, window_size_ms: float, hop_ms: float, pad_last: bool = False
+    ) -> Iterator["PcmData"]:
+        """
+        Generate sliding windows for analysis (useful for feature extraction).
+
+        Args:
+            window_size_ms: Window size in milliseconds
+            hop_ms: Hop size in milliseconds
+            pad_last: If True, pad the last window with zeros
+
+        Yields:
+            PcmData windows of the specified size
+
+        Example:
+            >>> pcm = PcmData(samples=np.arange(800, dtype=np.int16), sample_rate=16000, format="s16")
+            >>> windows = list(pcm.sliding_window(25.0, 10.0))  # 25ms window, 10ms hop
+            >>> len(windows)  # 400 samples per window, 160 sample hop
+            5
+        """
+        window_samples = int(self.sample_rate * window_size_ms / 1000)
+        hop_samples = int(self.sample_rate * hop_ms / 1000)
+        overlap = max(0, window_samples - hop_samples)
+
+        return self.chunks(window_samples, overlap=overlap, pad_last=pad_last)
+
+    def tail(
+        self,
+        duration_s: float,
+        pad: bool = False,
+        pad_at: str = "end",
+    ) -> "PcmData":
+        """
+        Keep only the last N seconds of audio.
+
+        Args:
+            duration_s: Duration in seconds
+            pad: If True, pad with zeros when audio is shorter than requested
+            pad_at: Where to add padding ('start' or 'end'), default is 'end'
+
+        Returns:
+            PcmData with the last N seconds
+
+        Example:
+            >>> import numpy as np
+            >>> # 10 seconds of audio at 16kHz = 160000 samples
+            >>> pcm = PcmData(samples=np.arange(160000, dtype=np.int16), sample_rate=16000, format=AudioFormat.S16)
+            >>> # Get last 5 seconds
+            >>> tail = pcm.tail(duration_s=5.0)
+            >>> tail.duration
+            5.0
+            >>> # Get last 8 seconds, pad at start if needed
+            >>> short_pcm = PcmData(samples=np.arange(16000, dtype=np.int16), sample_rate=16000, format=AudioFormat.S16)
+            >>> padded = short_pcm.tail(duration_s=8.0, pad=True, pad_at='start')
+            >>> padded.duration
+            8.0
+        """
+        target_samples = int(self.sample_rate * duration_s)
+
+        # Validate pad_at parameter
+        if pad_at not in ("start", "end"):
+            raise ValueError(f"pad_at must be 'start' or 'end', got {pad_at!r}")
+
+        # Get samples array
+        samples = self.samples
+        if not isinstance(samples, np.ndarray):
+            # Convert to ndarray first
+            samples = PcmData.from_bytes(
+                self.to_bytes(),
+                sample_rate=self.sample_rate,
+                format=self.format,
+                channels=self.channels,
+            ).samples
+
+        # Handle multi-channel audio
+        if samples.ndim == 2 and self.channels > 1:
+            # Shape is (channels, samples)
+            num_samples = samples.shape[1]
+            if num_samples >= target_samples:
+                # Truncate: keep last target_samples
+                new_samples = samples[:, -target_samples:]
+            elif pad:
+                # Pad to reach target_samples
+                pad_width = target_samples - num_samples
+                if pad_at == "start":
+                    new_samples = np.pad(
+                        samples,
+                        ((0, 0), (pad_width, 0)),
+                        mode="constant",
+                        constant_values=0,
+                    )
+                else:  # pad_at == 'end'
+                    new_samples = np.pad(
+                        samples,
+                        ((0, 0), (0, pad_width)),
+                        mode="constant",
+                        constant_values=0,
+                    )
+            else:
+                # Return as-is (shorter than requested, no padding)
+                new_samples = samples
+        else:
+            # Mono or 1D case
+            samples_1d = samples.flatten() if samples.ndim > 1 else samples
+            num_samples = len(samples_1d)
+
+            if num_samples >= target_samples:
+                # Truncate: keep last target_samples
+                new_samples = samples_1d[-target_samples:]
+            elif pad:
+                # Pad to reach target_samples
+                pad_width = target_samples - num_samples
+                if pad_at == "start":
+                    new_samples = np.pad(
+                        samples_1d, (pad_width, 0), mode="constant", constant_values=0
+                    )
+                else:  # pad_at == 'end'
+                    new_samples = np.pad(
+                        samples_1d, (0, pad_width), mode="constant", constant_values=0
+                    )
+            else:
+                # Return as-is (shorter than requested, no padding)
+                new_samples = samples_1d
+
+        return PcmData(
+            sample_rate=self.sample_rate,
+            format=self.format,
+            samples=new_samples,
+            pts=self.pts,
+            dts=self.dts,
+            time_base=self.time_base,
+            channels=self.channels,
+        )
+
+    def head(
+        self,
+        duration_s: float,
+        pad: bool = False,
+        pad_at: str = "end",
+    ) -> "PcmData":
+        """
+        Keep only the first N seconds of audio.
+
+        Args:
+            duration_s: Duration in seconds
+            pad: If True, pad with zeros when audio is shorter than requested
+            pad_at: Where to add padding ('start' or 'end'), default is 'end'
+
+        Returns:
+            PcmData with the first N seconds
+
+        Example:
+            >>> import numpy as np
+            >>> # 10 seconds of audio at 16kHz = 160000 samples
+            >>> pcm = PcmData(samples=np.arange(160000, dtype=np.int16), sample_rate=16000, format=AudioFormat.S16)
+            >>> # Get first 3 seconds
+            >>> head = pcm.head(duration_s=3.0)
+            >>> head.duration
+            3.0
+            >>> # Get first 8 seconds, pad at end if needed
+            >>> short_pcm = PcmData(samples=np.arange(16000, dtype=np.int16), sample_rate=16000, format=AudioFormat.S16)
+            >>> padded = short_pcm.head(duration_s=8.0, pad=True, pad_at='end')
+            >>> padded.duration
+            8.0
+        """
+        target_samples = int(self.sample_rate * duration_s)
+
+        # Validate pad_at parameter
+        if pad_at not in ("start", "end"):
+            raise ValueError(f"pad_at must be 'start' or 'end', got {pad_at!r}")
+
+        # Get samples array
+        samples = self.samples
+        if not isinstance(samples, np.ndarray):
+            # Convert to ndarray first
+            samples = PcmData.from_bytes(
+                self.to_bytes(),
+                sample_rate=self.sample_rate,
+                format=self.format,
+                channels=self.channels,
+            ).samples
+
+        # Handle multi-channel audio
+        if samples.ndim == 2 and self.channels > 1:
+            # Shape is (channels, samples)
+            num_samples = samples.shape[1]
+            if num_samples >= target_samples:
+                # Truncate: keep first target_samples
+                new_samples = samples[:, :target_samples]
+            elif pad:
+                # Pad to reach target_samples
+                pad_width = target_samples - num_samples
+                if pad_at == "start":
+                    new_samples = np.pad(
+                        samples,
+                        ((0, 0), (pad_width, 0)),
+                        mode="constant",
+                        constant_values=0,
+                    )
+                else:  # pad_at == 'end'
+                    new_samples = np.pad(
+                        samples,
+                        ((0, 0), (0, pad_width)),
+                        mode="constant",
+                        constant_values=0,
+                    )
+            else:
+                # Return as-is (shorter than requested, no padding)
+                new_samples = samples
+        else:
+            # Mono or 1D case
+            samples_1d = samples.flatten() if samples.ndim > 1 else samples
+            num_samples = len(samples_1d)
+
+            if num_samples >= target_samples:
+                # Truncate: keep first target_samples
+                new_samples = samples_1d[:target_samples]
+            elif pad:
+                # Pad to reach target_samples
+                pad_width = target_samples - num_samples
+                if pad_at == "start":
+                    new_samples = np.pad(
+                        samples_1d, (pad_width, 0), mode="constant", constant_values=0
+                    )
+                else:  # pad_at == 'end'
+                    new_samples = np.pad(
+                        samples_1d, (0, pad_width), mode="constant", constant_values=0
+                    )
+            else:
+                # Return as-is (shorter than requested, no padding)
+                new_samples = samples_1d
+
+        return PcmData(
+            sample_rate=self.sample_rate,
+            format=self.format,
+            samples=new_samples,
+            pts=self.pts,
+            dts=self.dts,
+            time_base=self.time_base,
+            channels=self.channels,
         )
 
 
@@ -1135,6 +1728,45 @@ async def detect_video_properties(
                 logger.error(f"Error cleaning up buffered track: {e}")
 
 
+def _normalize_audio_format(
+    pcm: PcmData, target_sample_rate: int, target_format: AudioFormatType
+) -> PcmData:
+    """
+    Helper function to normalize audio to target sample rate and format.
+
+    Args:
+        pcm: Input audio data
+        target_sample_rate: Target sample rate
+        target_format: Target format (AudioFormat.S16 or AudioFormat.F32)
+
+    Returns:
+        PcmData with target sample rate and format
+    """
+    # Validate format
+    AudioFormat.validate(target_format)
+    # Resample if needed
+    if pcm.sample_rate != target_sample_rate:
+        pcm = pcm.resample(target_sample_rate)
+
+    # Convert format if needed
+    if target_format == "f32" and pcm.format != "f32":
+        pcm = pcm.to_float32()
+    elif target_format == "s16" and pcm.format != "s16":
+        # Convert to s16 if needed
+        if pcm.format == "f32":
+            samples = pcm.samples
+            if isinstance(samples, np.ndarray):
+                samples = (np.clip(samples, -1.0, 1.0) * 32767.0).astype(np.int16)
+            pcm = PcmData(
+                sample_rate=pcm.sample_rate,
+                format="s16",
+                samples=samples,
+                channels=pcm.channels,
+            )
+
+    return pcm
+
+
 class AudioTrackHandler:
     """
     A helper to receive raw PCM data from an aiortc AudioStreamTrack
@@ -1240,8 +1872,8 @@ class AudioTrackHandler:
             self._on_audio_frame(
                 PcmData(
                     sample_rate=48_000,
-                    samples=pcm_ndarray,
                     format="s16",
+                    samples=pcm_ndarray,
                     pts=pts,
                     dts=dts,
                     time_base=time_base,
