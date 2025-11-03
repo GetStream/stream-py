@@ -398,13 +398,119 @@ class PcmData:
         # Unsupported type
         raise TypeError(f"Unsupported data type for PcmData: {type(data)}")
 
+    @classmethod
+    def from_av_frame(cls, frame: "av.AudioFrame") -> "PcmData":
+        """
+        Create PcmData from a PyAV AudioFrame.
+
+        This is useful for converting audio frames from aiortc/PyAV directly
+        to PcmData objects for processing.
+
+        Args:
+            frame: A PyAV AudioFrame object
+
+        Returns:
+            PcmData object with audio from the frame
+
+        Example:
+            >>> import av
+            >>> import numpy as np
+            >>> samples = np.array([100, 200, 300], dtype=np.int16)
+            >>> frame = av.AudioFrame.from_ndarray(samples.reshape(1, -1), format='s16p', layout='mono')
+            >>> frame.sample_rate = 16000
+            >>> pcm = PcmData.from_av_frame(frame)
+            >>> pcm.sample_rate
+            16000
+        """
+        # Extract properties from the frame
+        sample_rate = frame.sample_rate
+        channels = len(frame.layout.channels)
+
+        # Convert frame format to our format string
+        # PyAV uses formats like 's16p', 's16', 'fltp', 'flt'
+        frame_format = frame.format.name
+        if frame_format in ("s16", "s16p"):
+            pcm_format = AudioFormat.S16
+            dtype = np.int16
+        elif frame_format in ("flt", "fltp"):
+            pcm_format = AudioFormat.F32
+            dtype = np.float32
+        else:
+            pcm_format = AudioFormat.S16
+            dtype = np.int16
+
+        # Handle empty frames
+        if frame.samples == 0:
+            if channels == 1:
+                samples_array = np.array([], dtype=dtype)
+            else:
+                samples_array = np.zeros((channels, 0), dtype=dtype)
+        else:
+            # Convert frame to ndarray
+            # PyAV's to_ndarray() handles both planar and packed formats
+            samples_array = frame.to_ndarray()
+
+            # Check if this is a packed format (interleaved data)
+            is_packed = frame_format in ("s16", "flt")  # Non-planar formats
+
+            # Normalize the array shape to our standard:
+            # - Mono: 1D array (samples,)
+            # - Stereo: 2D array (channels, samples)
+            if is_packed and channels > 1:
+                # Packed stereo format: PyAV returns (1, total_samples) where data is interleaved
+                # We need to deinterleave: [L0,R0,L1,R1,...] -> [[L0,L1,...], [R0,R1,...]]
+                flat = samples_array.flatten()
+                num_frames = len(flat) // channels
+                # Deinterleave: reshape to (num_frames, channels) then transpose
+                samples_array = flat.reshape(num_frames, channels).T
+            elif samples_array.ndim == 1:
+                # Already 1D, keep as-is for mono
+                if channels > 1:
+                    # Should not happen, but handle it
+                    samples_array = samples_array.reshape(channels, -1)
+            elif samples_array.ndim == 2:
+                # Planar format: (channels, samples) - this is what we want
+                if samples_array.shape[0] == channels:
+                    # Already (channels, samples)
+                    if channels == 1:
+                        # Flatten mono to 1D
+                        samples_array = samples_array.flatten()
+                else:
+                    # Might be (samples, channels) - transpose
+                    samples_array = samples_array.T
+                    if channels == 1:
+                        samples_array = samples_array.flatten()
+
+        # Extract timestamps if available
+        pts = frame.pts if hasattr(frame, "pts") else None
+        dts = frame.dts if hasattr(frame, "dts") else None
+
+        # Convert time_base from Fraction to float if present
+        time_base = None
+        if hasattr(frame, "time_base") and frame.time_base is not None:
+            from fractions import Fraction
+
+            if isinstance(frame.time_base, Fraction):
+                time_base = float(frame.time_base)
+            else:
+                time_base = frame.time_base
+
+        return cls(
+            samples=samples_array,
+            sample_rate=sample_rate,
+            format=pcm_format,
+            channels=channels,
+            pts=pts,
+            dts=dts,
+            time_base=time_base,
+        )
+
     def resample(
         self,
         target_sample_rate: int,
         target_channels: Optional[int] = None,
-        resampler: Optional[Any] = None,
     ) -> "PcmData":
-        """Resample to target sample rate/channels.
+        """Resample to target sample rate/channels
 
         Example:
         >>> import numpy as np
@@ -417,167 +523,11 @@ class PcmData:
         if self.sample_rate == target_sample_rate and target_channels == self.channels:
             return self
 
-        # Prepare ndarray shape for AV input frame.
-        # Use planar format matching the input data type.
-        in_layout = "mono" if self.channels == 1 else "stereo"
-        cmaj = self.samples
-
-        # Determine the format based on the input dtype
-        if isinstance(cmaj, np.ndarray):
-            if cmaj.dtype == np.float32 or (
-                self.format and self.format.lower() in ("f32", "float32")
-            ):
-                input_format = "fltp"  # planar float32
-            else:
-                input_format = "s16p"  # planar int16
-
-            if cmaj.ndim == 1:
-                # (samples,) -> (channels, samples)
-                if self.channels > 1:
-                    cmaj = np.tile(cmaj, (self.channels, 1))
-                else:
-                    cmaj = cmaj.reshape(1, -1)
-            elif cmaj.ndim == 2:
-                # Normalize to (channels, samples)
-                ch = self.channels if self.channels else 1
-                if cmaj.shape[0] == ch:
-                    # Already (channels, samples)
-                    pass
-                elif cmaj.shape[1] == ch:
-                    # (samples, channels) -> transpose
-                    cmaj = cmaj.T
-                else:
-                    # Ambiguous - assume larger dim is samples
-                    if cmaj.shape[1] > cmaj.shape[0]:
-                        # Likely (channels, samples)
-                        pass
-                    else:
-                        # Likely (samples, channels)
-                        cmaj = cmaj.T
-            cmaj = np.ascontiguousarray(cmaj)
-        else:
-            input_format = "s16p"  # default to s16p for non-ndarray
-
-        frame = av.AudioFrame.from_ndarray(cmaj, format=input_format, layout=in_layout)
-        frame.sample_rate = self.sample_rate
-
-        # Use provided resampler or create a new one
-        if resampler is None:
-            # Create new resampler for one-off use
-            out_layout = "mono" if target_channels == 1 else "stereo"
-            # Keep the same format as input (convert planar to packed for output)
-            if input_format == "fltp":
-                output_format = "flt"  # packed float32
-            else:
-                output_format = "s16"  # packed int16
-            resampler = av.AudioResampler(
-                format=output_format, layout=out_layout, rate=target_sample_rate
-            )
-
-        # Resample the frame
-        resampled_frames = resampler.resample(frame)
-        if resampled_frames:
-            resampled_frame = resampled_frames[0]
-            # PyAV's to_ndarray() for packed format returns flattened interleaved data
-            # For stereo s16 (packed), it returns shape (1, num_values) where num_values = samples * channels
-            raw_array = resampled_frame.to_ndarray()
-            num_frames = resampled_frame.samples  # Actual number of sample frames
-
-            # Normalize output to (channels, samples) format
-            ch = int(target_channels)
-
-            # Handle PyAV's packed format quirk: returns (1, num_values) for stereo
-            if raw_array.ndim == 2 and raw_array.shape[0] == 1 and ch > 1:
-                # Flatten and deinterleave packed stereo data
-                # Shape (1, 32000) -> (32000,) -> deinterleave to (2, 16000)
-                flat = raw_array.reshape(-1)
-                if len(flat) == num_frames * ch:
-                    # Deinterleave: [L0,R0,L1,R1,...] -> [[L0,L1,...], [R0,R1,...]]
-                    resampled_samples = flat.reshape(-1, ch).T
-                else:
-                    logger.warning(
-                        "Unexpected array size %d for %d frames x %d channels",
-                        len(flat),
-                        num_frames,
-                        ch,
-                    )
-                    resampled_samples = flat.reshape(ch, -1)
-            elif raw_array.ndim == 2:
-                # Standard case: (samples, channels) or already (channels, samples)
-                if raw_array.shape[1] == ch:
-                    # (samples, channels) -> transpose to (channels, samples)
-                    resampled_samples = raw_array.T
-                elif raw_array.shape[0] == ch:
-                    # Already (channels, samples)
-                    resampled_samples = raw_array
-                else:
-                    # Ambiguous - assume time-major
-                    resampled_samples = raw_array.T
-            elif raw_array.ndim == 1:
-                # 1D output (mono)
-                if ch == 1:
-                    # Keep as 1D for mono
-                    resampled_samples = raw_array
-                elif ch > 1:
-                    # Shouldn't happen if we requested stereo, but handle it
-                    logger.warning(
-                        "Got 1D array but requested %d channels, duplicating", ch
-                    )
-                    resampled_samples = np.tile(raw_array, (ch, 1))
-                else:
-                    resampled_samples = raw_array
-            else:
-                # Unexpected dimensionality
-                logger.warning(
-                    "Unexpected ndim %d from PyAV, reshaping", raw_array.ndim
-                )
-                resampled_samples = raw_array.reshape(ch, -1)
-
-            # Flatten mono arrays to 1D for consistency
-            if (
-                ch == 1
-                and isinstance(resampled_samples, np.ndarray)
-                and resampled_samples.ndim > 1
-            ):
-                resampled_samples = resampled_samples.flatten()
-
-            # Determine output format based on input format
-            output_pcm_format = (
-                AudioFormat.F32 if input_format == "fltp" else AudioFormat.S16
-            )
-
-            # Ensure correct dtype matches the output format
-            if isinstance(resampled_samples, np.ndarray):
-                if output_pcm_format == "s16" and resampled_samples.dtype != np.int16:
-                    # Convert to int16 for s16 format
-                    if resampled_samples.dtype == np.float32:
-                        # Float32 to int16: clip to [-1.0, 1.0], scale, round, convert
-                        # This prevents overflow and ensures proper scaling
-                        max_int16 = np.iinfo(np.int16).max  # 32767
-                        resampled_samples = np.clip(resampled_samples, -1.0, 1.0)
-                        resampled_samples = np.round(
-                            resampled_samples * max_int16
-                        ).astype(np.int16)
-                    else:
-                        resampled_samples = resampled_samples.astype(np.int16)
-                elif (
-                    output_pcm_format == "f32" and resampled_samples.dtype != np.float32
-                ):
-                    # Ensure float32 for f32 format
-                    resampled_samples = resampled_samples.astype(np.float32)
-
-            return PcmData(
-                sample_rate=target_sample_rate,
-                format=output_pcm_format,
-                samples=resampled_samples,
-                pts=self.pts,
-                dts=self.dts,
-                time_base=self.time_base,
-                channels=target_channels,
-            )
-        else:
-            # If resampling failed, return original data
-            return self
+        # Create a resampler with the target configuration
+        resampler = Resampler(
+            format=self.format, sample_rate=target_sample_rate, channels=target_channels
+        )
+        return resampler.resample(self)
 
     def to_bytes(self) -> bytes:
         """Return interleaved PCM bytes.
@@ -625,30 +575,9 @@ class PcmData:
         >>> with open("out.wav", "wb") as f:  # write to disk
         ...     _ = f.write(pcm.to_wav_bytes())
         """
-        # Ensure s16 frames
-        if self.format != "s16":
-            arr = self.samples
-            if isinstance(arr, np.ndarray):
-                if arr.dtype != np.int16:
-                    # Convert floats to int16 range
-                    if arr.dtype != np.float32:
-                        arr = arr.astype(np.float32)
-                    arr = (np.clip(arr, -1.0, 1.0) * 32767.0).astype(np.int16)
-                frames = PcmData(
-                    sample_rate=self.sample_rate,
-                    format="s16",
-                    samples=arr,
-                    pts=self.pts,
-                    dts=self.dts,
-                    time_base=self.time_base,
-                    channels=self.channels,
-                ).to_bytes()
-            else:
-                frames = self.to_bytes()
-            width = 2
-        else:
-            frames = self.to_bytes()
-            width = 2
+        pcm_s16 = self.to_int16()
+        frames = pcm_s16.to_bytes()
+        width = 2
 
         buf = io.BytesIO()
         with wave.open(buf, "wb") as wf:
@@ -723,6 +652,69 @@ class PcmData:
             channels=self.channels,
         )
 
+    def to_int16(self) -> "PcmData":
+        """Convert samples to int16 PCM format.
+
+        If the audio is already in s16 format, returns self without modification.
+
+        Example:
+        >>> import numpy as np
+        >>> pcm = PcmData(samples=np.array([0.5, -0.5], np.float32), sample_rate=16000, format=AudioFormat.F32, channels=1)
+        >>> pcm.to_int16().samples.dtype == np.int16
+        True
+        >>> # Already s16 - returns self
+        >>> pcm_s16 = PcmData(samples=np.array([100], np.int16), sample_rate=16000, format=AudioFormat.S16)
+        >>> pcm_s16.to_int16() is pcm_s16
+        True
+        """
+        # If already s16 format, return self without modification
+        if self.format in (AudioFormat.S16, "s16", "int16"):
+            # Additional check: verify the samples are actually int16
+            if isinstance(self.samples, np.ndarray) and self.samples.dtype == np.int16:
+                return self
+
+        arr = self.samples
+
+        # Normalize to a numpy array for conversion
+        if not isinstance(arr, np.ndarray):
+            try:
+                # Round-trip through bytes to reconstruct canonical ndarray shape
+                arr = PcmData.from_bytes(
+                    self.to_bytes(),
+                    sample_rate=self.sample_rate,
+                    format=self.format,
+                    channels=self.channels,
+                ).samples
+            except Exception:
+                # Fallback to from_data for robustness
+                arr = PcmData.from_data(
+                    self.samples,
+                    sample_rate=self.sample_rate,
+                    format=self.format,
+                    channels=self.channels,
+                ).samples
+
+        # Convert to int16 and scale if needed
+        fmt = (self.format or "").lower()
+        if fmt in ("f32", "float32") or (
+            isinstance(arr, np.ndarray) and arr.dtype == np.float32
+        ):
+            # Convert float32 in [-1, 1] to int16
+            arr_s16 = (np.clip(arr, -1.0, 1.0) * 32767.0).astype(np.int16)
+        else:
+            # Ensure dtype int16
+            arr_s16 = arr.astype(np.int16, copy=False)
+
+        return PcmData(
+            sample_rate=self.sample_rate,
+            format="s16",
+            samples=arr_s16,
+            pts=self.pts,
+            dts=self.dts,
+            time_base=self.time_base,
+            channels=self.channels,
+        )
+
     def append(self, other: "PcmData") -> "PcmData":
         """Append another chunk in-place after adjusting it to match self.
 
@@ -770,24 +762,7 @@ class PcmData:
         if fmt in ("f32", "float32"):
             other_adj = other_adj.to_float32()
         elif fmt in ("s16", "int16"):
-            # Ensure int16 dtype and mark as s16
-            arr = _ensure_ndarray(other_adj)
-            if arr.dtype != np.int16:
-                if other_adj.format == "f32":
-                    arr = (np.clip(arr.astype(np.float32), -1.0, 1.0) * 32767.0).astype(
-                        np.int16
-                    )
-                else:
-                    arr = arr.astype(np.int16)
-            other_adj = PcmData(
-                sample_rate=other_adj.sample_rate,
-                format="s16",
-                samples=arr,
-                pts=other_adj.pts,
-                dts=other_adj.dts,
-                time_base=other_adj.time_base,
-                channels=other_adj.channels,
-            )
+            other_adj = other_adj.to_int16()
         else:
             # For unknown formats, fallback to bytes round-trip in self's format
             other_adj = PcmData.from_bytes(
@@ -1423,6 +1398,197 @@ class PcmData:
         )
 
 
+class Resampler:
+    """
+    Stateless audio resampler for converting between sample rates, formats, and channels.
+
+    This resampler is designed for processing audio chunks independently without
+    maintaining state between calls, making it ideal for real-time streaming where
+    20ms audio chunks need to be processed without clicking artifacts.
+
+    Uses linear interpolation for sample rate conversion, which produces accurate
+    results for common conversions (e.g., 16kHz -> 48kHz) without the complexity
+    of stateful resamplers.
+
+    Example:
+        >>> resampler = Resampler(format="s16", sample_rate=48000, channels=1)
+        >>> # Process 20ms chunks at 16kHz (320 samples each)
+        >>> pcm_16k = PcmData(samples=samples, sample_rate=16000, format="s16", channels=1)
+        >>> pcm_48k = resampler.resample(pcm_16k)  # Returns 960 samples at 48kHz
+    """
+
+    def __init__(self, format: str, sample_rate: int, channels: int):
+        """
+        Initialize a resampler with target audio parameters.
+
+        Args:
+            format: Target format ("s16" or "f32")
+            sample_rate: Target sample rate (e.g., 48000, 16000)
+            channels: Target number of channels (1 for mono, 2 for stereo)
+        """
+        self.format = AudioFormat.validate(format)
+        self.sample_rate = sample_rate
+        self.channels = channels
+
+    def resample(self, pcm: PcmData) -> PcmData:
+        """
+        Resample PCM data to match this resampler's configuration.
+
+        This method:
+        1. Adjusts sample rate using linear interpolation if needed
+        2. Adjusts number of channels (mono <-> stereo) if needed
+        3. Adjusts format (s16 <-> f32) if needed
+        4. Preserves timestamps (pts, dts, time_base)
+
+        Args:
+            pcm: Input PCM data to resample
+
+        Returns:
+            New PcmData object with resampled audio
+        """
+        samples = pcm.samples
+        current_rate = pcm.sample_rate
+        current_channels = pcm.channels
+        current_format = pcm.format
+
+        # Step 1: Adjust sample rate if needed
+        if current_rate != self.sample_rate:
+            if current_channels == 1:
+                samples = self._resample_1d(samples, current_rate, self.sample_rate)
+            else:
+                # Resample each channel independently
+                resampled_channels = []
+                for ch in range(current_channels):
+                    resampled_ch = self._resample_1d(
+                        samples[ch], current_rate, self.sample_rate
+                    )
+                    resampled_channels.append(resampled_ch)
+                samples = np.array(resampled_channels)
+            current_rate = self.sample_rate
+
+        # Step 2: Adjust channels if needed
+        if current_channels != self.channels:
+            samples = self._adjust_channels(samples, current_channels, self.channels)
+            current_channels = self.channels
+
+        # Step 3: Adjust format if needed
+        if current_format != self.format:
+            samples = self._adjust_format(samples, current_format, self.format)
+            current_format = self.format
+
+        # Create new PcmData with resampled audio, preserving timestamps
+        return PcmData(
+            samples=samples,
+            sample_rate=self.sample_rate,
+            format=self.format,
+            channels=self.channels,
+            pts=pcm.pts,
+            dts=pcm.dts,
+            time_base=pcm.time_base,
+        )
+
+    def _resample_1d(
+        self, samples: np.ndarray, from_rate: int, to_rate: int
+    ) -> np.ndarray:
+        """
+        Resample a 1D array using linear interpolation.
+
+        Args:
+            samples: 1D input samples
+            from_rate: Input sample rate
+            to_rate: Output sample rate
+
+        Returns:
+            Resampled 1D array
+        """
+        if from_rate == to_rate:
+            return samples
+
+        # Calculate output length
+        num_samples = len(samples)
+        duration = num_samples / from_rate
+        out_length = int(np.round(duration * to_rate))
+
+        if out_length == 0:
+            return np.array([], dtype=samples.dtype)
+
+        # Create interpolation indices
+        # Map output sample positions back to input sample positions
+        out_indices = np.arange(out_length)
+        in_indices = out_indices * (num_samples / out_length)
+
+        # Linear interpolation
+        resampled = np.interp(in_indices, np.arange(num_samples), samples)
+
+        return resampled.astype(samples.dtype)
+
+    def _adjust_channels(
+        self, samples: np.ndarray, from_channels: int, to_channels: int
+    ) -> np.ndarray:
+        """
+        Adjust number of channels (mono <-> stereo conversion).
+
+        Args:
+            samples: Input samples
+            from_channels: Input channel count
+            to_channels: Output channel count
+
+        Returns:
+            Samples with adjusted channel count
+        """
+        if from_channels == to_channels:
+            return samples
+
+        if from_channels == 1 and to_channels == 2:
+            # Mono to stereo: duplicate the mono channel
+            return np.array([samples, samples])
+        elif from_channels == 2 and to_channels == 1:
+            # Stereo to mono: average the two channels
+            return np.mean(samples, axis=0).astype(samples.dtype)
+        else:
+            raise ValueError(
+                f"Unsupported channel conversion: {from_channels} -> {to_channels}"
+            )
+
+    def _adjust_format(
+        self, samples: np.ndarray, from_format: str, to_format: str
+    ) -> np.ndarray:
+        """
+        Convert between s16 and f32 formats.
+
+        Args:
+            samples: Input samples
+            from_format: Input format ("s16" or "f32")
+            to_format: Output format ("s16" or "f32")
+
+        Returns:
+            Samples in the target format
+        """
+        if from_format == to_format:
+            return samples
+
+        if from_format == "s16" and to_format == "f32":
+            # Convert int16 to float32 in range [-1, 1]
+            # Clip values before conversion to prevent overflow
+            clipped = np.clip(samples, -32768, 32767)
+            return (clipped / 32768.0).astype(np.float32)
+        elif from_format == "f32" and to_format == "s16":
+            # Convert float32 to int16
+            # Clip to [-1, 1] range first
+            clipped = np.clip(samples, -1.0, 1.0)
+            return (clipped * 32767.0).astype(np.int16)
+        else:
+            raise ValueError(
+                f"Unsupported format conversion: {from_format} -> {to_format}"
+            )
+
+    def __repr__(self) -> str:
+        return (
+            f"Resampler(format={self.format!r}, "
+            f"sample_rate={self.sample_rate}, channels={self.channels})"
+        )
+
+
 def patch_sdp_offer(sdp: str) -> str:
     """
     Patches an SDP offer to ensure consistent ICE and DTLS parameters across all media sections.
@@ -1752,17 +1918,7 @@ def _normalize_audio_format(
     if target_format == "f32" and pcm.format != "f32":
         pcm = pcm.to_float32()
     elif target_format == "s16" and pcm.format != "s16":
-        # Convert to s16 if needed
-        if pcm.format == "f32":
-            samples = pcm.samples
-            if isinstance(samples, np.ndarray):
-                samples = (np.clip(samples, -1.0, 1.0) * 32767.0).astype(np.int16)
-            pcm = PcmData(
-                sample_rate=pcm.sample_rate,
-                format="s16",
-                samples=samples,
-                channels=pcm.channels,
-            )
+        pcm = pcm.to_int16()
 
     return pcm
 
