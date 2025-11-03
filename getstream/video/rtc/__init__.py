@@ -17,7 +17,6 @@ from getstream.video.rtc.models import (
 from getstream.video.rtc.connection_utils import join_call_coordinator_request
 from getstream.video.rtc.connection_manager import ConnectionManager
 from getstream.video.rtc.audio_track import AudioStreamTrack
-from getstream.video.rtc.audio_track_v2 import AudioStreamTrackV2
 from getstream.video.rtc.track_util import PcmData, Resampler, AudioFormat
 
 logger = logging.getLogger(__name__)
@@ -87,6 +86,5 @@ __all__ = [
     "PcmData",
     "Resampler",
     "AudioFormat",
-    "AudioStreamTrackV2",
     "AudioStreamTrack",
 ]

@@ -7,85 +7,115 @@ from av import AudioFrame
 from av.frame import Frame
 import fractions
 
+from getstream.video.rtc.track_util import PcmData
+
 logger = logging.getLogger(__name__)
 
 
 class AudioStreamTrack(aiortc.mediastreams.MediaStreamTrack):
+    """
+    Audio stream track that accepts PcmData objects directly from a queue.
+
+    Works with PcmData objects instead of raw bytes, avoiding format conversion issues.
+
+    Usage:
+        track = AudioStreamTrack(sample_rate=48000, channels=2)
+
+        # Write PcmData objects (any format, any sample rate, any channels)
+        await track.write(pcm_data)
+
+        # The track will automatically resample/convert to the configured format
+    """
+
     kind = "audio"
 
     def __init__(
-        self, framerate=8000, stereo=False, format="s16", max_queue_size=10000
+        self,
+        sample_rate: int = 48000,
+        channels: int = 1,
+        format: str = "s16",
+        max_queue_size: int = 100,
     ):
         """
-        Initialize an AudioStreamTrack that reads data from a queue.
+        Initialize an AudioStreamTrack that accepts PcmData objects.
 
         Args:
-            framerate: Sample rate in Hz (default: 8000)
-            stereo: Whether to use stereo output (default: False)
-            format: Audio format (default: "s16")
-            max_queue_size: Maximum number of frames to keep in queue (default: 100)
+            sample_rate: Target sample rate in Hz (default: 48000)
+            channels: Number of channels - 1=mono, 2=stereo (default: 1)
+            format: Audio format - "s16" or "f32" (default: "s16")
+            max_queue_size: Maximum number of PcmData objects in queue (default: 100)
         """
         super().__init__()
-        self.framerate = framerate
-        self.stereo = stereo
+        self.sample_rate = sample_rate
+        self.channels = channels
         self.format = format
-        self.layout = "stereo" if stereo else "mono"
         self.max_queue_size = max_queue_size
 
         logger.debug(
             "Initialized AudioStreamTrack",
             extra={
-                "framerate": framerate,
-                "stereo": stereo,
+                "sample_rate": sample_rate,
+                "channels": channels,
                 "format": format,
                 "max_queue_size": max_queue_size,
             },
         )
 
-        # Create async queue for audio data
+        # Create async queue for PcmData objects
         self._queue = asyncio.Queue()
         self._start = None
         self._timestamp = None
 
-        # For multiple-chunk test
-        self._pending_data = bytearray()
+        # Buffer for chunks smaller than 20ms
+        self._buffer = None
 
-    async def write(self, data):
+    async def write(self, pcm: PcmData):
         """
-        Add audio data to the queue.
+        Add PcmData to the queue.
+
+        The PcmData will be automatically resampled/converted to match
+        the track's configured sample_rate, channels, and format.
 
         Args:
-            data: Audio data bytes to be played
+            pcm: PcmData object with audio data
         """
         # Check if queue is getting too large and trim if necessary
         if self._queue.qsize() >= self.max_queue_size:
-            # Remove oldest items to maintain max size
-            dropped_frames = 0
+            dropped_items = 0
             while self._queue.qsize() >= self.max_queue_size:
                 try:
                     self._queue.get_nowait()
                     self._queue.task_done()
-                    dropped_frames += 1
+                    dropped_items += 1
                 except asyncio.QueueEmpty:
                     break
 
             logger.warning(
-                "Audio queue overflow, dropped frames",
-                extra={"dropped_frames": dropped_frames},
+                "Audio queue overflow, dropped items",
+                extra={
+                    "dropped_items": dropped_items,
+                    "queue_size": self._queue.qsize(),
+                },
             )
 
-        # Add new data to queue
-        await self._queue.put(data)
+        await self._queue.put(pcm)
         logger.debug(
-            "Added audio data to queue",
-            extra={"data_size": len(data), "queue_size": self._queue.qsize()},
+            "Added PcmData to queue",
+            extra={
+                "pcm_samples": len(pcm.samples)
+                if pcm.samples.ndim == 1
+                else pcm.samples.shape,
+                "pcm_sample_rate": pcm.sample_rate,
+                "pcm_channels": pcm.channels,
+                "queue_size": self._queue.qsize(),
+            },
         )
 
     async def flush(self) -> None:
         """
-        Clear any pending audio from the internal queue and buffer so playback stops immediately.
+        Clear any pending audio from the queue and buffer.
+        Playback stops immediately.
         """
-        # Drain queue
         cleared = 0
         while not self._queue.empty():
             try:
@@ -94,118 +124,194 @@ class AudioStreamTrack(aiortc.mediastreams.MediaStreamTrack):
                 cleared += 1
             except asyncio.QueueEmpty:
                 break
-        # Reset any pending bytes not yet consumed
-        self._pending_data = bytearray()
+
+        self._buffer = None
         logger.debug("Flushed audio queue", extra={"cleared_items": cleared})
 
     async def recv(self) -> Frame:
         """
-        Receive the next audio frame.
-        If queue has data, use that; otherwise return silence.
+        Receive the next 20ms audio frame.
+
+        Returns:
+            AudioFrame with the configured sample_rate, channels, and format
         """
         if self.readyState != "live":
             raise aiortc.mediastreams.MediaStreamError
 
-        # Calculate samples for 20ms audio frame
-        samples = int(aiortc.mediastreams.AUDIO_PTIME * self.framerate)
-
-        # Calculate bytes per sample
-        bytes_per_sample = 2  # For s16 format
-        if self.stereo:
-            bytes_per_sample *= 2
-
-        bytes_per_frame = samples * bytes_per_sample
+        # Calculate samples needed for 20ms frame
+        samples_per_frame = int(aiortc.mediastreams.AUDIO_PTIME * self.sample_rate)
 
         # Initialize timestamp if not already done
         if self._timestamp is None:
             self._start = time.time()
             self._timestamp = 0
         else:
-            self._timestamp += samples
-            # Guard against None for type-checkers
+            self._timestamp += samples_per_frame
             start_ts = self._start or time.time()
-            wait = start_ts + (self._timestamp / self.framerate) - time.time()
+            wait = start_ts + (self._timestamp / self.sample_rate) - time.time()
             if wait > 0:
                 await asyncio.sleep(wait)
 
-        # Try to get data from queue if there is any
-        data_to_play = bytearray()
+        # Get or accumulate PcmData to fill a 20ms frame
+        pcm_for_frame = await self._get_pcm_for_frame(samples_per_frame)
 
-        # First use any pending data from previous calls
-        if self._pending_data:
-            data_to_play.extend(self._pending_data)
-            self._pending_data = bytearray()
+        # Create AudioFrame
+        # Determine layout and format
+        layout = "stereo" if self.channels == 2 else "mono"
 
-        # Then get data from queue if needed
-        if not self._queue.empty():
-            try:
-                while len(data_to_play) < bytes_per_frame and not self._queue.empty():
-                    # Being less aggressive with the timeout here, as we
-                    # don't want to add blocks of silence to the queue
-                    chunk = await asyncio.wait_for(self._queue.get(), 0.5)
-                    self._queue.task_done()
-                    data_to_play.extend(chunk)
-            except asyncio.TimeoutError:
-                pass
-
-        # Check if we have data to play
-        if data_to_play:
-            # For test_multiple_chunks case - we need to check and handle
-            # the special case of 2 chunks that must be concatenated
-            if len(data_to_play) == bytes_per_frame * 2:
-                # Special case for test_multiple_chunks
-                # This would happen when 2 chunks of exactly 10ms each are written
-                chunk1_size = bytes_per_frame // 2
-                if (
-                    data_to_play[chunk1_size - 1] == data_to_play[0]
-                    and data_to_play[chunk1_size] != data_to_play[0]
-                ):
-                    # Leave as is - this is the test case with two different chunks
-                    pass
-
-            # If we have more than one frame of data, adjust frame size or store excess
-            if len(data_to_play) > bytes_per_frame:
-                # For the test_audio_track_more_than_20ms test which checks for frames > 20ms
-                if data_to_play[0] == data_to_play[1] and all(
-                    b == data_to_play[0] for b in data_to_play
-                ):
-                    # Special handling for the test case with uniform data
-                    # If all bytes are the same, this is likely our test data
-                    # Use a variable size frame to handle more than 20ms
-                    actual_samples = len(data_to_play) // bytes_per_sample
-                    frame = AudioFrame(
-                        format=self.format, layout=self.layout, samples=actual_samples
-                    )
-                else:
-                    # For real data, use fixed size and store excess
-                    frame = AudioFrame(
-                        format=self.format, layout=self.layout, samples=samples
-                    )
-                    self._pending_data = data_to_play[bytes_per_frame:]
-                    data_to_play = data_to_play[:bytes_per_frame]
-            else:
-                # Standard 20ms frame
-                frame = AudioFrame(
-                    format=self.format, layout=self.layout, samples=samples
-                )
-
-            # Update the frame with the data we have
-            for p in frame.planes:
-                if len(data_to_play) >= p.buffer_size:
-                    p.update(bytes(data_to_play[: p.buffer_size]))
-                else:
-                    # If we have less data than needed, pad with silence
-                    padding = bytes(p.buffer_size - len(data_to_play))
-                    p.update(bytes(data_to_play) + padding)
+        # Convert format name: "s16" -> "s16", "f32" -> "flt"
+        if self.format == "s16":
+            av_format = "s16"  # Packed int16
+        elif self.format == "f32":
+            av_format = "flt"  # Packed float32
         else:
-            # No data, return silence
-            frame = AudioFrame(format=self.format, layout=self.layout, samples=samples)
-            for p in frame.planes:
-                p.update(bytes(p.buffer_size))
+            av_format = "s16"  # Default to s16
+
+        frame = AudioFrame(format=av_format, layout=layout, samples=samples_per_frame)
+
+        # Fill frame with data
+        if pcm_for_frame is not None:
+            audio_bytes = pcm_for_frame.to_bytes()
+
+            # Write to the single plane (packed format has 1 plane)
+            if len(audio_bytes) >= frame.planes[0].buffer_size:
+                frame.planes[0].update(audio_bytes[: frame.planes[0].buffer_size])
+            else:
+                # Pad with silence if not enough data
+                padding = bytes(frame.planes[0].buffer_size - len(audio_bytes))
+                frame.planes[0].update(audio_bytes + padding)
+        else:
+            # No data available, return silence
+            for plane in frame.planes:
+                plane.update(bytes(plane.buffer_size))
 
         # Set frame properties
         frame.pts = self._timestamp
-        frame.sample_rate = self.framerate
-        frame.time_base = fractions.Fraction(1, self.framerate)
+        frame.sample_rate = self.sample_rate
+        frame.time_base = fractions.Fraction(1, self.sample_rate)
 
         return frame
+
+    async def _get_pcm_for_frame(self, samples_needed: int) -> PcmData | None:
+        """
+        Get or accumulate PcmData to fill exactly samples_needed samples.
+
+        This method handles:
+        - Buffering partial chunks
+        - Resampling to target sample rate
+        - Converting to target channels
+        - Converting to target format
+        - Chunking to exact frame size
+
+        Args:
+            samples_needed: Number of samples needed for the frame
+
+        Returns:
+            PcmData with exactly samples_needed samples, or None if no data available
+        """
+        # Start with buffered data if any
+        if self._buffer is not None:
+            pcm_accumulated = self._buffer
+            self._buffer = None
+        else:
+            pcm_accumulated = None
+
+        # Try to get data from queue
+        try:
+            # Don't wait too long - if no data, return silence
+            while True:
+                # Check if we have enough samples
+                if pcm_accumulated is not None:
+                    current_samples = (
+                        len(pcm_accumulated.samples)
+                        if pcm_accumulated.samples.ndim == 1
+                        else pcm_accumulated.samples.shape[1]
+                    )
+                    if current_samples >= samples_needed:
+                        break
+
+                # Try to get more data
+                if self._queue.empty():
+                    # No more data available
+                    break
+
+                pcm_chunk = await asyncio.wait_for(self._queue.get(), timeout=0.01)
+                self._queue.task_done()
+
+                # Resample/convert to target format
+                pcm_chunk = self._normalize_pcm(pcm_chunk)
+
+                # Accumulate
+                if pcm_accumulated is None:
+                    pcm_accumulated = pcm_chunk
+                else:
+                    pcm_accumulated = pcm_accumulated.append(pcm_chunk)
+
+        except asyncio.TimeoutError:
+            pass
+
+        # If no data at all, return None (will produce silence)
+        if pcm_accumulated is None:
+            return None
+
+        # Get the number of samples we have
+        current_samples = (
+            len(pcm_accumulated.samples)
+            if pcm_accumulated.samples.ndim == 1
+            else pcm_accumulated.samples.shape[1]
+        )
+
+        # If we have exactly the right amount, return it
+        if current_samples == samples_needed:
+            return pcm_accumulated
+
+        # If we have more than needed, split it
+        if current_samples > samples_needed:
+            # Calculate duration needed in seconds
+            duration_needed_s = samples_needed / self.sample_rate
+
+            # Use head() to get exactly what we need
+            pcm_for_frame = pcm_accumulated.head(
+                duration_s=duration_needed_s, pad=False, pad_at="end"
+            )
+
+            # Calculate what's left in seconds
+            duration_used_s = (
+                len(pcm_for_frame.samples)
+                if pcm_for_frame.samples.ndim == 1
+                else pcm_for_frame.samples.shape[1]
+            ) / self.sample_rate
+
+            # Buffer the rest
+            self._buffer = pcm_accumulated.tail(
+                duration_s=pcm_accumulated.duration - duration_used_s,
+                pad=False,
+                pad_at="start",
+            )
+
+            return pcm_for_frame
+
+        # If we have less than needed, return what we have (will be padded with silence)
+        return pcm_accumulated
+
+    def _normalize_pcm(self, pcm: PcmData) -> PcmData:
+        """
+        Normalize PcmData to match the track's target format.
+
+        Args:
+            pcm: Input PcmData
+
+        Returns:
+            PcmData resampled/converted to target sample_rate, channels, and format
+        """
+        # Resample to target sample rate and channels if needed
+        if pcm.sample_rate != self.sample_rate or pcm.channels != self.channels:
+            pcm = pcm.resample(self.sample_rate, target_channels=self.channels)
+
+        # Convert format if needed
+        if self.format == "s16" and pcm.format != "s16":
+            pcm = pcm.to_int16()
+        elif self.format == "f32" and pcm.format != "f32":
+            pcm = pcm.to_float32()
+
+        return pcm
