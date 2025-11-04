@@ -1411,10 +1411,14 @@ class Resampler:
     of stateful resamplers.
 
     Example:
+        >>> import numpy as np
         >>> resampler = Resampler(format="s16", sample_rate=48000, channels=1)
         >>> # Process 20ms chunks at 16kHz (320 samples each)
+        >>> samples = np.zeros(320, dtype=np.int16)
         >>> pcm_16k = PcmData(samples=samples, sample_rate=16000, format="s16", channels=1)
         >>> pcm_48k = resampler.resample(pcm_16k)  # Returns 960 samples at 48kHz
+        >>> len(pcm_48k.samples)
+        960
     """
 
     def __init__(self, format: str, sample_rate: int, channels: int):
