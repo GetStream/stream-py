@@ -1516,10 +1516,17 @@ class Resampler:
         if out_length == 0:
             return np.array([], dtype=samples.dtype)
 
+        # Handle edge case: single output sample
+        if out_length == 1:
+            # Return the first sample
+            return np.array([samples[0]], dtype=samples.dtype)
+
         # Create interpolation indices
         # Map output sample positions back to input sample positions
+        # Use (num_samples - 1) / (out_length - 1) to ensure the last output
+        # sample maps exactly to the last input sample, preventing out-of-bounds
         out_indices = np.arange(out_length)
-        in_indices = out_indices * (num_samples / out_length)
+        in_indices = out_indices * ((num_samples - 1) / (out_length - 1))
 
         # Linear interpolation
         resampled = np.interp(in_indices, np.arange(num_samples), samples)
