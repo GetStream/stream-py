@@ -1541,3 +1541,22 @@ def test_from_audioframe_48khz_standard():
     assert pcm.format == "s16"
     assert len(pcm.samples) == 960
     assert pcm.duration_ms == pytest.approx(20.0, rel=1e-3)
+
+
+def test_from_audioframe_unsupported_format():
+    """Test that unsupported audio formats raise a clear exception."""
+    # Create audio frame with unsupported s32 format
+    samples = np.array([100, 200, 300], dtype=np.int32)
+    frame = av.AudioFrame.from_ndarray(
+        samples.reshape(1, -1), format="s32p", layout="mono"
+    )
+    frame.sample_rate = 16000
+
+    # Should raise ValueError with a clear error message
+    with pytest.raises(ValueError) as exc_info:
+        PcmData.from_av_frame(frame)
+
+    error_msg = str(exc_info.value)
+    assert "Unsupported audio frame format" in error_msg
+    assert "s32p" in error_msg
+    assert "s16" in error_msg or "flt" in error_msg  # Should mention supported formats

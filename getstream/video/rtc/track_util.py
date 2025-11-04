@@ -436,8 +436,10 @@ class PcmData:
             pcm_format = AudioFormat.F32
             dtype = np.float32
         else:
-            pcm_format = AudioFormat.S16
-            dtype = np.int16
+            raise ValueError(
+                f"Unsupported audio frame format: '{frame_format}'. "
+                f"Supported formats are: s16, s16p (int16), flt, fltp (float32)"
+            )
 
         # Handle empty frames
         if frame.samples == 0:
