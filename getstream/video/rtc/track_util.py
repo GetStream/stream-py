@@ -98,6 +98,7 @@ class PcmData:
         time_base: The time base for converting timestamps to seconds.
         channels: Number of audio channels (1=mono, 2=stereo)
     """
+    participant: Any = None
 
     def __init__(
         self,
@@ -529,7 +530,9 @@ class PcmData:
         resampler = Resampler(
             format=self.format, sample_rate=target_sample_rate, channels=target_channels
         )
-        return resampler.resample(self)
+        pcm = resampler.resample(self)
+        pcm.participant = self.participant
+        return pcm
 
     def to_bytes(self) -> bytes:
         """Return interleaved PCM bytes.
