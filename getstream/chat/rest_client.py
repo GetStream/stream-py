@@ -614,20 +614,21 @@ class ChatRestClient(BaseClient):
         self,
         type: str,
         id: str,
-        user_id: Optional[str] = None,
         message_id: Optional[str] = None,
         thread_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        user: Optional[UserRequest] = None,
     ) -> StreamResponse[Response]:
-        query_params = build_query_param(user_id=user_id)
         path_params = {
             "type": type,
             "id": id,
         }
-        json = build_body_dict(message_id=message_id, thread_id=thread_id)
+        json = build_body_dict(
+            message_id=message_id, thread_id=thread_id, user_id=user_id, user=user
+        )
         return self.post(
             "/api/v2/chat/channels/{type}/{id}/unread",
             Response,
-            query_params=query_params,
             path_params=path_params,
             json=json,
         )

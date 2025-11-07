@@ -329,16 +329,18 @@ class Channel:
     @attach_channel_cid
     def mark_unread(
         self,
-        user_id: Optional[str] = None,
         message_id: Optional[str] = None,
         thread_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        user: Optional[UserRequest] = None,
     ) -> StreamResponse[Response]:
         response = self.client.mark_unread(
             type=self.channel_type,
             id=self.channel_id,
-            user_id=user_id,
             message_id=message_id,
             thread_id=thread_id,
+            user_id=user_id,
+            user=user,
         )
         self._sync_from_response(response.data)
         return response
