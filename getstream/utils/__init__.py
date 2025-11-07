@@ -126,6 +126,28 @@ def build_query_param(**kwargs):
     return params
 
 
+async def build_query_param_async(**kwargs):
+    """
+    Async version that offloads CPU-bound JSON serialization to thread pool.
+
+    Constructs a dictionary of query parameters from keyword arguments.
+
+    This function handles various data types:
+    - JSON-serializable objects with a `to_json` method will be serialized using that method.
+    - Booleans are converted to lowercase strings.
+    - Lists are converted to comma-separated strings with URL-encoded values.
+    - Other types (strings, integers, dictionaries) are handled appropriately.
+
+    Args:
+        **kwargs: Arbitrary keyword arguments representing potential query parameters.
+
+    Returns:
+        dict: A dictionary where keys are parameter names and values are URL-ready strings.
+    """
+    # Use sync version in thread pool to avoid blocking event loop
+    return await asyncio.to_thread(build_query_param, **kwargs)
+
+
 def build_body_dict(**kwargs):
     """
     Constructs a dictionary for the body of a request, handling nested structures.
@@ -151,6 +173,24 @@ def build_body_dict(**kwargs):
 
     data = {key: handle_value(value) for key, value in kwargs.items()}
     return data
+
+
+async def build_body_dict_async(**kwargs):
+    """
+    Async version that offloads CPU-bound to_dict() calls to thread pool.
+
+    Constructs a dictionary for the body of a request, handling nested structures.
+    If an object has a `to_dict` method, it calls this method to serialize the object.
+    It handles nested dictionaries and lists recursively.
+
+    Args:
+        **kwargs: Keyword arguments representing keys and values to be included in the body dictionary.
+
+    Returns:
+        dict: A dictionary with keys corresponding to kwargs keys and values processed, potentially recursively.
+    """
+    # Use sync version in thread pool to avoid blocking event loop
+    return await asyncio.to_thread(build_body_dict, **kwargs)
 
 
 def configure_logging(level=None, handler=None, format=None):
@@ -232,7 +272,9 @@ __all__ = [
     "encode_datetime",
     "datetime_from_unix_ns",
     "build_query_param",
+    "build_query_param_async",
     "build_body_dict",
+    "build_body_dict_async",
     "validate_and_clean_url",
     "configure_logging",
     "UTC",

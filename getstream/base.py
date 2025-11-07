@@ -1,6 +1,7 @@
 import json
 import time
 import uuid
+import asyncio
 from typing import Any, Dict, Optional, Type, get_origin
 
 from getstream.models import APIError
@@ -355,6 +356,14 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
         ) as span:
             call_kwargs = dict(kwargs)
             call_kwargs.pop("path_params", None)
+
+            if call_kwargs.get("json") is not None:
+                json_body = call_kwargs.pop("json")
+                json_str = await asyncio.to_thread(json.dumps, json_body)
+                call_kwargs["content"] = json_str
+                call_kwargs["headers"] = call_kwargs.get("headers", {})
+                call_kwargs["headers"]["Content-Type"] = "application/json"
+
             response = await getattr(self.client, method.lower())(
                 url_path, params=query_params, *args, **call_kwargs
             )
@@ -377,7 +386,9 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
                 status_code=getattr(response, "status_code", None),
             )
             record_metrics(duration_ms, attributes=metric_attrs)
-            return self._parse_response(response, data_type or Dict[str, Any])
+            return await asyncio.to_thread(
+                self._parse_response, response, data_type or Dict[str, Any]
+            )
 
     async def patch(
         self,
