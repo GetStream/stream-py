@@ -97,6 +97,7 @@ class PcmData:
         dts: The decode timestamp of the audio data.
         time_base: The time base for converting timestamps to seconds.
         channels: Number of audio channels (1=mono, 2=stereo)
+        participant: The participant context for this audio data.
     """
 
     def __init__(
@@ -108,6 +109,7 @@ class PcmData:
         dts: Optional[int] = None,
         time_base: Optional[float] = None,
         channels: int = 1,
+        participant: Any = None,
     ):
         """
         Initialize PcmData.
@@ -120,6 +122,7 @@ class PcmData:
             dts: The decode timestamp of the audio data
             time_base: The time base for converting timestamps to seconds
             channels: Number of audio channels (1=mono, 2=stereo)
+            participant: The participant context for this audio data
 
         Raises:
             TypeError: If samples dtype does not match the declared format
@@ -167,6 +170,7 @@ class PcmData:
         self.dts: Optional[int] = dts
         self.time_base: Optional[float] = time_base
         self.channels: int = channels
+        self.participant: Any = participant
 
     @property
     def stereo(self) -> bool:
@@ -652,6 +656,7 @@ class PcmData:
             dts=self.dts,
             time_base=self.time_base,
             channels=self.channels,
+            participant=self.participant,
         )
 
     def to_int16(self) -> "PcmData":
@@ -715,6 +720,7 @@ class PcmData:
             dts=self.dts,
             time_base=self.time_base,
             channels=self.channels,
+            participant=self.participant,
         )
 
     def append(self, other: "PcmData") -> "PcmData":
@@ -875,6 +881,7 @@ class PcmData:
             dts=self.dts,
             time_base=self.time_base,
             channels=self.channels,
+            participant=self.participant,
         )
 
     def clear(self) -> None:
@@ -1289,6 +1296,7 @@ class PcmData:
             dts=self.dts,
             time_base=self.time_base,
             channels=self.channels,
+            participant=self.participant,
         )
 
     def head(
@@ -1397,6 +1405,7 @@ class PcmData:
             dts=self.dts,
             time_base=self.time_base,
             channels=self.channels,
+            participant=self.participant,
         )
 
 
@@ -1482,7 +1491,7 @@ class Resampler:
             samples = self._adjust_format(samples, current_format, self.format)
             current_format = self.format
 
-        # Create new PcmData with resampled audio, preserving timestamps
+        # Create new PcmData with resampled audio, preserving timestamps and participant
         return PcmData(
             samples=samples,
             sample_rate=self.sample_rate,
@@ -1491,6 +1500,7 @@ class Resampler:
             pts=pcm.pts,
             dts=pcm.dts,
             time_base=pcm.time_base,
+            participant=pcm.participant,
         )
 
     def _resample_1d(
