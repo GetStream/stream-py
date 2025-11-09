@@ -1560,3 +1560,110 @@ def test_from_audioframe_unsupported_format():
     assert "Unsupported audio frame format" in error_msg
     assert "s32p" in error_msg
     assert "s16" in error_msg or "flt" in error_msg  # Should mention supported formats
+
+
+def test_str_mono_short():
+    """Test __str__ with short mono audio."""
+    pcm = PcmData(
+        samples=np.array([100, 200, 300, 400], dtype=np.int16),
+        sample_rate=16000,
+        format="s16",
+        channels=1,
+    )
+
+    str_str = str(pcm)
+
+    assert "Mono" in str_str
+    assert "16000Hz" in str_str
+    assert "16-bit PCM" in str_str
+    assert "4 samples" in str_str
+    assert "ms" in str_str
+
+
+def test_str_stereo_short():
+    """Test __str__ with short stereo audio."""
+    left = np.random.randint(-1000, 1000, 320, dtype=np.int16)
+    right = np.random.randint(-1000, 1000, 320, dtype=np.int16)
+    stereo = np.vstack([left, right])
+
+    pcm = PcmData(
+        samples=stereo,
+        sample_rate=16000,
+        format="s16",
+        channels=2,
+    )
+
+    str_str = str(pcm)
+
+    assert "Stereo" in str_str
+    assert "16000Hz" in str_str
+    assert "16-bit PCM" in str_str
+    assert "320 samples" in str_str
+    assert "20.0ms" in str_str
+
+
+def test_str_float32():
+    """Test __str__ with float32 format."""
+    pcm = PcmData(
+        samples=np.array([0.1, 0.2, 0.3], dtype=np.float32),
+        sample_rate=48000,
+        format="f32",
+        channels=1,
+    )
+
+    str_str = str(pcm)
+
+    assert "Mono" in str_str
+    assert "48000Hz" in str_str
+    assert "32-bit float" in str_str
+    assert "3 samples" in str_str
+
+
+def test_str_long_duration():
+    """Test __str__ with long audio (shows seconds instead of ms)."""
+    # Create 2 seconds of audio
+    samples = np.zeros(32000, dtype=np.int16)
+
+    pcm = PcmData(
+        samples=samples,
+        sample_rate=16000,
+        format="s16",
+        channels=1,
+    )
+
+    str_str = str(pcm)
+
+    assert "Mono" in str_str
+    assert "32000 samples" in str_str
+    assert "2.00s" in str_str  # Should show seconds, not ms
+
+
+def test_str_multichannel():
+    """Test __str__ with more than 2 channels."""
+    # 4-channel audio
+    samples = np.zeros((4, 100), dtype=np.int16)
+
+    pcm = PcmData(
+        samples=samples,
+        sample_rate=16000,
+        format="s16",
+        channels=4,
+    )
+
+    str_str = str(pcm)
+
+    assert "4-channel" in str_str
+    assert "16000Hz" in str_str
+    assert "100 samples" in str_str
+
+
+def test_repr_returns_str():
+    """Test that __repr__ returns the same as __str__."""
+    pcm = PcmData(
+        samples=np.array([100, 200, 300], dtype=np.int16),
+        sample_rate=16000,
+        format="s16",
+        channels=1,
+    )
+
+    assert repr(pcm) == str(pcm)
