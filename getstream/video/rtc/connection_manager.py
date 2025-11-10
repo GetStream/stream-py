@@ -310,9 +310,6 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                 "participant_joined", self.participants_state._on_participant_joined
             )
             self._ws_client.on_event(
-                "participant_joined", self.participants_state._on_participant_joined
-            )
-            self._ws_client.on_event(
                 "participant_left", self.participants_state._on_participant_left
             )
             self._ws_client.on_event(
