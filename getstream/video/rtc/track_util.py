@@ -1,5 +1,4 @@
 import asyncio
-import copy
 import io
 import wave
 from enum import Enum
@@ -97,6 +96,7 @@ class PcmData:
         dts: The decode timestamp of the audio data.
         time_base: The time base for converting timestamps to seconds.
         channels: Number of audio channels (1=mono, 2=stereo)
+        participant: The participant context for this audio data.
     """
 
     def __init__(
@@ -108,6 +108,7 @@ class PcmData:
         dts: Optional[int] = None,
         time_base: Optional[float] = None,
         channels: int = 1,
+        participant: Any = None,
     ):
         """
         Initialize PcmData.
@@ -120,6 +121,7 @@ class PcmData:
             dts: The decode timestamp of the audio data
             time_base: The time base for converting timestamps to seconds
             channels: Number of audio channels (1=mono, 2=stereo)
+            participant: The participant context for this audio data
 
         Raises:
             TypeError: If samples dtype does not match the declared format
@@ -167,6 +169,62 @@ class PcmData:
         self.dts: Optional[int] = dts
         self.time_base: Optional[float] = time_base
         self.channels: int = channels
+        self.participant: Any = participant
+
+    def __repr__(self) -> str:
+        """
+        Return a string representation of the PcmData object.
+
+        Returns:
+            str: String representation
+        """
+        return str(self)
+
+    def __str__(self) -> str:
+        """
+        Return a user-friendly string representation of the PcmData object.
+
+        Returns:
+            str: Human-readable description of the audio data
+        """
+        # Get sample count
+        if self.samples.ndim == 2:
+            sample_count = (
+                self.samples.shape[1]
+                if self.samples.shape[0] == self.channels
+                else self.samples.shape[0]
+            )
+        else:
+            sample_count = len(self.samples)
+
+        # Get channel description
+        if self.channels == 1:
+            channel_desc = "Mono"
+        elif self.channels == 2:
+            channel_desc = "Stereo"
+        else:
+            channel_desc = f"{self.channels}-channel"
+
+        # Get duration
+        duration_s = self.duration
+        if duration_s >= 1.0:
+            duration_str = f"{duration_s:.2f}s"
+        else:
+            duration_str = f"{self.duration_ms:.1f}ms"
+
+        # Format description
+        format_desc = (
+            "16-bit PCM"
+            if self.format == "s16"
+            else "32-bit float"
+            if self.format == "f32"
+            else self.format
+        )
+
+        return (
+            f"{channel_desc} audio: {self.sample_rate}Hz, {format_desc}, "
+            f"{sample_count} samples, {duration_str}"
+        )
 
     @property
     def stereo(self) -> bool:
@@ -180,53 +238,27 @@ class PcmData:
         Returns:
             float: Duration in seconds.
         """
-        # The samples field contains a numpy array of audio samples
+        # The samples field is always a numpy array of audio samples
         # For s16 format, each element in the array is one sample (int16)
         # For f32 format, each element in the array is one sample (float32)
 
-        if isinstance(self.samples, np.ndarray):
-            # If array has shape (channels, samples) or (samples, channels), duration uses the samples dimension
-            if self.samples.ndim == 2:
-                # Determine which dimension is samples vs channels
-                # Standard format is (channels, samples), but we need to handle both
-                ch = self.channels if self.channels else 1
-                if self.samples.shape[0] == ch:
-                    # Shape is (channels, samples) - correct format
-                    num_samples = self.samples.shape[1]
-                elif self.samples.shape[1] == ch:
-                    # Shape is (samples, channels) - transposed format
-                    num_samples = self.samples.shape[0]
-                else:
-                    # Ambiguous or unknown - assume (channels, samples) and pick larger dimension
-                    # This handles edge cases like (2, 2) arrays
-                    num_samples = max(self.samples.shape[0], self.samples.shape[1])
+        # If array has shape (channels, samples) or (samples, channels), duration uses the samples dimension
+        if self.samples.ndim == 2:
+            # Determine which dimension is samples vs channels
+            # Standard format is (channels, samples), but we need to handle both
+            ch = self.channels if self.channels else 1
+            if self.samples.shape[0] == ch:
+                # Shape is (channels, samples) - correct format
+                num_samples = self.samples.shape[1]
+            elif self.samples.shape[1] == ch:
+                # Shape is (samples, channels) - transposed format
+                num_samples = self.samples.shape[0]
             else:
-                num_samples = len(self.samples)
-        elif isinstance(self.samples, bytes):
-            # If samples is bytes, calculate based on format
-            if self.format == "s16":
-                # For s16 format, each sample is 2 bytes (16 bits)
-                # For multi-channel, divide by channels to get sample count
-                num_samples = len(self.samples) // (
-                    2 * (self.channels if self.channels else 1)
-                )
-            elif self.format == "f32":
-                # For f32 format, each sample is 4 bytes (32 bits)
-                num_samples = len(self.samples) // (
-                    4 * (self.channels if self.channels else 1)
-                )
-            else:
-                # Default assumption for other formats (treat as raw bytes)
-                num_samples = len(self.samples)
+                # Ambiguous or unknown - assume (channels, samples) and pick larger dimension
+                # This handles edge cases like (2, 2) arrays
+                num_samples = max(self.samples.shape[0], self.samples.shape[1])
         else:
-            # Fallback: try to get length
-            try:
-                num_samples = len(self.samples)
-            except TypeError:
-                logger.warning(
-                    f"Cannot determine sample count for type {type(self.samples)}"
-                )
-                return 0.0
+            num_samples = len(self.samples)
 
         # Calculate duration based on sample rate
         return num_samples / self.sample_rate
@@ -607,38 +639,14 @@ class PcmData:
         # If already f32 format, return self without modification
         if self.format in (AudioFormat.F32, "f32", "float32"):
             # Additional check: verify the samples are actually float32
-            if (
-                isinstance(self.samples, np.ndarray)
-                and self.samples.dtype == np.float32
-            ):
+            if self.samples.dtype == np.float32:
                 return self
 
         arr = self.samples
 
-        # Normalize to a numpy array for conversion
-        if not isinstance(arr, np.ndarray):
-            try:
-                # Round-trip through bytes to reconstruct canonical ndarray shape
-                arr = PcmData.from_bytes(
-                    self.to_bytes(),
-                    sample_rate=self.sample_rate,
-                    format=self.format,
-                    channels=self.channels,
-                ).samples
-            except Exception:
-                # Fallback to from_data for robustness
-                arr = PcmData.from_data(
-                    self.samples,
-                    sample_rate=self.sample_rate,
-                    format=self.format,
-                    channels=self.channels,
-                ).samples
-
         # Convert to float32 and scale if needed
         fmt = (self.format or "").lower()
-        if fmt in ("s16", "int16") or (
-            isinstance(arr, np.ndarray) and arr.dtype == np.int16
-        ):
+        if fmt in ("s16", "int16") or arr.dtype == np.int16:
             arr_f32 = arr.astype(np.float32) / 32768.0
         else:
             # Ensure dtype float32; values assumed already in [-1, 1]
@@ -652,6 +660,7 @@ class PcmData:
             dts=self.dts,
             time_base=self.time_base,
             channels=self.channels,
+            participant=self.participant,
         )
 
     def to_int16(self) -> "PcmData":
@@ -672,35 +681,14 @@ class PcmData:
         # If already s16 format, return self without modification
         if self.format in (AudioFormat.S16, "s16", "int16"):
             # Additional check: verify the samples are actually int16
-            if isinstance(self.samples, np.ndarray) and self.samples.dtype == np.int16:
+            if self.samples.dtype == np.int16:
                 return self
 
         arr = self.samples
 
-        # Normalize to a numpy array for conversion
-        if not isinstance(arr, np.ndarray):
-            try:
-                # Round-trip through bytes to reconstruct canonical ndarray shape
-                arr = PcmData.from_bytes(
-                    self.to_bytes(),
-                    sample_rate=self.sample_rate,
-                    format=self.format,
-                    channels=self.channels,
-                ).samples
-            except Exception:
-                # Fallback to from_data for robustness
-                arr = PcmData.from_data(
-                    self.samples,
-                    sample_rate=self.sample_rate,
-                    format=self.format,
-                    channels=self.channels,
-                ).samples
-
         # Convert to int16 and scale if needed
         fmt = (self.format or "").lower()
-        if fmt in ("f32", "float32") or (
-            isinstance(arr, np.ndarray) and arr.dtype == np.float32
-        ):
+        if fmt in ("f32", "float32") or arr.dtype == np.float32:
             # Convert float32 in [-1, 1] to int16
             arr_s16 = (np.clip(arr, -1.0, 1.0) * 32767.0).astype(np.int16)
         else:
@@ -715,6 +703,7 @@ class PcmData:
             dts=self.dts,
             time_base=self.time_base,
             channels=self.channels,
+            participant=self.participant,
         )
 
     def append(self, other: "PcmData") -> "PcmData":
@@ -738,16 +727,9 @@ class PcmData:
             except Exception:
                 return False
 
-        # Normalize numpy arrays from bytes-like if needed
+        # Samples are always numpy arrays
         def _ensure_ndarray(pcm: "PcmData") -> np.ndarray:
-            if isinstance(pcm.samples, np.ndarray):
-                return pcm.samples
-            return PcmData.from_bytes(
-                pcm.to_bytes(),
-                sample_rate=pcm.sample_rate,
-                format=pcm.format,
-                channels=pcm.channels,
-            ).samples
+            return pcm.samples
 
         # Adjust other to match sample rate and channels first
         other_adj = other
@@ -868,13 +850,12 @@ class PcmData:
         return PcmData(
             sample_rate=self.sample_rate,
             format=self.format,
-            samples=self.samples.copy()
-            if isinstance(self.samples, np.ndarray)
-            else copy.deepcopy(self.samples),
+            samples=self.samples.copy(),
             pts=self.pts,
             dts=self.dts,
             time_base=self.time_base,
             channels=self.channels,
+            participant=self.participant,
         )
 
     def clear(self) -> None:
@@ -1055,29 +1036,19 @@ class PcmData:
             >>> len(chunks)  # [0:4], [2:6], [4:8], [6:10], [8:10]
             5
         """
-        # Ensure we have a 1D array for simpler chunking
-        if isinstance(self.samples, np.ndarray):
-            if self.samples.ndim == 2 and self.channels == 1:
-                samples = self.samples.flatten()
-            elif self.samples.ndim == 2:
-                # For multi-channel, work with channel-major format
-                samples = self.samples
-            else:
-                samples = self.samples
+        # Normalize sample array shape
+        if self.samples.ndim == 2 and self.channels == 1:
+            samples = self.samples.flatten()
+        elif self.samples.ndim == 2:
+            # For multi-channel, work with channel-major format
+            samples = self.samples
         else:
-            # Convert bytes/other to ndarray first
-            temp = PcmData.from_bytes(
-                self.to_bytes(),
-                sample_rate=self.sample_rate,
-                format=self.format,
-                channels=self.channels,
-            )
-            samples = temp.samples
+            samples = self.samples
 
         # Handle overlap
         step = max(1, chunk_size - overlap)
 
-        if self.channels > 1 and isinstance(samples, np.ndarray) and samples.ndim == 2:
+        if self.channels > 1 and samples.ndim == 2:
             # Multi-channel case: chunk along the samples axis
             num_samples = samples.shape[1]
             for i in range(0, num_samples, step):
@@ -1116,9 +1087,7 @@ class PcmData:
                 )
         else:
             # Mono or 1D case
-            samples_1d = (
-                samples.flatten() if isinstance(samples, np.ndarray) else samples
-            )
+            samples_1d = samples.flatten() if samples.ndim > 1 else samples
             total_samples = len(samples_1d)
 
             for i in range(0, total_samples, step):
@@ -1152,9 +1121,7 @@ class PcmData:
                     pts=chunk_pts,
                     dts=self.dts,
                     time_base=self.time_base,
-                    channels=1
-                    if isinstance(chunk_samples, np.ndarray) and chunk_samples.ndim == 1
-                    else self.channels,
+                    channels=1 if chunk_samples.ndim == 1 else self.channels,
                 )
 
     def sliding_window(
@@ -1220,16 +1187,8 @@ class PcmData:
         if pad_at not in ("start", "end"):
             raise ValueError(f"pad_at must be 'start' or 'end', got {pad_at!r}")
 
-        # Get samples array
+        # Get samples array (always ndarray)
         samples = self.samples
-        if not isinstance(samples, np.ndarray):
-            # Convert to ndarray first
-            samples = PcmData.from_bytes(
-                self.to_bytes(),
-                sample_rate=self.sample_rate,
-                format=self.format,
-                channels=self.channels,
-            ).samples
 
         # Handle multi-channel audio
         if samples.ndim == 2 and self.channels > 1:
@@ -1289,6 +1248,7 @@ class PcmData:
             dts=self.dts,
             time_base=self.time_base,
             channels=self.channels,
+            participant=self.participant,
         )
 
     def head(
@@ -1328,16 +1288,8 @@ class PcmData:
         if pad_at not in ("start", "end"):
             raise ValueError(f"pad_at must be 'start' or 'end', got {pad_at!r}")
 
-        # Get samples array
+        # Get samples array (always ndarray)
         samples = self.samples
-        if not isinstance(samples, np.ndarray):
-            # Convert to ndarray first
-            samples = PcmData.from_bytes(
-                self.to_bytes(),
-                sample_rate=self.sample_rate,
-                format=self.format,
-                channels=self.channels,
-            ).samples
 
         # Handle multi-channel audio
         if samples.ndim == 2 and self.channels > 1:
@@ -1397,6 +1349,7 @@ class PcmData:
             dts=self.dts,
             time_base=self.time_base,
             channels=self.channels,
+            participant=self.participant,
         )
 
 
@@ -1482,7 +1435,7 @@ class Resampler:
             samples = self._adjust_format(samples, current_format, self.format)
             current_format = self.format
 
-        # Create new PcmData with resampled audio, preserving timestamps
+        # Create new PcmData with resampled audio, preserving timestamps and participant
         return PcmData(
             samples=samples,
             sample_rate=self.sample_rate,
@@ -1491,6 +1444,7 @@ class Resampler:
             pts=pcm.pts,
             dts=pcm.dts,
             time_base=pcm.time_base,
+            participant=pcm.participant,
         )
 
     def _resample_1d(
