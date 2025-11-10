@@ -307,6 +307,15 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
 
             # Connect track subscription events to subscription manager
             self._ws_client.on_event(
+                "participant_joined", self.participants_state._on_participant_joined
+            )
+            self._ws_client.on_event(
+                "participant_joined", self.participants_state._on_participant_joined
+            )
+            self._ws_client.on_event(
+                "participant_left", self.participants_state._on_participant_left
+            )
+            self._ws_client.on_event(
                 "track_published", self._subscription_manager.handle_track_published
             )
             self._ws_client.on_event(
@@ -321,7 +330,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                 # Populate participants state with existing participants
                 if hasattr(sfu_event.join_response, "call_state"):
                     for participant in sfu_event.join_response.call_state.participants:
-                        self._participants_state.add_participant(participant)
+                        self._participants_state._add_participant(participant)
                 # Update reconnection config
                 if hasattr(sfu_event.join_response, "fast_reconnect_deadline_seconds"):
                     self._reconnector._fast_reconnect_deadline_seconds = (
