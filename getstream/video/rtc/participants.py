@@ -74,9 +74,11 @@ class ParticipantsState(AsyncIOEventEmitter):
             A subscription object that can be used to unsubscribe (optional)
 
         Example:
+            >>> state = ParticipantsState()
             >>> def on_participants(participants):
             ...     print(f"Participants: {len(participants)}")
-            >>> subscription = participants_state.map(on_participants)
+            >>> subscription = state.map(on_participants)
+            Participants: 0
         """
 
         # Create a weak reference to the handler
