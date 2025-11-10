@@ -1,4 +1,5 @@
 from typing import Optional, Callable, List
+import inspect
 import weakref
 
 from pyee.asyncio import AsyncIOEventEmitter
@@ -90,7 +91,13 @@ class ParticipantsState(AsyncIOEventEmitter):
         # Create a weak reference to the handler
         # The Subscription object will hold a strong reference to the handler
         # to prevent it from being garbage collected (important for inline lambdas)
-        handler_ref = weakref.ref(handler, cleanup_callback)
+        # Use WeakMethod for bound methods, ref for other callables
+        if inspect.ismethod(handler) or (
+            hasattr(handler, "__self__") and hasattr(handler, "__func__")
+        ):
+            handler_ref = weakref.WeakMethod(handler, cleanup_callback)
+        else:
+            handler_ref = weakref.ref(handler, cleanup_callback)
         self._map_handlers.append(handler_ref)
 
         # Call handler immediately with current list

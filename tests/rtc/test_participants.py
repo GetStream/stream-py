@@ -403,3 +403,71 @@ class TestParticipantsState:
 
         stream_id = state.get_stream_id_from_track_id("track3")
         assert stream_id is None
+
+    def test_map_with_bound_method(self):
+        """Test that map works with bound methods."""
+        state = ParticipantsState()
+
+        class Handler:
+            def __init__(self):
+                self.results = []
+
+            def on_participants(self, participants):
+                self.results.append(len(participants))
+
+        handler_obj = Handler()
+
+        # Subscribe with a bound method
+        _subscription = state.map(handler_obj.on_participants)
+
+        # Should be called immediately
+        assert handler_obj.results == [0]
+
+        # Add a participant
+        p1 = models_pb2.Participant()
+        p1.user_id = "user1"
+        p1.track_lookup_prefix = "prefix1"
+        state._add_participant(p1)
+
+        # Handler should be called
+        assert handler_obj.results == [0, 1]
+
+        # Add another participant
+        p2 = models_pb2.Participant()
+        p2.user_id = "user2"
+        p2.track_lookup_prefix = "prefix2"
+        state._add_participant(p2)
+
+        # Handler should be called again
+        assert handler_obj.results == [0, 1, 2]
+
+    def test_weak_reference_cleanup_with_bound_method(self):
+        """Test that bound method handlers are cleaned up when object is garbage collected."""
+        state = ParticipantsState()
+
+        class Handler:
+            def __init__(self):
+                self.results = []
+
+            def on_participants(self, participants):
+                self.results.append(len(participants))
+
+        handler_obj = Handler()
+        _subscription = state.map(handler_obj.on_participants)
+
+        assert handler_obj.results == [0]
+        assert len(state._map_handlers) == 1
+
+        # Delete the handler object and subscription, force garbage collection
+        del handler_obj
+        del _subscription
+        gc.collect()
+
+        # Handler should be cleaned up
+        p1 = models_pb2.Participant()
+        p1.user_id = "user1"
+        p1.track_lookup_prefix = "prefix1"
+        state._add_participant(p1)
+
+        # No handlers should remain
+        assert len(state._map_handlers) == 0
