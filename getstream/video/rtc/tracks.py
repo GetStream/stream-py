@@ -204,7 +204,7 @@ class SubscriptionManager(AsyncIOEventEmitter):
         try:
             # Keep participants state up-to-date
             if hasattr(event, "participant"):
-                self.connection_manager.participants_state.add_participant(
+                self.connection_manager.participants_state._add_participant(
                     event.participant
                 )
 
