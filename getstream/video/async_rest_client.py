@@ -497,6 +497,26 @@ class VideoRestClient(AsyncBaseClient):
             path_params=path_params,
         )
 
+    @telemetry.operation_name("getstream.api.video.ring_call")
+    async def ring_call(
+        self,
+        type: str,
+        id: str,
+        video: Optional[bool] = None,
+        members_ids: Optional[List[str]] = None,
+    ) -> StreamResponse[RingCallResponse]:
+        path_params = {
+            "type": type,
+            "id": id,
+        }
+        json = build_body_dict(video=video, members_ids=members_ids)
+        return await self.post(
+            "/api/v2/video/call/{type}/{id}/ring",
+            RingCallResponse,
+            path_params=path_params,
+            json=json,
+        )
+
     @telemetry.operation_name("getstream.api.video.start_rtmp_broadcasts")
     async def start_rtmp_broadcasts(
         self, type: str, id: str, broadcasts: List[RTMPBroadcastRequest]
