@@ -272,6 +272,16 @@ class Call(BaseCall):
         return response
 
     @attach_call_cid
+    def ring(
+        self, video: Optional[bool] = None, members_ids: Optional[List[str]] = None
+    ) -> StreamResponse[RingCallResponse]:
+        response = self.client.ring_call(
+            type=self.call_type, id=self.id, video=video, members_ids=members_ids
+        )
+        self._sync_from_response(response.data)
+        return response
+
+    @attach_call_cid
     def start_rtmp_broadcasts(
         self, broadcasts: List[RTMPBroadcastRequest]
     ) -> StreamResponse[StartRTMPBroadcastsResponse]:

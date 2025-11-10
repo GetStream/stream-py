@@ -230,14 +230,17 @@ class ChatRestClient(BaseClient):
         accept_invite: Optional[bool] = None,
         cooldown: Optional[int] = None,
         hide_history: Optional[bool] = None,
+        hide_history_before: Optional[datetime] = None,
         reject_invite: Optional[bool] = None,
         skip_push: Optional[bool] = None,
         user_id: Optional[str] = None,
-        add_members: Optional[List[ChannelMember]] = None,
+        add_filter_tags: Optional[List[str]] = None,
+        add_members: Optional[List[ChannelMemberRequest]] = None,
         add_moderators: Optional[List[str]] = None,
-        assign_roles: Optional[List[ChannelMember]] = None,
+        assign_roles: Optional[List[ChannelMemberRequest]] = None,
         demote_moderators: Optional[List[str]] = None,
-        invites: Optional[List[ChannelMember]] = None,
+        invites: Optional[List[ChannelMemberRequest]] = None,
+        remove_filter_tags: Optional[List[str]] = None,
         remove_members: Optional[List[str]] = None,
         data: Optional[ChannelInput] = None,
         message: Optional[MessageRequest] = None,
@@ -251,14 +254,17 @@ class ChatRestClient(BaseClient):
             accept_invite=accept_invite,
             cooldown=cooldown,
             hide_history=hide_history,
+            hide_history_before=hide_history_before,
             reject_invite=reject_invite,
             skip_push=skip_push,
             user_id=user_id,
+            add_filter_tags=add_filter_tags,
             add_members=add_members,
             add_moderators=add_moderators,
             assign_roles=assign_roles,
             demote_moderators=demote_moderators,
             invites=invites,
+            remove_filter_tags=remove_filter_tags,
             remove_members=remove_members,
             data=data,
             message=message,
@@ -643,6 +649,7 @@ class ChatRestClient(BaseClient):
         connect_events: Optional[bool] = None,
         count_messages: Optional[bool] = None,
         custom_events: Optional[bool] = None,
+        delivery_events: Optional[bool] = None,
         mark_messages_pending: Optional[bool] = None,
         message_retention: Optional[str] = None,
         mutes: Optional[bool] = None,
@@ -675,6 +682,7 @@ class ChatRestClient(BaseClient):
             connect_events=connect_events,
             count_messages=count_messages,
             custom_events=custom_events,
+            delivery_events=delivery_events,
             mark_messages_pending=mark_messages_pending,
             message_retention=message_retention,
             mutes=mutes,
@@ -733,6 +741,7 @@ class ChatRestClient(BaseClient):
         connect_events: Optional[bool] = None,
         count_messages: Optional[bool] = None,
         custom_events: Optional[bool] = None,
+        delivery_events: Optional[bool] = None,
         mark_messages_pending: Optional[bool] = None,
         mutes: Optional[bool] = None,
         partition_size: Optional[int] = None,
@@ -770,6 +779,7 @@ class ChatRestClient(BaseClient):
             connect_events=connect_events,
             count_messages=count_messages,
             custom_events=custom_events,
+            delivery_events=delivery_events,
             mark_messages_pending=mark_messages_pending,
             mutes=mutes,
             partition_size=partition_size,
@@ -1555,8 +1565,15 @@ class ChatRestClient(BaseClient):
         )
 
     @telemetry.operation_name("getstream.api.chat.unread_counts")
-    def unread_counts(self) -> StreamResponse[WrappedUnreadCountsResponse]:
-        return self.get("/api/v2/chat/unread", WrappedUnreadCountsResponse)
+    def unread_counts(
+        self, user_id: Optional[str] = None
+    ) -> StreamResponse[WrappedUnreadCountsResponse]:
+        query_params = build_query_param(user_id=user_id)
+        return self.get(
+            "/api/v2/chat/unread",
+            WrappedUnreadCountsResponse,
+            query_params=query_params,
+        )
 
     @telemetry.operation_name("getstream.api.chat.unread_counts_batch")
     def unread_counts_batch(

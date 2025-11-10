@@ -493,6 +493,26 @@ class VideoRestClient(BaseClient):
             path_params=path_params,
         )
 
+    @telemetry.operation_name("getstream.api.video.ring_call")
+    def ring_call(
+        self,
+        type: str,
+        id: str,
+        video: Optional[bool] = None,
+        members_ids: Optional[List[str]] = None,
+    ) -> StreamResponse[RingCallResponse]:
+        path_params = {
+            "type": type,
+            "id": id,
+        }
+        json = build_body_dict(video=video, members_ids=members_ids)
+        return self.post(
+            "/api/v2/video/call/{type}/{id}/ring",
+            RingCallResponse,
+            path_params=path_params,
+            json=json,
+        )
+
     @telemetry.operation_name("getstream.api.video.start_rtmp_broadcasts")
     def start_rtmp_broadcasts(
         self, type: str, id: str, broadcasts: List[RTMPBroadcastRequest]
@@ -1021,6 +1041,145 @@ class VideoRestClient(BaseClient):
     @telemetry.operation_name("getstream.api.video.get_edges")
     def get_edges(self) -> StreamResponse[GetEdgesResponse]:
         return self.get("/api/v2/video/edges", GetEdgesResponse)
+
+    @telemetry.operation_name("getstream.api.video.resolve_sip_inbound")
+    def resolve_sip_inbound(
+        self,
+        sip_caller_number: str,
+        sip_trunk_number: str,
+        challenge: SIPChallenge,
+        sip_headers: Optional[Dict[str, str]] = None,
+    ) -> StreamResponse[ResolveSipInboundResponse]:
+        json = build_body_dict(
+            sip_caller_number=sip_caller_number,
+            sip_trunk_number=sip_trunk_number,
+            challenge=challenge,
+            sip_headers=sip_headers,
+        )
+        return self.post(
+            "/api/v2/video/sip/resolve", ResolveSipInboundResponse, json=json
+        )
+
+    @telemetry.operation_name("getstream.api.video.list_sip_inbound_routing_rule")
+    def list_sip_inbound_routing_rule(
+        self,
+    ) -> StreamResponse[ListSIPInboundRoutingRuleResponse]:
+        return self.get(
+            "/api/v2/video/sip/routing_rules", ListSIPInboundRoutingRuleResponse
+        )
+
+    @telemetry.operation_name("getstream.api.video.create_sip_inbound_routing_rule")
+    def create_sip_inbound_routing_rule(
+        self,
+        name: str,
+        trunk_ids: List[str],
+        caller_configs: SIPCallerConfigsRequest,
+        called_numbers: Optional[List[str]] = None,
+        caller_numbers: Optional[List[str]] = None,
+        call_configs: Optional[SIPCallConfigsRequest] = None,
+        direct_routing_configs: Optional[SIPDirectRoutingRuleCallConfigsRequest] = None,
+        pin_protection_configs: Optional[SIPPinProtectionConfigsRequest] = None,
+        pin_routing_configs: Optional[SIPInboundRoutingRulePinConfigsRequest] = None,
+    ) -> StreamResponse[SIPInboundRoutingRuleResponse]:
+        json = build_body_dict(
+            name=name,
+            trunk_ids=trunk_ids,
+            caller_configs=caller_configs,
+            called_numbers=called_numbers,
+            caller_numbers=caller_numbers,
+            call_configs=call_configs,
+            direct_routing_configs=direct_routing_configs,
+            pin_protection_configs=pin_protection_configs,
+            pin_routing_configs=pin_routing_configs,
+        )
+        return self.post(
+            "/api/v2/video/sip/routing_rules", SIPInboundRoutingRuleResponse, json=json
+        )
+
+    @telemetry.operation_name("getstream.api.video.delete_sip_inbound_routing_rule")
+    def delete_sip_inbound_routing_rule(
+        self, id: str
+    ) -> StreamResponse[DeleteSIPInboundRoutingRuleResponse]:
+        path_params = {
+            "id": id,
+        }
+        return self.delete(
+            "/api/v2/video/sip/routing_rules/{id}",
+            DeleteSIPInboundRoutingRuleResponse,
+            path_params=path_params,
+        )
+
+    @telemetry.operation_name("getstream.api.video.update_sip_inbound_routing_rule")
+    def update_sip_inbound_routing_rule(
+        self,
+        id: str,
+        name: str,
+        called_numbers: List[str],
+        trunk_ids: List[str],
+        caller_configs: SIPCallerConfigsRequest,
+        caller_numbers: Optional[List[str]] = None,
+        call_configs: Optional[SIPCallConfigsRequest] = None,
+        direct_routing_configs: Optional[SIPDirectRoutingRuleCallConfigsRequest] = None,
+        pin_protection_configs: Optional[SIPPinProtectionConfigsRequest] = None,
+        pin_routing_configs: Optional[SIPInboundRoutingRulePinConfigsRequest] = None,
+    ) -> StreamResponse[UpdateSIPInboundRoutingRuleResponse]:
+        path_params = {
+            "id": id,
+        }
+        json = build_body_dict(
+            name=name,
+            called_numbers=called_numbers,
+            trunk_ids=trunk_ids,
+            caller_configs=caller_configs,
+            caller_numbers=caller_numbers,
+            call_configs=call_configs,
+            direct_routing_configs=direct_routing_configs,
+            pin_protection_configs=pin_protection_configs,
+            pin_routing_configs=pin_routing_configs,
+        )
+        return self.put(
+            "/api/v2/video/sip/routing_rules/{id}",
+            UpdateSIPInboundRoutingRuleResponse,
+            path_params=path_params,
+            json=json,
+        )
+
+    @telemetry.operation_name("getstream.api.video.list_sip_trunks")
+    def list_sip_trunks(self) -> StreamResponse[ListSIPTrunksResponse]:
+        return self.get("/api/v2/video/sip/trunks", ListSIPTrunksResponse)
+
+    @telemetry.operation_name("getstream.api.video.create_sip_trunk")
+    def create_sip_trunk(
+        self, name: str, numbers: List[str]
+    ) -> StreamResponse[CreateSIPTrunkResponse]:
+        json = build_body_dict(name=name, numbers=numbers)
+        return self.post("/api/v2/video/sip/trunks", CreateSIPTrunkResponse, json=json)
+
+    @telemetry.operation_name("getstream.api.video.delete_sip_trunk")
+    def delete_sip_trunk(self, id: str) -> StreamResponse[DeleteSIPTrunkResponse]:
+        path_params = {
+            "id": id,
+        }
+        return self.delete(
+            "/api/v2/video/sip/trunks/{id}",
+            DeleteSIPTrunkResponse,
+            path_params=path_params,
+        )
+
+    @telemetry.operation_name("getstream.api.video.update_sip_trunk")
+    def update_sip_trunk(
+        self, id: str, name: str, numbers: List[str]
+    ) -> StreamResponse[UpdateSIPTrunkResponse]:
+        path_params = {
+            "id": id,
+        }
+        json = build_body_dict(name=name, numbers=numbers)
+        return self.put(
+            "/api/v2/video/sip/trunks/{id}",
+            UpdateSIPTrunkResponse,
+            path_params=path_params,
+            json=json,
+        )
 
     @telemetry.operation_name("getstream.api.video.query_aggregate_call_stats")
     def query_aggregate_call_stats(

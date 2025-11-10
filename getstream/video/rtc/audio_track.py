@@ -91,7 +91,9 @@ class AudioStreamTrack(aiortc.mediastreams.MediaStreamTrack):
                     break
 
             logger.warning(
-                "Audio queue overflow, dropped items max is %d. pcm duration %s ms", self.max_queue_size, pcm.duration_ms,
+                "Audio queue overflow, dropped items max is %d. pcm duration %s ms",
+                self.max_queue_size,
+                pcm.duration_ms,
                 extra={
                     "dropped_items": dropped_items,
                     "queue_size": self._queue.qsize(),
