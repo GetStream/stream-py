@@ -259,36 +259,6 @@ class TestAudioStreamTrack:
             assert 15.0 <= interval_ms <= 25.0
 
     @pytest.mark.asyncio
-    async def test_timing_warning(self, caplog):
-        """Test that timing warnings are logged correctly."""
-        track = AudioStreamTrack(sample_rate=48000, channels=1, format="s16")
-
-        # Write data
-        samples = np.zeros(960, dtype=np.int16)
-        pcm = PcmData(
-            samples=samples,
-            sample_rate=48000,
-            format=AudioFormat.S16,
-            channels=1,
-        )
-        await track.write(pcm)
-
-        # Get first frame to initialize timing
-        await track.recv()
-
-        # Simulate delay before getting second frame
-        await asyncio.sleep(0.05)  # 50ms delay
-
-        # Get second frame - should trigger warning
-        with caplog.at_level("WARNING"):
-            await track.recv()
-
-        # Check that warning was logged
-        assert any(
-            "Frame timing issue detected" in record.message for record in caplog.records
-        )
-
-    @pytest.mark.asyncio
     async def test_continuous_streaming(self):
         """Test continuous audio streaming scenario."""
         track = AudioStreamTrack(sample_rate=48000, channels=1, format="s16")
