@@ -15,7 +15,7 @@ EVENTS_DIR="${PROTO_DIR}/video/sfu/event"
 # Check if the protocol submodule exists, add it if not
 if ! git submodule status | grep -q "protocol"; then
     echo "Protocol submodule not found. Adding it..."
-    git submodule add https://github.com/GetStream/protocol
+    git submodule add -f https://github.com/GetStream/protocol
 fi
 
 # Update protocol submodule to latest version
@@ -35,29 +35,32 @@ touch "${OUTPUT_DIR}/__init__.py"
 echo "Checking for required tools..."
 if ! command -v protoc &> /dev/null; then
     echo "protoc is not installed. Please install it first."
-    echo "You can use protocol/install.sh script to install it."
+    echo "You can use protoc with brew install protoc"
     exit 1
 fi
 
 # Install Python dependencies
 echo "Installing Python dependencies..."
-uv add "twirp>=0.0.7" "protobuf>=6.31.1" "python-dateutil>=2.8.2" "aiortc>=1.10.1" --optional webrtc
-
-# Ensure Go tools are available for Twirp
-if ! command -v go &> /dev/null; then
-    echo "go is not installed. Please install it to generate Twirp client code."
-    exit 1
-fi
+uv sync --all-extras --dev --all-packages
 
 # Install Twirp Python generator if not available
 if ! command -v protoc-gen-twirpy &> /dev/null; then
-    echo "Installing protoc-gen-twirpy..."
-    go install github.com/verloop/twirpy/protoc-gen-twirpy@latest
-fi
+  echo "Installing protoc-gen-twirpy..."
 
-# Install required Python dependencies for code generation
-echo "Installing code generation dependencies..."
-uv add mypy-protobuf==3.5.0 --dev
+  # Ensure Go tools are available for Twirp
+  if ! command -v go &> /dev/null; then
+      echo "go is not installed. Please install it to generate Twirp client code."
+      exit 1
+  fi
+
+  go install github.com/verloop/twirpy/protoc-gen-twirpy@latest
+
+  # Ensure that Go path is in path otherwise protoc will not
+  if ! echo "$PATH" | grep -q "$(go env GOPATH)/bin"; then
+      echo "$(go env GOPATH)/bin is not in PATH"
+      exit 1
+  fi
+fi
 
 # Get the path to protoc
 PROTOC_PATH=$(command -v protoc)
