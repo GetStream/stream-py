@@ -16,6 +16,8 @@ from typing import Optional
 from twirp import exceptions
 from twirp import errors
 
+from urllib.parse import urljoin
+
 _sym_db = _symbol_database.Default()
 
 
@@ -219,6 +221,9 @@ class AsyncTwirpClient:
     def __init__(
         self, address: str, session: Optional[aiohttp.ClientSession] = None
     ) -> None:
+        # Ensure address ends with a slash for urljoin to work correctly
+        if not address.endswith("/"):
+            address += "/"
         self._address = address
         self._session = session
 
@@ -233,12 +238,20 @@ class AsyncTwirpClient:
 
         if session is None:
             session = self._session
+
+        _session_created = False
         if not isinstance(session, aiohttp.ClientSession):
-            raise TypeError(f"invalid session type '{type(session).__name__}'")
+            session = aiohttp.ClientSession()
+            _session_created = True
+
+        # Construct the full URL by joining the base address and the path
+        # Remove leading slash from url path if present, as self._address ends with /
+        full_url = urljoin(self._address, url.lstrip("/"))
 
         try:
+            # Use the correctly constructed full_url
             async with await session.post(
-                url=url, data=request.SerializeToString(), **kwargs
+                url=full_url, data=request.SerializeToString(), **kwargs
             ) as resp:
                 if resp.status == 200:
                     response = response_obj()
@@ -257,11 +270,16 @@ class AsyncTwirpClient:
                 meta={"original_exception": e},
             )
         except aiohttp.ServerConnectionError as e:
+            # This catches more connection-related errors like ClientConnectorError
             raise exceptions.TwirpServerException(
                 code=errors.Errors.Unavailable,
                 message=str(e),
                 meta={"original_exception": e},
             )
+        finally:
+            # Close the session only if we created it internally
+            if _session_created and session:
+                await session.close()
 
 
 class AsyncSignalServerClient(AsyncTwirpClient):

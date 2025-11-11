@@ -56,7 +56,7 @@ if ! echo "$PATH" | grep -q "$(go env GOPATH)/bin"; then
 fi
 
 echo "Installing protoc-gen-twirpy..."
-go install github.com/tbarbugli/twirpy/protoc-gen-twirpy@111deed
+go install github.com/tbarbugli/twirpy/protoc-gen-twirpy@423caa6
 
 # Get the path to protoc
 PROTOC_PATH=$(command -v protoc)
