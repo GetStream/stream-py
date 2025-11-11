@@ -12,7 +12,6 @@ from getstream.common import telemetry
 from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
 from getstream.video.rtc.pb.stream.video.sfu.signal_rpc.signal_twirp import (
     AsyncSignalServerClient,
-    _async_available,
 )
 
 logger = logging.getLogger(__name__)
@@ -117,11 +116,6 @@ def _check_response_for_error(response, method_name, span=None):
     except Exception:
         # Ensure we re-raise for caller handling
         raise
-
-
-# Check if async capabilities are available
-if not _async_available:
-    raise ImportError("AsyncSignalServerClient requires 'aiohttp'. Please install it.")
 
 
 # Inherit but use __getattribute__ for dynamic wrapping
