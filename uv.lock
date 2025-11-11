@@ -779,6 +779,7 @@ dev = [
     { name = "python-dateutil" },
     { name = "python-dotenv" },
     { name = "ruff" },
+    { name = "twirp" },
 ]
 
 [package.metadata]
@@ -832,6 +833,7 @@ dev = [
     { name = "python-dateutil", specifier = ">=2.8.2,<3" },
     { name = "python-dotenv", specifier = ">=1.1.1,<2" },
     { name = "ruff", specifier = ">=0.12.1" },
+    { name = "twirp", git = "https://github.com/tbarbugli/twirpy?rev=main" },
 ]
 
 [[package]]
@@ -2962,16 +2964,12 @@ wheels = [
 
 [[package]]
 name = "twirp"
-version = "0.0.7"
-source = { registry = "https://pypi.org/simple" }
+version = "0.0.dev0"
+source = { git = "https://github.com/tbarbugli/twirpy?rev=main#52d0b399c7861d9143b38935fdaa2c30441d4dc2" }
 dependencies = [
     { name = "protobuf" },
     { name = "requests" },
     { name = "structlog" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/4c/e1/ebb06fa8f7164ff7f81d5cd78a74b768373480c417b2837d94a5943872b6/twirp-0.0.7.tar.gz", hash = "sha256:692b055d5da6e8ec29ded5dc93682c3ed5ec608bb9cb14529139a3b31cc2a44a", size = 11353 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/f5/a8/12092a50daa826b692e79a199c3f55921ce5a9cd67bed8e454bcdbbf9fdb/twirp-0.0.7-py3-none-any.whl", hash = "sha256:978294787f07d9f5489e6e32ef050d4d8b619bdffcbe80b248797518b4f69871", size = 12437 },
 ]
 
 [[package]]

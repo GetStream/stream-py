@@ -76,6 +76,7 @@ dev = [
     "opentelemetry-exporter-otlp>=1.37.0",
     "opentelemetry-exporter-prometheus>=0.58b0",
     "prometheus-client>=0.23.1",
+    "twirp @ git+https://github.com/tbarbugli/twirpy@main",
 ]
 
 [tool.uv.workspace]
