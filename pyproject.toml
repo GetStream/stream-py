@@ -50,7 +50,7 @@ webrtc = [
     "torch>=2.7.1",
     "torchaudio>=2.7.1",
     "scipy>=1.15.3",
-    "aiohttp>=3.11.16",
+    "aiohttp>=3.13.2,<4",
     "ping3>=4.0.8",
     "protobuf>=6.31.1",
     "websockets>=15.0.1",
@@ -76,7 +76,6 @@ dev = [
     "opentelemetry-exporter-otlp>=1.37.0",
     "opentelemetry-exporter-prometheus>=0.58b0",
     "prometheus-client>=0.23.1",
-    "twirp @ git+https://github.com/tbarbugli/twirpy@main",
 ]
 
 [tool.uv.workspace]
