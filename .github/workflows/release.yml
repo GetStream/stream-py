@@ -36,8 +36,6 @@ jobs:
       - name: Sync environment & install dev extras
         run: |
           uv sync --all-packages --all-extras --dev --all-groups
-          uv remove twirp@git+https://github.com/tbarbugli/twirpy --group dev || true
-          uv add twirp || true
 
       - name: Build core distributions
         run: |

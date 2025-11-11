@@ -115,6 +115,63 @@ TRACK_TYPE_SCREEN_SHARE: TrackType.ValueType  # 3
 TRACK_TYPE_SCREEN_SHARE_AUDIO: TrackType.ValueType  # 4
 global___TrackType = TrackType
 
+class _ParticipantSource:
+    ValueType = typing.NewType("ValueType", builtins.int)
+    V: typing_extensions.TypeAlias = ValueType
+
+class _ParticipantSourceEnumTypeWrapper(
+    google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[
+        _ParticipantSource.ValueType
+    ],
+    builtins.type,
+):
+    DESCRIPTOR: google.protobuf.descriptor.EnumDescriptor
+    PARTICIPANT_SOURCE_WEBRTC_UNSPECIFIED: _ParticipantSource.ValueType  # 0
+    PARTICIPANT_SOURCE_RTMP: _ParticipantSource.ValueType  # 1
+    PARTICIPANT_SOURCE_WHIP: _ParticipantSource.ValueType  # 2
+    PARTICIPANT_SOURCE_SIP: _ParticipantSource.ValueType  # 3
+    PARTICIPANT_SOURCE_RTSP: _ParticipantSource.ValueType  # 4
+    PARTICIPANT_SOURCE_SRT: _ParticipantSource.ValueType  # 5
+
+class ParticipantSource(
+    _ParticipantSource, metaclass=_ParticipantSourceEnumTypeWrapper
+):
+    """must be aligned with kit"""
+
+PARTICIPANT_SOURCE_WEBRTC_UNSPECIFIED: ParticipantSource.ValueType  # 0
+PARTICIPANT_SOURCE_RTMP: ParticipantSource.ValueType  # 1
+PARTICIPANT_SOURCE_WHIP: ParticipantSource.ValueType  # 2
+PARTICIPANT_SOURCE_SIP: ParticipantSource.ValueType  # 3
+PARTICIPANT_SOURCE_RTSP: ParticipantSource.ValueType  # 4
+PARTICIPANT_SOURCE_SRT: ParticipantSource.ValueType  # 5
+global___ParticipantSource = ParticipantSource
+
+class _AudioBitrateProfile:
+    ValueType = typing.NewType("ValueType", builtins.int)
+    V: typing_extensions.TypeAlias = ValueType
+
+class _AudioBitrateProfileEnumTypeWrapper(
+    google.protobuf.internal.enum_type_wrapper._EnumTypeWrapper[
+        _AudioBitrateProfile.ValueType
+    ],
+    builtins.type,
+):
+    DESCRIPTOR: google.protobuf.descriptor.EnumDescriptor
+    AUDIO_BITRATE_PROFILE_VOICE_STANDARD_UNSPECIFIED: (
+        _AudioBitrateProfile.ValueType
+    )  # 0
+    AUDIO_BITRATE_PROFILE_VOICE_HIGH_QUALITY: _AudioBitrateProfile.ValueType  # 1
+    AUDIO_BITRATE_PROFILE_MUSIC_HIGH_QUALITY: _AudioBitrateProfile.ValueType  # 2
+
+class AudioBitrateProfile(
+    _AudioBitrateProfile, metaclass=_AudioBitrateProfileEnumTypeWrapper
+): ...
+
+AUDIO_BITRATE_PROFILE_VOICE_STANDARD_UNSPECIFIED: AudioBitrateProfile.ValueType  # 0
+AUDIO_BITRATE_PROFILE_VOICE_HIGH_QUALITY: AudioBitrateProfile.ValueType  # 1
+AUDIO_BITRATE_PROFILE_MUSIC_HIGH_QUALITY: AudioBitrateProfile.ValueType  # 2
+global___AudioBitrateProfile = AudioBitrateProfile
+
 class _ErrorCode:
     ValueType = typing.NewType("ValueType", builtins.int)
     V: typing_extensions.TypeAlias = ValueType
@@ -587,6 +644,7 @@ class Participant(google.protobuf.message.Message):
     IMAGE_FIELD_NUMBER: builtins.int
     CUSTOM_FIELD_NUMBER: builtins.int
     ROLES_FIELD_NUMBER: builtins.int
+    SOURCE_FIELD_NUMBER: builtins.int
     user_id: builtins.str
     session_id: builtins.str
     @property
@@ -613,6 +671,7 @@ class Participant(google.protobuf.message.Message):
     ) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[
         builtins.str
     ]: ...
+    source: global___ParticipantSource.ValueType
     def __init__(
         self,
         *,
@@ -630,6 +689,7 @@ class Participant(google.protobuf.message.Message):
         image: builtins.str = ...,
         custom: google.protobuf.struct_pb2.Struct | None = ...,
         roles: collections.abc.Iterable[builtins.str] | None = ...,
+        source: global___ParticipantSource.ValueType = ...,
     ) -> None: ...
     def HasField(
         self,
@@ -662,6 +722,8 @@ class Participant(google.protobuf.message.Message):
             b"roles",
             "session_id",
             b"session_id",
+            "source",
+            b"source",
             "track_lookup_prefix",
             b"track_lookup_prefix",
             "user_id",
@@ -810,6 +872,7 @@ class PublishOption(google.protobuf.message.Message):
     VIDEO_DIMENSION_FIELD_NUMBER: builtins.int
     ID_FIELD_NUMBER: builtins.int
     USE_SINGLE_LAYER_FIELD_NUMBER: builtins.int
+    AUDIO_BITRATE_PROFILES_FIELD_NUMBER: builtins.int
     track_type: global___TrackType.ValueType
     """The type of the track being published (e.g., video, screenshare)."""
     @property
@@ -860,6 +923,13 @@ class PublishOption(google.protobuf.message.Message):
     disabling all lower layers. This applies to simulcast encodings.
     For SVC codecs, prefer using the L1T3 (single spatial, 3 temporal layers) mode instead.
     """
+    @property
+    def audio_bitrate_profiles(
+        self,
+    ) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[
+        global___AudioBitrate
+    ]:
+        """Audio bitrate profiles for different audio quality profiles."""
     def __init__(
         self,
         *,
@@ -872,6 +942,8 @@ class PublishOption(google.protobuf.message.Message):
         video_dimension: global___VideoDimension | None = ...,
         id: builtins.int = ...,
         use_single_layer: builtins.bool = ...,
+        audio_bitrate_profiles: collections.abc.Iterable[global___AudioBitrate]
+        | None = ...,
     ) -> None: ...
     def HasField(
         self,
@@ -882,6 +954,8 @@ class PublishOption(google.protobuf.message.Message):
     def ClearField(
         self,
         field_name: typing_extensions.Literal[
+            "audio_bitrate_profiles",
+            b"audio_bitrate_profiles",
             "bitrate",
             b"bitrate",
             "codec",
@@ -976,6 +1050,29 @@ class ICETrickle(google.protobuf.message.Message):
     ) -> None: ...
 
 global___ICETrickle = ICETrickle
+
+@typing_extensions.final
+class AudioBitrate(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    PROFILE_FIELD_NUMBER: builtins.int
+    BITRATE_FIELD_NUMBER: builtins.int
+    profile: global___AudioBitrateProfile.ValueType
+    bitrate: builtins.int
+    def __init__(
+        self,
+        *,
+        profile: global___AudioBitrateProfile.ValueType = ...,
+        bitrate: builtins.int = ...,
+    ) -> None: ...
+    def ClearField(
+        self,
+        field_name: typing_extensions.Literal[
+            "bitrate", b"bitrate", "profile", b"profile"
+        ],
+    ) -> None: ...
+
+global___AudioBitrate = AudioBitrate
 
 @typing_extensions.final
 class TrackInfo(google.protobuf.message.Message):

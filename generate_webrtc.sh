@@ -43,24 +43,20 @@ fi
 echo "Installing Python dependencies..."
 uv sync --all-extras --dev --all-packages
 
-# Install Twirp Python generator if not available
-if ! command -v protoc-gen-twirpy &> /dev/null; then
-  echo "Installing protoc-gen-twirpy..."
-
-  # Ensure Go tools are available for Twirp
-  if ! command -v go &> /dev/null; then
-      echo "go is not installed. Please install it to generate Twirp client code."
-      exit 1
-  fi
-
-  go install github.com/verloop/twirpy/protoc-gen-twirpy@latest
-
-  # Ensure that Go path is in path otherwise protoc will not
-  if ! echo "$PATH" | grep -q "$(go env GOPATH)/bin"; then
-      echo "$(go env GOPATH)/bin is not in PATH"
-      exit 1
-  fi
+# Ensure Go tools are available for Twirp
+if ! command -v go &> /dev/null; then
+    echo "go is not installed. Please install it to generate Twirp client code."
+    exit 1
 fi
+
+# Ensure that Go path is in path otherwise protoc will not
+if ! echo "$PATH" | grep -q "$(go env GOPATH)/bin"; then
+    echo "$(go env GOPATH)/bin is not in PATH"
+    exit 1
+fi
+
+echo "Installing protoc-gen-twirpy..."
+go install github.com/tbarbugli/twirpy/protoc-gen-twirpy@423caa6
 
 # Get the path to protoc
 PROTOC_PATH=$(command -v protoc)
