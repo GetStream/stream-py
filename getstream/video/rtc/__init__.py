@@ -47,7 +47,7 @@ async def discover_location():
 
 
 async def join(
-    call: Call, user_id: Optional[str] = None, create=True, **kwargs
+    call: Call, user_id: Optional[str] = None, create=True, fast_join=False, **kwargs
 ) -> ConnectionManager:
     """
     Join a call. This method will:
@@ -60,6 +60,7 @@ async def join(
         call: The call to join
         user_id: The user id to join with
         create: Whether to create the call if it doesn't exist
+        fast_join: Whether to use fast join with edge racing (default: False)
         **kwargs: Additional arguments to pass to the join call request
 
     Returns:
@@ -67,7 +68,7 @@ async def join(
     """
     # Return ConnectionManager instance that handles everything internally
     # when used as an async context manager and async iterator
-    return ConnectionManager(call=call, user_id=user_id, create=create, **kwargs)
+    return ConnectionManager(call=call, user_id=user_id, create=create, fast_join=fast_join, **kwargs)
 
 
 __all__ = [
