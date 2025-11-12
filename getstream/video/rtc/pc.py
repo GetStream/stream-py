@@ -155,10 +155,14 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
             self.track_map[track.id] = (relay, track)
 
             if track.kind == "audio":
-                # Add a new subscriber for AudioTrackHandler
-                handler = AudioTrackHandler(
-                    relay.subscribe(track), lambda pcm: self.emit("audio", pcm, user)
-                )
+                from getstream.video.rtc import PcmData
+
+                # Add a new subscriber for AudioTrackHandler and attach the participant to the pcm object
+                def _emit_pcm(pcm: PcmData):
+                    pcm.participant = user
+                    self.emit("audio", pcm)
+
+                handler = AudioTrackHandler(relay.subscribe(track), _emit_pcm)
                 asyncio.create_task(handler.start())
 
             self.emit("track_added", relay.subscribe(track), user)
