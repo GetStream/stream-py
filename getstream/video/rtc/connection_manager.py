@@ -328,13 +328,16 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                     token = selected_cred.token
 
                     #map it to standard join call object so that retry/migration can happen
-                    self.join_response = StreamResponse(data=JoinCallResponse(
-                        call=self._fast_join_response.data.call,
-                        members=self._fast_join_response.data.members,
-                        credentials=selected_cred,
-                        stats_options=self._fast_join_response.data.stats_options,
-                        duration=self._fast_join_response.data.duration,
-                    ))
+                    self.join_response = StreamResponse(
+                        response=self._fast_join_response._StreamResponse__response,
+                        data=JoinCallResponse(
+                            call=self._fast_join_response.data.call,
+                            members=self._fast_join_response.data.members,
+                            credentials=selected_cred,
+                            stats_options=self._fast_join_response.data.stats_options,
+                            duration=self._fast_join_response.data.duration,
+                        )
+                    )
 
                     span.set_attribute("credentials", selected_cred.to_json())
                 else:
