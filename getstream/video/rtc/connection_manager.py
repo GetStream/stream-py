@@ -8,6 +8,7 @@ import aioice
 import aiortc
 
 from getstream.common import telemetry
+from getstream.stream_response import StreamResponse
 from getstream.utils import StreamAsyncIOEventEmitter
 from getstream.video.rtc.coordinator.ws import StreamAPIWS
 from getstream.video.rtc.pb.stream.video.sfu.event import events_pb2
@@ -326,16 +327,15 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                     ws_url = selected_cred.server.ws_endpoint
                     token = selected_cred.token
 
-                    #TODO ask tommaso whether this mapping is required
-                    from getstream.video.rtc.models import JoinCallResponse
-
-                    self.join_response = JoinCallResponse(
+                    #map it to standard join call object so that retry/migration can happen
+                    self.join_response = StreamResponse(data=JoinCallResponse(
                         call=self._fast_join_response.data.call,
                         members=self._fast_join_response.data.members,
                         credentials=selected_cred,
                         stats_options=self._fast_join_response.data.stats_options,
                         duration=self._fast_join_response.data.duration,
-                    )
+                    ))
+
                     span.set_attribute("credentials", selected_cred.to_json())
                 else:
                     # Regular join - connect to single edge
@@ -618,9 +618,6 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                 return ws_client, sfu_event, cred
 
             except Exception as e:
-                logger.warning(
-                    f"Edge {cred.server.edge_name} failed to connect: {e}"
-                )
                 errors.append((cred.server.edge_name, str(e)))
                 # Continue to next edge
 
