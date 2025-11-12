@@ -689,6 +689,7 @@ class JoinRequest(google.protobuf.message.Message):
 
     TOKEN_FIELD_NUMBER: builtins.int
     SESSION_ID_FIELD_NUMBER: builtins.int
+    UNIFIED_SESSION_ID_FIELD_NUMBER: builtins.int
     SUBSCRIBER_SDP_FIELD_NUMBER: builtins.int
     PUBLISHER_SDP_FIELD_NUMBER: builtins.int
     CLIENT_DETAILS_FIELD_NUMBER: builtins.int
@@ -698,8 +699,14 @@ class JoinRequest(google.protobuf.message.Message):
     PREFERRED_PUBLISH_OPTIONS_FIELD_NUMBER: builtins.int
     PREFERRED_SUBSCRIBE_OPTIONS_FIELD_NUMBER: builtins.int
     CAPABILITIES_FIELD_NUMBER: builtins.int
+    SOURCE_FIELD_NUMBER: builtins.int
     token: builtins.str
     session_id: builtins.str
+    unified_session_id: builtins.str
+    """user_session id can change during reconnects, this helps us to
+    identify the user across reconnects and should remain consistent until the user explicitly
+    disconnects, is kicked or the call is ended.
+    """
     subscriber_sdp: builtins.str
     """dumb SDP that allow us to extract subscriber's decode codecs"""
     publisher_sdp: builtins.str
@@ -739,11 +746,13 @@ class JoinRequest(google.protobuf.message.Message):
     ) -> google.protobuf.internal.containers.RepeatedScalarFieldContainer[
         video.sfu.models.models_pb2.ClientCapability.ValueType
     ]: ...
+    source: video.sfu.models.models_pb2.ParticipantSource.ValueType
     def __init__(
         self,
         *,
         token: builtins.str = ...,
         session_id: builtins.str = ...,
+        unified_session_id: builtins.str = ...,
         subscriber_sdp: builtins.str = ...,
         publisher_sdp: builtins.str = ...,
         client_details: video.sfu.models.models_pb2.ClientDetails | None = ...,
@@ -762,6 +771,7 @@ class JoinRequest(google.protobuf.message.Message):
             video.sfu.models.models_pb2.ClientCapability.ValueType
         ]
         | None = ...,
+        source: video.sfu.models.models_pb2.ParticipantSource.ValueType = ...,
     ) -> None: ...
     def HasField(
         self,
@@ -795,10 +805,14 @@ class JoinRequest(google.protobuf.message.Message):
             b"reconnect_details",
             "session_id",
             b"session_id",
+            "source",
+            b"source",
             "subscriber_sdp",
             b"subscriber_sdp",
             "token",
             b"token",
+            "unified_session_id",
+            b"unified_session_id",
         ],
     ) -> None: ...
 
