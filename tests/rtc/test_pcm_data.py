@@ -825,7 +825,7 @@ def test_constructor_raises_on_int16_with_f32_format():
     assert "format='f32'" in error_msg
     assert "float32" in error_msg
     assert "int16" in error_msg
-    assert "to_float32()" in error_msg or "from_data()" in error_msg
+    assert "to_float32()" in error_msg or "from_numpy()" in error_msg
 
 
 def test_constructor_raises_on_float32_with_s16_format():
@@ -891,16 +891,29 @@ def test_constructor_accepts_matching_float32_with_f32():
     assert np.array_equal(pcm.samples, samples)
 
 
-def test_from_data_handles_conversion_automatically():
-    """Verify from_data() still handles automatic conversion (doesn't go through strict validation the same way)."""
-    # from_data should handle conversion internally
+def test_from_numpy_handles_conversion_automatically():
+    """Verify from_numpy() handles automatic conversion (doesn't go through strict validation the same way)."""
+    # from_numpy should handle conversion internally
     samples_int16 = np.array([1, 2, 3], dtype=np.int16)
 
-    # This should work because from_data converts internally before calling __init__
-    pcm = PcmData.from_data(samples_int16, sample_rate=16000, format="s16", channels=1)
+    # This should work because from_numpy converts internally before calling __init__
+    pcm = PcmData.from_numpy(samples_int16, sample_rate=16000, format="s16", channels=1)
 
     assert pcm.format == "s16"
     assert pcm.samples.dtype == np.int16
+
+
+def test_from_numpy_rejects_bytes():
+    """Verify from_numpy() rejects bytes input with helpful error message."""
+    audio_bytes = bytes([0, 1, 2, 3])
+
+    with pytest.raises(TypeError) as exc_info:
+        PcmData.from_numpy(audio_bytes, sample_rate=16000, format="s16", channels=1)
+
+    error_msg = str(exc_info.value)
+    assert "from_numpy() expects a numpy array" in error_msg
+    assert "from_bytes()" in error_msg
+    assert "from_response()" in error_msg
 
 
 def test_direct_float32_to_int16_conversion_needs_clipping():
@@ -1066,11 +1079,11 @@ def test_to_int16_clipping():
 
 def test_to_int16_with_wrong_dtype():
     """Test converting from wrong dtype gets converted correctly."""
-    # Create samples with wrong dtype (e.g., int32) using from_data which auto-converts
+    # Create samples with wrong dtype (e.g., int32) using from_numpy which auto-converts
     samples = np.array([100, 200, 300], dtype=np.int32)
-    pcm = PcmData.from_data(samples, sample_rate=16000, format="s16", channels=1)
+    pcm = PcmData.from_numpy(samples, sample_rate=16000, format="s16", channels=1)
 
-    # After from_data, it should already be int16
+    # After from_numpy, it should already be int16
     assert pcm.samples.dtype == np.int16
 
     pcm_s16 = pcm.to_int16()

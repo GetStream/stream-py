@@ -161,7 +161,7 @@ class PcmData:
                     f"Dtype mismatch: format='{format}' requires samples with dtype={expected_dtype_name}, "
                     f"but got dtype={actual_dtype_name}. "
                     f"To fix: use .to_float32() for f32 format, or ensure samples match the declared format. "
-                    f"For automatic conversion, use PcmData.from_data() instead."
+                    f"For automatic conversion, use PcmData.from_numpy() instead."
                 )
 
         self.samples: NDArray = samples
@@ -358,77 +358,75 @@ class PcmData:
         )
 
     @classmethod
-    def from_data(
+    def from_numpy(
         cls,
-        data: Union[bytes, bytearray, memoryview, NDArray],
+        array: NDArray,
         sample_rate: int = 16000,
         format: AudioFormatType = AudioFormat.S16,
         channels: int = 1,
     ) -> "PcmData":
-        """Build from bytes or numpy arrays.
+        """Build from numpy arrays with automatic dtype/shape conversion.
 
         Args:
-            data: Input audio data (bytes or numpy array)
+            array: Input audio data as numpy array
             sample_rate: Sample rate in Hz (default: 16000)
             format: Audio format (default: AudioFormat.S16)
             channels: Number of channels (default: 1 for mono)
 
         Example:
         >>> import numpy as np
-        >>> PcmData.from_data(np.array([1, 2], np.int16), sample_rate=16000, format=AudioFormat.S16, channels=1).channels
+        >>> PcmData.from_numpy(np.array([1, 2], np.int16), sample_rate=16000, format=AudioFormat.S16, channels=1).channels
         1
         """
         # Validate format
         AudioFormat.validate(format)
-        if isinstance(data, (bytes, bytearray, memoryview)):
-            return cls.from_bytes(
-                bytes(data), sample_rate=sample_rate, format=format, channels=channels
+
+        if not isinstance(array, np.ndarray):
+            raise TypeError(
+                f"from_numpy() expects a numpy array, got {type(array).__name__}. "
+                f"Use from_bytes() for bytes or from_response() for API responses."
             )
 
-        if isinstance(data, np.ndarray):
-            arr = data
-            # Ensure dtype aligns with format
-            if format == "s16" and arr.dtype != np.int16:
-                arr = arr.astype(np.int16)
-            elif format == "f32" and arr.dtype != np.float32:
-                arr = arr.astype(np.float32)
+        arr = array
+        # Ensure dtype aligns with format
+        if format == "s16" and arr.dtype != np.int16:
+            arr = arr.astype(np.int16)
+        elif format == "f32" and arr.dtype != np.float32:
+            arr = arr.astype(np.float32)
 
-            # Normalize shape to (channels, samples) for multi-channel
-            if arr.ndim == 2:
-                if arr.shape[0] == channels:
-                    samples_arr = arr
-                elif arr.shape[1] == channels:
-                    samples_arr = arr.T
-                else:
-                    # Assume first dimension is channels if ambiguous
-                    samples_arr = arr
-            elif arr.ndim == 1:
-                if channels > 1:
-                    try:
-                        frames = arr.reshape(-1, channels)
-                        samples_arr = frames.T
-                    except Exception:
-                        logger.warning(
-                            f"Could not reshape 1D array to {channels} channels; keeping mono"
-                        )
-                        channels = 1
-                        samples_arr = arr
-                else:
+        # Normalize shape to (channels, samples) for multi-channel
+        if arr.ndim == 2:
+            if arr.shape[0] == channels:
+                samples_arr = arr
+            elif arr.shape[1] == channels:
+                samples_arr = arr.T
+            else:
+                # Assume first dimension is channels if ambiguous
+                samples_arr = arr
+        elif arr.ndim == 1:
+            if channels > 1:
+                try:
+                    frames = arr.reshape(-1, channels)
+                    samples_arr = frames.T
+                except Exception:
+                    logger.warning(
+                        f"Could not reshape 1D array to {channels} channels; keeping mono"
+                    )
+                    channels = 1
                     samples_arr = arr
             else:
-                # Fallback
-                samples_arr = arr.reshape(-1)
-                channels = 1
+                samples_arr = arr
+        else:
+            # Fallback
+            samples_arr = arr.reshape(-1)
+            channels = 1
 
-            return cls(
-                samples=samples_arr,
-                sample_rate=sample_rate,
-                format=format,
-                channels=channels,
-            )
-
-        # Unsupported type
-        raise TypeError(f"Unsupported data type for PcmData: {type(data)}")
+        return cls(
+            samples=samples_arr,
+            sample_rate=sample_rate,
+            format=format,
+            channels=channels,
+        )
 
     @classmethod
     def from_av_frame(cls, frame: "av.AudioFrame") -> "PcmData":
@@ -885,6 +883,69 @@ class PcmData:
 
         self.samples = np.array([], dtype=dtype)
 
+    @staticmethod
+    def _calculate_sample_width(format: AudioFormatType) -> int:
+        """Calculate bytes per sample for a given format."""
+        return 2 if format == "s16" else 4 if format == "f32" else 2
+
+    @classmethod
+    def _process_iterator_chunk(
+        cls,
+        buf: bytearray,
+        frame_width: int,
+        sample_rate: int,
+        channels: int,
+        format: AudioFormatType,
+    ) -> tuple[Optional["PcmData"], bytearray]:
+        """
+        Process buffered audio data and return aligned chunk.
+
+        Returns:
+            Tuple of (PcmData chunk or None, remaining buffer)
+        """
+        aligned = (len(buf) // frame_width) * frame_width
+        if aligned:
+            chunk = bytes(buf[:aligned])
+            remaining = buf[aligned:]
+            pcm = cls.from_bytes(
+                chunk,
+                sample_rate=sample_rate,
+                channels=channels,
+                format=format,
+            )
+            return pcm, bytearray(remaining)
+        return None, buf
+
+    @classmethod
+    def _finalize_iterator_buffer(
+        cls,
+        buf: bytearray,
+        frame_width: int,
+        sample_rate: int,
+        channels: int,
+        format: AudioFormatType,
+    ) -> Optional["PcmData"]:
+        """
+        Process remaining buffer at end of iteration with padding if needed.
+
+        Returns:
+            Final PcmData chunk or None if buffer is empty
+        """
+        if not buf:
+            return None
+
+        # Pad to frame boundary
+        pad_len = (-len(buf)) % frame_width
+        if pad_len:
+            buf.extend(b"\x00" * pad_len)
+
+        return cls.from_bytes(
+            bytes(buf),
+            sample_rate=sample_rate,
+            channels=channels,
+            format=format,
+        )
+
     @classmethod
     def from_response(
         cls,
@@ -926,38 +987,32 @@ class PcmData:
         if hasattr(response, "__aiter__"):
 
             async def _agen():
-                width = 2 if format == "s16" else 4 if format == "f32" else 2
+                width = cls._calculate_sample_width(format)
                 frame_width = width * max(1, channels)
                 buf = bytearray()
+
                 async for item in response:
                     if isinstance(item, PcmData):
                         yield item
                         continue
+
                     data = getattr(item, "data", item)
                     if not isinstance(data, (bytes, bytearray, memoryview)):
                         raise TypeError("Async iterator yielded unsupported item type")
+
                     buf.extend(bytes(data))
-                    aligned = (len(buf) // frame_width) * frame_width
-                    if aligned:
-                        chunk = bytes(buf[:aligned])
-                        del buf[:aligned]
-                        yield cls.from_bytes(
-                            chunk,
-                            sample_rate=sample_rate,
-                            channels=channels,
-                            format=format,
-                        )
-                # pad remainder, if any
-                if buf:
-                    pad_len = (-len(buf)) % frame_width
-                    if pad_len:
-                        buf.extend(b"\x00" * pad_len)
-                    yield cls.from_bytes(
-                        bytes(buf),
-                        sample_rate=sample_rate,
-                        channels=channels,
-                        format=format,
+                    chunk, buf = cls._process_iterator_chunk(
+                        buf, frame_width, sample_rate, channels, format
                     )
+                    if chunk:
+                        yield chunk
+
+                # Handle remainder
+                final_chunk = cls._finalize_iterator_buffer(
+                    buf, frame_width, sample_rate, channels, format
+                )
+                if final_chunk:
+                    yield final_chunk
 
             return _agen()
 
@@ -967,37 +1022,32 @@ class PcmData:
         ):
 
             def _gen():
-                width = 2 if format == "s16" else 4 if format == "f32" else 2
+                width = cls._calculate_sample_width(format)
                 frame_width = width * max(1, channels)
                 buf = bytearray()
+
                 for item in response:
                     if isinstance(item, PcmData):
                         yield item
                         continue
+
                     data = getattr(item, "data", item)
                     if not isinstance(data, (bytes, bytearray, memoryview)):
                         raise TypeError("Iterator yielded unsupported item type")
+
                     buf.extend(bytes(data))
-                    aligned = (len(buf) // frame_width) * frame_width
-                    if aligned:
-                        chunk = bytes(buf[:aligned])
-                        del buf[:aligned]
-                        yield cls.from_bytes(
-                            chunk,
-                            sample_rate=sample_rate,
-                            channels=channels,
-                            format=format,
-                        )
-                if buf:
-                    pad_len = (-len(buf)) % frame_width
-                    if pad_len:
-                        buf.extend(b"\x00" * pad_len)
-                    yield cls.from_bytes(
-                        bytes(buf),
-                        sample_rate=sample_rate,
-                        channels=channels,
-                        format=format,
+                    chunk, buf = cls._process_iterator_chunk(
+                        buf, frame_width, sample_rate, channels, format
                     )
+                    if chunk:
+                        yield chunk
+
+                # Handle remainder
+                final_chunk = cls._finalize_iterator_buffer(
+                    buf, frame_width, sample_rate, channels, format
+                )
+                if final_chunk:
+                    yield final_chunk
 
             return _gen()
 
