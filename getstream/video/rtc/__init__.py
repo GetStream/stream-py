@@ -60,7 +60,7 @@ async def join(
         call: The call to join
         user_id: The user id to join with
         create: Whether to create the call if it doesn't exist
-        fast_join: Whether to use fast join with edge racing (default: False)
+        fast_join: Whether to use fast join  (default: False)
         **kwargs: Additional arguments to pass to the join call request
 
     Returns:

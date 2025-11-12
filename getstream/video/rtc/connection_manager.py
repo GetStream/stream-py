@@ -286,8 +286,6 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                         f"Received {len(fast_join_response.data.credentials)} edge credentials for fast join"
                     )
 
-                    # We'll race the edges later after setting up subscriber
-                    # Store the fast join response for now
                     self._fast_join_response = fast_join_response
                 else:
                     # Use regular join
@@ -317,7 +315,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             with telemetry.start_as_current_span(
                 "sfu-signaling-ws-connect",
             ) as span:
-                # Handle fast join edge racing or regular join
+                # Handle fast join or regular join
                 if self.fast_join and hasattr(self, "_fast_join_response"):
                     # Fast join - race multiple edges
                     self._ws_client, sfu_event, selected_cred = await self._race_edges(
