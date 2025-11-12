@@ -21,7 +21,7 @@ from getstream.base import StreamResponse
 from getstream.models import CallRequest
 from getstream.utils import build_body_dict, build_query_param
 from getstream.video.async_call import Call
-from getstream.video.rtc.models import JoinCallResponse, FastJoinCallResponse, Credentials
+from getstream.video.rtc.models import JoinCallResponse, FastJoinCallResponse
 from getstream.video.rtc.pb.stream.video.sfu.event import events_pb2
 from getstream.video.rtc.pb.stream.video.sfu.models.models_pb2 import (
     TRACK_TYPE_AUDIO,
