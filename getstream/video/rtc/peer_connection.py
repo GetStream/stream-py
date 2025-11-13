@@ -43,8 +43,8 @@ class PeerConnectionManager:
             )
 
             @self.subscriber_pc.on("audio")
-            async def on_audio(pcm_data, user):
-                self.connection_manager.emit("audio", pcm_data, user)
+            async def on_audio(pcm_data):
+                self.connection_manager.emit("audio", pcm_data)
 
             @self.subscriber_pc.on("track_added")
             async def on_track_added(track, user):
