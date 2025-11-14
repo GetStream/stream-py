@@ -1775,9 +1775,9 @@ class BufferedMediaTrack(aiortc.mediastreams.MediaStreamTrack):
             self._ended = True
             self._buffered_frames = []  # Clear all buffered frames
             # Stop the underlying track if it has a stop method
-            if hasattr(self._track, "stop_audio"):
+            if hasattr(self._track, "stop"):
                 try:
-                    self._track.stop_audio()
+                    self._track.stop()
                 except Exception as e:
                     logger.error(f"Error stopping track: {e}")
 
