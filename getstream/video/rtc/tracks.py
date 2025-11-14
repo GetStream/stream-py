@@ -198,7 +198,7 @@ class SubscriptionManager(AsyncIOEventEmitter):
 
     async def handle_track_published(self, event):
         """Handle new remote track publications from the SFU."""
-        logger.error(
+        logger.info(
             f"Handling track published: {event.user_id} - {event.session_id} - {event.type}"
         )
         try:
