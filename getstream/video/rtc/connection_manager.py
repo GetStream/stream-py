@@ -8,6 +8,7 @@ import aioice
 import aiortc
 
 from getstream.common import telemetry
+from getstream.stream_response import StreamResponse
 from getstream.utils import StreamAsyncIOEventEmitter
 from getstream.video.rtc.coordinator.ws import StreamAPIWS
 from getstream.video.rtc.pb.stream.video.sfu.event import events_pb2
@@ -22,6 +23,7 @@ from getstream.video.rtc.connection_utils import (
     ConnectionOptions,
     connect_websocket,
     join_call,
+    fast_join_call,
     watch_call,
 )
 from getstream.video.rtc.track_util import (
@@ -53,6 +55,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         user_id: Optional[str] = None,
         create: bool = True,
         subscription_config: Optional[SubscriptionConfig] = None,
+        fast_join: bool = False,
         **kwargs: Any,
     ):
         super().__init__()
@@ -61,6 +64,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         self.call: Call = call
         self.user_id: Optional[str] = user_id
         self.create: bool = create
+        self.fast_join: bool = fast_join
         self.kwargs: Dict[str, Any] = kwargs
         self.running: bool = False
         self.session_id: str = str(uuid.uuid4())
@@ -269,21 +273,38 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             "coordinator-join-call",
         ) as span:
             if not (ws_url or token):
-                join_response = await join_call(
-                    self.call,
-                    self.user_id,
-                    "auto",
-                    self.create,
-                    self.local_sfu,
-                    **self.kwargs,
-                )
-                ws_url = join_response.data.credentials.server.ws_endpoint
-                token = join_response.data.credentials.token
-                self.join_response = join_response
-                logger.debug(f"coordinator join response: {join_response.data}")
-                span.set_attribute(
-                    "credentials", join_response.data.credentials.to_json()
-                )
+                if self.fast_join:
+                    # Use fast join to get multiple edge credentials
+                    fast_join_response = await fast_join_call(
+                        self.call,
+                        self.user_id,
+                        "auto",
+                        self.create,
+                        self.local_sfu,
+                        **self.kwargs,
+                    )
+                    logger.debug(
+                        f"Received {len(fast_join_response.data.credentials)} edge credentials for fast join"
+                    )
+
+                    self._fast_join_response = fast_join_response
+                else:
+                    # Use regular join
+                    join_response = await join_call(
+                        self.call,
+                        self.user_id,
+                        "auto",
+                        self.create,
+                        self.local_sfu,
+                        **self.kwargs,
+                    )
+                    ws_url = join_response.data.credentials.server.ws_endpoint
+                    token = join_response.data.credentials.token
+                    self.join_response = join_response
+                    logger.debug(f"coordinator join response: {join_response.data}")
+                    span.set_attribute(
+                        "credentials", join_response.data.credentials.to_json()
+                    )
 
         # Use provided session_id or current one
         current_session_id = session_id or self.session_id
@@ -295,12 +316,38 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             with telemetry.start_as_current_span(
                 "sfu-signaling-ws-connect",
             ) as span:
-                self._ws_client, sfu_event = await connect_websocket(
-                    token=token,
-                    ws_url=ws_url,
-                    session_id=current_session_id,
-                    options=self._connection_options,
-                )
+                # Handle fast join or regular join
+                if self.fast_join and hasattr(self, "_fast_join_response"):
+                    # Fast join - race multiple edges
+                    self._ws_client, sfu_event, selected_cred = await self._race_edges(
+                        self._fast_join_response.data.credentials, current_session_id
+                    )
+
+                    # Use the selected credentials
+                    ws_url = selected_cred.server.ws_endpoint
+                    token = selected_cred.token
+
+                    #map it to standard join call object so that retry/migration can happen
+                    self.join_response = StreamResponse(
+                        response=self._fast_join_response._StreamResponse__response,
+                        data=JoinCallResponse(
+                            call=self._fast_join_response.data.call,
+                            members=self._fast_join_response.data.members,
+                            credentials=selected_cred,
+                            stats_options=self._fast_join_response.data.stats_options,
+                            duration=self._fast_join_response.data.duration,
+                        )
+                    )
+
+                    span.set_attribute("credentials", selected_cred.to_json())
+                else:
+                    # Regular join - connect to single edge
+                    self._ws_client, sfu_event = await connect_websocket(
+                        token=token,
+                        ws_url=ws_url,
+                        session_id=current_session_id,
+                        options=self._connection_options,
+                    )
 
                 self._ws_client.on_wildcard("*", _log_event)
                 self._ws_client.on_event("ice_trickle", self._on_ice_trickle)
@@ -530,3 +577,55 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             await self._peer_manager.restore_published_tracks()
         except Exception as e:
             logger.error("Failed to restore published tracks", exc_info=e)
+
+    async def _race_edges(self, credentials_list, session_id):
+        """Try multiple edge WebSocket connections sequentially and return the first successful one.
+
+        This method iterates through edge URLs one by one, attempting to connect to each.
+        The first edge that successfully connects is used, and the iteration stops.
+
+        Args:
+            credentials_list: List of Credentials to try
+            session_id: Session ID for the connection
+
+        Returns:
+            Tuple of (WebSocket client, SFU event, selected Credentials)
+
+        Raises:
+            SfuConnectionError: If all edge connections fail
+        """
+        if not credentials_list:
+            raise SfuConnectionError("No edge credentials provided for racing")
+
+        logger.info(f"Trying {len(credentials_list)} edge connections sequentially")
+
+        errors = []
+
+        # Try each edge sequentially
+        for cred in credentials_list:
+            logger.debug(f"Trying edge {cred.server.edge_name} at {cred.server.ws_endpoint}")
+
+            try:
+                # Attempt to connect to this edge
+                ws_client, sfu_event = await connect_websocket(
+                    token=cred.token,
+                    ws_url=cred.server.ws_endpoint,
+                    session_id=session_id,
+                    options=self._connection_options,
+                )
+
+                # Success! Return the connection and credentials
+                logger.info(
+                    f"Edge {cred.server.edge_name} connected successfully"
+                )
+                return ws_client, sfu_event, cred
+
+            except Exception as e:
+                errors.append((cred.server.edge_name, str(e)))
+                # Continue to next edge
+
+        # All connections failed
+        error_msg = "All edge connections failed:\n" + "\n".join(
+            f"  - {edge}: {error}" for edge, error in errors
+        )
+        raise SfuConnectionError(error_msg)

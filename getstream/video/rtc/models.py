@@ -50,3 +50,12 @@ class JoinCallResponse(DataClassJsonMixin):
     credentials: Credentials = dc_field(metadata=dc_config(field_name="credentials"))
     stats_options: dict = dc_field(metadata=dc_config(field_name="stats_options"))
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
+
+
+@dataclass
+class FastJoinCallResponse(DataClassJsonMixin):
+    call: CallResponse = dc_field(metadata=dc_config(field_name="call"))
+    members: List[MemberResponse] = dc_field(metadata=dc_config(field_name="members"))
+    credentials: List[Credentials] = dc_field(metadata=dc_config(field_name="credentials"))
+    stats_options: dict = dc_field(metadata=dc_config(field_name="stats_options"))
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
