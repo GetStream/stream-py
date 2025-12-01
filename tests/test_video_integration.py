@@ -62,7 +62,8 @@ def test_create_token_with_expiration(client: Stream):
     assert token is not None
     decoded = jwt.decode(token, client.api_secret, algorithms=["HS256"])
     assert decoded["iat"] is not None
-    assert decoded["exp"] == decoded["iat"] + 10
+    # 5 seconds to avoid clock skew and 10 seconds - expiration
+    assert decoded["exp"] == decoded["iat"] + 5 + 10
     assert decoded["user_id"] == "tommaso"
 
 
