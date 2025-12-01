@@ -101,7 +101,9 @@ class BaseStream:
         if user_id is None or user_id == "":
             raise ValueError("user_id is required")
 
-        return self._create_token(user_id=user_id, expiration=expiration)
+        return self._create_token(
+            user_id=user_id, expiration=expiration, iat=int(time.time()) - 5
+        )
 
     def create_call_token(
         self,
@@ -111,7 +113,11 @@ class BaseStream:
         expiration: int = None,
     ):
         return self._create_token(
-            user_id=user_id, call_cids=call_cids, role=role, expiration=expiration
+            user_id=user_id,
+            call_cids=call_cids,
+            role=role,
+            expiration=expiration,
+            iat=int(time.time() - 5),
         )
 
     def _create_token(
@@ -121,13 +127,14 @@ class BaseStream:
         call_cids: List[str] = None,
         role: str = None,
         expiration=None,
+        iat: int = None,
     ):
         now = int(time.time())
 
-        claims = {
-            # generate token valid from 5 seconds ago to avoid unauthorized error due to clock skew
-            "iat": now - 5,
-        }
+        claims = {}
+
+        if iat is not None:
+            claims["iat"] = iat
 
         if channel_cids is not None:
             claims["channel_cids"] = channel_cids
