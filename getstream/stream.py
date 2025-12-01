@@ -125,7 +125,8 @@ class BaseStream:
         now = int(time.time())
 
         claims = {
-            "iat": now,
+            # generate token valid from 5 seconds ago to avoid unauthorized error due to clock skew
+            "iat": now - 5,
         }
 
         if channel_cids is not None:
