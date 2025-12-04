@@ -1680,3 +1680,221 @@ def test_repr_returns_str():
     )
 
     assert repr(pcm) == str(pcm)
+
+
+# ===== Tests for G.711 support =====
+
+
+def test_from_g711_mulaw_basic():
+    """Test basic μ-law decoding."""
+    # Test with known μ-law bytes (silence is typically 0xFF in μ-law)
+    g711_data = bytes([0xFF, 0x7F, 0x00, 0x80])
+    pcm = PcmData.from_g711(g711_data, sample_rate=8000, channels=1)
+
+    assert pcm.sample_rate == 8000
+    assert pcm.channels == 1
+    assert pcm.format == "s16"
+    assert len(pcm.samples) == 4
+    assert pcm.samples.dtype == np.int16
+
+
+def test_from_g711_alaw_basic():
+    """Test basic A-law decoding."""
+    # Test with known A-law bytes (silence is typically 0xD5 in A-law)
+    g711_data = bytes([0xD5, 0x55, 0x2A, 0xAA])
+    pcm = PcmData.from_g711(g711_data, sample_rate=8000, channels=1, mapping="alaw")
+
+    assert pcm.sample_rate == 8000
+    assert pcm.channels == 1
+    assert pcm.format == "s16"
+    assert len(pcm.samples) == 4
+    assert pcm.samples.dtype == np.int16
+
+
+def test_from_g711_base64():
+    """Test base64 encoded input."""
+    import base64
+
+    # Encode some μ-law bytes to base64
+    g711_data = bytes([0xFF, 0x7F, 0x00, 0x80])
+    base64_data = base64.b64encode(g711_data)
+
+    # Test with bytes and encoding="base64"
+    pcm = PcmData.from_g711(
+        base64_data, sample_rate=8000, channels=1, encoding="base64"
+    )
+
+    assert pcm.sample_rate == 8000
+    assert pcm.channels == 1
+    assert len(pcm.samples) == 4
+
+    # Test with string (automatically treated as base64)
+    base64_str = base64.b64encode(g711_data).decode("ascii")
+    pcm2 = PcmData.from_g711(
+        base64_str, sample_rate=8000, channels=1, encoding="base64"
+    )
+
+    assert pcm2.sample_rate == 8000
+    assert pcm2.channels == 1
+    assert len(pcm2.samples) == 4
+    # Should decode to same result
+    assert np.array_equal(pcm.samples, pcm2.samples)
+
+    # Test that string with encoding="raw" raises TypeError
+    with pytest.raises(TypeError) as exc_info:
+        PcmData.from_g711(base64_str, sample_rate=8000, encoding="raw")
+    assert "string input with encoding='raw'" in str(exc_info.value).lower()
+
+
+def test_from_g711_custom_sample_rate():
+    """Test with non-8kHz sample rates."""
+    g711_data = bytes([0xFF, 0x7F, 0x00, 0x80])
+    pcm = PcmData.from_g711(g711_data, sample_rate=16000, channels=1)
+
+    assert pcm.sample_rate == 16000
+    assert pcm.channels == 1
+
+
+def test_from_g711_stereo():
+    """Test stereo channels."""
+    # 8 bytes = 4 samples per channel for stereo
+    g711_data = bytes([0xFF, 0x7F, 0x00, 0x80, 0xFF, 0x7F, 0x00, 0x80])
+    pcm = PcmData.from_g711(g711_data, sample_rate=8000, channels=2)
+
+    assert pcm.sample_rate == 8000
+    assert pcm.channels == 2
+    # Should have 4 samples per channel
+    if pcm.samples.ndim == 2:
+        assert pcm.samples.shape[0] == 2
+        assert pcm.samples.shape[1] == 4
+
+
+def test_g711_bytes_mulaw():
+    """Test μ-law encoding."""
+    samples = np.array([100, -100, 1000, -1000, 0], dtype=np.int16)
+    pcm = PcmData(samples=samples, sample_rate=8000, format="s16", channels=1)
+
+    g711 = pcm.g711_bytes()
+
+    assert isinstance(g711, bytes)
+    assert len(g711) == len(samples)
+    # Verify it can be decoded back
+    decoded = PcmData.from_g711(g711, sample_rate=8000, channels=1)
+    assert len(decoded.samples) == len(samples)
+
+
+def test_g711_bytes_alaw():
+    """Test A-law encoding."""
+    samples = np.array([100, -100, 1000, -1000, 0], dtype=np.int16)
+    pcm = PcmData(samples=samples, sample_rate=8000, format="s16", channels=1)
+
+    g711 = pcm.g711_bytes(mapping="alaw")
+
+    assert isinstance(g711, bytes)
+    assert len(g711) == len(samples)
+    # Verify it can be decoded back
+    decoded = PcmData.from_g711(g711, sample_rate=8000, channels=1, mapping="alaw")
+    assert len(decoded.samples) == len(samples)
+
+
+def test_g711_bytes_auto_resample():
+    """Test automatic resampling to 8kHz mono."""
+    # Create 16kHz stereo audio
+    samples = np.array([[100, 200, 300], [-100, -200, -300]], dtype=np.int16)
+    pcm = PcmData(samples=samples, sample_rate=16000, format="s16", channels=2)
+
+    # Encode to G.711 (should auto-resample to 8kHz mono)
+    g711 = pcm.g711_bytes(sample_rate=8000, channels=1)
+
+    assert isinstance(g711, bytes)
+    # Decode and verify
+    decoded = PcmData.from_g711(g711, sample_rate=8000, channels=1)
+    assert decoded.sample_rate == 8000
+    assert decoded.channels == 1
+
+
+def test_g711_roundtrip():
+    """Test encode then decode, verify similarity."""
+    # Create test audio
+    samples = np.array(
+        [0, 100, -100, 1000, -1000, 5000, -5000, 10000, -10000, 0],
+        dtype=np.int16,
+    )
+    pcm_original = PcmData(samples=samples, sample_rate=8000, format="s16", channels=1)
+
+    # Encode to μ-law and decode back
+    g711_mulaw = pcm_original.g711_bytes()
+    pcm_decoded_mulaw = PcmData.from_g711(g711_mulaw, sample_rate=8000)
+
+    # Encode to A-law and decode back
+    g711_alaw = pcm_original.g711_bytes(mapping="alaw")
+    pcm_decoded_alaw = PcmData.from_g711(g711_alaw, sample_rate=8000, mapping="alaw")
+
+    # G.711 is lossy, so values won't be exact, but should be close
+    # Check that decoded samples are in reasonable range
+    assert len(pcm_decoded_mulaw.samples) == len(samples)
+    assert len(pcm_decoded_alaw.samples) == len(samples)
+
+    # Verify samples are int16
+    assert pcm_decoded_mulaw.samples.dtype == np.int16
+    assert pcm_decoded_alaw.samples.dtype == np.int16
+
+    # Check that zero samples remain zero (or very close)
+    assert abs(pcm_decoded_mulaw.samples[0]) < 100
+    assert abs(pcm_decoded_alaw.samples[0]) < 100
+
+
+def test_g711_integration():
+    """Integration test that generates test files for manual review."""
+    import os
+
+    # Generate a simple sine wave (440 Hz for 1 second at 8kHz)
+    sample_rate = 8000
+    duration = 1.0
+    frequency = 440.0
+    num_samples = int(sample_rate * duration)
+    t = np.linspace(0, duration, num_samples, dtype=np.float32)
+    sine_wave = (np.sin(2 * np.pi * frequency * t) * 16000).astype(np.int16)
+
+    # Create original PCM
+    pcm_original = PcmData(
+        samples=sine_wave, sample_rate=sample_rate, format="s16", channels=1
+    )
+
+    # Encode to μ-law
+    g711_mulaw = pcm_original.g711_bytes()
+    pcm_decoded_mulaw = PcmData.from_g711(g711_mulaw, sample_rate=sample_rate)
+
+    # Encode to A-law
+    g711_alaw = pcm_original.g711_bytes(mapping="alaw")
+    pcm_decoded_alaw = PcmData.from_g711(
+        g711_alaw, sample_rate=sample_rate, mapping="alaw"
+    )
+
+    # Save files for manual review
+    assets_dir = os.path.join(os.path.dirname(__file__), "..", "assets")
+    os.makedirs(assets_dir, exist_ok=True)
+
+    # Save original
+    with open(os.path.join(assets_dir, "g711_original.wav"), "wb") as f:
+        f.write(pcm_original.to_wav_bytes())
+
+    # Save μ-law decoded
+    with open(os.path.join(assets_dir, "g711_decoded_mulaw.wav"), "wb") as f:
+        f.write(pcm_decoded_mulaw.to_wav_bytes())
+
+    # Save A-law decoded
+    with open(os.path.join(assets_dir, "g711_decoded_alaw.wav"), "wb") as f:
+        f.write(pcm_decoded_alaw.to_wav_bytes())
+
+    # Verify files were created
+    assert os.path.exists(os.path.join(assets_dir, "g711_original.wav"))
+    assert os.path.exists(os.path.join(assets_dir, "g711_decoded_mulaw.wav"))
+    assert os.path.exists(os.path.join(assets_dir, "g711_decoded_alaw.wav"))
+
+    # Verify decoded audio has reasonable characteristics
+    assert len(pcm_decoded_mulaw.samples) == num_samples
+    assert len(pcm_decoded_alaw.samples) == num_samples
+    # Check that decoded audio isn't all zeros
+    assert np.any(pcm_decoded_mulaw.samples != 0)
+    assert np.any(pcm_decoded_alaw.samples != 0)

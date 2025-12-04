@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import io
 import wave
 from enum import Enum
@@ -82,6 +83,570 @@ class AudioFormat(str, Enum):
 # Type alias for audio format parameters
 # Accepts both AudioFormat enum members and string literals for backwards compatibility
 AudioFormatType = Union[AudioFormat, Literal["s16", "f32"]]
+
+
+class G711Mapping(str, Enum):
+    """
+    G.711 encoding mapping constants.
+
+    Inherits from str to maintain backward compatibility with string-based APIs.
+
+    Attributes:
+        MULAW: μ-law (mu-law) encoding (ITU-T G.711)
+        ALAW: A-law encoding (ITU-T G.711)
+    """
+
+    MULAW = "mulaw"  # μ-law encoding
+    ALAW = "alaw"  # A-law encoding
+
+
+class G711Encoding(str, Enum):
+    """
+    G.711 input encoding format constants.
+
+    Inherits from str to maintain backward compatibility with string-based APIs.
+
+    Attributes:
+        RAW: Raw binary bytes
+        BASE64: Base64 encoded bytes
+    """
+
+    RAW = "raw"  # Raw binary bytes
+    BASE64 = "base64"  # Base64 encoded bytes
+
+
+# G.711 μ-law decode table (ITU-T G.711)
+MULAW_DECODE_TABLE = np.array(
+    [
+        -32124,
+        -31100,
+        -30076,
+        -29052,
+        -28028,
+        -27004,
+        -25980,
+        -24956,
+        -23932,
+        -22908,
+        -21884,
+        -20860,
+        -19836,
+        -18812,
+        -17788,
+        -16764,
+        -15996,
+        -15484,
+        -14972,
+        -14460,
+        -13948,
+        -13436,
+        -12924,
+        -12412,
+        -11900,
+        -11388,
+        -10876,
+        -10364,
+        -9852,
+        -9340,
+        -8828,
+        -8316,
+        -7932,
+        -7676,
+        -7420,
+        -7164,
+        -6908,
+        -6652,
+        -6396,
+        -6140,
+        -5884,
+        -5628,
+        -5372,
+        -5116,
+        -4860,
+        -4604,
+        -4348,
+        -4092,
+        -3900,
+        -3772,
+        -3644,
+        -3516,
+        -3388,
+        -3260,
+        -3132,
+        -3004,
+        -2876,
+        -2748,
+        -2620,
+        -2492,
+        -2364,
+        -2236,
+        -2108,
+        -1980,
+        -1884,
+        -1820,
+        -1756,
+        -1692,
+        -1628,
+        -1564,
+        -1500,
+        -1436,
+        -1372,
+        -1308,
+        -1244,
+        -1180,
+        -1116,
+        -1052,
+        -988,
+        -924,
+        -876,
+        -844,
+        -812,
+        -780,
+        -748,
+        -716,
+        -684,
+        -652,
+        -620,
+        -588,
+        -556,
+        -524,
+        -492,
+        -460,
+        -428,
+        -396,
+        -372,
+        -356,
+        -340,
+        -324,
+        -308,
+        -292,
+        -276,
+        -260,
+        -244,
+        -228,
+        -212,
+        -196,
+        -180,
+        -164,
+        -148,
+        -132,
+        -120,
+        -112,
+        -104,
+        -96,
+        -88,
+        -80,
+        -72,
+        -64,
+        -56,
+        -48,
+        -40,
+        -32,
+        -24,
+        -16,
+        -8,
+        0,
+        32124,
+        31100,
+        30076,
+        29052,
+        28028,
+        27004,
+        25980,
+        24956,
+        23932,
+        22908,
+        21884,
+        20860,
+        19836,
+        18812,
+        17788,
+        16764,
+        15996,
+        15484,
+        14972,
+        14460,
+        13948,
+        13436,
+        12924,
+        12412,
+        11900,
+        11388,
+        10876,
+        10364,
+        9852,
+        9340,
+        8828,
+        8316,
+        7932,
+        7676,
+        7420,
+        7164,
+        6908,
+        6652,
+        6396,
+        6140,
+        5884,
+        5628,
+        5372,
+        5116,
+        4860,
+        4604,
+        4348,
+        4092,
+        3900,
+        3772,
+        3644,
+        3516,
+        3388,
+        3260,
+        3132,
+        3004,
+        2876,
+        2748,
+        2620,
+        2492,
+        2364,
+        2236,
+        2108,
+        1980,
+        1884,
+        1820,
+        1756,
+        1692,
+        1628,
+        1564,
+        1500,
+        1436,
+        1372,
+        1308,
+        1244,
+        1180,
+        1116,
+        1052,
+        988,
+        924,
+        876,
+        844,
+        812,
+        780,
+        748,
+        716,
+        684,
+        652,
+        620,
+        588,
+        556,
+        524,
+        492,
+        460,
+        428,
+        396,
+        372,
+        356,
+        340,
+        324,
+        308,
+        292,
+        276,
+        260,
+        244,
+        228,
+        212,
+        196,
+        180,
+        164,
+        148,
+        132,
+        120,
+        112,
+        104,
+        96,
+        88,
+        80,
+        72,
+        64,
+        56,
+        48,
+        40,
+        32,
+        24,
+        16,
+        8,
+        0,
+    ],
+    dtype=np.int16,
+)
+
+# G.711 A-law decode table (ITU-T G.711)
+# A-law uses a different compression curve than μ-law
+ALAW_DECODE_TABLE = np.array(
+    [
+        -5504,
+        -5248,
+        -6016,
+        -5760,
+        -4480,
+        -4224,
+        -4992,
+        -4736,
+        -7552,
+        -7296,
+        -8064,
+        -7808,
+        -6528,
+        -6272,
+        -7040,
+        -6784,
+        -2752,
+        -2624,
+        -3008,
+        -2880,
+        -2240,
+        -2112,
+        -2496,
+        -2368,
+        -3776,
+        -3648,
+        -4032,
+        -3904,
+        -3264,
+        -3136,
+        -3520,
+        -3392,
+        -22016,
+        -20992,
+        -24064,
+        -23040,
+        -17920,
+        -16896,
+        -19968,
+        -18944,
+        -30208,
+        -29184,
+        -32256,
+        -31232,
+        -26112,
+        -25088,
+        -28160,
+        -27136,
+        -11008,
+        -10496,
+        -12032,
+        -11520,
+        -8960,
+        -8448,
+        -9984,
+        -9472,
+        -15104,
+        -14592,
+        -16128,
+        -15616,
+        -13056,
+        -12544,
+        -14080,
+        -13568,
+        -344,
+        -328,
+        -376,
+        -360,
+        -280,
+        -264,
+        -312,
+        -296,
+        -472,
+        -456,
+        -504,
+        -488,
+        -408,
+        -392,
+        -440,
+        -424,
+        -88,
+        -72,
+        -120,
+        -104,
+        -24,
+        -8,
+        -56,
+        -40,
+        -216,
+        -200,
+        -248,
+        -232,
+        -152,
+        -136,
+        -184,
+        -168,
+        -1376,
+        -1312,
+        -1504,
+        -1440,
+        -1120,
+        -1056,
+        -1248,
+        -1184,
+        -1888,
+        -1824,
+        -2016,
+        -1952,
+        -1632,
+        -1568,
+        -1760,
+        -1696,
+        -688,
+        -656,
+        -752,
+        -720,
+        -560,
+        -528,
+        -624,
+        -592,
+        -944,
+        -912,
+        -1008,
+        -976,
+        -816,
+        -784,
+        -880,
+        -848,
+        5504,
+        5248,
+        6016,
+        5760,
+        4480,
+        4224,
+        4992,
+        4736,
+        7552,
+        7296,
+        8064,
+        7808,
+        6528,
+        6272,
+        7040,
+        6784,
+        2752,
+        2624,
+        3008,
+        2880,
+        2240,
+        2112,
+        2496,
+        2368,
+        3776,
+        3648,
+        4032,
+        3904,
+        3264,
+        3136,
+        3520,
+        3392,
+        22016,
+        20992,
+        24064,
+        23040,
+        17920,
+        16896,
+        19968,
+        18944,
+        30208,
+        29184,
+        32256,
+        31232,
+        26112,
+        25088,
+        28160,
+        27136,
+        11008,
+        10496,
+        12032,
+        11520,
+        8960,
+        8448,
+        9984,
+        9472,
+        15104,
+        14592,
+        16128,
+        15616,
+        13056,
+        12544,
+        14080,
+        13568,
+        344,
+        328,
+        376,
+        360,
+        280,
+        264,
+        312,
+        296,
+        472,
+        456,
+        504,
+        488,
+        408,
+        392,
+        440,
+        424,
+        88,
+        72,
+        120,
+        104,
+        24,
+        8,
+        56,
+        40,
+        216,
+        200,
+        248,
+        232,
+        152,
+        136,
+        184,
+        168,
+        1376,
+        1312,
+        1504,
+        1440,
+        1120,
+        1056,
+        1248,
+        1184,
+        1888,
+        1824,
+        2016,
+        1952,
+        1632,
+        1568,
+        1760,
+        1696,
+        688,
+        656,
+        752,
+        720,
+        560,
+        528,
+        624,
+        592,
+        944,
+        912,
+        1008,
+        976,
+        816,
+        784,
+        880,
+        848,
+    ],
+    dtype=np.int16,
+)
+
+# G.711 encoding constants
+MULAW_ENCODE_BIAS = 33
+MULAW_MAX = 32635
+ALAW_ENCODE_BIAS = 33
+ALAW_MAX = 32635
 
 
 class PcmData:
@@ -537,6 +1102,89 @@ class PcmData:
             time_base=time_base,
         )
 
+    @classmethod
+    def from_g711(
+        cls,
+        g711_data: Union[bytes, str],
+        sample_rate: int = 8000,
+        channels: int = 1,
+        mapping: Union[G711Mapping, Literal["mulaw", "alaw"]] = G711Mapping.MULAW,
+        encoding: Union[G711Encoding, Literal["raw", "base64"]] = G711Encoding.RAW,
+    ) -> "PcmData":
+        """Build PcmData from G.711 encoded data (μ-law or A-law).
+
+        Args:
+            g711_data: G.711 encoded audio data (bytes or base64 string)
+            sample_rate: Sample rate in Hz (default: 8000)
+            channels: Number of channels (default: 1 for mono)
+            mapping: G.711 mapping type (default: MULAW)
+            encoding: Input encoding format (default: RAW, can be BASE64).
+                     If g711_data is a string, encoding is automatically set to BASE64.
+
+        Returns:
+            PcmData object with decoded audio
+
+        Example:
+            >>> import numpy as np
+            >>> # Decode μ-law bytes
+            >>> g711_data = bytes([0xFF, 0x7F, 0x00, 0x80])
+            >>> pcm = PcmData.from_g711(g711_data, sample_rate=8000, channels=1)
+            >>> pcm.sample_rate
+            8000
+            >>> # Decode from base64 string
+            >>> g711_base64 = "//8A"
+            >>> pcm = PcmData.from_g711(g711_base64, sample_rate=8000)
+            >>> pcm.sample_rate
+            8000
+        """
+        # Handle string input (must be base64)
+        if isinstance(g711_data, str):
+            # If encoding is explicitly set to "raw" (string literal, not enum), raise error
+            # The enum G711Encoding.RAW has value "raw", but we want to allow default enum
+            # and only error on explicit string "raw"
+            if type(encoding) is str and encoding == "raw":
+                raise TypeError(
+                    "Cannot use string input with encoding='raw'. "
+                    "Strings are only supported for base64-encoded data. "
+                    "Either pass bytes with encoding='raw', or use encoding='base64' for string input."
+                )
+            # Strings are always treated as base64
+            g711_bytes = base64.b64decode(g711_data)
+        elif encoding in (G711Encoding.BASE64, "base64"):
+            g711_bytes = base64.b64decode(g711_data)
+        else:
+            g711_bytes = g711_data
+
+        # Convert to numpy array of uint8
+        g711_samples = np.frombuffer(g711_bytes, dtype=np.uint8)
+
+        # Decode using appropriate lookup table
+        if mapping in (G711Mapping.MULAW, "mulaw"):
+            samples = MULAW_DECODE_TABLE[g711_samples]
+        elif mapping in (G711Mapping.ALAW, "alaw"):
+            samples = ALAW_DECODE_TABLE[g711_samples]
+        else:
+            raise ValueError(f"Invalid mapping: {mapping}. Must be 'mulaw' or 'alaw'")
+
+        # Handle multi-channel: reshape if needed
+        if channels > 1:
+            # G.711 is typically interleaved for multi-channel
+            total_samples = len(samples)
+            frames = total_samples // channels
+            if frames * channels == total_samples:
+                # Reshape to (channels, frames) format
+                samples = samples.reshape(frames, channels).T
+            else:
+                # If not evenly divisible, keep as 1D and let PcmData handle it
+                pass
+
+        return cls(
+            samples=samples,
+            sample_rate=sample_rate,
+            format=AudioFormat.S16,
+            channels=channels,
+        )
+
     def resample(
         self,
         target_sample_rate: int,
@@ -618,6 +1266,130 @@ class PcmData:
             wf.setframerate(self.sample_rate)
             wf.writeframes(frames)
         return buf.getvalue()
+
+    def g711_bytes(
+        self,
+        sample_rate: int = 8000,
+        channels: int = 1,
+        mapping: Union[G711Mapping, Literal["mulaw", "alaw"]] = G711Mapping.MULAW,
+    ) -> bytes:
+        """Encode PcmData to G.711 bytes (μ-law or A-law).
+
+        Args:
+            sample_rate: Target sample rate (default: 8000)
+            channels: Target number of channels (default: 1)
+            mapping: G.711 mapping type (default: MULAW)
+
+        Returns:
+            G.711 encoded bytes
+
+        Example:
+            >>> import numpy as np
+            >>> pcm = PcmData(samples=np.array([100, 200], np.int16), sample_rate=8000, format="s16", channels=1)
+            >>> g711 = pcm.g711_bytes()
+            >>> len(g711) > 0
+            True
+        """
+        # Resample and convert to int16 if needed (no-ops if already correct)
+        pcm = self.resample(sample_rate, target_channels=channels).to_int16()
+
+        # Get samples as 1D array (interleaved for multi-channel)
+        samples = pcm.samples
+        if samples.ndim == 2:
+            # Multi-channel: interleave
+            channels_count = samples.shape[0]
+            samples_count = samples.shape[1]
+            interleaved = np.empty(samples_count * channels_count, dtype=np.int16)
+            for i in range(channels_count):
+                interleaved[i::channels_count] = samples[i]
+            samples = interleaved
+        else:
+            samples = samples.flatten()
+
+        # Encode to G.711
+        if mapping in (G711Mapping.MULAW, "mulaw"):
+            return self._encode_mulaw(samples)
+        elif mapping in (G711Mapping.ALAW, "alaw"):
+            return self._encode_alaw(samples)
+        else:
+            raise ValueError(f"Invalid mapping: {mapping}. Must be 'mulaw' or 'alaw'")
+
+    def _encode_mulaw(self, samples: np.ndarray) -> bytes:
+        """Encode int16 samples to μ-law."""
+        # Clip to valid range
+        samples = np.clip(samples, -32768, 32767).astype(np.int32)
+
+        # Get sign bit
+        sign = np.where(samples < 0, 0x80, 0).astype(np.uint8)
+
+        # Get absolute value and clip to max
+        abs_samples = np.abs(samples).clip(max=MULAW_MAX)
+
+        # Add bias
+        biased = abs_samples + MULAW_ENCODE_BIAS
+
+        # Find exponent (segment) - 0 to 7
+        # Use log2 to find which segment, then subtract 5
+        exponent = (
+            np.floor(np.log2(biased.astype(np.float32) + 1e-10)).astype(np.int32) - 5
+        )
+        exponent = np.clip(exponent, 0, 7)
+
+        # Extract mantissa (4 bits)
+        mantissa = (biased >> (exponent + 3)) & 0x0F
+
+        # Combine: sign | (exponent << 4) | mantissa
+        combined = sign | (exponent.astype(np.uint8) << 4) | mantissa.astype(np.uint8)
+
+        # Invert all bits
+        mulaw = (~combined) & 0xFF
+
+        return mulaw.astype(np.uint8).tobytes()
+
+    def _encode_alaw(self, samples: np.ndarray) -> bytes:
+        """Encode int16 samples to A-law."""
+        # Clip to valid range
+        samples = np.clip(samples, -32768, 32767).astype(np.int32)
+
+        # Get sign bit
+        sign = np.where(samples < 0, 0x80, 0).astype(np.uint8)
+
+        # Get absolute value
+        abs_samples = np.abs(samples)
+
+        # A-law encoding uses different compression than μ-law
+        # A-law has 8 segments with different quantization
+        # Segments: 0-16, 17-32, 33-64, 65-128, 129-256, 257-512, 513-1024, 1025-32768
+
+        # Find which segment each sample belongs to
+        segment = np.zeros_like(abs_samples, dtype=np.int32)
+
+        # A-law segment boundaries: 16, 32, 64, 128, 256, 512, 1024
+        thresholds = np.array([16, 32, 64, 128, 256, 512, 1024], dtype=np.int32)
+        for i, threshold in enumerate(thresholds):
+            segment[abs_samples > threshold] = i + 1
+
+        # Extract mantissa based on segment
+        mantissa = np.zeros_like(abs_samples, dtype=np.uint8)
+
+        # For segment 0 (0-16): linear, use bits 4-7
+        mask = segment == 0
+        mantissa[mask] = (abs_samples[mask] >> 4) & 0x0F
+
+        # For segments 1-7: logarithmic, extract 4 bits after segment base
+        for seg in range(1, 8):
+            mask = segment == seg
+            if np.any(mask):
+                shift = seg + 3
+                mantissa[mask] = (abs_samples[mask] >> shift) & 0x0F
+
+        # Combine: sign | (segment << 4) | mantissa
+        combined = sign | (segment.astype(np.uint8) << 4) | mantissa
+
+        # A-law inverts even bits (XOR with 0x55)
+        alaw = combined ^ 0x55
+
+        return alaw.astype(np.uint8).tobytes()
 
     def to_float32(self) -> "PcmData":
         """Convert samples to float32 in [-1, 1].
