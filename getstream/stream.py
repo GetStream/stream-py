@@ -218,7 +218,7 @@ class AsyncStream(BaseStream, AsyncCommonClient):
         where it checks if each user already exists and updates their information
         if they do, or creates a new user entry if they do not.
         """
-        user = UserRequest(name=name, id=id)
+        user = UserRequest(name=name, id=id, image=image)
         users_map = {user.id: user}
         response = await self.update_users(users_map)
         user = response.data.users[user.id]
