@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import fractions
 import io
 import wave
 from enum import Enum
@@ -1203,11 +1204,51 @@ class PcmData:
         if self.sample_rate == target_sample_rate and target_channels == self.channels:
             return self
 
-        # Create a resampler with the target configuration
+        # Use PyAV resampler for audio longer than 500ms, this works better than ours but it is stateful and does not work
+        # well with small chunks (eg. webrtc 20ms chunks)
+        if self.duration > 0.5:
+            return self._resample_with_pyav(target_sample_rate, target_channels)
+
+        # Use in-house resampler for shorter audio (lower latency)
         resampler = Resampler(
             format=self.format, sample_rate=target_sample_rate, channels=target_channels
         )
         return resampler.resample(self)
+
+    def _resample_with_pyav(
+        self, target_sample_rate: int, target_channels: int
+    ) -> "PcmData":
+        """Resample using PyAV (libav) for high-quality resampling and downmixing."""
+        # Create AudioFrame from PcmData
+        frame = self.to_av_frame()
+
+        # Create PyAV resampler
+        # Use s16p (planar) format to match input and get (channels, samples) output
+        resampler = av.AudioResampler(
+            format="s16p",
+            layout="mono" if target_channels == 1 else "stereo",
+            rate=target_sample_rate,
+        )
+
+        # Resample
+        resampled_frames = resampler.resample(frame)
+
+        # Flush the resampler to get any remaining buffered samples
+        flush_frames = resampler.resample(None)
+        resampled_frames.extend(flush_frames)
+
+        # Convert each frame to PcmData using from_av_frame and concatenate them
+        # Start with an empty PcmData and append all frames
+        result = PcmData(
+            sample_rate=target_sample_rate,
+            format=AudioFormat.S16,
+            channels=target_channels,
+        )
+
+        for resampled_frame in resampled_frames:
+            result = result.append(PcmData.from_av_frame(resampled_frame))
+
+        return result
 
     def to_bytes(self) -> bytes:
         """Return interleaved PCM bytes.
@@ -1267,6 +1308,42 @@ class PcmData:
             wf.writeframes(frames)
         return buf.getvalue()
 
+    def to_av_frame(self) -> "av.AudioFrame":
+        """Convert PcmData to a PyAV AudioFrame.
+
+        Returns:
+            av.AudioFrame: A PyAV AudioFrame with the audio data
+
+        Example:
+            >>> import numpy as np
+            >>> pcm = PcmData(samples=np.array([100, 200], np.int16), sample_rate=8000, format="s16", channels=1)
+            >>> frame = pcm.to_av_frame()
+            >>> frame.sample_rate
+            8000
+        """
+        # Convert to int16 first (PyAV expects s16 format)
+        pcm_s16 = self.to_int16()
+
+        # Get samples and ensure correct shape for PyAV (channels, samples)
+        samples = pcm_s16.samples
+
+        # Handle shape for PyAV
+        if samples.ndim == 2:
+            # Already in (channels, samples) format
+            if samples.shape[0] != pcm_s16.channels:
+                # Transpose if needed
+                samples = samples.T if samples.shape[1] == pcm_s16.channels else samples
+        else:
+            # 1D mono - reshape to (1, samples)
+            samples = samples.reshape(1, -1)
+
+        # Create PyAV AudioFrame
+        layout = "mono" if pcm_s16.channels == 1 else "stereo"
+        frame = av.AudioFrame.from_ndarray(samples, format="s16p", layout=layout)
+        frame.sample_rate = pcm_s16.sample_rate
+
+        return frame
+
     def g711_bytes(
         self,
         sample_rate: int = 8000,
@@ -1293,103 +1370,50 @@ class PcmData:
         # Resample and convert to int16 if needed (no-ops if already correct)
         pcm = self.resample(sample_rate, target_channels=channels).to_int16()
 
-        # Get samples as 1D array (interleaved for multi-channel)
-        samples = pcm.samples
-        if samples.ndim == 2:
-            # Multi-channel: interleave
-            channels_count = samples.shape[0]
-            samples_count = samples.shape[1]
-            interleaved = np.empty(samples_count * channels_count, dtype=np.int16)
-            for i in range(channels_count):
-                interleaved[i::channels_count] = samples[i]
-            samples = interleaved
-        else:
-            samples = samples.flatten()
-
-        # Encode to G.711
+        # Encode to G.711 using PyAV codec
         if mapping in (G711Mapping.MULAW, "mulaw"):
-            return self._encode_mulaw(samples)
+            return self._encode_g711_with_pyav(pcm, sample_rate, channels, "pcm_mulaw")
         elif mapping in (G711Mapping.ALAW, "alaw"):
-            return self._encode_alaw(samples)
+            return self._encode_g711_with_pyav(pcm, sample_rate, channels, "pcm_alaw")
         else:
             raise ValueError(f"Invalid mapping: {mapping}. Must be 'mulaw' or 'alaw'")
 
-    def _encode_mulaw(self, samples: np.ndarray) -> bytes:
-        """Encode int16 samples to μ-law."""
-        # Clip to valid range
-        samples = np.clip(samples, -32768, 32767).astype(np.int32)
+    def _encode_g711_with_pyav(
+        self, pcm: "PcmData", sample_rate: int, channels: int, codec_name: str
+    ) -> bytes:
+        """Encode PcmData to G.711 using PyAV codec (pcm_mulaw or pcm_alaw)."""
+        # Check if we have any samples
+        if pcm.samples.size == 0:
+            return b""
 
-        # Get sign bit
-        sign = np.where(samples < 0, 0x80, 0).astype(np.uint8)
+        # Create AudioFrame from PcmData
+        frame = pcm.to_av_frame()
 
-        # Get absolute value and clip to max
-        abs_samples = np.abs(samples).clip(max=MULAW_MAX)
+        # Encode the frame using PyAV codec
+        return self._encode_frame_with_codec(frame, codec_name)
 
-        # Add bias
-        biased = abs_samples + MULAW_ENCODE_BIAS
+    def _encode_frame_with_codec(self, frame: av.AudioFrame, codec_name: str) -> bytes:
+        """Encode a single AudioFrame using the specified G.711 codec."""
+        # Create codec context
+        codec = av.CodecContext.create(codec_name, "w")
+        codec.format = "s16"
+        codec.layout = frame.layout.name
+        codec.sample_rate = frame.sample_rate
+        # Set time_base to match sample rate (1/sample_rate)
+        codec.time_base = fractions.Fraction(1, frame.sample_rate)
 
-        # Find exponent (segment) - 0 to 7
-        # Use log2 to find which segment, then subtract 5
-        exponent = (
-            np.floor(np.log2(biased.astype(np.float32) + 1e-10)).astype(np.int32) - 5
-        )
-        exponent = np.clip(exponent, 0, 7)
+        # Encode the frame
+        packets = codec.encode(frame)
 
-        # Extract mantissa (4 bits)
-        mantissa = (biased >> (exponent + 3)) & 0x0F
+        # Get bytes from packets
+        encoded_bytes = b"".join(bytes(p) for p in packets)
 
-        # Combine: sign | (exponent << 4) | mantissa
-        combined = sign | (exponent.astype(np.uint8) << 4) | mantissa.astype(np.uint8)
+        # Flush the encoder to get any remaining buffered data
+        flush_packets = codec.encode()
+        if flush_packets:
+            encoded_bytes += b"".join(bytes(p) for p in flush_packets)
 
-        # Invert all bits
-        mulaw = (~combined) & 0xFF
-
-        return mulaw.astype(np.uint8).tobytes()
-
-    def _encode_alaw(self, samples: np.ndarray) -> bytes:
-        """Encode int16 samples to A-law."""
-        # Clip to valid range
-        samples = np.clip(samples, -32768, 32767).astype(np.int32)
-
-        # Get sign bit
-        sign = np.where(samples < 0, 0x80, 0).astype(np.uint8)
-
-        # Get absolute value
-        abs_samples = np.abs(samples)
-
-        # A-law encoding uses different compression than μ-law
-        # A-law has 8 segments with different quantization
-        # Segments: 0-16, 17-32, 33-64, 65-128, 129-256, 257-512, 513-1024, 1025-32768
-
-        # Find which segment each sample belongs to
-        segment = np.zeros_like(abs_samples, dtype=np.int32)
-
-        # A-law segment boundaries: 16, 32, 64, 128, 256, 512, 1024
-        thresholds = np.array([16, 32, 64, 128, 256, 512, 1024], dtype=np.int32)
-        for i, threshold in enumerate(thresholds):
-            segment[abs_samples > threshold] = i + 1
-
-        # Extract mantissa based on segment
-        mantissa = np.zeros_like(abs_samples, dtype=np.uint8)
-
-        # For segment 0 (0-16): linear, use bits 4-7
-        mask = segment == 0
-        mantissa[mask] = (abs_samples[mask] >> 4) & 0x0F
-
-        # For segments 1-7: logarithmic, extract 4 bits after segment base
-        for seg in range(1, 8):
-            mask = segment == seg
-            if np.any(mask):
-                shift = seg + 3
-                mantissa[mask] = (abs_samples[mask] >> shift) & 0x0F
-
-        # Combine: sign | (segment << 4) | mantissa
-        combined = sign | (segment.astype(np.uint8) << 4) | mantissa
-
-        # A-law inverts even bits (XOR with 0x55)
-        alaw = combined ^ 0x55
-
-        return alaw.astype(np.uint8).tobytes()
+        return encoded_bytes
 
     def to_float32(self) -> "PcmData":
         """Convert samples to float32 in [-1, 1].
