@@ -1915,10 +1915,8 @@ def test_g711_roundtrip():
     assert abs(pcm_decoded_alaw.samples[0]) < 100
 
 
-def test_g711_integration():
+def test_g711_integration(tmp_path):
     """Integration test that generates test files for manual review."""
-    import os
-
     # Generate a simple sine wave (440 Hz for 1 second at 8kHz)
     sample_rate = 8000
     duration = 1.0
@@ -1942,26 +1940,27 @@ def test_g711_integration():
         g711_alaw, sample_rate=sample_rate, mapping="alaw"
     )
 
-    # Save files for manual review
-    assets_dir = os.path.join(os.path.dirname(__file__), "..", "assets")
-    os.makedirs(assets_dir, exist_ok=True)
+    # Save files to temporary directory (automatically cleaned up by pytest)
+    original_path = tmp_path / "g711_original.wav"
+    mulaw_path = tmp_path / "g711_decoded_mulaw.wav"
+    alaw_path = tmp_path / "g711_decoded_alaw.wav"
 
     # Save original
-    with open(os.path.join(assets_dir, "g711_original.wav"), "wb") as f:
+    with open(original_path, "wb") as f:
         f.write(pcm_original.to_wav_bytes())
 
     # Save μ-law decoded
-    with open(os.path.join(assets_dir, "g711_decoded_mulaw.wav"), "wb") as f:
+    with open(mulaw_path, "wb") as f:
         f.write(pcm_decoded_mulaw.to_wav_bytes())
 
     # Save A-law decoded
-    with open(os.path.join(assets_dir, "g711_decoded_alaw.wav"), "wb") as f:
+    with open(alaw_path, "wb") as f:
         f.write(pcm_decoded_alaw.to_wav_bytes())
 
     # Verify files were created
-    assert os.path.exists(os.path.join(assets_dir, "g711_original.wav"))
-    assert os.path.exists(os.path.join(assets_dir, "g711_decoded_mulaw.wav"))
-    assert os.path.exists(os.path.join(assets_dir, "g711_decoded_alaw.wav"))
+    assert original_path.exists()
+    assert mulaw_path.exists()
+    assert alaw_path.exists()
 
     # Verify decoded audio has reasonable characteristics
     assert len(pcm_decoded_mulaw.samples) == num_samples
