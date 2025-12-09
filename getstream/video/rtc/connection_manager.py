@@ -565,7 +565,10 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                     type=track_type_int,
                 )
                 try:
-                    self._ws_client.emit("track_published", event)
+                    # Update track subscriptions first
+                    await self._subscription_manager.handle_track_published(event)
+                    # Emit the event downstream
+                    self.emit(event)
                 except Exception:
                     logger.exception(
                         f"Failed to emit track_published event "
