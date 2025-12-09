@@ -1059,9 +1059,6 @@ def test_resample_with_extreme_values_should_clip():
     )
 
 
-# ===== Tests for to_int16() method =====
-
-
 def test_to_int16_from_float32():
     """Test converting f32 to s16."""
     samples_f32 = np.array([0.0, 0.5, -0.5, 1.0, -1.0], dtype=np.float32)
@@ -1749,9 +1746,6 @@ def test_repr_returns_str():
     )
 
     assert repr(pcm) == str(pcm)
-
-
-# ===== Tests for G.711 support =====
 
 
 def test_from_g711_mulaw_basic():
