@@ -21,7 +21,7 @@ from getstream.base import StreamResponse
 from getstream.models import CallRequest
 from getstream.utils import build_body_dict, build_query_param
 from getstream.video.async_call import Call
-from getstream.video.rtc.models import JoinCallResponse
+from getstream.video.rtc.models import JoinCallResponse, FastJoinCallResponse
 from getstream.video.rtc.pb.stream.video.sfu.event import events_pb2
 from getstream.video.rtc.pb.stream.video.sfu.models.models_pb2 import (
     TRACK_TYPE_AUDIO,
@@ -41,6 +41,7 @@ __all__ = [
     "SfuConnectionError",
     "ConnectionOptions",
     "join_call",
+    "fast_join_call",
     "join_call_coordinator_request",
     "create_join_request",
     "prepare_video_track_info",
@@ -155,6 +156,63 @@ async def join_call(
     except Exception as e:
         logger.error(f"Failed to join call via coordinator: {e}")
         raise SfuConnectionError(f"Failed to join call: {e}")
+
+
+async def fast_join_call(
+    call: Call,
+    user_id: str,
+    location: str,
+    create: bool,
+    local_sfu: bool,
+    **kwargs,
+) -> StreamResponse[FastJoinCallResponse]:
+    """Join call via coordinator API using fast join to get multiple edge credentials.
+
+    This function requests multiple edge URLs from the coordinator. The caller
+    is responsible for racing these edges to find the fastest connection.
+
+    Args:
+        call: The call to join
+        user_id: The user ID to join the call with
+        location: The preferred location
+        create: Whether to create the call if it doesn't exist
+        local_sfu: Whether to use local SFU for development
+        **kwargs: Additional arguments to pass to the join call request
+
+    Returns:
+        A StreamResponse containing FastJoinCallResponse with multiple edge credentials
+
+    Raises:
+        SfuConnectionError: If the coordinator request fails
+    """
+    try:
+        # Import here to avoid circular dependency
+        from getstream.video.rtc.coordinator_api import fast_join_call_coordinator_request
+
+        # Get multiple edge credentials from coordinator
+        fast_join_response = await fast_join_call_coordinator_request(
+            call,
+            user_id,
+            location=location,
+            create=create,
+            **kwargs,
+        )
+
+        if local_sfu:
+            # Override all credentials with local SFU for development
+            for cred in fast_join_response.data.credentials:
+                cred.server.url = "http://127.0.0.1:3031/twirp"
+                cred.server.ws_endpoint = "ws://127.0.0.1:3031/ws"
+
+        logger.debug(
+            f"Received {len(fast_join_response.data.credentials)} edge credentials for fast join"
+        )
+
+        return fast_join_response
+
+    except Exception as e:
+        logger.error(f"Failed to fast join call via coordinator: {e}")
+        raise SfuConnectionError(f"Failed to fast join call: {e}")
 
 
 async def join_call_coordinator_request(
