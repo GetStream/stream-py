@@ -542,13 +542,21 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         """
         Use the participants info from the SFU to re-emit the "track_published"
         events for the already published tracks.
-        
-        It's needed because SFU does not send the events for those when the 
+
+        It's needed because SFU does not send the events for those when the
         agent joins after the user.
         """
 
+        if not self._ws_client:
+            return None
+
         participants = self.participants_state.get_participants()
+
         for participant in participants:
+            # Skip the tracks belonging to this connection
+            if participant.session_id == self.session_id:
+                continue
+
             for track_type_int in participant.published_tracks:
                 event = events_pb2.TrackPublished(
                     user_id=participant.user_id,
@@ -556,4 +564,13 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                     participant=participant,
                     type=track_type_int,
                 )
-                self._ws_client.emit("track_published", event)
+                try:
+                    self._ws_client.emit("track_published", event)
+                except Exception:
+                    logger.exception(
+                        f"Failed to emit track_published event "
+                        f"for the already published "
+                        f"track {participant.user_id}:{participant.session_id}:{track_type_int}"
+                    )
+
+        return None
