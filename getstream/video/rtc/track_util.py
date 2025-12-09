@@ -672,13 +672,21 @@ class PcmData:
         self, target_sample_rate: int, target_channels: int
     ) -> "PcmData":
         """Resample using PyAV (libav) for high-quality resampling and downmixing."""
-        # Create AudioFrame from PcmData
+        # Create AudioFrame from PcmData (preserves format: f32 -> fltp, s16 -> s16p)
         frame = self.to_av_frame()
 
-        # Create PyAV resampler
-        # Use s16p (planar) format to match input and get (channels, samples) output
+        # Determine PyAV format based on original format to preserve it
+        # f32 -> fltp (float32 planar), s16 -> s16p (int16 planar)
+        if self.format in (AudioFormat.F32, "f32", "float32"):
+            av_format = "fltp"
+            target_format = AudioFormat.F32
+        else:
+            av_format = "s16p"
+            target_format = AudioFormat.S16
+
+        # Create PyAV resampler with format matching the original
         resampler = av.AudioResampler(
-            format="s16p",
+            format=av_format,
             layout="mono" if target_channels == 1 else "stereo",
             rate=target_sample_rate,
         )
@@ -691,10 +699,10 @@ class PcmData:
         resampled_frames.extend(flush_frames)
 
         # Convert each frame to PcmData using from_av_frame and concatenate them
-        # Start with an empty PcmData and append all frames
+        # Start with an empty PcmData preserving the original format
         result = PcmData(
             sample_rate=target_sample_rate,
-            format=AudioFormat.S16,
+            format=target_format,
             channels=target_channels,
         )
 
@@ -774,26 +782,34 @@ class PcmData:
             >>> frame.sample_rate
             8000
         """
-        # Convert to int16 first (PyAV expects s16 format)
-        pcm_s16 = self.to_int16()
+        # Determine PyAV format based on PcmData format
+        # Preserve original format: f32 -> fltp (float32 planar), s16 -> s16p (int16 planar)
+        if self.format in (AudioFormat.F32, "f32", "float32"):
+            pcm_formatted = self.to_float32()
+            av_format = "fltp"  # Float32 planar
+        else:
+            pcm_formatted = self.to_int16()
+            av_format = "s16p"  # Int16 planar
 
         # Get samples and ensure correct shape for PyAV (channels, samples)
-        samples = pcm_s16.samples
+        samples = pcm_formatted.samples
 
         # Handle shape for PyAV
         if samples.ndim == 2:
             # Already in (channels, samples) format
-            if samples.shape[0] != pcm_s16.channels:
+            if samples.shape[0] != pcm_formatted.channels:
                 # Transpose if needed
-                samples = samples.T if samples.shape[1] == pcm_s16.channels else samples
+                samples = (
+                    samples.T if samples.shape[1] == pcm_formatted.channels else samples
+                )
         else:
             # 1D mono - reshape to (1, samples)
             samples = samples.reshape(1, -1)
 
         # Create PyAV AudioFrame
-        layout = "mono" if pcm_s16.channels == 1 else "stereo"
-        frame = av.AudioFrame.from_ndarray(samples, format="s16p", layout=layout)
-        frame.sample_rate = pcm_s16.sample_rate
+        layout = "mono" if pcm_formatted.channels == 1 else "stereo"
+        frame = av.AudioFrame.from_ndarray(samples, format=av_format, layout=layout)
+        frame.sample_rate = pcm_formatted.sample_rate
 
         return frame
 

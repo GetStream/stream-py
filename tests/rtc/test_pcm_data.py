@@ -664,6 +664,75 @@ def test_resample_float32_preserves_float32_dtype():
     )
 
 
+def test_resample_float32_pyav_preserves_format():
+    """Test that float32 stays float32 when using PyAV resampler (audio > 100ms)."""
+    # Create float32 audio longer than 100ms to trigger PyAV resampler
+    sample_rate_in = 16000
+    sample_rate_out = 48000
+    duration_sec = 1.0  # 1 second > 100ms threshold
+    num_samples = int(sample_rate_in * duration_sec)
+
+    # Use values that would be truncated if converted to int16
+    samples_f32 = np.linspace(-1.0, 1.0, num_samples, dtype=np.float32)
+
+    pcm_16k = PcmData(
+        sample_rate=sample_rate_in,
+        format="f32",
+        samples=samples_f32,
+        channels=1,
+    )
+
+    # Resample to 48kHz (will use PyAV since duration > 100ms)
+    pcm_48k = pcm_16k.resample(sample_rate_out)
+
+    # CRITICAL: Format must still be f32
+    assert pcm_48k.format == "f32", f"Format should be 'f32', got '{pcm_48k.format}'"
+
+    # CRITICAL: Samples must be float32, not int16
+    assert pcm_48k.samples.dtype == np.float32, (
+        f"Samples should be float32, got {pcm_48k.samples.dtype}. "
+        f"PyAV resampler should preserve float32 format!"
+    )
+
+    # Verify values are still in float range, not truncated to int16 range
+    assert np.any(np.abs(pcm_48k.samples) < 1.0), (
+        "No fractional values found - data may have been truncated to integers"
+    )
+
+
+def test_resample_int16_pyav_preserves_format():
+    """Test that int16 stays int16 when using PyAV resampler (audio > 100ms)."""
+    # Create int16 audio longer than 100ms to trigger PyAV resampler
+    sample_rate_in = 16000
+    sample_rate_out = 48000
+    duration_sec = 1.0  # 1 second > 100ms threshold
+    num_samples = int(sample_rate_in * duration_sec)
+
+    # Use int16 values
+    samples_s16 = np.array(
+        [-32768, -16384, 0, 16384, 32767] * (num_samples // 5), dtype=np.int16
+    )
+
+    pcm_16k = PcmData(
+        sample_rate=sample_rate_in,
+        format="s16",
+        samples=samples_s16,
+        channels=1,
+    )
+
+    # Resample to 48kHz (will use PyAV since duration > 100ms)
+    pcm_48k = pcm_16k.resample(sample_rate_out)
+
+    # CRITICAL: Format must still be s16
+    assert pcm_48k.format == "s16", f"Format should be 's16', got '{pcm_48k.format}'"
+
+    # CRITICAL: Samples must be int16, not float32
+    assert pcm_48k.samples.dtype == np.int16, (
+        f"Samples should be int16, got {pcm_48k.samples.dtype}. "
+        f"PyAV resampler should preserve int16 format!"
+    )
+
+
 def test_resample_float32_to_stereo_preserves_float32():
     """Test that float32 stays float32 when resampling AND converting to stereo."""
     sample_rate_in = 16000
