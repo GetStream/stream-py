@@ -21,6 +21,8 @@ from getstream.video.rtc.track_util import (
     PcmData,
     Resampler,
     AudioFormat,
+)
+from getstream.video.rtc.g711 import (
     G711Encoding,
     G711Mapping,
 )

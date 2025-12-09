@@ -1745,6 +1745,14 @@ def test_from_g711_base64():
         PcmData.from_g711(base64_str, sample_rate=8000, encoding="raw")
     assert "string input with encoding='raw'" in str(exc_info.value).lower()
 
+    # Test that string with encoding=G711Encoding.RAW (enum) also raises TypeError
+    # This is the bug: currently it doesn't raise an error, it just decodes as base64
+    from getstream.video.rtc import G711Encoding
+
+    with pytest.raises(TypeError) as exc_info:
+        PcmData.from_g711(base64_str, sample_rate=8000, encoding=G711Encoding.RAW)
+    assert "string input with encoding='raw'" in str(exc_info.value).lower()
+
 
 def test_from_g711_custom_sample_rate():
     """Test with non-8kHz sample rates."""
