@@ -568,7 +568,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                     # Update track subscriptions first
                     await self._subscription_manager.handle_track_published(event)
                     # Emit the event downstream
-                    self.emit(event)
+                    self.emit("track_published", event)
                 except Exception:
                     logger.exception(
                         f"Failed to emit track_published event "
