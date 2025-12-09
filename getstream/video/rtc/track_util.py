@@ -870,6 +870,7 @@ class PcmData:
         codec.sample_rate = frame.sample_rate
         # Set time_base to match sample rate (1/sample_rate)
         codec.time_base = fractions.Fraction(1, frame.sample_rate)
+        codec.open()
 
         # Encode the frame
         packets = codec.encode(frame)
