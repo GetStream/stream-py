@@ -322,6 +322,9 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             # Connect subscriber offer event to handle SDP negotiation
             self._ws_client.on_event("subscriber_offer", self._on_subscriber_offer)
 
+            # Re-emit the events so they can be subscribed to on the ConnectionManager
+            self._ws_client.on_wildcard("*", self.emit)
+
             if hasattr(sfu_event, "join_response"):
                 logger.debug(f"sfu join response: {sfu_event.join_response}")
                 # Populate participants state with existing participants
@@ -377,6 +380,10 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
 
             self._coordinator_task.add_done_callback(_on_coordinator_task_done)
         await self._connect_internal()
+
+        # Re-publish the already published tracks because
+        # SFU doesn't send events for them.
+        await self._republish_existing_tracks()
 
     async def wait(self):
         """
@@ -530,3 +537,23 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             await self._peer_manager.restore_published_tracks()
         except Exception as e:
             logger.error("Failed to restore published tracks", exc_info=e)
+
+    async def _republish_existing_tracks(self) -> None:
+        """
+        Use the participants info from the SFU to re-emit the "track_published"
+        events for the already published tracks.
+        
+        It's needed because SFU does not send the events for those when the 
+        agent joins after the user.
+        """
+
+        participants = self.participants_state.get_participants()
+        for participant in participants:
+            for track_type_int in participant.published_tracks:
+                event = events_pb2.TrackPublished(
+                    user_id=participant.user_id,
+                    session_id=participant.session_id,
+                    participant=participant,
+                    type=track_type_int,
+                )
+                self._ws_client.emit("track_published", event)
