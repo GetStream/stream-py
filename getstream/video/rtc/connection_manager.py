@@ -381,10 +381,6 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             self._coordinator_task.add_done_callback(_on_coordinator_task_done)
         await self._connect_internal()
 
-        # Re-publish the already published tracks because
-        # SFU doesn't send events for them.
-        await self._republish_existing_tracks()
-
     async def wait(self):
         """
         Wait until the connection is over.
@@ -538,12 +534,12 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         except Exception as e:
             logger.error("Failed to restore published tracks", exc_info=e)
 
-    async def _republish_existing_tracks(self) -> None:
+    async def republish_tracks(self) -> None:
         """
         Use the participants info from the SFU to re-emit the "track_published"
         events for the already published tracks.
 
-        It's needed because SFU does not send the events for those when the
+        It's needed because SFU does not send the events for the already present tracks when the
         agent joins after the user.
         """
 
