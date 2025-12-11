@@ -583,7 +583,7 @@ class PcmData:
             8000
             >>> # Decode from base64 string
             >>> g711_base64 = "//8A"
-            >>> pcm = PcmData.from_g711(g711_base64, sample_rate=8000)
+            >>> pcm = PcmData.from_g711(g711_base64, sample_rate=8000, encoding="base64")
             >>> pcm.sample_rate
             8000
         """
