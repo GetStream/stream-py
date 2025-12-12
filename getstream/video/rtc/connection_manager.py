@@ -322,6 +322,9 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             # Connect subscriber offer event to handle SDP negotiation
             self._ws_client.on_event("subscriber_offer", self._on_subscriber_offer)
 
+            # Re-emit the events so they can be subscribed to on the ConnectionManager
+            self._ws_client.on_wildcard("*", self.emit)
+
             if hasattr(sfu_event, "join_response"):
                 logger.debug(f"sfu join response: {sfu_event.join_response}")
                 # Populate participants state with existing participants
@@ -530,3 +533,43 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             await self._peer_manager.restore_published_tracks()
         except Exception as e:
             logger.error("Failed to restore published tracks", exc_info=e)
+
+    async def republish_tracks(self) -> None:
+        """
+        Use the participants info from the SFU to re-emit the "track_published"
+        events for the already published tracks.
+
+        It's needed because SFU does not send the events for the already present tracks when the
+        agent joins after the user.
+        """
+
+        if not self._ws_client:
+            return None
+
+        participants = self.participants_state.get_participants()
+
+        for participant in participants:
+            # Skip the tracks belonging to this connection
+            if participant.session_id == self.session_id:
+                continue
+
+            for track_type_int in participant.published_tracks:
+                event = events_pb2.TrackPublished(
+                    user_id=participant.user_id,
+                    session_id=participant.session_id,
+                    participant=participant,
+                    type=track_type_int,
+                )
+                try:
+                    # Update track subscriptions first
+                    await self._subscription_manager.handle_track_published(event)
+                    # Emit the event downstream
+                    self.emit("track_published", event)
+                except Exception:
+                    logger.exception(
+                        f"Failed to emit track_published event "
+                        f"for the already published "
+                        f"track {participant.user_id}:{participant.session_id}:{track_type_int}"
+                    )
+
+        return None
