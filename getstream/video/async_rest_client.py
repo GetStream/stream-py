@@ -871,6 +871,37 @@ class VideoRestClient(AsyncBaseClient):
             path_params=path_params,
         )
 
+    @telemetry.operation_name("getstream.api.video.get_call_stats_map")
+    async def get_call_stats_map(
+        self,
+        call_type: str,
+        call_id: str,
+        session: str,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        exclude_publishers: Optional[bool] = None,
+        exclude_subscribers: Optional[bool] = None,
+        exclude_sfus: Optional[bool] = None,
+    ) -> StreamResponse[QueryCallStatsMapResponse]:
+        query_params = build_query_param(
+            start_time=start_time,
+            end_time=end_time,
+            exclude_publishers=exclude_publishers,
+            exclude_subscribers=exclude_subscribers,
+            exclude_sfus=exclude_sfus,
+        )
+        path_params = {
+            "call_type": call_type,
+            "call_id": call_id,
+            "session": session,
+        }
+        return await self.get(
+            "/api/v2/video/call_stats/{call_type}/{call_id}/{session}/map",
+            QueryCallStatsMapResponse,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
     @telemetry.operation_name(
         "getstream.api.video.get_call_session_participant_stats_details"
     )
@@ -910,10 +941,19 @@ class VideoRestClient(AsyncBaseClient):
         call_type: str,
         call_id: str,
         session: str,
+        limit: Optional[int] = None,
+        prev: Optional[str] = None,
+        next: Optional[str] = None,
         sort: Optional[List[SortParamRequest]] = None,
         filter_conditions: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[QueryCallSessionParticipantStatsResponse]:
-        query_params = build_query_param(sort=sort, filter_conditions=filter_conditions)
+        query_params = build_query_param(
+            limit=limit,
+            prev=prev,
+            next=next,
+            sort=sort,
+            filter_conditions=filter_conditions,
+        )
         path_params = {
             "call_type": call_type,
             "call_id": call_id,
@@ -985,7 +1025,7 @@ class VideoRestClient(AsyncBaseClient):
         name: str,
         external_storage: Optional[str] = None,
         grants: Optional[Dict[str, List[str]]] = None,
-        notification_settings: Optional[NotificationSettings] = None,
+        notification_settings: Optional[NotificationSettingsRequest] = None,
         settings: Optional[CallSettingsRequest] = None,
     ) -> StreamResponse[CreateCallTypeResponse]:
         json = build_body_dict(
@@ -1025,7 +1065,7 @@ class VideoRestClient(AsyncBaseClient):
         name: str,
         external_storage: Optional[str] = None,
         grants: Optional[Dict[str, List[str]]] = None,
-        notification_settings: Optional[NotificationSettings] = None,
+        notification_settings: Optional[NotificationSettingsRequest] = None,
         settings: Optional[CallSettingsRequest] = None,
     ) -> StreamResponse[UpdateCallTypeResponse]:
         path_params = {
@@ -1053,7 +1093,7 @@ class VideoRestClient(AsyncBaseClient):
         self,
         sip_caller_number: str,
         sip_trunk_number: str,
-        challenge: SIPChallenge,
+        challenge: SIPChallengeRequest,
         sip_headers: Optional[Dict[str, str]] = None,
     ) -> StreamResponse[ResolveSipInboundResponse]:
         json = build_body_dict(
