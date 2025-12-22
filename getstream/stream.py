@@ -14,7 +14,7 @@ from getstream.chat.async_client import ChatClient as AsyncChatClient
 from getstream.common.async_client import CommonClient as AsyncCommonClient
 from getstream.common.client import CommonClient
 from getstream.feeds.client import FeedsClient
-from getstream.models import UserRequest
+from getstream.models import FullUserResponse, UserRequest
 from getstream.moderation.client import ModerationClient
 from getstream.moderation.async_client import ModerationClient as AsyncModerationClient
 from getstream.utils import validate_and_clean_url
@@ -212,13 +212,16 @@ class AsyncStream(BaseStream, AsyncCommonClient):
         raise NotImplementedError("Feeds not supported for async client")
 
     @telemetry.operation_name("getstream.api.common.create_user")
-    async def create_user(self, name: str = "", id: str = str(uuid4()), image=""):
+    async def create_user(
+        self, name: str = "", id: str = "", image: str = ""
+    ) -> FullUserResponse:
         """
         Creates or updates users. This method performs an "upsert" operation,
         where it checks if each user already exists and updates their information
         if they do, or creates a new user entry if they do not.
         """
-        user = UserRequest(name=name, id=id)
+        id = id or str(uuid4())
+        user = UserRequest(name=name, id=id, image=image)
         users_map = {user.id: user}
         response = await self.update_users(users_map)
         user = response.data.users[user.id]
@@ -328,13 +331,16 @@ class Stream(BaseStream, CommonClient):
         )
 
     @telemetry.operation_name("getstream.api.common.create_user")
-    def create_user(self, name: str = "", id: str = str(uuid4()), image=""):
+    def create_user(
+        self, name: str = "", id: str = "", image: str = ""
+    ) -> FullUserResponse:
         """
         Creates or updates users. This method performs an "upsert" operation,
         where it checks if each user already exists and updates their information
         if they do, or creates a new user entry if they do not.
         """
-        user = UserRequest(name=name, id=id)
+        id = id or str(uuid4())
+        user = UserRequest(name=name, id=id, image=image)
         users_map = {user.id: user}
         response = self.update_users(users_map)
         user = response.data.users[user.id]
