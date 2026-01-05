@@ -9,6 +9,12 @@ git clone git@github.com:GetStream/stream-py.git
 uv sync --no-sources --all-packages --all-extras --dev
 ```
 
+Env setup
+
+```
+cp .env.example .env
+```
+
 Run tests
 
 ```
@@ -49,7 +55,14 @@ uv build --all
 uv publish
 ```
 
-## OpenAPI
+## OpenAPI & Protobuf
 
-The API endpoints are generated using openAPI. To refresh from the latest definitions do:
+Most API endpoints use openAPI definitions.
+Part of the video endpoints use Protobuf.
+Use these commands to regenerate:
+
+```
+./generate.sh
+./generate_webrtc.sh
+```
 
