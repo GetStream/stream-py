@@ -21,6 +21,11 @@ Run tests
 uv run pytest -m "not integration" tests/ getstream/
 ```
 
+### Commit hook
+
+```
+pre-commit install
+```
 
 ### Check
 
