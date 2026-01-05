@@ -1,43 +1,18 @@
-name: CI
-
+name: CI (unit)
 on:
   push:
-    branches:
-      - main
+    branches: [ "**" ]
   pull_request:
-    branches:
-      - main
-      - webrtc
+    branches: [ "**" ]
 
 jobs:
-  test:
-    name: Tests
-    environment: feeds-v3-ci
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
-    steps:
-    - name: Check out repo
-      uses: actions/checkout@v4
-    - uses: astral-sh/ruff-action@v3
-      continue-on-error: false
-    - name: Install uv and set the python version
-      uses: astral-sh/setup-uv@v5
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Install the project
-      run: uv sync --all-extras --dev
-    - name: Run tests
-      env:
-        STREAM_BASE_URL: ${{ vars.STREAM_BASE_URL }}
-        STREAM_API_KEY: ${{ vars.STREAM_API_KEY }}
-        STREAM_API_SECRET: ${{ secrets.STREAM_API_SECRET }}
-      run: |
-        if [ "${{ matrix.python-version }}" = "3.9" ]; then
-          uv run pytest tests/
-        else
-          uv run pytest tests/ getstream/
-        fi
+  unit:
+    uses: ./.github/workflows/run_tests.yml
+    with:
+      marker: 'not integration'
+    secrets: inherit
+
+# Cancel in-flight runs for the same branch/PR when new commits arrive
+concurrency:
+  group: ci-unit-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
