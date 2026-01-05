@@ -90,3 +90,16 @@ To disable workspace build, run the following command:
 ```bash
 uv build --no-sources
 ```
+
+## Release
+
+Create a new release on Github, CI handles the rest. If you do need to do it manually follow these instructions:
+
+```
+rm -rf dist
+git tag v0.0.15
+uv run hatch version # this should show the right version
+git push origin main --tags
+uv build --all
+uv publish
+```

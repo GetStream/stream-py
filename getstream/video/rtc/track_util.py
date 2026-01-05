@@ -1,27 +1,36 @@
 import asyncio
+import base64
+import fractions
 import io
+import logging
+import re
 import wave
 from enum import Enum
-
-import av
-import numpy as np
-import re
+from fractions import Fraction
 from typing import (
-    Dict,
     Any,
+    AsyncIterator,
     Callable,
+    Dict,
+    Iterator,
+    Literal,
     Optional,
     Union,
-    Iterator,
-    AsyncIterator,
-    Literal,
 )
 
-import logging
 import aiortc
+import av
+import numpy as np
 from aiortc import MediaStreamTrack
 from aiortc.mediastreams import MediaStreamError
 from numpy.typing import NDArray
+
+from getstream.video.rtc.g711 import (
+    ALAW_DECODE_TABLE,
+    MULAW_DECODE_TABLE,
+    G711Encoding,
+    G711Mapping,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +91,12 @@ class AudioFormat(str, Enum):
 # Type alias for audio format parameters
 # Accepts both AudioFormat enum members and string literals for backwards compatibility
 AudioFormatType = Union[AudioFormat, Literal["s16", "f32"]]
+
+# G.711 encoding constants
+MULAW_ENCODE_BIAS = 33
+MULAW_MAX = 32635
+ALAW_ENCODE_BIAS = 33
+ALAW_MAX = 32635
 
 
 class PcmData:
@@ -520,8 +535,6 @@ class PcmData:
         # Convert time_base from Fraction to float if present
         time_base = None
         if hasattr(frame, "time_base") and frame.time_base is not None:
-            from fractions import Fraction
-
             if isinstance(frame.time_base, Fraction):
                 time_base = float(frame.time_base)
             else:
@@ -535,6 +548,93 @@ class PcmData:
             pts=pts,
             dts=dts,
             time_base=time_base,
+        )
+
+    @classmethod
+    def from_g711(
+        cls,
+        g711_data: Union[bytes, str],
+        sample_rate: int = 8000,
+        channels: int = 1,
+        mapping: Union[G711Mapping, Literal["mulaw", "alaw"]] = G711Mapping.MULAW,
+        encoding: Union[G711Encoding, Literal["raw", "base64"]] = G711Encoding.RAW,
+    ) -> "PcmData":
+        """Build PcmData from G.711 encoded data (μ-law or A-law).
+
+        Args:
+            g711_data: G.711 encoded audio data (bytes or base64 string)
+            sample_rate: Sample rate in Hz (default: 8000)
+            channels: Number of channels (default: 1 for mono)
+            mapping: G.711 mapping type (default: MULAW)
+            encoding: Input encoding format (default: RAW, can be BASE64).
+                     If g711_data is a string, encoding is automatically set to BASE64.
+
+        Returns:
+            PcmData object with decoded audio
+
+        Example:
+            >>> import numpy as np
+            >>> # Decode μ-law bytes
+            >>> g711_data = bytes([0xFF, 0x7F, 0x00, 0x80])
+            >>> pcm = PcmData.from_g711(g711_data, sample_rate=8000, channels=1)
+            >>> pcm.sample_rate
+            8000
+            >>> # Decode from base64 string
+            >>> g711_base64 = "//8A"
+            >>> pcm = PcmData.from_g711(g711_base64, sample_rate=8000, encoding="base64")
+            >>> pcm.sample_rate
+            8000
+        """
+        # Normalize encoding to string for consistent comparisons
+        # Convert enum to its string value if it's an enum
+        if isinstance(encoding, G711Encoding):
+            encoding = encoding.value
+        encoding = str(encoding).lower()
+
+        # Handle string input (must be base64)
+        if isinstance(g711_data, str):
+            # If encoding is "raw", raise error (strings can't be raw)
+            if encoding == "raw":
+                raise TypeError(
+                    "Cannot use string input with encoding='raw'. "
+                    "Strings are only supported for base64-encoded data. "
+                    "Either pass bytes with encoding='raw', or use encoding='base64' for string input."
+                )
+            # Strings are always treated as base64
+            g711_bytes = base64.b64decode(g711_data)
+        elif encoding == "base64":
+            g711_bytes = base64.b64decode(g711_data)
+        else:
+            g711_bytes = g711_data
+
+        # Convert to numpy array of uint8
+        g711_samples = np.frombuffer(g711_bytes, dtype=np.uint8)
+
+        # Decode using appropriate lookup table
+        if mapping in (G711Mapping.MULAW, "mulaw"):
+            samples = MULAW_DECODE_TABLE[g711_samples]
+        elif mapping in (G711Mapping.ALAW, "alaw"):
+            samples = ALAW_DECODE_TABLE[g711_samples]
+        else:
+            raise ValueError(f"Invalid mapping: {mapping}. Must be 'mulaw' or 'alaw'")
+
+        # Handle multi-channel: reshape if needed
+        if channels > 1:
+            # G.711 is typically interleaved for multi-channel
+            total_samples = len(samples)
+            frames = total_samples // channels
+            if frames * channels == total_samples:
+                # Reshape to (channels, frames) format
+                samples = samples.reshape(frames, channels).T
+            else:
+                # If not evenly divisible, keep as 1D and let PcmData handle it
+                pass
+
+        return cls(
+            samples=samples,
+            sample_rate=sample_rate,
+            format=AudioFormat.S16,
+            channels=channels,
         )
 
     def resample(
@@ -555,11 +655,59 @@ class PcmData:
         if self.sample_rate == target_sample_rate and target_channels == self.channels:
             return self
 
-        # Create a resampler with the target configuration
+        # Use PyAV resampler for audio longer than 500ms, this works better than ours but it is stateful and does not work
+        # well with small chunks (eg. webrtc 20ms chunks)
+        if self.duration > 0.5:
+            return self._resample_with_pyav(target_sample_rate, target_channels)
+
+        # Use in-house resampler for shorter audio (lower latency)
         resampler = Resampler(
             format=self.format, sample_rate=target_sample_rate, channels=target_channels
         )
         return resampler.resample(self)
+
+    def _resample_with_pyav(
+        self, target_sample_rate: int, target_channels: int
+    ) -> "PcmData":
+        """Resample using PyAV (libav) for high-quality resampling and downmixing."""
+        # Create AudioFrame from PcmData (preserves format: f32 -> fltp, s16 -> s16p)
+        frame = self.to_av_frame()
+
+        # Determine PyAV format based on original format to preserve it
+        # f32 -> fltp (float32 planar), s16 -> s16p (int16 planar)
+        if self.format in (AudioFormat.F32, "f32", "float32"):
+            av_format = "fltp"
+            target_format = AudioFormat.F32
+        else:
+            av_format = "s16p"
+            target_format = AudioFormat.S16
+
+        # Create PyAV resampler with format matching the original
+        resampler = av.AudioResampler(
+            format=av_format,
+            layout="mono" if target_channels == 1 else "stereo",
+            rate=target_sample_rate,
+        )
+
+        # Resample
+        resampled_frames = resampler.resample(frame)
+
+        # Flush the resampler to get any remaining buffered samples
+        flush_frames = resampler.resample(None)
+        resampled_frames.extend(flush_frames)
+
+        # Convert each frame to PcmData using from_av_frame and concatenate them
+        # Start with an empty PcmData preserving the original format
+        result = PcmData(
+            sample_rate=target_sample_rate,
+            format=target_format,
+            channels=target_channels,
+        )
+
+        for resampled_frame in resampled_frames:
+            result = result.append(PcmData.from_av_frame(resampled_frame))
+
+        return result
 
     def to_bytes(self) -> bytes:
         """Return interleaved PCM bytes.
@@ -618,6 +766,122 @@ class PcmData:
             wf.setframerate(self.sample_rate)
             wf.writeframes(frames)
         return buf.getvalue()
+
+    def to_av_frame(self) -> "av.AudioFrame":
+        """Convert PcmData to a PyAV AudioFrame.
+
+        Returns:
+            av.AudioFrame: A PyAV AudioFrame with the audio data
+
+        Example:
+            >>> import numpy as np
+            >>> pcm = PcmData(samples=np.array([100, 200], np.int16), sample_rate=8000, format="s16", channels=1)
+            >>> frame = pcm.to_av_frame()
+            >>> frame.sample_rate
+            8000
+        """
+        # Determine PyAV format based on PcmData format
+        # Preserve original format: f32 -> fltp (float32 planar), s16 -> s16p (int16 planar)
+        if self.format in (AudioFormat.F32, "f32", "float32"):
+            pcm_formatted = self.to_float32()
+            av_format = "fltp"  # Float32 planar
+        else:
+            pcm_formatted = self.to_int16()
+            av_format = "s16p"  # Int16 planar
+
+        # Get samples and ensure correct shape for PyAV (channels, samples)
+        samples = pcm_formatted.samples
+
+        # Handle shape for PyAV
+        if samples.ndim == 2:
+            # Already in (channels, samples) format
+            if samples.shape[0] != pcm_formatted.channels:
+                # Transpose if needed
+                samples = (
+                    samples.T if samples.shape[1] == pcm_formatted.channels else samples
+                )
+        else:
+            # 1D mono - reshape to (1, samples)
+            samples = samples.reshape(1, -1)
+
+        # Create PyAV AudioFrame
+        layout = "mono" if pcm_formatted.channels == 1 else "stereo"
+        frame = av.AudioFrame.from_ndarray(samples, format=av_format, layout=layout)
+        frame.sample_rate = pcm_formatted.sample_rate
+        frame.pts = pcm_formatted.pts
+        return frame
+
+    def g711_bytes(
+        self,
+        sample_rate: int = 8000,
+        channels: int = 1,
+        mapping: Union[G711Mapping, Literal["mulaw", "alaw"]] = G711Mapping.MULAW,
+    ) -> bytes:
+        """Encode PcmData to G.711 bytes (μ-law or A-law).
+
+        Args:
+            sample_rate: Target sample rate (default: 8000)
+            channels: Target number of channels (default: 1)
+            mapping: G.711 mapping type (default: MULAW)
+
+        Returns:
+            G.711 encoded bytes
+
+        Example:
+            >>> import numpy as np
+            >>> pcm = PcmData(samples=np.array([100, 200], np.int16), sample_rate=8000, format="s16", channels=1)
+            >>> g711 = pcm.g711_bytes()
+            >>> len(g711) > 0
+            True
+        """
+        # Resample and convert to int16 if needed (no-ops if already correct)
+        pcm = self.resample(sample_rate, target_channels=channels).to_int16()
+
+        # Encode to G.711 using PyAV codec
+        if mapping in (G711Mapping.MULAW, "mulaw"):
+            return self._encode_g711_with_pyav(pcm, sample_rate, channels, "pcm_mulaw")
+        elif mapping in (G711Mapping.ALAW, "alaw"):
+            return self._encode_g711_with_pyav(pcm, sample_rate, channels, "pcm_alaw")
+        else:
+            raise ValueError(f"Invalid mapping: {mapping}. Must be 'mulaw' or 'alaw'")
+
+    def _encode_g711_with_pyav(
+        self, pcm: "PcmData", sample_rate: int, channels: int, codec_name: str
+    ) -> bytes:
+        """Encode PcmData to G.711 using PyAV codec (pcm_mulaw or pcm_alaw)."""
+        # Check if we have any samples
+        if pcm.samples.size == 0:
+            return b""
+
+        # Create AudioFrame from PcmData
+        frame = pcm.to_av_frame()
+
+        # Encode the frame using PyAV codec
+        return self._encode_frame_with_codec(frame, codec_name)
+
+    def _encode_frame_with_codec(self, frame: av.AudioFrame, codec_name: str) -> bytes:
+        """Encode a single AudioFrame using the specified G.711 codec."""
+        # Create codec context
+        codec = av.CodecContext.create(codec_name, "w")
+        codec.format = "s16"
+        codec.layout = frame.layout.name
+        codec.sample_rate = frame.sample_rate
+        # Set time_base to match sample rate (1/sample_rate)
+        codec.time_base = fractions.Fraction(1, frame.sample_rate)
+        codec.open()
+
+        # Encode the frame
+        packets = codec.encode(frame)
+
+        # Get bytes from packets
+        encoded_bytes = b"".join(bytes(p) for p in packets)
+
+        # Flush the encoder to get any remaining buffered data
+        flush_packets = codec.encode()
+        if flush_packets:
+            encoded_bytes += b"".join(bytes(p) for p in flush_packets)
+
+        return encoded_bytes
 
     def to_float32(self) -> "PcmData":
         """Convert samples to float32 in [-1, 1].
@@ -1402,6 +1666,170 @@ class PcmData:
             participant=self.participant,
         )
 
+    @property
+    def empty(self) -> bool:
+        return len(self.samples) == 0
+
+
+class PyAVResampler:
+    """
+    A stateful audio resampler.
+    It acts as a thin wrapper around `pyav.AudioResampler`, and it is intended to be
+    created once for the audio track and re-used.
+
+
+    Key differences from the stateless implementation:
+
+    - `pyav.AudioResampler` buffers samples internally, so the number of output samples doesn't always match the input.
+    - `PyAVResampler` keeps its own monotonic PTS clock, and it's meant to be used with a single audio stream only.
+       It ignores the PTS/DTS from `PcmData`.
+       PTS always starts from 0 for the first output.
+    - `pyav.AudioResampler` configures itself based on the first input frame. Feeding data in a different format
+       or sample rate will fail.
+    - `PyAVResampler` is not thread-safe.
+
+    The source PCMs must have the same sample rate, format, and number of channels.
+
+    Example:
+
+        >>> import numpy as np
+        >>> resampler = PyAVResampler(format="s16", sample_rate=48000, channels=1)
+        >>> # Process 20ms chunks at 16kHz (320 samples each)
+        >>> samples = np.random.randint(-1000, 1000, 320, dtype=np.int16)
+        >>> pcm_16k = PcmData(samples=samples, sample_rate=16000, format="s16", channels=1)
+        >>> pcm_48k = resampler.resample(pcm_16k)  # Returns 912 samples at 48kHz without flushing
+        >>> len(pcm_48k.samples)
+        912
+        >>> flushed_pcm = resampler.flush()
+        >>> len(flushed_pcm.samples)
+        48
+    """
+
+    def __init__(
+        self,
+        format: AudioFormatType,
+        sample_rate: int,
+        channels: int,
+        frame_size: int = 0,
+    ):
+        """
+        Initialize a stateful resampler with target audio parameters.
+
+        Args:
+            format: Target format ("s16" or "f32", also `AudioFormat.F32` or `AudioFormat.S16`).
+            sample_rate: Target sample rate (e.g., 48000, 16000, 8000)
+            channels: Target number of channels (1 for mono, 2 for stereo)
+            frame_size: how many samples per channel are produce in each output frame.
+                When set, the underlying resampler will buffer output the specified number of samples is accumulated,
+                and it will output frames of this exact size (except when ".resample(flush=True)").
+                Default - `0` (each frame can be of a variable size).
+        """
+        if isinstance(format, str):
+            AudioFormat.validate(format)
+
+        self.format = AudioFormat(format)
+        self.sample_rate = sample_rate
+        self.channels = channels
+        self.frame_size = frame_size
+        # Determine PyAV format based on original format to preserve it
+        # f32 -> fltp (float32 planar), s16 -> s16p (int16 planar)
+        self._pyav_format = "fltp" if self.format == AudioFormat.F32 else "s16p"
+        self._pts = 0
+        self._set_pyav_resampler()
+
+    def __repr__(self) -> str:
+        return (
+            f"{self.__class__.__name__}(format={self.format.name.lower()!r}, "
+            f"sample_rate={self.sample_rate}, channels={self.channels}, frame_size={self.frame_size})"
+        )
+
+    def _set_pyav_resampler(self):
+        # Create PyAV resampler with format matching the original
+        self._pyav_resampler = av.AudioResampler(
+            format=self._pyav_format,
+            layout="mono" if self.channels == 1 else "stereo",
+            rate=self.sample_rate,
+            frame_size=self.frame_size,
+        )
+
+    def _pyav_resample(self, frame: av.AudioFrame | None) -> list[av.AudioFrame]:
+        if frame is not None and not frame.samples:
+            # pyav resampler fails if audioframe has no samples
+            return []
+        return self._pyav_resampler.resample(frame)
+
+    def resample(self, pcm: PcmData, flush: bool = False) -> PcmData:
+        """
+        Resample using PyAV (libav) for high-quality resampling and downmixing.
+
+        Args:
+            pcm: Input PCM data to resample
+            flush: if True, get the remaining frames from underlying `av.AudioResampler` if there are any.
+                Default - `False`.
+
+        Returns:
+            New PcmData object with resampled audio, potentially empty if the frame size is set and larger
+            than the input PCM.
+        """
+        # Create AudioFrame from PcmData
+        frame = pcm.to_av_frame()
+
+        # Convert each frame to PcmData using from_av_frame and concatenate them
+        # Start with an empty PcmData preserving the original format
+        result = PcmData(
+            sample_rate=self.sample_rate,
+            format=self.format,
+            channels=self.channels,
+            time_base=1 / self.sample_rate,
+        )
+
+        # Resample
+        # Keep the lock because resampler is stateful, and we want to keep PTS in order
+        resampled_frames = self._pyav_resample(frame)
+        if flush:
+            try:
+                resampled_frames.extend(self._pyav_resample(None))
+            finally:
+                # Reset the resampler because it cannot be used after it's flushed,
+                self._set_pyav_resampler()
+
+        for resampled_frame in resampled_frames:
+            self._pts += resampled_frame.samples
+            result = result.append(PcmData.from_av_frame(resampled_frame))
+
+        result.pts = self._pts - len(result.samples)
+        result.dts = result.pts
+        return result
+
+    def flush(self) -> PcmData:
+        """
+        Flush the underlying `av.AudioResampler`
+
+        Returns:
+            New PcmData object with resampled audio, potentially empty.
+        """
+        # Convert each frame to PcmData using from_av_frame and concatenate them
+        # Start with an empty PcmData preserving the original format
+        result = PcmData(
+            sample_rate=self.sample_rate,
+            format=self.format,
+            channels=self.channels,
+        )
+
+        try:
+            # Flush the resampler to get remaining buffered samples
+            resampled_frames = self._pyav_resample(None)
+        finally:
+            # Reset the resampler because it cannot be used after it's flushed,
+            self._set_pyav_resampler()
+
+        # Convert frames to PcmData and update the PTS clock
+        for resampled_frame in resampled_frames:
+            self._pts += resampled_frame.samples
+            result = result.append(PcmData.from_av_frame(resampled_frame))
+        result.pts = self._pts - len(result.samples)
+        return result
+
 
 class Resampler:
     """
@@ -1601,7 +2029,7 @@ class Resampler:
 
     def __repr__(self) -> str:
         return (
-            f"Resampler(format={self.format!r}, "
+            f"{self.__class__.__name__}(format={self.format!r}, "
             f"sample_rate={self.sample_rate}, channels={self.channels})"
         )
 

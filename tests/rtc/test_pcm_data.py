@@ -1,9 +1,15 @@
-import numpy as np
-import pytest
-import av
 from fractions import Fraction
 
-from getstream.video.rtc.track_util import PcmData, AudioFormat, Resampler
+import av
+import numpy as np
+import pytest
+
+from getstream.video.rtc.track_util import (
+    AudioFormat,
+    PcmData,
+    Resampler,
+    PyAVResampler,
+)
 
 
 def _i16_list_from_bytes(b: bytes):
@@ -664,6 +670,75 @@ def test_resample_float32_preserves_float32_dtype():
     )
 
 
+def test_resample_float32_pyav_preserves_format():
+    """Test that float32 stays float32 when using PyAV resampler (audio > 100ms)."""
+    # Create float32 audio longer than 100ms to trigger PyAV resampler
+    sample_rate_in = 16000
+    sample_rate_out = 48000
+    duration_sec = 1.0  # 1 second > 100ms threshold
+    num_samples = int(sample_rate_in * duration_sec)
+
+    # Use values that would be truncated if converted to int16
+    samples_f32 = np.linspace(-1.0, 1.0, num_samples, dtype=np.float32)
+
+    pcm_16k = PcmData(
+        sample_rate=sample_rate_in,
+        format="f32",
+        samples=samples_f32,
+        channels=1,
+    )
+
+    # Resample to 48kHz (will use PyAV since duration > 100ms)
+    pcm_48k = pcm_16k.resample(sample_rate_out)
+
+    # CRITICAL: Format must still be f32
+    assert pcm_48k.format == "f32", f"Format should be 'f32', got '{pcm_48k.format}'"
+
+    # CRITICAL: Samples must be float32, not int16
+    assert pcm_48k.samples.dtype == np.float32, (
+        f"Samples should be float32, got {pcm_48k.samples.dtype}. "
+        f"PyAV resampler should preserve float32 format!"
+    )
+
+    # Verify values are still in float range, not truncated to int16 range
+    assert np.any(np.abs(pcm_48k.samples) < 1.0), (
+        "No fractional values found - data may have been truncated to integers"
+    )
+
+
+def test_resample_int16_pyav_preserves_format():
+    """Test that int16 stays int16 when using PyAV resampler (audio > 100ms)."""
+    # Create int16 audio longer than 100ms to trigger PyAV resampler
+    sample_rate_in = 16000
+    sample_rate_out = 48000
+    duration_sec = 1.0  # 1 second > 100ms threshold
+    num_samples = int(sample_rate_in * duration_sec)
+
+    # Use int16 values
+    samples_s16 = np.array(
+        [-32768, -16384, 0, 16384, 32767] * (num_samples // 5), dtype=np.int16
+    )
+
+    pcm_16k = PcmData(
+        sample_rate=sample_rate_in,
+        format="s16",
+        samples=samples_s16,
+        channels=1,
+    )
+
+    # Resample to 48kHz (will use PyAV since duration > 100ms)
+    pcm_48k = pcm_16k.resample(sample_rate_out)
+
+    # CRITICAL: Format must still be s16
+    assert pcm_48k.format == "s16", f"Format should be 's16', got '{pcm_48k.format}'"
+
+    # CRITICAL: Samples must be int16, not float32
+    assert pcm_48k.samples.dtype == np.int16, (
+        f"Samples should be int16, got {pcm_48k.samples.dtype}. "
+        f"PyAV resampler should preserve int16 format!"
+    )
+
+
 def test_resample_float32_to_stereo_preserves_float32():
     """Test that float32 stays float32 when resampling AND converting to stereo."""
     sample_rate_in = 16000
@@ -988,9 +1063,6 @@ def test_resample_with_extreme_values_should_clip():
     assert max_val > 10000, (
         f"Resampled values seem too small: max={max_val}, might indicate scaling bug"
     )
-
-
-# ===== Tests for to_int16() method =====
 
 
 def test_to_int16_from_float32():
@@ -1680,3 +1752,575 @@ def test_repr_returns_str():
     )
 
     assert repr(pcm) == str(pcm)
+
+
+def test_from_g711_mulaw_basic():
+    """Test basic μ-law decoding."""
+    # Test with known μ-law bytes (silence is typically 0xFF in μ-law)
+    g711_data = bytes([0xFF, 0x7F, 0x00, 0x80])
+    pcm = PcmData.from_g711(g711_data, sample_rate=8000, channels=1)
+
+    assert pcm.sample_rate == 8000
+    assert pcm.channels == 1
+    assert pcm.format == "s16"
+    assert len(pcm.samples) == 4
+    assert pcm.samples.dtype == np.int16
+
+
+def test_from_g711_alaw_basic():
+    """Test basic A-law decoding."""
+    # Test with known A-law bytes (silence is typically 0xD5 in A-law)
+    g711_data = bytes([0xD5, 0x55, 0x2A, 0xAA])
+    pcm = PcmData.from_g711(g711_data, sample_rate=8000, channels=1, mapping="alaw")
+
+    assert pcm.sample_rate == 8000
+    assert pcm.channels == 1
+    assert pcm.format == "s16"
+    assert len(pcm.samples) == 4
+    assert pcm.samples.dtype == np.int16
+
+
+def test_from_g711_base64():
+    """Test base64 encoded input."""
+    import base64
+
+    # Encode some μ-law bytes to base64
+    g711_data = bytes([0xFF, 0x7F, 0x00, 0x80])
+    base64_data = base64.b64encode(g711_data)
+
+    # Test with bytes and encoding="base64"
+    pcm = PcmData.from_g711(
+        base64_data, sample_rate=8000, channels=1, encoding="base64"
+    )
+
+    assert pcm.sample_rate == 8000
+    assert pcm.channels == 1
+    assert len(pcm.samples) == 4
+
+    # Test with string (automatically treated as base64)
+    base64_str = base64.b64encode(g711_data).decode("ascii")
+    pcm2 = PcmData.from_g711(
+        base64_str, sample_rate=8000, channels=1, encoding="base64"
+    )
+
+    assert pcm2.sample_rate == 8000
+    assert pcm2.channels == 1
+    assert len(pcm2.samples) == 4
+    # Should decode to same result
+    assert np.array_equal(pcm.samples, pcm2.samples)
+
+    # Test that string with encoding="raw" raises TypeError
+    with pytest.raises(TypeError) as exc_info:
+        PcmData.from_g711(base64_str, sample_rate=8000, encoding="raw")
+    assert "string input with encoding='raw'" in str(exc_info.value).lower()
+
+    # Test that string with encoding=G711Encoding.RAW (enum) also raises TypeError
+    # This is the bug: currently it doesn't raise an error, it just decodes as base64
+    from getstream.video.rtc import G711Encoding
+
+    with pytest.raises(TypeError) as exc_info:
+        PcmData.from_g711(base64_str, sample_rate=8000, encoding=G711Encoding.RAW)
+    assert "string input with encoding='raw'" in str(exc_info.value).lower()
+
+
+def test_from_g711_custom_sample_rate():
+    """Test with non-8kHz sample rates."""
+    g711_data = bytes([0xFF, 0x7F, 0x00, 0x80])
+    pcm = PcmData.from_g711(g711_data, sample_rate=16000, channels=1)
+
+    assert pcm.sample_rate == 16000
+    assert pcm.channels == 1
+
+
+def test_from_g711_stereo():
+    """Test stereo channels."""
+    # 8 bytes = 4 samples per channel for stereo
+    g711_data = bytes([0xFF, 0x7F, 0x00, 0x80, 0xFF, 0x7F, 0x00, 0x80])
+    pcm = PcmData.from_g711(g711_data, sample_rate=8000, channels=2)
+
+    assert pcm.sample_rate == 8000
+    assert pcm.channels == 2
+    # Should have 4 samples per channel
+    if pcm.samples.ndim == 2:
+        assert pcm.samples.shape[0] == 2
+        assert pcm.samples.shape[1] == 4
+
+
+def test_g711_bytes_mulaw():
+    """Test μ-law encoding."""
+    samples = np.array([100, -100, 1000, -1000, 0], dtype=np.int16)
+    pcm = PcmData(samples=samples, sample_rate=8000, format="s16", channels=1)
+
+    g711 = pcm.g711_bytes()
+
+    assert isinstance(g711, bytes)
+    assert len(g711) == len(samples)
+    # Verify it can be decoded back
+    decoded = PcmData.from_g711(g711, sample_rate=8000, channels=1)
+    assert len(decoded.samples) == len(samples)
+
+
+def test_g711_bytes_alaw():
+    """Test A-law encoding."""
+    samples = np.array([100, -100, 1000, -1000, 0], dtype=np.int16)
+    pcm = PcmData(samples=samples, sample_rate=8000, format="s16", channels=1)
+
+    g711 = pcm.g711_bytes(mapping="alaw")
+
+    assert isinstance(g711, bytes)
+    assert len(g711) == len(samples)
+    # Verify it can be decoded back
+    decoded = PcmData.from_g711(g711, sample_rate=8000, channels=1, mapping="alaw")
+    assert len(decoded.samples) == len(samples)
+
+
+def test_g711_bytes_auto_resample():
+    """Test automatic resampling to 8kHz mono."""
+    # Create 16kHz stereo audio
+    samples = np.array([[100, 200, 300], [-100, -200, -300]], dtype=np.int16)
+    pcm = PcmData(samples=samples, sample_rate=16000, format="s16", channels=2)
+
+    # Encode to G.711 (should auto-resample to 8kHz mono)
+    g711 = pcm.g711_bytes(sample_rate=8000, channels=1)
+
+    assert isinstance(g711, bytes)
+    # Decode and verify
+    decoded = PcmData.from_g711(g711, sample_rate=8000, channels=1)
+    assert decoded.sample_rate == 8000
+    assert decoded.channels == 1
+
+
+def test_g711_roundtrip():
+    """Test encode then decode, verify similarity."""
+    # Create test audio
+    samples = np.array(
+        [0, 100, -100, 1000, -1000, 5000, -5000, 10000, -10000, 0],
+        dtype=np.int16,
+    )
+    pcm_original = PcmData(samples=samples, sample_rate=8000, format="s16", channels=1)
+
+    # Encode to μ-law and decode back
+    g711_mulaw = pcm_original.g711_bytes()
+    pcm_decoded_mulaw = PcmData.from_g711(g711_mulaw, sample_rate=8000)
+
+    # Encode to A-law and decode back
+    g711_alaw = pcm_original.g711_bytes(mapping="alaw")
+    pcm_decoded_alaw = PcmData.from_g711(g711_alaw, sample_rate=8000, mapping="alaw")
+
+    # G.711 is lossy, so values won't be exact, but should be close
+    # Check that decoded samples are in reasonable range
+    assert len(pcm_decoded_mulaw.samples) == len(samples)
+    assert len(pcm_decoded_alaw.samples) == len(samples)
+
+    # Verify samples are int16
+    assert pcm_decoded_mulaw.samples.dtype == np.int16
+    assert pcm_decoded_alaw.samples.dtype == np.int16
+
+    # Check that zero samples remain zero (or very close)
+    assert abs(pcm_decoded_mulaw.samples[0]) < 100
+    assert abs(pcm_decoded_alaw.samples[0]) < 100
+
+
+def test_g711_integration(tmp_path):
+    """Integration test that generates test files for manual review."""
+    # Generate a simple sine wave (440 Hz for 1 second at 8kHz)
+    sample_rate = 8000
+    duration = 1.0
+    frequency = 440.0
+    num_samples = int(sample_rate * duration)
+    t = np.linspace(0, duration, num_samples, dtype=np.float32)
+    sine_wave = (np.sin(2 * np.pi * frequency * t) * 16000).astype(np.int16)
+
+    # Create original PCM
+    pcm_original = PcmData(
+        samples=sine_wave, sample_rate=sample_rate, format="s16", channels=1
+    )
+
+    # Encode to μ-law
+    g711_mulaw = pcm_original.g711_bytes()
+    pcm_decoded_mulaw = PcmData.from_g711(g711_mulaw, sample_rate=sample_rate)
+
+    # Encode to A-law
+    g711_alaw = pcm_original.g711_bytes(mapping="alaw")
+    pcm_decoded_alaw = PcmData.from_g711(
+        g711_alaw, sample_rate=sample_rate, mapping="alaw"
+    )
+
+    # Save files to temporary directory (automatically cleaned up by pytest)
+    original_path = tmp_path / "g711_original.wav"
+    mulaw_path = tmp_path / "g711_decoded_mulaw.wav"
+    alaw_path = tmp_path / "g711_decoded_alaw.wav"
+
+    # Save original
+    with open(original_path, "wb") as f:
+        f.write(pcm_original.to_wav_bytes())
+
+    # Save μ-law decoded
+    with open(mulaw_path, "wb") as f:
+        f.write(pcm_decoded_mulaw.to_wav_bytes())
+
+    # Save A-law decoded
+    with open(alaw_path, "wb") as f:
+        f.write(pcm_decoded_alaw.to_wav_bytes())
+
+    # Verify files were created
+    assert original_path.exists()
+    assert mulaw_path.exists()
+    assert alaw_path.exists()
+
+    # Verify decoded audio has reasonable characteristics
+    assert len(pcm_decoded_mulaw.samples) == num_samples
+    assert len(pcm_decoded_alaw.samples) == num_samples
+    # Check that decoded audio isn't all zeros
+    assert np.any(pcm_decoded_mulaw.samples != 0)
+    assert np.any(pcm_decoded_alaw.samples != 0)
+
+
+class TestPyAVResampler:
+    def test_resample_upsample(self):
+        """Test basic resampling functionality."""
+        # Create a resampler for 48kHz mono s16
+        resampler = PyAVResampler(format="s16", sample_rate=48000, channels=1)
+
+        # Create 20ms of 16kHz audio (320 samples)
+        samples = np.random.randint(-1000, 1000, 320, dtype=np.int16)
+        pcm_16k = PcmData(samples=samples, sample_rate=16000, format="s16", channels=1)
+
+        # Resample to 48kHz
+        pcm_48k = resampler.resample(pcm_16k)
+
+        assert pcm_48k.sample_rate == 48000
+        assert pcm_48k.format == "s16"
+        assert pcm_48k.channels == 1
+
+        # 16kHz to 48kHz is 3x upsampling: 320 * 3 = 960
+        # Stateful resampler keeps some frames in the buffer
+        assert len(pcm_48k.samples) < 960
+        # We need to flush the resampler to get the remaining ones
+        pcm_flushed = resampler.flush()
+        assert len(pcm_flushed.samples) + len(pcm_48k.samples) == 960
+
+        # Calling resample with "flush=True" returns all samples at once
+        assert len(resampler.resample(pcm_16k, flush=True).samples) == 960
+
+    def test_resample_downsample(self):
+        """Test downsampling from 48kHz to 16kHz."""
+        resampler = PyAVResampler(format="s16", sample_rate=16000, channels=1)
+
+        # Create 48kHz audio (960 samples = 20ms)
+        samples = np.random.randint(-1000, 1000, 960, dtype=np.int16)
+        pcm_48k = PcmData(samples=samples, sample_rate=48000, format="s16", channels=1)
+
+        # Downsample to 16kHz
+        pcm_16k = resampler.resample(pcm_48k)
+
+        assert pcm_16k.sample_rate == 16000
+        # 48kHz to 16kHz is 1/3x: 960 / 3 = 320
+        # Stateful resampler keeps some frames in the buffer
+        assert len(pcm_16k.samples) < 320
+        # We need to flush the resampler to get the remaining ones
+        pcm_flushed = resampler.flush()
+        assert len(pcm_flushed.samples) + len(pcm_16k.samples) == 320
+
+        # Calling resample with "flush=True" returns all samples at once
+        assert len(resampler.resample(pcm_48k, flush=True).samples) == 320
+
+    def test_resample_no_change(self):
+        """Test that resampler returns same data when no resampling needed."""
+        resampler = PyAVResampler(format="s16", sample_rate=16000, channels=1)
+
+        samples = np.array([1, 2, 3, 4], dtype=np.int16)
+        pcm = PcmData(samples=samples, sample_rate=16000, format="s16", channels=1)
+
+        result = resampler.resample(pcm)
+
+        assert result.sample_rate == 16000
+        assert result.format == "s16"
+        assert result.channels == 1
+        np.testing.assert_array_equal(result.samples, samples)
+
+    def test_resample_different_sample_rates_fails(self):
+        # Create a resampler for 48kHz mono s16
+        resampler = PyAVResampler(format="s16", sample_rate=48000, channels=1)
+
+        samples = np.random.randint(-1000, 1000, 320, dtype=np.int16)
+        # Create 20ms of 16kHz audio (320 samples)
+        pcm_16k = PcmData(samples=samples, sample_rate=16000, format="s16", channels=1)
+        # Create 40ms of 16kHz audio (320 samples)
+        pcm_8k = PcmData(samples=samples, sample_rate=8000, format="s16", channels=1)
+
+        resampler.resample(pcm_16k)
+        # Feeding a different sample rate fails
+        with pytest.raises(
+            ValueError, match="Frame does not match AudioResampler setup"
+        ):
+            resampler.resample(pcm_8k)
+
+    def test_resample_different_formats_fails(self):
+        # Create a resampler for 48kHz mono s16
+        resampler = PyAVResampler(format="s16", sample_rate=48000, channels=1)
+
+        # Create 20ms of 16kHz audio (320 samples)
+        pcm_16k_s16 = PcmData(
+            samples=np.linspace(-1000, 1000, 320, dtype=np.int16),
+            sample_rate=16000,
+            format="s16",
+            channels=1,
+        )
+        pcm_16k_f32 = PcmData(
+            samples=np.linspace(-1000, 1000, 320, dtype=np.float32),
+            sample_rate=16000,
+            format="f32",
+            channels=1,
+        )
+
+        resampler.resample(pcm_16k_s16)
+        # Feeding a different format fails
+        with pytest.raises(
+            ValueError, match="Frame does not match AudioResampler setup"
+        ):
+            resampler.resample(pcm_16k_f32)
+
+    def test_resample_upsample_frame_size_set(self):
+        """Test that resampler accumulates samples before returning if frame size is set."""
+        # Create a resampler for 8kHz mono s16
+        # with a frame size 160 (20ms)
+        resampler = PyAVResampler(
+            format="s16",
+            sample_rate=8000,
+            channels=1,
+            frame_size=160,
+        )
+
+        # Create 100 samples of 16kHz audio
+        samples = np.random.randint(-1000, 1000, 100, dtype=np.int16)
+        pcm_16k = PcmData(samples=samples, sample_rate=16000, format="s16", channels=1)
+
+        # Resample to 8kHz
+        pcm_8k = resampler.resample(pcm_16k)
+
+        assert pcm_8k.sample_rate == 8000
+        assert pcm_8k.format == "s16"
+        assert pcm_8k.channels == 1
+
+        # 100 samples are not enough for a frame of 160 8khz
+        assert len(pcm_8k.samples) == 0
+        # Feed it 3 more times to get some output
+        resampler.resample(pcm_16k)
+        resampler.resample(pcm_16k)
+        pcm_8k = resampler.resample(pcm_16k)
+        assert len(pcm_8k.samples) == 160
+
+        # Flush resampler to get the last 40 samples
+        assert len(resampler.flush().samples) == 40
+
+    def test_resample_mono_to_stereo(self):
+        """Test resampling with channel conversion from mono to stereo."""
+        resampler = PyAVResampler(format="s16", sample_rate=48000, channels=2)
+
+        # Create 64 samples of mono 16kHz audio
+        mono_samples = np.linspace(-100, 100, num=64, dtype=np.int16)
+        pcm_mono = PcmData(
+            samples=mono_samples, sample_rate=16000, format="s16", channels=1
+        )
+
+        # Resample to stereo 48kHz
+        pcm_stereo = resampler.resample(pcm_mono, flush=True)
+
+        assert pcm_stereo.sample_rate == 48000
+        assert pcm_stereo.channels == 2
+        assert pcm_stereo.samples.shape[0] == 2  # 2 channels
+        # Both channels should have the same data (duplicated from mono)
+        np.testing.assert_array_equal(pcm_stereo.samples[0], pcm_stereo.samples[1])
+
+    def test_resample_stereo_to_mono(self):
+        """Test resampling with channel conversion from stereo to mono."""
+        resampler = PyAVResampler(format="s16", sample_rate=48000, channels=1)
+
+        # Create stereo 16kHz audio
+        left_channel = np.linspace(-100, 100, num=64, dtype=np.int16)
+        right_channel = np.linspace(-100, 100, num=64, dtype=np.int16)
+        stereo_samples = np.vstack([left_channel, right_channel])
+        pcm_stereo = PcmData(
+            samples=stereo_samples, sample_rate=16000, format="s16", channels=2
+        )
+
+        # Resample to mono 48kHz
+        pcm_mono = resampler.resample(pcm_stereo)
+
+        assert pcm_mono.sample_rate == 48000
+        assert pcm_mono.channels == 1
+        assert pcm_mono.samples.ndim == 1  # 1D array for mono
+
+    def test_resample_format_conversion_to_f32(self):
+        """Test format conversion from s16 to f32."""
+        resampler = PyAVResampler(format="f32", sample_rate=16000, channels=1)
+
+        # Create s16 audio
+        samples = np.array([0, 16384, -16384, 32767, -32768], dtype=np.int16)
+        pcm_s16 = PcmData(samples=samples, sample_rate=16000, format="s16", channels=1)
+
+        # Convert to f32
+        pcm_f32 = resampler.resample(pcm_s16)
+
+        assert pcm_f32.format == "f32"
+        assert pcm_f32.samples.dtype == np.float32
+        # Check value ranges are properly scaled to [-1, 1]
+        assert -1.0 <= pcm_f32.samples.min() <= 1.0
+        assert -1.0 <= pcm_f32.samples.max() <= 1.0
+
+    def test_resample_format_conversion_to_s16(self):
+        """Test format conversion from f32 to s16."""
+        resampler = PyAVResampler(format="s16", sample_rate=16000, channels=1)
+
+        # Create f32 audio
+        samples = np.array([0.0, 0.5, -0.5, 1.0, -1.0], dtype=np.float32)
+        pcm_f32 = PcmData(samples=samples, sample_rate=16000, format="f32", channels=1)
+
+        # Convert to s16
+        pcm_s16 = resampler.resample(pcm_f32)
+
+        assert pcm_s16.format == "s16"
+        assert pcm_s16.samples.dtype == np.int16
+        # Check values are in int16 range
+        assert -32768 <= pcm_s16.samples.min() <= 32767
+        assert -32768 <= pcm_s16.samples.max() <= 32767
+
+    def test_resample_20ms_chunks(self):
+        """Test resampling of consecutive 20ms chunks (simulating real-time streaming)."""
+        resampler = PyAVResampler(format="s16", sample_rate=48000, channels=1)
+
+        # Simulate 5 consecutive 20ms chunks at 16kHz
+        chunks = []
+        for i in range(5):
+            # 20ms at 16kHz = 320 samples
+            samples = (
+                np.sin(2 * np.pi * 440 * (np.arange(320) + i * 320) / 16000) * 10000
+            )
+            samples = samples.astype(np.int16)
+            pcm = PcmData(samples=samples, sample_rate=16000, format="s16", channels=1)
+            chunks.append(pcm)
+
+        # Resample each chunk independently (simulating real-time processing)
+        resampled_chunks = []
+        for chunk in chunks:
+            resampled = resampler.resample(chunk, flush=True)
+            resampled_chunks.append(resampled)
+            # Each 20ms chunk at 48kHz should be 960 samples
+            assert len(resampled.samples) == 960
+            assert resampled.sample_rate == 48000
+
+        # Verify no state is maintained between chunks by checking each is processed identically
+        # Two identical input chunks should produce identical outputs
+        identical_chunk = PcmData(
+            samples=chunks[0].samples, sample_rate=16000, format="s16", channels=1
+        )
+        resampled1 = resampler.resample(chunks[0], flush=True)
+        resampled2 = resampler.resample(identical_chunk, flush=True)
+        np.testing.assert_array_equal(resampled1.samples, resampled2.samples)
+
+    def test_resample_time_handling(self):
+        """
+        Test that PTS/DTS timestamps increase monotonically after resampling.
+        """
+        resampler = PyAVResampler(format="s16", sample_rate=48000, channels=1)
+
+        samples = np.linspace(-100, 100, num=320, dtype=np.int16)
+        pcm = PcmData(
+            samples=samples,
+            sample_rate=16000,
+            format="s16",
+            channels=1,
+            pts=1234,
+            dts=1230,
+            time_base=0.001,
+        )
+
+        resampled = resampler.resample(pcm, flush=True)
+
+        # Stateful resampler keeps track of the time on its own.
+        # It resets pts when getting the first sample, and it tracks the new pts value
+        # based on the number of output samples.
+        # The values from PcmData objects are ignored.
+        assert resampled.pts == 0
+        assert resampled.dts == 0
+        assert resampled.time_base == 1 / resampler.sample_rate
+
+        resampled = resampler.resample(pcm, flush=True)
+        assert resampled.pts == 960
+        assert resampled.dts == 960
+
+    def test_repr(self):
+        """Test string representation of Resampler."""
+        resampler = PyAVResampler(
+            format="f32", sample_rate=44100, channels=2, frame_size=1024
+        )
+        repr_str = repr(resampler)
+
+        assert "format='f32'" in repr_str
+        assert "sample_rate=44100" in repr_str
+        assert "channels=2" in repr_str
+        assert "frame_size=1024" in repr_str
+
+    def test_resample_empty_audio(self):
+        """Test edge cases like empty audio, single sample, etc."""
+        resampler = PyAVResampler(format="s16", sample_rate=48000, channels=1)
+
+        # Empty audio
+        empty_pcm = PcmData(
+            samples=np.array([], dtype=np.int16),
+            sample_rate=16000,
+            format="s16",
+            channels=1,
+        )
+        resampled_empty = resampler.resample(empty_pcm)
+        assert len(resampled_empty.samples) == 0
+
+    def test_flush_empty(self):
+        """Test flushing the resampler before processing any samples."""
+        resampler = PyAVResampler(format="s16", sample_rate=48000, channels=1)
+
+        # Empty audio
+        resampled_empty = resampler.flush()
+        assert len(resampled_empty.samples) == 0
+
+    def test_resample_consistency_across_chunks(self):
+        """Test that splitting audio and processing in chunks gives consistent results."""
+        resampler = PyAVResampler(format="s16", sample_rate=48000, channels=1)
+
+        # Create a longer audio signal
+        total_samples = 1600  # 100ms at 16kHz
+        samples = np.sin(2 * np.pi * 440 * np.arange(total_samples) / 16000) * 10000
+        samples = samples.astype(np.int16)
+
+        # Process as one chunk and flush immediately
+        pcm_full = PcmData(samples=samples, sample_rate=16000, format="s16", channels=1)
+        resampled_full = resampler.resample(pcm_full, flush=True)
+
+        # Process as multiple 20ms chunks
+        chunk_size = 320  # 20ms at 16kHz
+        resampled_chunks = []
+        for i in range(0, total_samples, chunk_size):
+            chunk_samples = samples[i : i + chunk_size]
+            pcm_chunk = PcmData(
+                samples=chunk_samples, sample_rate=16000, format="s16", channels=1
+            )
+            resampled_chunk = resampler.resample(pcm_chunk)
+            resampled_chunks.append(resampled_chunk.samples)
+
+        # Flush the resampler after processing all the chunks
+        resampled_chunks.append(resampler.flush().samples)
+
+        # Concatenate chunks
+        resampled_concatenated = np.concatenate(resampled_chunks)
+
+        # The results should be similar, though with some differences due to
+        # independent chunk processing. The stateless resampler uses endpoint
+        # mapping for each chunk, which prevents out-of-bounds access but creates
+        # phase differences compared to processing as one continuous signal.
+        assert len(resampled_full.samples) == len(resampled_concatenated)
+        # Check that the difference is reasonable for independent chunk processing
+        diff = np.abs(resampled_full.samples - resampled_concatenated)
+        assert (
+            np.mean(diff) < 250
+        )  # Allow for phase differences in stateless processing

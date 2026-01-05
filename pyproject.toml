@@ -36,8 +36,8 @@ openai-realtime = [
 webrtc = [
     "aiortc-getstream==1.13.0.post1",
     "numpy>=2.2.6,<2.3",
-    "torch>=2.7.1",
-    "torchaudio>=2.7.1",
+    "torch>=2.7.0",
+    "torchaudio>=2.7.0",
     "soundfile>=0.13.1",
     "scipy>=1.15.3,<1.16",
     "twirp",
@@ -48,8 +48,6 @@ webrtc = [
     "structlog<24",
     "numpy>=2.2.6",
     "tenacity>=9.1.2",
-    "torch>=2.7.1",
-    "torchaudio>=2.7.1",
     "scipy>=1.15.3",
     "aiohttp>=3.13.2,<4",
     "ping3>=4.0.8",
@@ -74,6 +72,8 @@ dev = [
     "grpcio-tools>=1.73.1",
     "mypy-protobuf==3.5.0",
     "pytest-timeout>=2.3.1",
+    "hatch-vcs>=0.5.0",
+    "hatch>=1.14.2",
     "opentelemetry-exporter-otlp>=1.37.0",
     "opentelemetry-exporter-prometheus>=0.58b0",
     "prometheus-client>=0.23.1",
@@ -96,11 +96,12 @@ members = [
  ]
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs", "setuptools-scm"]
 build-backend = "hatchling.build"
 
 [tool.hatch.version]
-path = "getstream/version.py"
+source = "vcs"
+raw-options = {  search_parent_directories = true, fallback_version = "0.0.0" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["getstream"]
