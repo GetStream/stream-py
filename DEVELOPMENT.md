@@ -48,3 +48,8 @@ git push origin main --tags
 uv build --all
 uv publish
 ```
+
+## OpenAPI
+
+The API endpoints are generated using openAPI. To refresh from the latest definitions do:
+
