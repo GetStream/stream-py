@@ -62,6 +62,7 @@ telemetry = [
 
 [dependency-groups]
 dev = [
+    "click>=8.1.0",
     "python-dateutil>=2.8.2,<3",
     "python-dotenv>=1.1.1,<2",
     "pytest>=8.4.1",
@@ -70,6 +71,8 @@ dev = [
     "pre-commit>=4.2.0",
     "pytest-asyncio>=1.0.0",
     "grpcio-tools>=1.73.1",
+    "ruff",
+    "mypy[mypyc,faster-cache]",
     "mypy-protobuf==3.5.0",
     "pytest-timeout>=2.3.1",
     "hatch-vcs>=0.5.0",
@@ -131,3 +134,12 @@ ignore = ["F405", "F403"]
 
 [tool.hatch.metadata]
 allow-direct-references = true
+
+[tool.mypy]
+python_version = "3.12"
+mypy_path = ["agents-core"]
+# Gradual typing → can tighten over time
+ignore_missing_imports = true
+check_untyped_defs = true
+namespace_packages = true
+explicit_package_bases = true
