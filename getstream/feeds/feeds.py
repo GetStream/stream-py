@@ -25,14 +25,15 @@ class Feed:
 
     def get_or_create(
         self,
+        id_around: Optional[str] = None,
         limit: Optional[int] = None,
         next: Optional[str] = None,
         prev: Optional[str] = None,
         user_id: Optional[str] = None,
         view: Optional[str] = None,
         watch: Optional[bool] = None,
-        activity_selector_options: Optional[Dict[str, object]] = None,
         data: Optional[FeedInput] = None,
+        enrichment_options: Optional[EnrichmentOptions] = None,
         external_ranking: Optional[Dict[str, object]] = None,
         filter: Optional[Dict[str, object]] = None,
         followers_pagination: Optional[PagerRequest] = None,
@@ -44,14 +45,15 @@ class Feed:
         response = self.client.get_or_create_feed(
             feed_group_id=self.feed_group,
             feed_id=self.id,
+            id_around=id_around,
             limit=limit,
             next=next,
             prev=prev,
             user_id=user_id,
             view=view,
             watch=watch,
-            activity_selector_options=activity_selector_options,
             data=data,
+            enrichment_options=enrichment_options,
             external_ranking=external_ranking,
             filter=filter,
             followers_pagination=followers_pagination,
@@ -66,12 +68,18 @@ class Feed:
     def update(
         self,
         created_by_id: Optional[str] = None,
+        description: Optional[str] = None,
+        name: Optional[str] = None,
+        filter_tags: Optional[List[str]] = None,
         custom: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[UpdateFeedResponse]:
         response = self.client.update_feed(
             feed_group_id=self.feed_group,
             feed_id=self.id,
             created_by_id=created_by_id,
+            description=description,
+            name=name,
+            filter_tags=filter_tags,
             custom=custom,
         )
         self._sync_from_response(response.data)

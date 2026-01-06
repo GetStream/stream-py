@@ -143,6 +143,21 @@ class ChatRestClient(AsyncBaseClient):
             "/api/v2/chat/channels/delete", DeleteChannelsResponse, json=json
         )
 
+    @telemetry.operation_name("getstream.api.chat.mark_delivered")
+    async def mark_delivered(
+        self,
+        user_id: Optional[str] = None,
+        latest_delivered_messages: Optional[List[DeliveredMessagePayload]] = None,
+    ) -> StreamResponse[MarkDeliveredResponse]:
+        query_params = build_query_param(user_id=user_id)
+        json = build_body_dict(latest_delivered_messages=latest_delivered_messages)
+        return await self.post(
+            "/api/v2/chat/channels/delivered",
+            MarkDeliveredResponse,
+            query_params=query_params,
+            json=json,
+        )
+
     @telemetry.operation_name("getstream.api.chat.mark_channels_read")
     async def mark_channels_read(
         self,
@@ -246,7 +261,7 @@ class ChatRestClient(AsyncBaseClient):
         invites: Optional[List[ChannelMemberRequest]] = None,
         remove_filter_tags: Optional[List[str]] = None,
         remove_members: Optional[List[str]] = None,
-        data: Optional[ChannelInput] = None,
+        data: Optional[ChannelInputRequest] = None,
         message: Optional[MessageRequest] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[UpdateChannelResponse]:
@@ -619,6 +634,7 @@ class ChatRestClient(AsyncBaseClient):
         type: str,
         id: str,
         message_id: Optional[str] = None,
+        message_timestamp: Optional[datetime] = None,
         thread_id: Optional[str] = None,
         user_id: Optional[str] = None,
         user: Optional[UserRequest] = None,
@@ -628,7 +644,11 @@ class ChatRestClient(AsyncBaseClient):
             "id": id,
         }
         json = build_body_dict(
-            message_id=message_id, thread_id=thread_id, user_id=user_id, user=user
+            message_id=message_id,
+            message_timestamp=message_timestamp,
+            thread_id=thread_id,
+            user_id=user_id,
+            user=user,
         )
         return await self.post(
             "/api/v2/chat/channels/{type}/{id}/unread",
