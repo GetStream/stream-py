@@ -68,7 +68,7 @@ class Channel:
         invites: Optional[List[ChannelMemberRequest]] = None,
         remove_filter_tags: Optional[List[str]] = None,
         remove_members: Optional[List[str]] = None,
-        data: Optional[ChannelInput] = None,
+        data: Optional[ChannelInputRequest] = None,
         message: Optional[MessageRequest] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[UpdateChannelResponse]:
@@ -330,6 +330,7 @@ class Channel:
     async def mark_unread(
         self,
         message_id: Optional[str] = None,
+        message_timestamp: Optional[datetime] = None,
         thread_id: Optional[str] = None,
         user_id: Optional[str] = None,
         user: Optional[UserRequest] = None,
@@ -338,6 +339,7 @@ class Channel:
             type=self.channel_type,
             id=self.channel_id,
             message_id=message_id,
+            message_timestamp=message_timestamp,
             thread_id=thread_id,
             user_id=user_id,
             user=user,
