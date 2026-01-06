@@ -27,7 +27,7 @@ dependencies = [
     "pyee>=13.0.0",
     "ijson>=3.4.0",
     "twirp",
-    "protobuf>=6.33.2",
+    "protobuf>=6.31.1",
 ]
 
 [project.optional-dependencies]
@@ -71,7 +71,7 @@ dev = [
     "ruff>=0.12.1",
     "pre-commit>=4.2.0",
     "pytest-asyncio>=1.0.0",
-    "grpcio-tools>=1.73.1",
+    "grpcio-tools==1.76.0",  # Pinned: controls protoc version for code generation
     "ruff",
     "mypy[mypyc,faster-cache]",
     "mypy-protobuf==3.5.0",
