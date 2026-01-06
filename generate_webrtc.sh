@@ -31,14 +31,6 @@ find "${OUTPUT_DIR}" -type f -not -name "__init__.py" -delete
 # Make sure __init__.py exists in output directory
 touch "${OUTPUT_DIR}/__init__.py"
 
-# Check for required tools
-echo "Checking for required tools..."
-if ! command -v protoc &> /dev/null; then
-    echo "protoc is not installed. Please install it first."
-    echo "You can use protoc with brew install protoc"
-    exit 1
-fi
-
 # Install Python dependencies
 echo "Installing Python dependencies..."
 uv sync --all-extras --dev --all-packages
@@ -58,12 +50,12 @@ fi
 echo "Installing protoc-gen-twirpy..."
 go install github.com/tbarbugli/twirpy/protoc-gen-twirpy@423caa6
 
-# Get the path to protoc
-PROTOC_PATH=$(command -v protoc)
-if [ -z "$PROTOC_PATH" ]; then
-    echo "Error: protoc not found in PATH"
-    exit 1
-fi
+# Use grpcio-tools bundled protoc to ensure version consistency with the project's protobuf package
+# This avoids version mismatches between system protoc and the Python protobuf runtime
+# NOTE: grpcio-tools is pinned in pyproject.toml - update both when upgrading protobuf
+run_protoc() {
+    uv run python -m grpc_tools.protoc "$@"
+}
 
 # Get the path to the protoc-gen-mypy plugin using Python
 PROTOC_GEN_MYPY_PATH=$(uv run python3 -c "import mypy_protobuf; import os; print(os.path.dirname(mypy_protobuf.__file__))")
@@ -92,7 +84,7 @@ mkdir -p "${TMP_DIR}/stream/video/sfu/signal_rpc"
 mkdir -p "${TMP_DIR}/stream/video/sfu/event"
 
 # Generate the protobuf Python files with correct package structure and type annotations
-PYTHONPATH="${PYTHONPATH}:${TMP_DIR}" "${PROTOC_PATH}" \
+PYTHONPATH="${PYTHONPATH}:${TMP_DIR}" run_protoc \
     -I="${PROTO_DIR}" \
     --python_out="${TMP_DIR}/stream" \
     --plugin=protoc-gen-mypy="${WRAPPER_SCRIPT}" \
@@ -102,7 +94,7 @@ PYTHONPATH="${PYTHONPATH}:${TMP_DIR}" "${PROTOC_PATH}" \
     "${EVENTS_DIR}/events.proto"
 
 # Generate Twirp client for the Signal service
-"${PROTOC_PATH}" \
+run_protoc \
     -I="${PROTO_DIR}" \
     --twirpy_out="${TMP_DIR}/stream" \
     "${SFU_SIGNAL_DIR}/signal.proto"

@@ -312,7 +312,10 @@ class VideoRestClient(AsyncBaseClient):
         id: str,
         recording_storage_name: Optional[str] = None,
         start_closed_caption: Optional[bool] = None,
+        start_composite_recording: Optional[bool] = None,
         start_hls: Optional[bool] = None,
+        start_individual_recording: Optional[bool] = None,
+        start_raw_recording: Optional[bool] = None,
         start_recording: Optional[bool] = None,
         start_transcription: Optional[bool] = None,
         transcription_storage_name: Optional[str] = None,
@@ -324,7 +327,10 @@ class VideoRestClient(AsyncBaseClient):
         json = build_body_dict(
             recording_storage_name=recording_storage_name,
             start_closed_caption=start_closed_caption,
+            start_composite_recording=start_composite_recording,
             start_hls=start_hls,
+            start_individual_recording=start_individual_recording,
+            start_raw_recording=start_raw_recording,
             start_recording=start_recording,
             start_transcription=start_transcription,
             transcription_storage_name=transcription_storage_name,
@@ -715,7 +721,10 @@ class VideoRestClient(AsyncBaseClient):
         type: str,
         id: str,
         continue_closed_caption: Optional[bool] = None,
+        continue_composite_recording: Optional[bool] = None,
         continue_hls: Optional[bool] = None,
+        continue_individual_recording: Optional[bool] = None,
+        continue_raw_recording: Optional[bool] = None,
         continue_recording: Optional[bool] = None,
         continue_rtmp_broadcasts: Optional[bool] = None,
         continue_transcription: Optional[bool] = None,
@@ -726,7 +735,10 @@ class VideoRestClient(AsyncBaseClient):
         }
         json = build_body_dict(
             continue_closed_caption=continue_closed_caption,
+            continue_composite_recording=continue_composite_recording,
             continue_hls=continue_hls,
+            continue_individual_recording=continue_individual_recording,
+            continue_raw_recording=continue_raw_recording,
             continue_recording=continue_recording,
             continue_rtmp_broadcasts=continue_rtmp_broadcasts,
             continue_transcription=continue_transcription,
@@ -740,16 +752,20 @@ class VideoRestClient(AsyncBaseClient):
 
     @telemetry.operation_name("getstream.api.video.stop_recording")
     async def stop_recording(
-        self, type: str, id: str
+        self,
+        type: str,
+        id: str,
     ) -> StreamResponse[StopRecordingResponse]:
         path_params = {
             "type": type,
             "id": id,
         }
+        json = build_body_dict()
         return await self.post(
             "/api/v2/video/call/{type}/{id}/stop_recording",
             StopRecordingResponse,
             path_params=path_params,
+            json=json,
         )
 
     @telemetry.operation_name("getstream.api.video.stop_transcription")
@@ -871,6 +887,37 @@ class VideoRestClient(AsyncBaseClient):
             path_params=path_params,
         )
 
+    @telemetry.operation_name("getstream.api.video.get_call_stats_map")
+    async def get_call_stats_map(
+        self,
+        call_type: str,
+        call_id: str,
+        session: str,
+        start_time: Optional[datetime] = None,
+        end_time: Optional[datetime] = None,
+        exclude_publishers: Optional[bool] = None,
+        exclude_subscribers: Optional[bool] = None,
+        exclude_sfus: Optional[bool] = None,
+    ) -> StreamResponse[QueryCallStatsMapResponse]:
+        query_params = build_query_param(
+            start_time=start_time,
+            end_time=end_time,
+            exclude_publishers=exclude_publishers,
+            exclude_subscribers=exclude_subscribers,
+            exclude_sfus=exclude_sfus,
+        )
+        path_params = {
+            "call_type": call_type,
+            "call_id": call_id,
+            "session": session,
+        }
+        return await self.get(
+            "/api/v2/video/call_stats/{call_type}/{call_id}/{session}/map",
+            QueryCallStatsMapResponse,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
     @telemetry.operation_name(
         "getstream.api.video.get_call_session_participant_stats_details"
     )
@@ -910,10 +957,19 @@ class VideoRestClient(AsyncBaseClient):
         call_type: str,
         call_id: str,
         session: str,
+        limit: Optional[int] = None,
+        prev: Optional[str] = None,
+        next: Optional[str] = None,
         sort: Optional[List[SortParamRequest]] = None,
         filter_conditions: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[QueryCallSessionParticipantStatsResponse]:
-        query_params = build_query_param(sort=sort, filter_conditions=filter_conditions)
+        query_params = build_query_param(
+            limit=limit,
+            prev=prev,
+            next=next,
+            sort=sort,
+            filter_conditions=filter_conditions,
+        )
         path_params = {
             "call_type": call_type,
             "call_id": call_id,

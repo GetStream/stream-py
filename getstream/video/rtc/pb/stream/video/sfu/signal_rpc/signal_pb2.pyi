@@ -163,6 +163,90 @@ class Telemetry(google.protobuf.message.Message):
 global___Telemetry = Telemetry
 
 @typing_extensions.final
+class SendMetricsRequest(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    SESSION_ID_FIELD_NUMBER: builtins.int
+    UNIFIED_SESSION_ID_FIELD_NUMBER: builtins.int
+    INBOUNDS_FIELD_NUMBER: builtins.int
+    OUTBOUNDS_FIELD_NUMBER: builtins.int
+    REMOTE_INBOUNDS_FIELD_NUMBER: builtins.int
+    REMOTE_OUTBOUNDS_FIELD_NUMBER: builtins.int
+    session_id: builtins.str
+    unified_session_id: builtins.str
+    @property
+    def inbounds(
+        self,
+    ) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[
+        video.sfu.models.models_pb2.InboundRtp
+    ]: ...
+    @property
+    def outbounds(
+        self,
+    ) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[
+        video.sfu.models.models_pb2.OutboundRtp
+    ]: ...
+    @property
+    def remote_inbounds(
+        self,
+    ) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[
+        video.sfu.models.models_pb2.RemoteInboundRtp
+    ]: ...
+    @property
+    def remote_outbounds(
+        self,
+    ) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[
+        video.sfu.models.models_pb2.RemoteOutboundRtp
+    ]: ...
+    def __init__(
+        self,
+        *,
+        session_id: builtins.str = ...,
+        unified_session_id: builtins.str = ...,
+        inbounds: collections.abc.Iterable[video.sfu.models.models_pb2.InboundRtp]
+        | None = ...,
+        outbounds: collections.abc.Iterable[video.sfu.models.models_pb2.OutboundRtp]
+        | None = ...,
+        remote_inbounds: collections.abc.Iterable[
+            video.sfu.models.models_pb2.RemoteInboundRtp
+        ]
+        | None = ...,
+        remote_outbounds: collections.abc.Iterable[
+            video.sfu.models.models_pb2.RemoteOutboundRtp
+        ]
+        | None = ...,
+    ) -> None: ...
+    def ClearField(
+        self,
+        field_name: typing_extensions.Literal[
+            "inbounds",
+            b"inbounds",
+            "outbounds",
+            b"outbounds",
+            "remote_inbounds",
+            b"remote_inbounds",
+            "remote_outbounds",
+            b"remote_outbounds",
+            "session_id",
+            b"session_id",
+            "unified_session_id",
+            b"unified_session_id",
+        ],
+    ) -> None: ...
+
+global___SendMetricsRequest = SendMetricsRequest
+
+@typing_extensions.final
+class SendMetricsResponse(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    def __init__(
+        self,
+    ) -> None: ...
+
+global___SendMetricsResponse = SendMetricsResponse
+
+@typing_extensions.final
 class SendStatsRequest(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor
 

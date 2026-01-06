@@ -36,6 +36,9 @@ class MockSignalService:
     def SendStats(self, ctx, request):
         return None
 
+    def SendMetrics(self, ctx, request):
+        return None
+
     def StartNoiseCancellation(self, ctx, request):
         return None
 
