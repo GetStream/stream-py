@@ -85,6 +85,13 @@ class SignalServerServer(TwirpServer):
                 input=_sym_db.GetSymbol("stream.video.sfu.signal.SendStatsRequest"),
                 output=_sym_db.GetSymbol("stream.video.sfu.signal.SendStatsResponse"),
             ),
+            "SendMetrics": Endpoint(
+                service_name="SignalServer",
+                name="SendMetrics",
+                function=getattr(service, "SendMetrics"),
+                input=_sym_db.GetSymbol("stream.video.sfu.signal.SendMetricsRequest"),
+                output=_sym_db.GetSymbol("stream.video.sfu.signal.SendMetricsResponse"),
+            ),
             "StartNoiseCancellation": Endpoint(
                 service_name="SignalServer",
                 name="StartNoiseCancellation",
@@ -187,6 +194,17 @@ class SignalServerClient(TwirpClient):
             ctx=ctx,
             request=request,
             response_obj=_sym_db.GetSymbol("stream.video.sfu.signal.SendStatsResponse"),
+            **kwargs,
+        )
+
+    def SendMetrics(self, *args, ctx, request, server_path_prefix="/twirp", **kwargs):
+        return self._make_request(
+            url=f"{server_path_prefix}/stream.video.sfu.signal.SignalServer/SendMetrics",
+            ctx=ctx,
+            request=request,
+            response_obj=_sym_db.GetSymbol(
+                "stream.video.sfu.signal.SendMetricsResponse"
+            ),
             **kwargs,
         )
 
@@ -375,6 +393,20 @@ class AsyncSignalServerClient(AsyncTwirpClient):
             ctx=ctx,
             request=request,
             response_obj=_sym_db.GetSymbol("stream.video.sfu.signal.SendStatsResponse"),
+            session=session,
+            **kwargs,
+        )
+
+    async def SendMetrics(
+        self, *, ctx, request, server_path_prefix="/twirp", session=None, **kwargs
+    ):
+        return await self._make_request(
+            url=f"{server_path_prefix}/stream.video.sfu.signal.SignalServer/SendMetrics",
+            ctx=ctx,
+            request=request,
+            response_obj=_sym_db.GetSymbol(
+                "stream.video.sfu.signal.SendMetricsResponse"
+            ),
             session=session,
             **kwargs,
         )

@@ -495,6 +495,8 @@ class _ClientCapabilityEnumTypeWrapper(
     CLIENT_CAPABILITY_UNSPECIFIED: _ClientCapability.ValueType  # 0
     CLIENT_CAPABILITY_SUBSCRIBER_VIDEO_PAUSE: _ClientCapability.ValueType  # 1
     """Enables SFU pausing inbound video"""
+    CLIENT_CAPABILITY_COORDINATOR_STATS: _ClientCapability.ValueType  # 2
+    """Instructs SFU that stats will be sent to the coordinator"""
 
 class ClientCapability(_ClientCapability, metaclass=_ClientCapabilityEnumTypeWrapper):
     """ClientCapability defines a feature that client supports"""
@@ -502,6 +504,8 @@ class ClientCapability(_ClientCapability, metaclass=_ClientCapabilityEnumTypeWra
 CLIENT_CAPABILITY_UNSPECIFIED: ClientCapability.ValueType  # 0
 CLIENT_CAPABILITY_SUBSCRIBER_VIDEO_PAUSE: ClientCapability.ValueType  # 1
 """Enables SFU pausing inbound video"""
+CLIENT_CAPABILITY_COORDINATOR_STATS: ClientCapability.ValueType  # 2
+"""Instructs SFU that stats will be sent to the coordinator"""
 global___ClientCapability = ClientCapability
 
 @typing_extensions.final
@@ -1624,3 +1628,269 @@ class PerformanceStats(google.protobuf.message.Message):
     ) -> None: ...
 
 global___PerformanceStats = PerformanceStats
+
+@typing_extensions.final
+class RtpBase(google.protobuf.message.Message):
+    """===================================================================
+    BASE (shared by all RTP directions)
+    ===================================================================
+    """
+
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    SSRC_FIELD_NUMBER: builtins.int
+    KIND_FIELD_NUMBER: builtins.int
+    TIMESTAMP_MS_FIELD_NUMBER: builtins.int
+    ssrc: builtins.int
+    """raw stat["ssrc"]"""
+    kind: builtins.str
+    """stat["kind"] ("audio","video")"""
+    timestamp_ms: builtins.float
+    """stat["timestamp"] in milliseconds"""
+    def __init__(
+        self,
+        *,
+        ssrc: builtins.int = ...,
+        kind: builtins.str = ...,
+        timestamp_ms: builtins.float = ...,
+    ) -> None: ...
+    def ClearField(
+        self,
+        field_name: typing_extensions.Literal[
+            "kind", b"kind", "ssrc", b"ssrc", "timestamp_ms", b"timestamp_ms"
+        ],
+    ) -> None: ...
+
+global___RtpBase = RtpBase
+
+@typing_extensions.final
+class InboundRtp(google.protobuf.message.Message):
+    """===================================================================
+    INBOUND (SUBSCRIBER RECEIVING MEDIA)
+    ===================================================================
+    """
+
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    BASE_FIELD_NUMBER: builtins.int
+    JITTER_SECONDS_FIELD_NUMBER: builtins.int
+    PACKETS_RECEIVED_FIELD_NUMBER: builtins.int
+    PACKETS_LOST_FIELD_NUMBER: builtins.int
+    PACKET_LOSS_PERCENT_FIELD_NUMBER: builtins.int
+    CONCEALMENT_EVENTS_FIELD_NUMBER: builtins.int
+    CONCEALMENT_PERCENT_FIELD_NUMBER: builtins.int
+    FPS_FIELD_NUMBER: builtins.int
+    FREEZE_DURATION_SECONDS_FIELD_NUMBER: builtins.int
+    AVG_DECODE_TIME_SECONDS_FIELD_NUMBER: builtins.int
+    MIN_DIMENSION_PX_FIELD_NUMBER: builtins.int
+    @property
+    def base(self) -> global___RtpBase: ...
+    jitter_seconds: builtins.float
+    """stat["jitter"]"""
+    packets_received: builtins.int
+    """stat["packetsReceived"]"""
+    packets_lost: builtins.int
+    """stat["packetsLost"]"""
+    packet_loss_percent: builtins.float
+    """(packets_lost / (packets_received + packets_lost)) * 100;skip if denominator <= 0 or counters decreased"""
+    concealment_events: builtins.int
+    """-------- AUDIO METRICS --------
+    stat["concealmentEvents"]
+    """
+    concealment_percent: builtins.float
+    """(concealedSamples / totalSamplesReceived) * 100 when totalSamplesReceived >= 96_000 (≈2 s @ 48 kHz)"""
+    fps: builtins.float
+    """-------- VIDEO METRICS --------
+    use delta(framesDecoded)/delta(time) with prev sample
+    """
+    freeze_duration_seconds: builtins.float
+    """stat["totalFreezesDuration"]"""
+    avg_decode_time_seconds: builtins.float
+    """stat["totalDecodeTime"] / max(1, stat["framesDecoded"])"""
+    min_dimension_px: builtins.int
+    """min(stat["frameWidth"], stat["frameHeight"]) for video-like tracks"""
+    def __init__(
+        self,
+        *,
+        base: global___RtpBase | None = ...,
+        jitter_seconds: builtins.float = ...,
+        packets_received: builtins.int = ...,
+        packets_lost: builtins.int = ...,
+        packet_loss_percent: builtins.float = ...,
+        concealment_events: builtins.int = ...,
+        concealment_percent: builtins.float = ...,
+        fps: builtins.float = ...,
+        freeze_duration_seconds: builtins.float = ...,
+        avg_decode_time_seconds: builtins.float = ...,
+        min_dimension_px: builtins.int = ...,
+    ) -> None: ...
+    def HasField(
+        self, field_name: typing_extensions.Literal["base", b"base"]
+    ) -> builtins.bool: ...
+    def ClearField(
+        self,
+        field_name: typing_extensions.Literal[
+            "avg_decode_time_seconds",
+            b"avg_decode_time_seconds",
+            "base",
+            b"base",
+            "concealment_events",
+            b"concealment_events",
+            "concealment_percent",
+            b"concealment_percent",
+            "fps",
+            b"fps",
+            "freeze_duration_seconds",
+            b"freeze_duration_seconds",
+            "jitter_seconds",
+            b"jitter_seconds",
+            "min_dimension_px",
+            b"min_dimension_px",
+            "packet_loss_percent",
+            b"packet_loss_percent",
+            "packets_lost",
+            b"packets_lost",
+            "packets_received",
+            b"packets_received",
+        ],
+    ) -> None: ...
+
+global___InboundRtp = InboundRtp
+
+@typing_extensions.final
+class OutboundRtp(google.protobuf.message.Message):
+    """===================================================================
+    OUTBOUND (PUBLISHER SENDING MEDIA)
+    ===================================================================
+    """
+
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    BASE_FIELD_NUMBER: builtins.int
+    FPS_FIELD_NUMBER: builtins.int
+    AVG_ENCODE_TIME_SECONDS_FIELD_NUMBER: builtins.int
+    BITRATE_BPS_FIELD_NUMBER: builtins.int
+    MIN_DIMENSION_PX_FIELD_NUMBER: builtins.int
+    @property
+    def base(self) -> global___RtpBase: ...
+    fps: builtins.float
+    """delta(framesEncoded)/delta(time) if missing"""
+    avg_encode_time_seconds: builtins.float
+    """stat["totalEncodeTime"] / max(1, stat["framesEncoded"])"""
+    bitrate_bps: builtins.float
+    """delta(bytesSent)*8 / delta(timeSeconds); requires prev bytes/timestamp; ignore if delta<=0"""
+    min_dimension_px: builtins.int
+    """min(stat["frameWidth"], stat["frameHeight"])"""
+    def __init__(
+        self,
+        *,
+        base: global___RtpBase | None = ...,
+        fps: builtins.float = ...,
+        avg_encode_time_seconds: builtins.float = ...,
+        bitrate_bps: builtins.float = ...,
+        min_dimension_px: builtins.int = ...,
+    ) -> None: ...
+    def HasField(
+        self, field_name: typing_extensions.Literal["base", b"base"]
+    ) -> builtins.bool: ...
+    def ClearField(
+        self,
+        field_name: typing_extensions.Literal[
+            "avg_encode_time_seconds",
+            b"avg_encode_time_seconds",
+            "base",
+            b"base",
+            "bitrate_bps",
+            b"bitrate_bps",
+            "fps",
+            b"fps",
+            "min_dimension_px",
+            b"min_dimension_px",
+        ],
+    ) -> None: ...
+
+global___OutboundRtp = OutboundRtp
+
+@typing_extensions.final
+class RemoteInboundRtp(google.protobuf.message.Message):
+    """===================================================================
+    SFU FEEDBACK: REMOTE-INBOUND (Publisher receives feedback)
+    ===================================================================
+    """
+
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    BASE_FIELD_NUMBER: builtins.int
+    JITTER_SECONDS_FIELD_NUMBER: builtins.int
+    ROUND_TRIP_TIME_S_FIELD_NUMBER: builtins.int
+    @property
+    def base(self) -> global___RtpBase: ...
+    jitter_seconds: builtins.float
+    """stat["jitter"]"""
+    round_trip_time_s: builtins.float
+    """stat["roundTripTime"]"""
+    def __init__(
+        self,
+        *,
+        base: global___RtpBase | None = ...,
+        jitter_seconds: builtins.float = ...,
+        round_trip_time_s: builtins.float = ...,
+    ) -> None: ...
+    def HasField(
+        self, field_name: typing_extensions.Literal["base", b"base"]
+    ) -> builtins.bool: ...
+    def ClearField(
+        self,
+        field_name: typing_extensions.Literal[
+            "base",
+            b"base",
+            "jitter_seconds",
+            b"jitter_seconds",
+            "round_trip_time_s",
+            b"round_trip_time_s",
+        ],
+    ) -> None: ...
+
+global___RemoteInboundRtp = RemoteInboundRtp
+
+@typing_extensions.final
+class RemoteOutboundRtp(google.protobuf.message.Message):
+    """===================================================================
+    SFU FEEDBACK: REMOTE-OUTBOUND (Subscriber receives feedback)
+    ===================================================================
+    """
+
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    BASE_FIELD_NUMBER: builtins.int
+    JITTER_SECONDS_FIELD_NUMBER: builtins.int
+    ROUND_TRIP_TIME_S_FIELD_NUMBER: builtins.int
+    @property
+    def base(self) -> global___RtpBase: ...
+    jitter_seconds: builtins.float
+    """stat["jitter"] if provided"""
+    round_trip_time_s: builtins.float
+    """stat["roundTripTime"]"""
+    def __init__(
+        self,
+        *,
+        base: global___RtpBase | None = ...,
+        jitter_seconds: builtins.float = ...,
+        round_trip_time_s: builtins.float = ...,
+    ) -> None: ...
+    def HasField(
+        self, field_name: typing_extensions.Literal["base", b"base"]
+    ) -> builtins.bool: ...
+    def ClearField(
+        self,
+        field_name: typing_extensions.Literal[
+            "base",
+            b"base",
+            "jitter_seconds",
+            b"jitter_seconds",
+            "round_trip_time_s",
+            b"round_trip_time_s",
+        ],
+    ) -> None: ...
+
+global___RemoteOutboundRtp = RemoteOutboundRtp

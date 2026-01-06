@@ -27,6 +27,7 @@ dependencies = [
     "pyee>=13.0.0",
     "ijson>=3.4.0",
     "twirp",
+    "protobuf>=6.33.2",
 ]
 
 [project.optional-dependencies]
