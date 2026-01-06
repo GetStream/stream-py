@@ -50,6 +50,11 @@ jobs:
         uses: ./.github/actions/python-uv-setup
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Debug environment variables
+        run: |
+          echo "STREAM_API_KEY is set: ${{ env.STREAM_API_KEY != '' }}"
+          echo "STREAM_API_SECRET is set: ${{ env.STREAM_API_SECRET != '' }}"
+          echo "STREAM_BASE_URL is set: ${{ env.STREAM_BASE_URL != '' }}"
       - name: Run tests
         run: uv run pytest -m "${{ inputs.marker }}" tests/ getstream/
 
