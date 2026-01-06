@@ -40,7 +40,7 @@ jobs:
         python-version: ["3.10", "3.11", "3.12", "3.13"]
     env:
       STREAM_BASE_URL: ${{ vars.STREAM_BASE_URL }}
-      STREAM_API_KEY: ${{ secrets.STREAM_API_KEY }}
+      STREAM_API_KEY: ${{ vars.STREAM_API_KEY }}
       STREAM_API_SECRET: ${{ secrets.STREAM_API_SECRET }}
     timeout-minutes: 30
     steps:
