@@ -151,7 +151,10 @@ class Call(BaseCall):
         self,
         recording_storage_name: Optional[str] = None,
         start_closed_caption: Optional[bool] = None,
+        start_composite_recording: Optional[bool] = None,
         start_hls: Optional[bool] = None,
+        start_individual_recording: Optional[bool] = None,
+        start_raw_recording: Optional[bool] = None,
         start_recording: Optional[bool] = None,
         start_transcription: Optional[bool] = None,
         transcription_storage_name: Optional[str] = None,
@@ -161,7 +164,10 @@ class Call(BaseCall):
             id=self.id,
             recording_storage_name=recording_storage_name,
             start_closed_caption=start_closed_caption,
+            start_composite_recording=start_composite_recording,
             start_hls=start_hls,
+            start_individual_recording=start_individual_recording,
+            start_raw_recording=start_raw_recording,
             start_recording=start_recording,
             start_transcription=start_transcription,
             transcription_storage_name=transcription_storage_name,
@@ -422,7 +428,10 @@ class Call(BaseCall):
     async def stop_live(
         self,
         continue_closed_caption: Optional[bool] = None,
+        continue_composite_recording: Optional[bool] = None,
         continue_hls: Optional[bool] = None,
+        continue_individual_recording: Optional[bool] = None,
+        continue_raw_recording: Optional[bool] = None,
         continue_recording: Optional[bool] = None,
         continue_rtmp_broadcasts: Optional[bool] = None,
         continue_transcription: Optional[bool] = None,
@@ -431,7 +440,10 @@ class Call(BaseCall):
             type=self.call_type,
             id=self.id,
             continue_closed_caption=continue_closed_caption,
+            continue_composite_recording=continue_composite_recording,
             continue_hls=continue_hls,
+            continue_individual_recording=continue_individual_recording,
+            continue_raw_recording=continue_raw_recording,
             continue_recording=continue_recording,
             continue_rtmp_broadcasts=continue_rtmp_broadcasts,
             continue_transcription=continue_transcription,
@@ -440,8 +452,13 @@ class Call(BaseCall):
         return response
 
     @attach_call_cid_async
-    async def stop_recording(self) -> StreamResponse[StopRecordingResponse]:
-        response = await self.client.stop_recording(type=self.call_type, id=self.id)
+    async def stop_recording(
+        self,
+    ) -> StreamResponse[StopRecordingResponse]:
+        response = await self.client.stop_recording(
+            type=self.call_type,
+            id=self.id,
+        )
         self._sync_from_response(response.data)
         return response
 

@@ -68,12 +68,18 @@ class Feed:
     def update(
         self,
         created_by_id: Optional[str] = None,
+        description: Optional[str] = None,
+        name: Optional[str] = None,
+        filter_tags: Optional[List[str]] = None,
         custom: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[UpdateFeedResponse]:
         response = self.client.update_feed(
             feed_group_id=self.feed_group,
             feed_id=self.id,
             created_by_id=created_by_id,
+            description=description,
+            name=name,
+            filter_tags=filter_tags,
             custom=custom,
         )
         self._sync_from_response(response.data)

@@ -31,6 +31,57 @@ class ModerationRestClient(BaseClient):
             user_agent=user_agent,
         )
 
+    @telemetry.operation_name("getstream.api.moderation.appeal")
+    def appeal(
+        self,
+        appeal_reason: str,
+        entity_id: str,
+        entity_type: str,
+        user_id: Optional[str] = None,
+        attachments: Optional[List[str]] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[AppealResponse]:
+        json = build_body_dict(
+            appeal_reason=appeal_reason,
+            entity_id=entity_id,
+            entity_type=entity_type,
+            user_id=user_id,
+            attachments=attachments,
+            user=user,
+        )
+        return self.post("/api/v2/moderation/appeal", AppealResponse, json=json)
+
+    @telemetry.operation_name("getstream.api.moderation.get_appeal")
+    def get_appeal(self, id: str) -> StreamResponse[GetAppealResponse]:
+        path_params = {
+            "id": id,
+        }
+        return self.get(
+            "/api/v2/moderation/appeal/{id}", GetAppealResponse, path_params=path_params
+        )
+
+    @telemetry.operation_name("getstream.api.moderation.query_appeals")
+    def query_appeals(
+        self,
+        limit: Optional[int] = None,
+        next: Optional[str] = None,
+        prev: Optional[str] = None,
+        user_id: Optional[str] = None,
+        sort: Optional[List[SortParamRequest]] = None,
+        filter: Optional[Dict[str, object]] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[QueryAppealsResponse]:
+        json = build_body_dict(
+            limit=limit,
+            next=next,
+            prev=prev,
+            user_id=user_id,
+            sort=sort,
+            filter=filter,
+            user=user,
+        )
+        return self.post("/api/v2/moderation/appeals", QueryAppealsResponse, json=json)
+
     @telemetry.operation_name("getstream.api.moderation.ban")
     def ban(
         self,
@@ -449,7 +500,8 @@ class ModerationRestClient(BaseClient):
     def submit_action(
         self,
         action_type: str,
-        item_id: str,
+        appeal_id: Optional[str] = None,
+        item_id: Optional[str] = None,
         user_id: Optional[str] = None,
         ban: Optional[BanActionRequestPayload] = None,
         block: Optional[BlockActionRequestPayload] = None,
@@ -460,12 +512,16 @@ class ModerationRestClient(BaseClient):
         delete_reaction: Optional[DeleteReactionRequestPayload] = None,
         delete_user: Optional[DeleteUserRequestPayload] = None,
         mark_reviewed: Optional[MarkReviewedRequestPayload] = None,
+        reject_appeal: Optional[RejectAppealRequestPayload] = None,
+        restore: Optional[RestoreActionRequestPayload] = None,
         shadow_block: Optional[ShadowBlockActionRequestPayload] = None,
         unban: Optional[UnbanActionRequestPayload] = None,
+        unblock: Optional[UnblockActionRequestPayload] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[SubmitActionResponse]:
         json = build_body_dict(
             action_type=action_type,
+            appeal_id=appeal_id,
             item_id=item_id,
             user_id=user_id,
             ban=ban,
@@ -477,8 +533,11 @@ class ModerationRestClient(BaseClient):
             delete_reaction=delete_reaction,
             delete_user=delete_user,
             mark_reviewed=mark_reviewed,
+            reject_appeal=reject_appeal,
+            restore=restore,
             shadow_block=shadow_block,
             unban=unban,
+            unblock=unblock,
             user=user,
         )
         return self.post(

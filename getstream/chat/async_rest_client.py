@@ -1056,14 +1056,14 @@ class ChatRestClient(AsyncBaseClient):
         form_data: Dict[str, str],
         user_id: Optional[str] = None,
         user: Optional[UserRequest] = None,
-    ) -> StreamResponse[MessageResponse]:
+    ) -> StreamResponse[MessageActionResponse]:
         path_params = {
             "id": id,
         }
         json = build_body_dict(form_data=form_data, user_id=user_id, user=user)
         return await self.post(
             "/api/v2/chat/messages/{id}/action",
-            MessageResponse,
+            MessageActionResponse,
             path_params=path_params,
             json=json,
         )
@@ -1072,14 +1072,14 @@ class ChatRestClient(AsyncBaseClient):
     async def commit_message(
         self,
         id: str,
-    ) -> StreamResponse[MessageResponse]:
+    ) -> StreamResponse[MessageActionResponse]:
         path_params = {
             "id": id,
         }
         json = build_body_dict()
         return await self.post(
             "/api/v2/chat/messages/{id}/commit",
-            MessageResponse,
+            MessageActionResponse,
             path_params=path_params,
             json=json,
         )
@@ -1197,14 +1197,14 @@ class ChatRestClient(AsyncBaseClient):
     @telemetry.operation_name("getstream.api.chat.translate_message")
     async def translate_message(
         self, id: str, language: str
-    ) -> StreamResponse[MessageResponse]:
+    ) -> StreamResponse[MessageActionResponse]:
         path_params = {
             "id": id,
         }
         json = build_body_dict(language=language)
         return await self.post(
             "/api/v2/chat/messages/{id}/translate",
-            MessageResponse,
+            MessageActionResponse,
             path_params=path_params,
             json=json,
         )

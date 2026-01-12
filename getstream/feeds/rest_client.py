@@ -399,11 +399,13 @@ class FeedsRestClient(BaseClient):
         text: Optional[str] = None,
         user_id: Optional[str] = None,
         visibility: Optional[str] = None,
+        visibility_tag: Optional[str] = None,
         attachments: Optional[List[Attachment]] = None,
         collection_refs: Optional[List[str]] = None,
         feeds: Optional[List[str]] = None,
         filter_tags: Optional[List[str]] = None,
         interest_tags: Optional[List[str]] = None,
+        mentioned_user_ids: Optional[List[str]] = None,
         custom: Optional[Dict[str, object]] = None,
         location: Optional[ActivityLocation] = None,
         user: Optional[UserRequest] = None,
@@ -419,11 +421,13 @@ class FeedsRestClient(BaseClient):
             text=text,
             user_id=user_id,
             visibility=visibility,
+            visibility_tag=visibility_tag,
             attachments=attachments,
             collection_refs=collection_refs,
             feeds=feeds,
             filter_tags=filter_tags,
             interest_tags=interest_tags,
+            mentioned_user_ids=mentioned_user_ids,
             custom=custom,
             location=location,
             user=user,
@@ -676,6 +680,7 @@ class FeedsRestClient(BaseClient):
         skip_enrich_url: Optional[bool] = None,
         skip_push: Optional[bool] = None,
         user_id: Optional[str] = None,
+        attachments: Optional[List[Attachment]] = None,
         custom: Optional[Dict[str, object]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[UpdateCommentResponse]:
@@ -687,6 +692,7 @@ class FeedsRestClient(BaseClient):
             skip_enrich_url=skip_enrich_url,
             skip_push=skip_push,
             user_id=user_id,
+            attachments=attachments,
             custom=custom,
             user=user,
         )
@@ -910,13 +916,22 @@ class FeedsRestClient(BaseClient):
         feed_group_id: str,
         feed_id: str,
         created_by_id: Optional[str] = None,
+        description: Optional[str] = None,
+        name: Optional[str] = None,
+        filter_tags: Optional[List[str]] = None,
         custom: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[UpdateFeedResponse]:
         path_params = {
             "feed_group_id": feed_group_id,
             "feed_id": feed_id,
         }
-        json = build_body_dict(created_by_id=created_by_id, custom=custom)
+        json = build_body_dict(
+            created_by_id=created_by_id,
+            description=description,
+            name=name,
+            filter_tags=filter_tags,
+            custom=custom,
+        )
         return self.put(
             "/api/v2/feeds/feed_groups/{feed_group_id}/feeds/{feed_id}",
             UpdateFeedResponse,

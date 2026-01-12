@@ -420,6 +420,50 @@ class CommonRestClient(BaseClient):
         json = build_body_dict(mode=mode, path=path)
         return self.post("/api/v2/imports", CreateImportResponse, json=json)
 
+    @telemetry.operation_name("getstream.api.common.list_import_v2_tasks")
+    def list_import_v2_tasks(
+        self, state: Optional[int] = None
+    ) -> StreamResponse[ListImportV2TasksResponse]:
+        query_params = build_query_param(state=state)
+        return self.get(
+            "/api/v2/imports/v2", ListImportV2TasksResponse, query_params=query_params
+        )
+
+    @telemetry.operation_name("getstream.api.common.create_import_v2_task")
+    def create_import_v2_task(
+        self,
+        product: str,
+        settings: ImportV2TaskSettings,
+        user_id: Optional[str] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[CreateImportV2TaskResponse]:
+        json = build_body_dict(
+            product=product, settings=settings, user_id=user_id, user=user
+        )
+        return self.post("/api/v2/imports/v2", CreateImportV2TaskResponse, json=json)
+
+    @telemetry.operation_name("getstream.api.common.delete_import_v2_task")
+    def delete_import_v2_task(
+        self, id: str
+    ) -> StreamResponse[DeleteImportV2TaskResponse]:
+        path_params = {
+            "id": id,
+        }
+        return self.delete(
+            "/api/v2/imports/v2/{id}",
+            DeleteImportV2TaskResponse,
+            path_params=path_params,
+        )
+
+    @telemetry.operation_name("getstream.api.common.get_import_v2_task")
+    def get_import_v2_task(self, id: str) -> StreamResponse[GetImportV2TaskResponse]:
+        path_params = {
+            "id": id,
+        }
+        return self.get(
+            "/api/v2/imports/v2/{id}", GetImportV2TaskResponse, path_params=path_params
+        )
+
     @telemetry.operation_name("getstream.api.common.get_import")
     def get_import(self, id: str) -> StreamResponse[GetImportResponse]:
         path_params = {
