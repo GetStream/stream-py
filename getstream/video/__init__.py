@@ -21,8 +21,8 @@ class BaseCall:
         self,
         client: Union[VideoClient | AsyncVideoClient],
         call_type: str,
-        call_id: str = None,
-        custom_data: Dict = None,
+        call_id: Optional[str] = None,
+        custom_data: Optional[Dict] = None,
     ):
         self.id = call_id
         self.call_type = call_type
@@ -40,7 +40,7 @@ class BaseCall:
     ):
         from .openai import get_openai_realtime_client, ConnectionManagerWrapper
 
-        client = get_openai_realtime_client(openai_api_key, self.client.base_url)
+        client = get_openai_realtime_client(openai_api_key, self.client.base_url or "")
         token = self.client.stream.create_token(agent_user_id)
         connection_manager = client.beta.realtime.connect(
             extra_query={

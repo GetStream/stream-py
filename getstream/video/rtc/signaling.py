@@ -105,6 +105,8 @@ class WebSocketClient(StreamAsyncIOEventEmitter):
 
     def _run_websocket(self):
         """Run the WebSocket connection in the background."""
+        if self.ws is None:
+            return
         # Ensure handlers run under the same parent span (contextvars don't propagate across threads)
         with telemetry.attach_span(self.parent_span):
             self.ws.run_forever()

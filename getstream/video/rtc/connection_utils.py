@@ -400,7 +400,7 @@ async def connect_websocket(
         if options.fast_reconnect:
             join_request.fast_reconnect = True
         if options.migrating_from:
-            join_request.reconnect_details.migrating_from = options.migrating_from
+            join_request.reconnect_details.migrating_from = options.migrating_from  # type: ignore[attr-defined]
         if options.previous_session_id:
             join_request.reconnect_details.previous_session_id = (
                 options.previous_session_id

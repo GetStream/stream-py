@@ -19,6 +19,7 @@ from typing import (
 )
 
 import aiortc
+import aiortc.sdp
 import av
 import numpy as np
 from aiortc import MediaStreamTrack
@@ -118,7 +119,7 @@ class PcmData:
         self,
         sample_rate: int,
         format: AudioFormatType,
-        samples: NDArray = None,
+        samples: Optional[NDArray] = None,
         pts: Optional[int] = None,
         dts: Optional[int] = None,
         time_base: Optional[float] = None,
@@ -587,14 +588,16 @@ class PcmData:
         """
         # Normalize encoding to string for consistent comparisons
         # Convert enum to its string value if it's an enum
+        encoding_str: str
         if isinstance(encoding, G711Encoding):
-            encoding = encoding.value
-        encoding = str(encoding).lower()
+            encoding_str = encoding.value
+        else:
+            encoding_str = str(encoding).lower()
 
         # Handle string input (must be base64)
         if isinstance(g711_data, str):
             # If encoding is "raw", raise error (strings can't be raw)
-            if encoding == "raw":
+            if encoding_str == "raw":
                 raise TypeError(
                     "Cannot use string input with encoding='raw'. "
                     "Strings are only supported for base64-encoded data. "
@@ -602,7 +605,7 @@ class PcmData:
                 )
             # Strings are always treated as base64
             g711_bytes = base64.b64decode(g711_data)
-        elif encoding == "base64":
+        elif encoding_str == "base64":
             g711_bytes = base64.b64decode(g711_data)
         else:
             g711_bytes = g711_data
@@ -862,22 +865,23 @@ class PcmData:
     def _encode_frame_with_codec(self, frame: av.AudioFrame, codec_name: str) -> bytes:
         """Encode a single AudioFrame using the specified G.711 codec."""
         # Create codec context
+        # Note: PyAV type stubs are incomplete for audio codec context attributes
         codec = av.CodecContext.create(codec_name, "w")
-        codec.format = "s16"
-        codec.layout = frame.layout.name
-        codec.sample_rate = frame.sample_rate
+        codec.format = "s16"  # type: ignore[attr-defined]
+        codec.layout = frame.layout.name  # type: ignore[attr-defined]
+        codec.sample_rate = frame.sample_rate  # type: ignore[attr-defined]
         # Set time_base to match sample rate (1/sample_rate)
         codec.time_base = fractions.Fraction(1, frame.sample_rate)
         codec.open()
 
         # Encode the frame
-        packets = codec.encode(frame)
+        packets = codec.encode(frame)  # type: ignore[attr-defined]
 
         # Get bytes from packets
         encoded_bytes = b"".join(bytes(p) for p in packets)
 
         # Flush the encoder to get any remaining buffered data
-        flush_packets = codec.encode()
+        flush_packets = codec.encode()  # type: ignore[attr-defined]
         if flush_packets:
             encoded_bytes += b"".join(bytes(p) for p in flush_packets)
 
@@ -1863,7 +1867,7 @@ class Resampler:
             sample_rate: Target sample rate (e.g., 48000, 16000)
             channels: Target number of channels (1 for mono, 2 for stereo)
         """
-        self.format = AudioFormat.validate(format)
+        self.format: AudioFormatType = AudioFormat.validate(format)
         self.sample_rate = sample_rate
         self.channels = channels
 
@@ -2070,7 +2074,7 @@ def patch_sdp_offer(sdp: str) -> str:
         media.port = reference_port
 
         # Update ICE parameters
-        if reference_ice:
+        if reference_ice and media.ice:
             media.ice.usernameFragment = reference_ice.usernameFragment
             media.ice.password = reference_ice.password
             media.ice.iceLite = reference_ice.iceLite

@@ -2,7 +2,7 @@ import json
 import time
 import uuid
 import asyncio
-from typing import Any, Dict, Optional, Type, get_origin
+from typing import Any, Dict, Optional, Type, cast, get_origin
 
 from getstream.models import APIError
 from getstream.rate_limit import extract_rate_limit
@@ -25,7 +25,7 @@ from getstream.common.telemetry import (
 import ijson
 
 
-def build_path(path: str, path_params: dict) -> str:
+def build_path(path: str, path_params: Optional[Dict[str, Any]]) -> str:
     if path_params is None:
         return path
     for k, v in path_params.items():
@@ -46,12 +46,14 @@ class ResponseParserMixin:
         try:
             parsed_result = json.loads(response.text) if response.text else {}
 
+            data: T
             if hasattr(data_type, "from_dict"):
-                data = data_type.from_dict(parsed_result, infer_missing=True)
+                from_dict = getattr(data_type, "from_dict")
+                data = from_dict(parsed_result, infer_missing=True)
             elif get_origin(data_type) is not dict:
                 raise AttributeError(f"{data_type.__name__} has no 'from_dict' method")
             else:
-                data = parsed_result
+                data = cast(T, parsed_result)
 
         except ValueError:
             raise StreamAPIException(
@@ -140,7 +142,7 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
             user_agent=user_agent,
         )
         self.client = httpx.Client(
-            base_url=self.base_url,
+            base_url=self.base_url or "",
             headers=self.headers,
             params=self.params,
             timeout=httpx.Timeout(self.timeout),
@@ -154,7 +156,7 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
 
     def _endpoint_name(self, path: str) -> str:
         op = getattr(self, "_operation_name", None)
-        return op or current_operation(self._normalize_endpoint_from_path(path))
+        return op or current_operation(self._normalize_endpoint_from_path(path)) or ""
 
     def _request_sync(
         self,
@@ -315,17 +317,17 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
             user_agent=user_agent,
         )
         self.client = httpx.AsyncClient(
-            base_url=self.base_url,
+            base_url=self.base_url or "",
             headers=self.headers,
             params=self.params,
             timeout=httpx.Timeout(self.timeout),
         )
 
-    def __aenter__(self):
+    async def __aenter__(self):
         return self
 
-    def __aexit__(self, exc_type, exc_val, exc_tb):
-        self.close()
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.aclose()
 
     async def aclose(self):
         """Close HTTPX async client (closes pools/keep-alives)."""
@@ -333,7 +335,7 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
 
     def _endpoint_name(self, path: str) -> str:
         op = getattr(self, "_operation_name", None)
-        return op or current_operation(self._normalize_endpoint_from_path(path))
+        return op or current_operation(self._normalize_endpoint_from_path(path)) or ""
 
     async def _request_async(
         self,

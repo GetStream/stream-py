@@ -1,6 +1,6 @@
 import json
 import asyncio
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union, cast
 from urllib.parse import quote
 from datetime import datetime
 from datetime import timezone
@@ -77,10 +77,12 @@ def datetime_from_unix_ns(
         return None
 
     if isinstance(ts, dict):
-        return {k: datetime_from_unix_ns(v) for k, v in ts.items()}
+        # Values in dict are int/float/str, so recursive calls return datetime
+        return {k: cast(datetime, datetime_from_unix_ns(v)) for k, v in ts.items()}
 
     if isinstance(ts, list):
-        return [datetime_from_unix_ns(v) for v in ts]
+        # Values in list are int/float/str, so recursive calls return datetime
+        return [cast(datetime, datetime_from_unix_ns(v)) for v in ts]
 
     if isinstance(ts, str):
         ts = int(ts)

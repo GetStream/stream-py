@@ -9,9 +9,12 @@ import asyncio
 import json
 import logging
 import time
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import websockets
+
+if TYPE_CHECKING:
+    from websockets.legacy.client import WebSocketClientProtocol
 
 from getstream import AsyncStream
 from getstream.utils import StreamAsyncIOEventEmitter
@@ -85,7 +88,7 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
         self._logger = logger or globals()["logger"]
 
         # Connection state
-        self._websocket: Optional[websockets.WebSocketClientProtocol] = None
+        self._websocket: Optional["WebSocketClientProtocol"] = None
         self._connected = False
         self._client_id: Optional[str] = None
 
@@ -106,6 +109,10 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
             Authentication payload as a dictionary
         """
         if not self.user_token:
+            if not self.user_details:
+                raise ValueError(
+                    "user_details is required when user_token is not provided"
+                )
             self.user_token = self.call.client.stream.create_token(
                 user_id=self.user_details["id"]
             )
@@ -193,7 +200,9 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
 
         client.token = self.user_token
         client.headers["authorization"] = self.user_token
-        client.client.headers["authorization"] = self.user_token
+        client.client.headers["authorization"] = self.user_token  # type: ignore[index]
+        if self.call.id is None:
+            raise ValueError("call.id is required")
         path_params = {
             "type": self.call.call_type,
             "id": self.call.id,
