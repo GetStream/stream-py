@@ -71,9 +71,7 @@ dev = [
     "pre-commit>=4.2.0",
     "pytest-asyncio>=1.0.0",
     "grpcio-tools==1.76.0",  # Pinned: controls protoc version for code generation
-    "ruff",
-    "mypy[mypyc,faster-cache]",
-    "mypy-protobuf==3.5.0",
+    "mypy-protobuf==3.5.0",  # Only for generate_webrtc.sh protobuf type stubs
     "pytest-timeout>=2.3.1",
     "hatch-vcs>=0.5.0",
     "hatch>=1.14.2",
@@ -95,7 +93,6 @@ members = [
     "**/dist/",
     "**/*.egg-info/",
     "**/.pytest_cache/",
-    "**/.mypy_cache/",
     "**/.ruff_cache/",
     "examples/",
  ]
@@ -136,12 +133,3 @@ ignore = ["F405", "F403"]
 
 [tool.hatch.metadata]
 allow-direct-references = true
-
-[tool.mypy]
-python_version = "3.12"
-mypy_path = ["agents-core"]
-# Gradual typing → can tighten over time
-ignore_missing_imports = true
-check_untyped_defs = true
-namespace_packages = true
-explicit_package_bases = true

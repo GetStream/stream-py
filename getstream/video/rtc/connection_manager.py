@@ -84,9 +84,9 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         )
         self._peer_manager: PeerConnectionManager = PeerConnectionManager(self)
 
-        self.recording_manager = self._recording_manager  # type: ignore
-        self.participants_state = self._participants_state  # type: ignore
-        self.reconnector = self._reconnector  # type: ignore
+        self.recording_manager = self._recording_manager
+        self.participants_state = self._participants_state
+        self.reconnector = self._reconnector
 
         self.twirp_signaling_client = None
         self.twirp_context: Optional[Context] = None
@@ -185,6 +185,8 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                 )
 
                 try:
+                    if self.twirp_signaling_client is None:
+                        raise ValueError("twirp_signaling_client is not initialized")
                     await self.twirp_signaling_client.SendAnswer(
                         ctx=self.twirp_context,
                         request=signal_pb2.SendAnswerRequest(
@@ -225,6 +227,10 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             with telemetry.start_as_current_span(
                 "watch-call",
             ):
+                if self.user_id is None:
+                    raise ValueError("user_id is required for watching a call")
+                if self._coordinator_ws_client._client_id is None:
+                    raise ValueError("coordinator ws client_id is not set")
                 await watch_call(
                     self.call, self.user_id, self._coordinator_ws_client._client_id
                 )
@@ -269,6 +275,8 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             "coordinator-join-call",
         ) as span:
             if not (ws_url or token):
+                if self.user_id is None:
+                    raise ValueError("user_id is required for joining a call")
                 join_response = await join_call(
                     self.call,
                     self.user_id,
@@ -279,7 +287,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                 )
                 ws_url = join_response.data.credentials.server.ws_endpoint
                 token = join_response.data.credentials.token
-                self.join_response = join_response
+                self.join_response = join_response.data
                 logger.debug(f"coordinator join response: {join_response.data}")
                 span.set_attribute(
                     "credentials", join_response.data.credentials.to_json()
@@ -291,6 +299,8 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         await self._peer_manager.setup_subscriber()
 
         # Step 3: Connect to WebSocket
+        if not token or not ws_url:
+            raise ValueError("token and ws_url are required for WebSocket connection")
         try:
             with telemetry.start_as_current_span(
                 "sfu-signaling-ws-connect",
@@ -345,7 +355,9 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             raise SfuConnectionError(f"WebSocket connection failed: {e}") from e
 
         # Step 5: Create SFU signaling client
-        twirp_server_url = self.join_response.data.credentials.server.url
+        if self.join_response is None:
+            raise ValueError("join_response is not set")
+        twirp_server_url = self.join_response.credentials.server.url
         self.twirp_signaling_client = SignalClient(address=twirp_server_url)
         self.twirp_context = Context(headers={"authorization": token})
         # Mark as connected

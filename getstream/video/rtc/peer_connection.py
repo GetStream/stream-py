@@ -7,6 +7,7 @@ import logging
 from typing import Optional
 
 import aiortc
+import aiortc.sdp
 from aiortc.contrib.media import MediaRelay
 
 from getstream.common import telemetry
@@ -78,6 +79,8 @@ class PeerConnectionManager:
         relayed_video = None
         audio_info = None
         video_info = None
+        relayed_audio = None
+        relayed_video = None
         track_infos = []
         if audio:
             audio_relay = MediaRelay()
@@ -96,10 +99,10 @@ class PeerConnectionManager:
                     manager=self.connection_manager
                 )
 
-            if audio:
+            if audio and relayed_audio:
                 self.publisher_pc.addTrack(relayed_audio)
                 logger.info(f"Added relayed audio track {relayed_audio.id}")
-            if video:
+            if video and relayed_video:
                 self.publisher_pc.addTrack(relayed_video)
                 logger.info(f"Added relayed video track {relayed_video.id}")
 
@@ -123,6 +126,7 @@ class PeerConnectionManager:
                     if (
                         audio
                         and audio_info
+                        and relayed_audio
                         and media.kind == "audio"
                         and relayed_audio.id == parsed_sdp.webrtc_track_id(media)
                     ):
@@ -132,6 +136,7 @@ class PeerConnectionManager:
                     if (
                         video
                         and video_info
+                        and relayed_video
                         and media.kind == "video"
                         and relayed_video.id == parsed_sdp.webrtc_track_id(media)
                     ):

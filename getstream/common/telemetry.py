@@ -176,7 +176,7 @@ def span_request(
     if tracer is None:
         yield _NullSpan()  # pragma: no cover
         return
-    with tracer.start_as_current_span(name, kind=SpanKind.CLIENT) as span:  # type: ignore[arg-type]
+    with tracer.start_as_current_span(name, kind=SpanKind.CLIENT) as span:
         base_attrs: Dict[str, Any] = dict(attributes or {})
         # auto-propagate contextual IDs to request spans
         try:
@@ -190,22 +190,22 @@ def span_request(
             pass
         if base_attrs:
             try:
-                span.set_attributes(base_attrs)  # type: ignore[attr-defined]
+                span.set_attributes(base_attrs)
             except Exception:
                 pass
         if include_bodies and request_body is not None:
             try:
                 span.add_event(
                     "request.body", {"level": "INFO", "body": safe_dump(request_body)}
-                )  # type: ignore[attr-defined]
+                )
             except Exception:
                 pass
         try:
             yield span
         except BaseException as e:
             try:
-                span.record_exception(e)  # type: ignore[attr-defined]
-                span.set_status(Status(StatusCode.ERROR, str(e)))  # type: ignore[attr-defined]
+                span.record_exception(e)
+                span.set_status(Status(StatusCode.ERROR, str(e)))
             except Exception:
                 pass
             raise
@@ -328,7 +328,7 @@ def start_as_current_span(
     if tracer is None:  # pragma: no cover
         yield _NullSpan()
         return
-    with tracer.start_as_current_span(name, kind=use_kind) as span:  # type: ignore[arg-type]
+    with tracer.start_as_current_span(name, kind=use_kind) as span:
         base_attrs: Dict[str, Any] = dict(attributes or {})
         # auto-propagate contextual IDs
         try:
@@ -342,7 +342,7 @@ def start_as_current_span(
             pass
         if base_attrs:
             try:
-                span.set_attributes(base_attrs)  # type: ignore[attr-defined]
+                span.set_attributes(base_attrs)
             except Exception:
                 pass
         yield span
@@ -372,7 +372,7 @@ def detach_context(token: Optional[object]) -> None:
     if not _HAS_OTEL or otel_context is None or token is None:  # pragma: no cover
         return
     try:
-        otel_context.detach(token)
+        otel_context.detach(token)  # type: ignore[arg-type]
     except Exception:
         # Best-effort; do not raise during detach
         pass

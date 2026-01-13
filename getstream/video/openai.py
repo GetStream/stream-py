@@ -170,7 +170,7 @@ def patch_realtime_connect(client):
     # Try to patch the AsyncRealtimeConnection.recv method directly
     try:
         # First, try to import the AsyncRealtimeConnection class
-        from openai.resources.beta.realtime.realtime import (  # type: ignore
+        from openai.resources.beta.realtime.realtime import (
             AsyncRealtimeConnection,
         )
 
@@ -178,11 +178,11 @@ def patch_realtime_connect(client):
         if not hasattr(AsyncRealtimeConnection, "recv"):
             raise ImportError("AsyncRealtimeConnection does not have recv method")
 
-        # Save the original method
-        AsyncRealtimeConnection._original_recv = AsyncRealtimeConnection.recv
+        # Save the original method (monkey patching)
+        AsyncRealtimeConnection._original_recv = AsyncRealtimeConnection.recv  # type: ignore[attr-defined]
 
-        # Replace with our patched version
-        AsyncRealtimeConnection.recv = patched_recv
+        # Replace with our patched version (monkey patching)
+        AsyncRealtimeConnection.recv = patched_recv  # type: ignore[method-assign]
     except ImportError as e:
         warnings.warn(
             f"Could not directly patch AsyncRealtimeConnection.recv: {str(e)}. "
@@ -213,8 +213,8 @@ def patch_realtime_connect(client):
         else:
             prepare_url_method = "_prepare_url"
 
-        # Save the original method
-        AsyncRealtimeConnectionManager._original_prepare_url = getattr(
+        # Save the original method (monkey patching)
+        AsyncRealtimeConnectionManager._original_prepare_url = getattr(  # type: ignore[attr-defined]
             AsyncRealtimeConnectionManager, prepare_url_method
         )
 
@@ -249,13 +249,13 @@ def patch_realtime_connect(client):
             if hasattr(connection, "recv") and not hasattr(
                 connection, "_original_recv"
             ):
-                connection._original_recv = connection.recv
-                connection.recv = types.MethodType(patched_recv, connection)
+                connection._original_recv = connection.recv  # type: ignore[attr-defined]
+                connection.recv = types.MethodType(patched_recv, connection)  # type: ignore[method-assign]
 
             return connection
 
-        # Replace the __aenter__ method with our patched version
-        AsyncRealtimeConnectionManager.__aenter__ = patched_aenter
+        # Replace the __aenter__ method with our patched version (monkey patching)
+        AsyncRealtimeConnectionManager.__aenter__ = patched_aenter  # type: ignore[method-assign]
     except (ImportError, AttributeError) as e:
         warnings.warn(
             f"Could not patch AsyncRealtimeConnectionManager.__aenter__: {str(e)}. "

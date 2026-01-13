@@ -29,10 +29,10 @@ pre-commit install
 
 ### Check
 
-Shortcut to ruff, mypy and non integration tests:
+Shortcut to ruff, ty (type checker) and non integration tests:
 
 ```
-uv run python dev.py check
+uv run python dev.py
 ```
 
 ### Formatting
@@ -41,10 +41,17 @@ uv run python dev.py check
 uv run ruff check --fix
 ```
 
-### Mypy type checks
+### Type checking (ty)
+
+Type checking is run via the `ty` type checker, excluding generated code:
 
 ```
-uv run mypy --install-types --non-interactive --exclude 'getstream/models/.*' .
+uv run python dev.py ty
+```
+
+Or manually (note: requires exclude flags for generated code - see dev.py for the full list):
+```
+uvx ty check getstream/ --exclude "getstream/models/" --exclude "getstream/video/rtc/pb/" ...
 ```
 
 ## Release

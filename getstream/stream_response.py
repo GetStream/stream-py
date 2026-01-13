@@ -1,4 +1,4 @@
-from typing import Any, Optional, Generic
+from typing import Any, Dict, Optional, Generic
 import typing
 
 import httpx
@@ -27,9 +27,9 @@ class StreamResponse(Generic[T]):
         """Returns the ratelimit info of your API operation."""
         return self.__rate_limit
 
-    def headers(self) -> typing.Dict[str, Any]:
+    def headers(self) -> Dict[str, Any]:
         """Returns the headers of the response."""
-        return self.__headers
+        return dict(self.__headers)
 
     def status_code(self) -> int:
         """Returns the HTTP status code of the response."""

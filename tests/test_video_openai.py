@@ -306,6 +306,7 @@ class TestOpenAIPatching:
         openai_api_key = os.environ.get("OPENAI_API_KEY")
         if not openai_api_key:
             pytest.skip("Skipping test as OPENAI_API_KEY is not set")
+        assert openai_api_key is not None  # type narrowing for type checker
 
         with (
             patch("getstream.video.openai.import_openai") as mock_import_openai,

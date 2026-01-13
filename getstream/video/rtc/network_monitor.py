@@ -5,7 +5,7 @@ Monitors network connectivity and manages network state.
 import asyncio
 import logging
 import time
-from typing import Optional
+from typing import List, Optional
 
 import ping3
 from pyee.asyncio import AsyncIOEventEmitter
@@ -21,7 +21,7 @@ class NetworkMonitor(AsyncIOEventEmitter):
     def __init__(
         self,
         connection_manager,
-        connectivity_hosts: list = None,
+        connectivity_hosts: Optional[List[str]] = None,
         connectivity_timeout: float = 3.0,
         check_interval: float = 1.0,
         required_successful_pings: int = 1,

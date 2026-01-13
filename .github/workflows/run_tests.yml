@@ -29,6 +29,37 @@ jobs:
       - name: Run Ruff formatter
         run: uv run ruff format --check .
 
+  typecheck:
+    name: Type Check (ty)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Install dependencies
+        uses: ./.github/actions/python-uv-setup
+      - name: Run ty type checker
+        run: |
+          uvx ty check getstream/ \
+            --exclude "getstream/models/" \
+            --exclude "getstream/video/rtc/pb/" \
+            --exclude "**/rest_client.py" \
+            --exclude "**/async_rest_client.py" \
+            --exclude "getstream/chat/channel.py" \
+            --exclude "getstream/chat/async_channel.py" \
+            --exclude "getstream/chat/client.py" \
+            --exclude "getstream/chat/async_client.py" \
+            --exclude "getstream/common/client.py" \
+            --exclude "getstream/common/async_client.py" \
+            --exclude "getstream/moderation/client.py" \
+            --exclude "getstream/moderation/async_client.py" \
+            --exclude "getstream/video/client.py" \
+            --exclude "getstream/video/async_client.py" \
+            --exclude "getstream/video/call.py" \
+            --exclude "getstream/video/async_call.py" \
+            --exclude "getstream/feeds/client.py" \
+            --exclude "getstream/feeds/feeds.py" \
+            --exclude "getstream/stream.py"
+
   test:
     name: Test "${{ inputs.marker }}"
     environment:

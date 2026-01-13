@@ -276,7 +276,7 @@ class MixedAudioStreamTrack(MediaStreamTrack):
                         )
 
                         # Convert aiortc frame to our AudioFrame format
-                        audio_bytes = self._aiortc_frame_to_bytes(aiortc_frame)
+                        audio_bytes = self._aiortc_frame_to_bytes(aiortc_frame)  # type: ignore[arg-type]
                         if audio_bytes:
                             frame = AudioFrame(
                                 user_id=user_id,

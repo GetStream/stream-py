@@ -76,7 +76,7 @@ class SubscriptionManager(AsyncIOEventEmitter):
         self._received_track_order: List[
             str
         ] = []  # Track the order of received WebRTC tracks
-        self._lock = asyncio.Lock()
+        self._lock: asyncio.Lock = asyncio.Lock()
 
     def _get_role_config(
         self, participant: Optional[models_pb2.Participant]
