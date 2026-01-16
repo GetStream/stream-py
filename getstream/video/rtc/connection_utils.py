@@ -29,7 +29,9 @@ from getstream.video.rtc.pb.stream.video.sfu.models.models_pb2 import (
     TrackInfo,
     VideoDimension,
     VideoLayer,
+    CLIENT_CAPABILITY_COORDINATOR_STATS,
 )
+from google.protobuf.json_format import MessageToDict
 from getstream.video.rtc.signaling import SignalingError, WebSocketClient
 from getstream.video.rtc.track_util import BufferedMediaTrack, detect_video_properties
 
@@ -209,7 +211,9 @@ async def join_call_coordinator_request(
     )
 
 
-async def create_join_request(token: str, session_id: str) -> events_pb2.JoinRequest:
+async def create_join_request(
+    token: str, session_id: str, tracer=None
+) -> events_pb2.JoinRequest:
     """Create a JoinRequest protobuf message for the WebSocket connection.
 
     Args:
@@ -229,6 +233,7 @@ async def create_join_request(token: str, session_id: str) -> events_pb2.JoinReq
     join_request = events_pb2.JoinRequest()
     join_request.token = token
     join_request.session_id = session_id
+    join_request.capabilities.append(CLIENT_CAPABILITY_COORDINATOR_STATS)
 
     # Create generic SDPs for send and recv
     temp_pub_pc = aiortc.RTCPeerConnection()
@@ -259,6 +264,12 @@ async def create_join_request(token: str, session_id: str) -> events_pb2.JoinReq
     await temp_pub_pc.close()
     await temp_sub_pc.close()
 
+    if tracer:
+        tracer.trace(
+            "joinRequest",
+            None,
+            MessageToDict(join_request, preserving_proto_field_name=True),
+        )
     return join_request
 
 
@@ -374,6 +385,7 @@ async def connect_websocket(
     ws_url: str,
     session_id: str,
     options: ConnectionOptions,
+    tracer=None,
 ) -> Tuple[WebSocketClient, events_pb2.SfuEvent]:
     """
     Connect to the WebSocket server.
@@ -394,7 +406,7 @@ async def connect_websocket(
 
     try:
         # Create JoinRequest for WebSocket connection
-        join_request = await create_join_request(token, session_id)
+        join_request = await create_join_request(token, session_id, tracer=tracer)
 
         # Apply reconnect options if provided
         if options.fast_reconnect:

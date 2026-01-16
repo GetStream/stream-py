@@ -4,6 +4,8 @@ import logging
 import uuid
 from typing import Optional, Dict, Any
 
+from google.protobuf.json_format import MessageToDict
+
 import aioice
 import aiortc
 
@@ -36,6 +38,7 @@ from getstream.video.rtc.tracks import SubscriptionConfig, SubscriptionManager
 from getstream.video.rtc.reconnection import ReconnectionManager
 from getstream.video.rtc.peer_connection import PeerConnectionManager
 from getstream.video.rtc.models import JoinCallResponse
+from getstream.video.rtc.stats_tracer import StatsTracer
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +86,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             self, subscription_config
         )
         self._peer_manager: PeerConnectionManager = PeerConnectionManager(self)
+        self._stats_tracer = StatsTracer(self)
 
         self.recording_manager = self._recording_manager
         self.participants_state = self._participants_state
@@ -105,6 +109,8 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             self._connection_state = state
             # Schedule the emit as a background task since property setters cannot be async
             self.emit("connection.state_changed", {"old": old_state, "new": state})
+            if state in {ConnectionState.RECONNECTING, ConnectionState.MIGRATING}:
+                self._stats_tracer.request_flush()
 
     async def _on_ice_trickle(self, event):
         """Handle ICE trickle from SFU."""
@@ -129,8 +135,26 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                     event.peer_type == models_pb2.PEER_TYPE_SUBSCRIBER
                     and self.subscriber_pc
                 ):
+                    self._stats_tracer.trace(
+                        "addIceCandidate",
+                        "sub",
+                        {
+                            "candidate": candidate_sdp,
+                            "sdpMid": candidate.sdpMid,
+                            "sdpMLineIndex": candidate.sdpMLineIndex,
+                        },
+                    )
                     await self.subscriber_pc.addIceCandidate(candidate)
                 elif self.publisher_pc:
+                    self._stats_tracer.trace(
+                        "addIceCandidate",
+                        "pub",
+                        {
+                            "candidate": candidate_sdp,
+                            "sdpMid": candidate.sdpMid,
+                            "sdpMLineIndex": candidate.sdpMLineIndex,
+                        },
+                    )
                     await self.publisher_pc.addIceCandidate(candidate)
             except Exception as e:
                 logger.debug(f"Error handling ICE trickle: {e}")
@@ -164,20 +188,64 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                 with telemetry.start_as_current_span(
                     "rtc.on_subscriber_offer.set_remote_description"
                 ):
-                    await self.subscriber_pc.setRemoteDescription(remote_description)
+                    try:
+                        self._stats_tracer.trace(
+                            "setRemoteDescription",
+                            "sub",
+                            {"type": "offer", "sdp": fixed_sdp},
+                        )
+                        await self.subscriber_pc.setRemoteDescription(remote_description)
+                        self._stats_tracer.trace(
+                            "setRemoteDescriptionOnSuccess",
+                            "sub",
+                            {"type": "offer", "sdp": fixed_sdp},
+                        )
+                    except Exception as exc:
+                        self._stats_tracer.trace(
+                            "setRemoteDescriptionOnFailure", "sub", str(exc)
+                        )
+                        raise
 
                 # Create the answer based on the remote offer (which includes our candidates)
                 with telemetry.start_as_current_span(
                     "rtc.on_subscriber_offer.create_answer"
                 ) as span:
-                    answer = await self.subscriber_pc.createAnswer()
+                    try:
+                        self._stats_tracer.trace("createAnswer", "sub", None)
+                        answer = await self.subscriber_pc.createAnswer()
+                        self._stats_tracer.trace(
+                            "createAnswerOnSuccess",
+                            "sub",
+                            {"type": answer.type, "sdp": answer.sdp},
+                        )
+                    except Exception as exc:
+                        self._stats_tracer.trace(
+                            "createAnswerOnFailure", "sub", str(exc)
+                        )
+                        raise
                     span.set_attribute("answer.sdp", answer.sdp)
 
                 # Set the local description. aiortc will manage the SDP content.
                 with telemetry.start_as_current_span(
                     "rtc.on_subscriber_offer.set_local_description"
                 ) as span:
-                    await self.subscriber_pc.setLocalDescription(answer)
+                    try:
+                        self._stats_tracer.trace(
+                            "setLocalDescription",
+                            "sub",
+                            {"type": answer.type, "sdp": answer.sdp},
+                        )
+                        await self.subscriber_pc.setLocalDescription(answer)
+                        self._stats_tracer.trace(
+                            "setLocalDescriptionOnSuccess",
+                            "sub",
+                            {"type": answer.type, "sdp": answer.sdp},
+                        )
+                    except Exception as exc:
+                        self._stats_tracer.trace(
+                            "setLocalDescriptionOnFailure", "sub", str(exc)
+                        )
+                        raise
 
                 logger.debug(
                     f"""Sending answer with local description:
@@ -220,6 +288,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                 self._coordinator_ws_client = StreamAPIWS(
                     call=self.call,
                     user_details={"id": self.user_id},
+                    tracer=self._stats_tracer,
                 )
                 self._coordinator_ws_client.on_wildcard("*", _log_event)
                 await self._coordinator_ws_client.connect()
@@ -288,6 +357,9 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                 ws_url = join_response.data.credentials.server.ws_endpoint
                 token = join_response.data.credentials.token
                 self.join_response = join_response.data
+                self._stats_tracer.update_stats_options(
+                    self.join_response.stats_options
+                )
                 logger.debug(f"coordinator join response: {join_response.data}")
                 span.set_attribute(
                     "credentials", join_response.data.credentials.to_json()
@@ -310,6 +382,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                     ws_url=ws_url,
                     session_id=current_session_id,
                     options=self._connection_options,
+                    tracer=self._stats_tracer,
                 )
 
                 self._ws_client.on_wildcard("*", _log_event)
@@ -331,6 +404,12 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
 
             # Connect subscriber offer event to handle SDP negotiation
             self._ws_client.on_event("subscriber_offer", self._on_subscriber_offer)
+            self._ws_client.on_event(
+                "change_publish_quality", self._on_change_publish_quality
+            )
+            self._ws_client.on_event("go_away", self._on_go_away)
+            self._ws_client.on_event("error", self._on_sfu_error)
+            self._ws_client.on_event("call_ended", self._on_call_ended)
 
             # Re-emit the events so they can be subscribed to on the ConnectionManager
             self._ws_client.on_wildcard("*", self.emit)
@@ -358,12 +437,15 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         if self.join_response is None:
             raise ValueError("join_response is not set")
         twirp_server_url = self.join_response.credentials.server.url
-        self.twirp_signaling_client = SignalClient(address=twirp_server_url)
+        self.twirp_signaling_client = SignalClient(
+            address=twirp_server_url, tracer=self._stats_tracer
+        )
         self.twirp_context = Context(headers={"authorization": token})
         # Mark as connected
         self.running = True
         self.connection_state = ConnectionState.JOINED
         self._stop_event.clear()
+        self._stats_tracer.start()
 
         logger.info("Successfully connected to SFU")
 
@@ -412,6 +494,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         self.running = False
         self._stop_event.set()
 
+        await self._stats_tracer.stop()
         await self._recording_manager.cleanup()
         await self._network_monitor.stop_monitoring()
         await self._peer_manager.close()
@@ -434,6 +517,29 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         self.connection_state = ConnectionState.LEFT
 
         logger.info("Call left and connections closed")
+
+    async def _on_change_publish_quality(self, event):
+        self._stats_tracer.trace_sfu_event(
+            "changePublishQuality",
+            MessageToDict(event, preserving_proto_field_name=True),
+        )
+
+    async def _on_go_away(self, event):
+        self._stats_tracer.trace_sfu_event(
+            "goAway", MessageToDict(event, preserving_proto_field_name=True)
+        )
+        self._stats_tracer.request_flush()
+
+    async def _on_sfu_error(self, event):
+        self._stats_tracer.trace_sfu_event(
+            "error", MessageToDict(event, preserving_proto_field_name=True)
+        )
+
+    async def _on_call_ended(self, event):
+        self._stats_tracer.trace_sfu_event(
+            "callEnded", MessageToDict(event, preserving_proto_field_name=True)
+        )
+        self._stats_tracer.request_flush()
 
     async def __aenter__(self):
         """Async context manager entry."""

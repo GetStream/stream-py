@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Optional, Any
+from typing import Optional, Any, TYPE_CHECKING
 
 import aiortc
 from aiortc.contrib.media import MediaRelay
@@ -10,6 +10,9 @@ from getstream.video.rtc.track_util import AudioTrackHandler
 from pyee.asyncio import AsyncIOEventEmitter
 from aiortc.rtcrtpsender import RTCRtpSender
 from aiortc.rtcrtpparameters import RTCRtpCodecCapability
+
+if TYPE_CHECKING:
+    from getstream.video.rtc.stats_tracer import StatsTracer
 
 
 logger = logging.getLogger(__name__)
@@ -40,6 +43,8 @@ class PublisherPeerConnection(aiortc.RTCPeerConnection):
         self,
         manager: Any,
         configuration: Optional[aiortc.RTCConfiguration] = None,
+        tracer: Optional["StatsTracer"] = None,
+        trace_id: str = "pub",
     ) -> None:
         if configuration is None:
             configuration = aiortc.RTCConfiguration(
@@ -50,7 +55,14 @@ class PublisherPeerConnection(aiortc.RTCPeerConnection):
         )
         super().__init__(configuration)
         self.manager = manager
+        self._tracer = tracer
+        self._trace_id = trace_id
         self._connected_event = asyncio.Event()
+        if self._tracer:
+            ice_servers = []
+            for server in configuration.iceServers:
+                ice_servers.append({"urls": server.urls})
+            self._tracer.trace("create", self._trace_id, {"iceServers": ice_servers})
 
         for transceiver in self.getTransceivers():
             if transceiver.kind == "video":
@@ -61,25 +73,77 @@ class PublisherPeerConnection(aiortc.RTCPeerConnection):
             logger.info(
                 f"Publisher ICE gathering state changed to {self.iceGatheringState}"
             )
+            if self._tracer:
+                self._tracer.trace(
+                    "onicegatheringstatechange",
+                    self._trace_id,
+                    self.iceGatheringState,
+                )
             if self.iceGatheringState == "complete":
                 logger.info("Publisher: All ICE candidates have been gathered.")
+
+        @self.on("icecandidate")
+        def on_icecandidate(event):
+            if self._tracer:
+                self._tracer.trace(
+                    "onicecandidate", self._trace_id, event.candidate
+                )
 
         @self.on("iceconnectionstatechange")
         def on_iceconnectionstatechange():
             logger.info(
                 f"Publisher ICE connection state changed to {self.iceConnectionState}"
             )
+            if self._tracer:
+                self._tracer.trace(
+                    "oniceconnectionstatechange",
+                    self._trace_id,
+                    self.iceConnectionState,
+                )
 
         @self.on("connectionstatechange")
         def on_connectionstatechange():
             logger.info(f"Publisher connection state changed to {self.connectionState}")
+            if self._tracer:
+                self._tracer.trace(
+                    "onconnectionstatechange",
+                    self._trace_id,
+                    self.connectionState,
+                )
             if self.connectionState == "connected":
                 self._connected_event.set()
+
+        @self.on("signalingstatechange")
+        def on_signalingstatechange():
+            if self._tracer:
+                self._tracer.trace(
+                    "onsignalingstatechange", self._trace_id, self.signalingState
+                )
+
+        @self.on("negotiationneeded")
+        def on_negotiationneeded():
+            if self._tracer:
+                self._tracer.trace("onnegotiationneeded", self._trace_id, None)
+
+        @self.on("datachannel")
+        def on_datachannel(channel):
+            if self._tracer:
+                self._tracer.trace(
+                    "ondatachannel",
+                    self._trace_id,
+                    [channel.id, channel.label],
+                )
 
     async def handle_answer(self, response):
         """Handles the SDP answer received from the SFU for the publisher connection."""
 
         logger.debug(f"Publisher received answer {response.sdp}")
+        if self._tracer:
+            self._tracer.trace(
+                "setRemoteDescription",
+                self._trace_id,
+                {"type": "answer", "sdp": response.sdp},
+            )
 
         remote_description = aiortc.RTCSessionDescription(
             type="answer", sdp=response.sdp
@@ -125,6 +189,8 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
         self,
         connection,
         configuration: Optional[aiortc.RTCConfiguration] = None,
+        tracer: Optional["StatsTracer"] = None,
+        trace_id: str = "sub",
     ) -> None:
         if configuration is None:
             configuration = aiortc.RTCConfiguration(
@@ -135,12 +201,25 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
         )
         super().__init__(configuration)
         self.connection = connection
+        self._tracer = tracer
+        self._trace_id = trace_id
+        if self._tracer:
+            ice_servers = []
+            for server in configuration.iceServers:
+                ice_servers.append({"urls": server.urls})
+            self._tracer.trace("create", self._trace_id, {"iceServers": ice_servers})
 
         self.track_map = {}  # track_id -> (MediaRelay, original_track)
 
         @self.on("track")
         async def on_track(track: aiortc.mediastreams.MediaStreamTrack):
             logger.info(f"Track received: {track.id} : {track.kind}")
+            if self._tracer:
+                self._tracer.trace(
+                    "ontrack",
+                    self._trace_id,
+                    {"track_id": track.id, "kind": track.kind},
+                )
 
             # Try to get user from track ID first (original method)
             user = self.connection.participants_state.get_user_from_track_id(track.id)
@@ -170,8 +249,60 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
         @self.on("icegatheringstatechange")
         def on_icegatheringstatechange():
             logger.info(f"ICE gathering state changed to {self.iceGatheringState}")
+            if self._tracer:
+                self._tracer.trace(
+                    "onicegatheringstatechange",
+                    self._trace_id,
+                    self.iceGatheringState,
+                )
             if self.iceGatheringState == "complete":
                 logger.info("All ICE candidates have been gathered.")
+
+        @self.on("icecandidate")
+        def on_icecandidate(event):
+            if self._tracer:
+                self._tracer.trace(
+                    "onicecandidate", self._trace_id, event.candidate
+                )
+
+        @self.on("iceconnectionstatechange")
+        def on_iceconnectionstatechange():
+            if self._tracer:
+                self._tracer.trace(
+                    "oniceconnectionstatechange",
+                    self._trace_id,
+                    self.iceConnectionState,
+                )
+
+        @self.on("connectionstatechange")
+        def on_connectionstatechange():
+            if self._tracer:
+                self._tracer.trace(
+                    "onconnectionstatechange",
+                    self._trace_id,
+                    self.connectionState,
+                )
+
+        @self.on("signalingstatechange")
+        def on_signalingstatechange():
+            if self._tracer:
+                self._tracer.trace(
+                    "onsignalingstatechange", self._trace_id, self.signalingState
+                )
+
+        @self.on("negotiationneeded")
+        def on_negotiationneeded():
+            if self._tracer:
+                self._tracer.trace("onnegotiationneeded", self._trace_id, None)
+
+        @self.on("datachannel")
+        def on_datachannel(channel):
+            if self._tracer:
+                self._tracer.trace(
+                    "ondatachannel",
+                    self._trace_id,
+                    [channel.id, channel.label],
+                )
 
     def add_track_subscriber(
         self, track_id: str

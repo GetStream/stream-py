@@ -32,6 +32,7 @@ class PeerConnectionManager:
         self.subscriber_pc: Optional[SubscriberPeerConnection] = None
         self.publisher_negotiation_lock = asyncio.Lock()
         self.subscriber_negotiation_lock = asyncio.Lock()
+        self._stats_tracer = connection_manager._stats_tracer
 
     async def setup_subscriber(self):
         """Setup subscriber peer connection."""
@@ -40,7 +41,9 @@ class PeerConnectionManager:
             "failed",
         ]:
             self.subscriber_pc = SubscriberPeerConnection(
-                connection=self.connection_manager
+                connection=self.connection_manager,
+                tracer=self._stats_tracer,
+                trace_id="sub",
             )
 
             @self.subscriber_pc.on("audio")
@@ -96,7 +99,9 @@ class PeerConnectionManager:
 
             if self.publisher_pc is None:
                 self.publisher_pc = PublisherPeerConnection(
-                    manager=self.connection_manager
+                    manager=self.connection_manager,
+                    tracer=self._stats_tracer,
+                    trace_id="pub",
                 )
 
             if audio and relayed_audio:
@@ -109,14 +114,48 @@ class PeerConnectionManager:
             with telemetry.start_as_current_span(
                 "rtc.publisher_pc.create_offer"
             ) as span:
-                offer = await self.publisher_pc.createOffer()
+                try:
+                    if self._stats_tracer:
+                        self._stats_tracer.trace("createOffer", "pub", None)
+                    offer = await self.publisher_pc.createOffer()
+                    if self._stats_tracer:
+                        self._stats_tracer.trace(
+                            "createOfferOnSuccess",
+                            "pub",
+                            {"type": offer.type, "sdp": offer.sdp},
+                        )
+                except Exception as exc:
+                    if self._stats_tracer:
+                        self._stats_tracer.trace(
+                            "createOfferOnFailure", "pub", str(exc)
+                        )
+                    raise
                 span.set_attribute("sdp", offer.sdp)
 
             with telemetry.start_as_current_span(
                 "rtc.publisher_pc.set_local_description"
             ) as span:
                 span.set_attribute("sdp", offer.sdp)
-                await self.publisher_pc.setLocalDescription(offer)
+                try:
+                    if self._stats_tracer:
+                        self._stats_tracer.trace(
+                            "setLocalDescription",
+                            "pub",
+                            {"type": offer.type, "sdp": offer.sdp},
+                        )
+                    await self.publisher_pc.setLocalDescription(offer)
+                    if self._stats_tracer:
+                        self._stats_tracer.trace(
+                            "setLocalDescriptionOnSuccess",
+                            "pub",
+                            {"type": offer.type, "sdp": offer.sdp},
+                        )
+                except Exception as exc:
+                    if self._stats_tracer:
+                        self._stats_tracer.trace(
+                            "setLocalDescriptionOnFailure", "pub", str(exc)
+                        )
+                    raise
 
             try:
                 patched_sdp = patch_sdp_offer(self.publisher_pc.localDescription.sdp)
@@ -156,6 +195,8 @@ class PeerConnectionManager:
                     )
                 )
                 await self.publisher_pc.handle_answer(response)
+                if self._stats_tracer and video:
+                    self._stats_tracer.schedule_one_off_send()
                 with telemetry.start_as_current_span(
                     "rtc.publisher_pc.wait_for_connected"
                 ):
@@ -243,9 +284,13 @@ class PeerConnectionManager:
         cleanup_tasks = []
 
         if self.publisher_pc:
+            if self._stats_tracer:
+                self._stats_tracer.trace("close", "pub", None)
             cleanup_tasks.append(self.publisher_pc.close())
             self.publisher_pc = None
         if self.subscriber_pc:
+            if self._stats_tracer:
+                self._stats_tracer.trace("close", "sub", None)
             cleanup_tasks.append(self.subscriber_pc.close())
             self.subscriber_pc = None
 
@@ -261,8 +306,12 @@ class PeerConnectionManager:
         cleanup_tasks = []
 
         if publisher_pc:
+            if self._stats_tracer:
+                self._stats_tracer.trace("close", "pub", None)
             cleanup_tasks.append(publisher_pc.close())
         if subscriber_pc:
+            if self._stats_tracer:
+                self._stats_tracer.trace("close", "sub", None)
             cleanup_tasks.append(subscriber_pc.close())
 
         # Run peer connection cleanup concurrently

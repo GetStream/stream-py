@@ -57,6 +57,7 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
         backoff_factor: float = 2.0,
         logger: Optional[logging.Logger] = None,
         user_token: Optional[str] = None,
+        tracer=None,
     ):
         """
         Initialize the WebSocket client.
@@ -86,6 +87,7 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
         self.backoff_factor = backoff_factor
 
         self._logger = logger or globals()["logger"]
+        self._stats_tracer = tracer
 
         # Connection state
         self._websocket: Optional["WebSocketClientProtocol"] = None
@@ -167,6 +169,8 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
             self._logger.error("Authentication failed", extra={"error": message})
             # Emit the error event before raising exception so wildcard handlers can catch it
             event_type = message.get("type", "unknown")
+            if self._stats_tracer:
+                self._stats_tracer.trace_coordinator_event(event_type, message)
             self.emit(event_type, message)
             await self._websocket.close()
             self._websocket = None

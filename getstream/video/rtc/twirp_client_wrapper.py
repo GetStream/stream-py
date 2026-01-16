@@ -2,6 +2,7 @@
 import asyncio  # Import asyncio if not already present
 import functools
 import logging
+from typing import TYPE_CHECKING
 
 import structlog
 from structlog.stdlib import LoggerFactory, add_log_level
@@ -13,6 +14,11 @@ from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
 from getstream.video.rtc.pb.stream.video.sfu.signal_rpc.signal_twirp import (
     AsyncSignalServerClient,
 )
+from google.protobuf.json_format import MessageToDict
+from google.protobuf.message import Message
+
+if TYPE_CHECKING:
+    from getstream.video.rtc.stats_tracer import StatsTracer
 
 logger = logging.getLogger(__name__)
 
@@ -125,6 +131,10 @@ class SignalClient(AsyncSignalServerClient):
     methods with error checking, avoiding manual synchronization.
     """
 
+    def __init__(self, *args, tracer: "StatsTracer" = None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._stats_tracer = tracer
+
     def __getattribute__(self, name: str):
         """Intercepts attribute access to dynamically wrap public async methods."""
         # Get the original attribute using the default mechanism (respects MRO)
@@ -141,11 +151,24 @@ class SignalClient(AsyncSignalServerClient):
 
             @functools.wraps(original_attr)
             async def wrapped_method(*args, **kwargs):
+                payload = kwargs.get("request")
+                if isinstance(payload, Message):
+                    payload = MessageToDict(payload, preserving_proto_field_name=True)
                 with telemetry.start_as_current_span(f"signaling.twirp.{name}") as span:
-                    # Call the original async method retrieved earlier
-                    response = await original_attr(*args, **kwargs)
-                    # Check response and annotate span
-                    return _check_response_for_error(response, name, span=span)
+                    try:
+                        if self._stats_tracer and name != "SendStats":
+                            self._stats_tracer.trace_rpc(name, payload)
+                        response = await original_attr(*args, **kwargs)
+                    except Exception as exc:
+                        if self._stats_tracer and name != "SendStats":
+                            self._stats_tracer.trace_rpc_failure(name, payload, exc)
+                        raise
+                    try:
+                        return _check_response_for_error(response, name, span=span)
+                    except Exception as exc:
+                        if self._stats_tracer and name != "SendStats":
+                            self._stats_tracer.trace_rpc_failure(name, payload, exc)
+                        raise
 
             # Return the dynamic wrapper
             return wrapped_method
@@ -153,9 +176,24 @@ class SignalClient(AsyncSignalServerClient):
 
             @functools.wraps(original_attr)
             async def wrapped_method(*args, **kwargs):
+                payload = kwargs.get("request")
+                if isinstance(payload, Message):
+                    payload = MessageToDict(payload, preserving_proto_field_name=True)
                 with telemetry.start_as_current_span(f"signaling.twirp.{name}") as span:
-                    response = original_attr(*args, **kwargs)
-                    return _check_response_for_error(response, name, span=span)
+                    try:
+                        if self._stats_tracer and name != "SendStats":
+                            self._stats_tracer.trace_rpc(name, payload)
+                        response = original_attr(*args, **kwargs)
+                    except Exception as exc:
+                        if self._stats_tracer and name != "SendStats":
+                            self._stats_tracer.trace_rpc_failure(name, payload, exc)
+                        raise
+                    try:
+                        return _check_response_for_error(response, name, span=span)
+                    except Exception as exc:
+                        if self._stats_tracer and name != "SendStats":
+                            self._stats_tracer.trace_rpc_failure(name, payload, exc)
+                        raise
 
             # Return the dynamic wrapper
             return wrapped_method
