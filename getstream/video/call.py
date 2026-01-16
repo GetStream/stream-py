@@ -317,6 +317,27 @@ class Call(BaseCall):
         return response
 
     @attach_call_cid
+    def query_call_participant_sessions(
+        self,
+        session: str,
+        limit: Optional[int] = None,
+        prev: Optional[str] = None,
+        next: Optional[str] = None,
+        filter_conditions: Optional[Dict[str, object]] = None,
+    ) -> StreamResponse[QueryCallParticipantSessionsResponse]:
+        response = self.client.query_call_participant_sessions(
+            type=self.call_type,
+            id=self.id,
+            session=session,
+            limit=limit,
+            prev=prev,
+            next=next,
+            filter_conditions=filter_conditions,
+        )
+        self._sync_from_response(response.data)
+        return response
+
+    @attach_call_cid
     def start_hls_broadcasting(self) -> StreamResponse[StartHLSBroadcastingResponse]:
         response = self.client.start_hls_broadcasting(type=self.call_type, id=self.id)
         self._sync_from_response(response.data)

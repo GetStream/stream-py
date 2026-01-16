@@ -573,6 +573,32 @@ class VideoRestClient(AsyncBaseClient):
             json=json,
         )
 
+    @telemetry.operation_name("getstream.api.video.query_call_participant_sessions")
+    async def query_call_participant_sessions(
+        self,
+        type: str,
+        id: str,
+        session: str,
+        limit: Optional[int] = None,
+        prev: Optional[str] = None,
+        next: Optional[str] = None,
+        filter_conditions: Optional[Dict[str, object]] = None,
+    ) -> StreamResponse[QueryCallParticipantSessionsResponse]:
+        query_params = build_query_param(
+            limit=limit, prev=prev, next=next, filter_conditions=filter_conditions
+        )
+        path_params = {
+            "type": type,
+            "id": id,
+            "session": session,
+        }
+        return await self.get(
+            "/api/v2/video/call/{type}/{id}/session/{session}/participant_sessions",
+            QueryCallParticipantSessionsResponse,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
     @telemetry.operation_name("getstream.api.video.start_hls_broadcasting")
     async def start_hls_broadcasting(
         self, type: str, id: str
