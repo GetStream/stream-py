@@ -1,0 +1,17 @@
+name: Integration Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      marker:
+        description: 'Test marker filter (e.g., "integration" or "")'
+        required: false
+        default: 'integration'
+        type: string
+
+jobs:
+  integration:
+    uses: ./.github/workflows/run_tests.yml
+    with:
+      marker: ${{ inputs.marker }}
+    secrets: inherit
