@@ -36,6 +36,8 @@ from getstream.video.rtc.tracks import SubscriptionConfig, SubscriptionManager
 from getstream.video.rtc.reconnection import ReconnectionManager
 from getstream.video.rtc.peer_connection import PeerConnectionManager
 from getstream.video.rtc.models import JoinCallResponse
+from getstream.video.rtc.tracer import Tracer
+from getstream.video.rtc.stats_reporter import SfuStatsReporter
 
 logger = logging.getLogger(__name__)
 
@@ -92,6 +94,12 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         self.twirp_context: Optional[Context] = None
         self._coordinator_task: Optional[asyncio.Task] = None
 
+        # Stats tracing: generation counter (increments on reconnect), tracer, and reporter
+        self._sfu_client_tag: int = 0  # Generation counter, never resets during session
+        self._sfu_hostname: Optional[str] = None  # Cached SFU hostname
+        self.tracer: Tracer = Tracer()
+        self.stats_reporter: Optional[SfuStatsReporter] = None
+
     @property
     def connection_state(self) -> ConnectionState:
         """Get the current connection state."""
@@ -105,6 +113,39 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             self._connection_state = state
             # Schedule the emit as a background task since property setters cannot be async
             self.emit("connection.state_changed", {"old": old_state, "new": state})
+
+    def pc_id(self, pc_type: str) -> str:
+        """Get PC ID for tracing.
+
+        Args:
+            pc_type: "pub" for publisher or "sub" for subscriber
+
+        Returns:
+            PC ID like "0-pub" or "0-sub"
+        """
+        return f"{self._sfu_client_tag}-{pc_type}"
+
+    def sfu_id(self) -> Optional[str]:
+        """Get SFU ID for tracing RPC calls and events.
+
+        Returns:
+            SFU ID like "0-sfu-hostname.stream.com" or None if not set
+        """
+        if self._sfu_hostname:
+            # Format: "{tag}-{edge_name}" where edge_name already includes "sfu-" prefix
+            return f"{self._sfu_client_tag}-{self._sfu_hostname}"
+        return None
+
+    def _extract_sfu_hostname(self) -> Optional[str]:
+        """Extract SFU edge name from join response.
+
+        Returns:
+            The SFU edge name (e.g., "sfu-dpk-london-...") or None if not available
+        """
+        if self.join_response and self.join_response.credentials:
+            # Use edge_name directly - it already has the correct format like "sfu-dpk-london-..."
+            return self.join_response.credentials.server.edge_name
+        return None
 
     async def _on_ice_trickle(self, event):
         """Handle ICE trickle from SFU."""
@@ -288,6 +329,8 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                 ws_url = join_response.data.credentials.server.ws_endpoint
                 token = join_response.data.credentials.token
                 self.join_response = join_response.data
+                # Extract and cache SFU hostname for tracing
+                self._sfu_hostname = self._extract_sfu_hostname()
                 logger.debug(f"coordinator join response: {join_response.data}")
                 span.set_attribute(
                     "credentials", join_response.data.credentials.to_json()
@@ -310,6 +353,8 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                     ws_url=ws_url,
                     session_id=current_session_id,
                     options=self._connection_options,
+                    tracer=self.tracer,
+                    sfu_id_fn=self.sfu_id,
                 )
 
                 self._ws_client.on_wildcard("*", _log_event)
@@ -349,17 +394,29 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             else:
                 logger.exception(f"No join response from WebSocket: {sfu_event}")
 
+            # Trace WebSocket open event
+            self.tracer.trace("signal.ws.open", self.sfu_id(), {"isTrusted": True})
+
             logger.debug(f"WebSocket connected successfully to {ws_url}")
         except Exception as e:
             logger.exception(f"Failed to connect WebSocket to {ws_url}: {e}")
             raise SfuConnectionError(f"WebSocket connection failed: {e}") from e
 
-        # Step 5: Create SFU signaling client
+        # Step 5: Create SFU signaling client with tracer
         if self.join_response is None:
             raise ValueError("join_response is not set")
         twirp_server_url = self.join_response.credentials.server.url
-        self.twirp_signaling_client = SignalClient(address=twirp_server_url)
+        self.twirp_signaling_client = SignalClient(
+            address=twirp_server_url,
+            tracer=self.tracer,
+            sfu_id_fn=self.sfu_id,
+        )
         self.twirp_context = Context(headers={"authorization": token})
+
+        # Start stats reporter
+        self.stats_reporter = SfuStatsReporter(self)
+        self.stats_reporter.start()
+
         # Mark as connected
         self.running = True
         self.connection_state = ConnectionState.JOINED
@@ -411,6 +468,12 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         logger.info("Leaving the call")
         self.running = False
         self._stop_event.set()
+
+        # Flush and stop stats reporter before cleaning up connections
+        if self.stats_reporter:
+            self.stats_reporter.flush()
+            await self.stats_reporter.stop()
+            self.stats_reporter = None
 
         await self._recording_manager.cleanup()
         await self._network_monitor.stop_monitoring()

@@ -13,7 +13,10 @@ import asyncio
 import logging
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Optional, Tuple
+
+if TYPE_CHECKING:
+    from getstream.video.rtc.tracer import Tracer
 
 import aiortc
 
@@ -374,6 +377,8 @@ async def connect_websocket(
     ws_url: str,
     session_id: str,
     options: ConnectionOptions,
+    tracer: Optional["Tracer"] = None,
+    sfu_id_fn: Optional[Callable[[], Optional[str]]] = None,
 ) -> Tuple[WebSocketClient, events_pb2.SfuEvent]:
     """
     Connect to the WebSocket server.
@@ -383,6 +388,8 @@ async def connect_websocket(
         ws_url: WebSocket URL to connect to
         session_id: Session ID for this connection
         options: Connection options
+        tracer: Optional tracer for SFU event tracing
+        sfu_id_fn: Optional function that returns the current SFU ID for tracing
 
     Returns:
         Tuple of (WebSocket client, initial SFU event)
@@ -407,7 +414,13 @@ async def connect_websocket(
             )
 
         # Create and connect WebSocket client
-        ws_client = WebSocketClient(ws_url, join_request, asyncio.get_running_loop())
+        ws_client = WebSocketClient(
+            ws_url,
+            join_request,
+            asyncio.get_running_loop(),
+            tracer=tracer,
+            sfu_id_fn=sfu_id_fn,
+        )
         sfu_event = await ws_client.connect()
 
         logger.debug("WebSocket connection established")
