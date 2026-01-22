@@ -38,7 +38,8 @@ def sanitize_value(value: Any) -> Any:
         return None
 
     if isinstance(value, datetime):
-        return value.isoformat()
+        # Convert datetime to milliseconds timestamp (matching JS SDK format)
+        return int(value.timestamp() * 1000)
 
     if isinstance(value, Message):
         # Convert protobuf message to dict with camelCase field names

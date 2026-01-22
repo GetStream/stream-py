@@ -5,11 +5,31 @@ Handles getStats() and delta compression for a PeerConnection.
 import json
 import logging
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
 
 logger = logging.getLogger(__name__)
+
+
+def _sanitize_value(value: Any) -> Any:
+    """Sanitize a value for JSON serialization.
+
+    Converts datetime to milliseconds timestamp (matching JS SDK format).
+    """
+    if value is None:
+        return None
+    if isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, datetime):
+        # Convert datetime to milliseconds timestamp (matching JS SDK format)
+        return int(value.timestamp() * 1000)
+    if isinstance(value, dict):
+        return {str(k): _sanitize_value(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_sanitize_value(v) for v in value]
+    return str(value)
 
 
 @dataclass
@@ -78,29 +98,36 @@ class StatsTracer:
             report: The RTCStatsReport from getStats()
 
         Returns:
-            Dict mapping stat IDs to their properties
+            Dict mapping stat IDs to their properties (with sanitized values)
         """
         result = {}
 
         # Handle different report formats
         if hasattr(report, "items"):
-            # Dict-like report
+            # Dict-like report (aiortc RTCStatsReport)
             for stat_id, stat in report.items():
+                stat_values = {}
                 if hasattr(stat, "__dict__"):
-                    result[stat_id] = dict(vars(stat))
+                    for key, value in vars(stat).items():
+                        stat_values[key] = _sanitize_value(value)
                 elif isinstance(stat, dict):
-                    result[stat_id] = stat.copy()
+                    for key, value in stat.items():
+                        stat_values[key] = _sanitize_value(value)
                 else:
-                    result[stat_id] = {"value": stat}
+                    stat_values = {"value": _sanitize_value(stat)}
+                result[stat_id] = stat_values
         elif hasattr(report, "__iter__"):
             # List-like report
             for stat in report:
                 if hasattr(stat, "id"):
                     stat_id = stat.id
+                    stat_values = {}
                     if hasattr(stat, "__dict__"):
-                        result[stat_id] = dict(vars(stat))
+                        for key, value in vars(stat).items():
+                            stat_values[key] = _sanitize_value(value)
                     else:
-                        result[stat_id] = {"id": stat_id}
+                        stat_values = {"id": stat_id}
+                    result[stat_id] = stat_values
 
         return result
 
@@ -119,8 +146,8 @@ class StatsTracer:
             Delta-compressed stats dict
         """
         try:
-            # Deep copy via JSON to ensure clean serialization
-            compressed = json.loads(json.dumps(new, default=str))
+            # Deep copy via JSON (values already sanitized by _report_to_dict)
+            compressed = json.loads(json.dumps(new))
         except (TypeError, ValueError) as e:
             logger.debug(f"Error serializing stats: {e}")
             compressed = {}
