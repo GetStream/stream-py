@@ -85,8 +85,8 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         self._subscription_manager: SubscriptionManager = SubscriptionManager(
             self, subscription_config
         )
+        self._stats_tracer = StatsTracer(self)  # Must be before _peer_manager
         self._peer_manager: PeerConnectionManager = PeerConnectionManager(self)
-        self._stats_tracer = StatsTracer(self)
 
         self.recording_manager = self._recording_manager
         self.participants_state = self._participants_state
@@ -137,7 +137,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                 ):
                     self._stats_tracer.trace(
                         "addIceCandidate",
-                        "sub",
+                        "0-sub",
                         {
                             "candidate": candidate_sdp,
                             "sdpMid": candidate.sdpMid,
@@ -148,7 +148,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                 elif self.publisher_pc:
                     self._stats_tracer.trace(
                         "addIceCandidate",
-                        "pub",
+                        "0-pub",
                         {
                             "candidate": candidate_sdp,
                             "sdpMid": candidate.sdpMid,
@@ -191,18 +191,18 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                     try:
                         self._stats_tracer.trace(
                             "setRemoteDescription",
-                            "sub",
+                            "0-sub",
                             {"type": "offer", "sdp": fixed_sdp},
                         )
                         await self.subscriber_pc.setRemoteDescription(remote_description)
                         self._stats_tracer.trace(
                             "setRemoteDescriptionOnSuccess",
-                            "sub",
+                            "0-sub",
                             {"type": "offer", "sdp": fixed_sdp},
                         )
                     except Exception as exc:
                         self._stats_tracer.trace(
-                            "setRemoteDescriptionOnFailure", "sub", str(exc)
+                            "setRemoteDescriptionOnFailure", "0-sub", str(exc)
                         )
                         raise
 
@@ -211,16 +211,16 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                     "rtc.on_subscriber_offer.create_answer"
                 ) as span:
                     try:
-                        self._stats_tracer.trace("createAnswer", "sub", None)
+                        self._stats_tracer.trace("createAnswer", "0-sub", None)
                         answer = await self.subscriber_pc.createAnswer()
                         self._stats_tracer.trace(
                             "createAnswerOnSuccess",
-                            "sub",
+                            "0-sub",
                             {"type": answer.type, "sdp": answer.sdp},
                         )
                     except Exception as exc:
                         self._stats_tracer.trace(
-                            "createAnswerOnFailure", "sub", str(exc)
+                            "createAnswerOnFailure", "0-sub", str(exc)
                         )
                         raise
                     span.set_attribute("answer.sdp", answer.sdp)
@@ -232,18 +232,18 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                     try:
                         self._stats_tracer.trace(
                             "setLocalDescription",
-                            "sub",
+                            "0-sub",
                             {"type": answer.type, "sdp": answer.sdp},
                         )
                         await self.subscriber_pc.setLocalDescription(answer)
                         self._stats_tracer.trace(
                             "setLocalDescriptionOnSuccess",
-                            "sub",
+                            "0-sub",
                             {"type": answer.type, "sdp": answer.sdp},
                         )
                     except Exception as exc:
                         self._stats_tracer.trace(
-                            "setLocalDescriptionOnFailure", "sub", str(exc)
+                            "setLocalDescriptionOnFailure", "0-sub", str(exc)
                         )
                         raise
 

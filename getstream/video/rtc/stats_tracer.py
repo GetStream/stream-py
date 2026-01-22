@@ -1,13 +1,18 @@
 import asyncio
 import json
+import logging
 import time
+from datetime import datetime
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlparse
 
 import aiortc
 
 from getstream.version import VERSION
 from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
 from getstream.video.rtc.pb.stream.video.sfu.signal_rpc import signal_pb2
+
+logger = logging.getLogger(__name__)
 
 
 def _timestamp_ms() -> int:
@@ -19,6 +24,9 @@ def _sanitize_value(value: Any) -> Any:
         return None
     if isinstance(value, (str, int, float, bool)):
         return value
+    if isinstance(value, datetime):
+        # Convert datetime to milliseconds timestamp (matching JS SDK format)
+        return int(value.timestamp() * 1000)
     if isinstance(value, dict):
         return {str(k): _sanitize_value(v) for k, v in value.items()}
     if isinstance(value, (list, tuple)):
@@ -41,14 +49,43 @@ class StatsTracer:
         self._one_off_send_task: Optional[asyncio.Task] = None
 
         self._prev_stats: Dict[str, Dict[str, Dict[str, Any]]] = {
-            "pub": {},
-            "sub": {},
+            "0-pub": {},
+            "0-sub": {},
         }
         self._last_outbound_stats: Dict[str, Dict[str, Any]] = {}
         self._last_inbound_stats: Dict[str, Dict[str, Any]] = {}
         self._encode_samples: Dict[str, List[Dict[str, Any]]] = {}
         self._decode_samples: Dict[str, List[Dict[str, Any]]] = {}
         self._last_decode_track_id: Optional[str] = None
+        self._sfu_hostname: Optional[str] = None
+
+    def _get_sfu_hostname(self) -> Optional[str]:
+        """Get the SFU hostname from the connection manager's join response."""
+        if self._sfu_hostname:
+            return self._sfu_hostname
+        if (
+            self._connection_manager
+            and hasattr(self._connection_manager, "join_response")
+            and self._connection_manager.join_response
+            and hasattr(self._connection_manager.join_response, "credentials")
+            and self._connection_manager.join_response.credentials
+        ):
+            try:
+                url = self._connection_manager.join_response.credentials.server.url
+                if url:
+                    parsed = urlparse(url)
+                    self._sfu_hostname = parsed.netloc or parsed.path.split("/")[0]
+                    return self._sfu_hostname
+            except Exception:
+                pass
+        return None
+
+    def _sfu_pc_id(self, prefix: str = "0") -> Optional[str]:
+        """Get the SFU-prefixed pc_id for RPC and event traces."""
+        hostname = self._get_sfu_hostname()
+        if hostname:
+            return f"{prefix}-sfu-{hostname}"
+        return None
 
     def update_stats_options(self, stats_options: Optional[dict]) -> None:
         if not stats_options:
@@ -70,6 +107,10 @@ class StatsTracer:
         if self._running:
             return
         self._running = True
+        logger.info(
+            f"StatsTracer started (collect every {self._stats_interval_seconds}s, "
+            f"send every {self._send_interval_seconds}s)"
+        )
         self._stats_task = asyncio.create_task(self._stats_loop(), name="rtc-stats")
         self._send_task = asyncio.create_task(self._send_loop(), name="rtc-send-stats")
 
@@ -87,13 +128,16 @@ class StatsTracer:
         asyncio.create_task(self._append_trace(record))
 
     def trace_rpc(self, method_name: str, payload: Any) -> None:
-        self.trace(method_name, None, payload)
+        pc_id = self._sfu_pc_id("0")
+        self.trace(method_name, pc_id, payload)
 
     def trace_rpc_failure(self, method_name: str, payload: Any, error: Exception) -> None:
-        self.trace(f"{method_name}OnFailure", None, [payload, str(error)])
+        pc_id = self._sfu_pc_id("0")
+        self.trace(f"{method_name}OnFailure", pc_id, [payload, str(error)])
 
     def trace_sfu_event(self, tag: str, payload: Any) -> None:
-        self.trace(tag, None, payload)
+        pc_id = self._sfu_pc_id("0")
+        self.trace(tag, pc_id, payload)
 
     def trace_coordinator_event(self, tag: str, payload: Any) -> None:
         self.trace(tag, None, payload)
@@ -135,9 +179,9 @@ class StatsTracer:
         publisher_pc = self._connection_manager.publisher_pc
         subscriber_pc = self._connection_manager.subscriber_pc
         if publisher_pc and publisher_pc.connectionState != "closed":
-            await self._collect_pc_stats(publisher_pc, "pub")
+            await self._collect_pc_stats(publisher_pc, "0-pub")
         if subscriber_pc and subscriber_pc.connectionState != "closed":
-            await self._collect_pc_stats(subscriber_pc, "sub")
+            await self._collect_pc_stats(subscriber_pc, "0-sub")
 
     async def _collect_pc_stats(self, pc: aiortc.RTCPeerConnection, pc_id: str) -> None:
         try:
@@ -189,9 +233,9 @@ class StatsTracer:
     def _update_performance_stats(
         self, stats_dict: Dict[str, Dict[str, Any]], pc_id: str
     ) -> None:
-        if pc_id == "pub":
+        if pc_id == "0-pub":
             self._update_encode_stats(stats_dict)
-        if pc_id == "sub":
+        if pc_id == "0-sub":
             self._update_decode_stats(stats_dict)
 
     def _update_encode_stats(self, stats_dict: Dict[str, Dict[str, Any]]) -> None:
@@ -469,5 +513,9 @@ class StatsTracer:
             webrtc_version=aiortc.__version__,
             encode_stats=encode_stats,
             decode_stats=decode_stats,
+        )
+        logger.info(
+            f"SendStats -> SFU: {len(traces)} traces, "
+            f"{len(encode_stats)} encode_stats, {len(decode_stats)} decode_stats"
         )
         await client.SendStats(ctx=ctx, request=request, server_path_prefix="")

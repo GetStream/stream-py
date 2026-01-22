@@ -43,7 +43,7 @@ class PeerConnectionManager:
             self.subscriber_pc = SubscriberPeerConnection(
                 connection=self.connection_manager,
                 tracer=self._stats_tracer,
-                trace_id="sub",
+                trace_id="0-sub",
             )
 
             @self.subscriber_pc.on("audio")
@@ -101,7 +101,7 @@ class PeerConnectionManager:
                 self.publisher_pc = PublisherPeerConnection(
                     manager=self.connection_manager,
                     tracer=self._stats_tracer,
-                    trace_id="pub",
+                    trace_id="0-pub",
                 )
 
             if audio and relayed_audio:
@@ -116,18 +116,18 @@ class PeerConnectionManager:
             ) as span:
                 try:
                     if self._stats_tracer:
-                        self._stats_tracer.trace("createOffer", "pub", None)
+                        self._stats_tracer.trace("createOffer", "0-pub", None)
                     offer = await self.publisher_pc.createOffer()
                     if self._stats_tracer:
                         self._stats_tracer.trace(
                             "createOfferOnSuccess",
-                            "pub",
+                            "0-pub",
                             {"type": offer.type, "sdp": offer.sdp},
                         )
                 except Exception as exc:
                     if self._stats_tracer:
                         self._stats_tracer.trace(
-                            "createOfferOnFailure", "pub", str(exc)
+                            "createOfferOnFailure", "0-pub", str(exc)
                         )
                     raise
                 span.set_attribute("sdp", offer.sdp)
@@ -140,20 +140,20 @@ class PeerConnectionManager:
                     if self._stats_tracer:
                         self._stats_tracer.trace(
                             "setLocalDescription",
-                            "pub",
+                            "0-pub",
                             {"type": offer.type, "sdp": offer.sdp},
                         )
                     await self.publisher_pc.setLocalDescription(offer)
                     if self._stats_tracer:
                         self._stats_tracer.trace(
                             "setLocalDescriptionOnSuccess",
-                            "pub",
+                            "0-pub",
                             {"type": offer.type, "sdp": offer.sdp},
                         )
                 except Exception as exc:
                     if self._stats_tracer:
                         self._stats_tracer.trace(
-                            "setLocalDescriptionOnFailure", "pub", str(exc)
+                            "setLocalDescriptionOnFailure", "0-pub", str(exc)
                         )
                     raise
 
@@ -285,12 +285,12 @@ class PeerConnectionManager:
 
         if self.publisher_pc:
             if self._stats_tracer:
-                self._stats_tracer.trace("close", "pub", None)
+                self._stats_tracer.trace("close", "0-pub", None)
             cleanup_tasks.append(self.publisher_pc.close())
             self.publisher_pc = None
         if self.subscriber_pc:
             if self._stats_tracer:
-                self._stats_tracer.trace("close", "sub", None)
+                self._stats_tracer.trace("close", "0-sub", None)
             cleanup_tasks.append(self.subscriber_pc.close())
             self.subscriber_pc = None
 
@@ -307,11 +307,11 @@ class PeerConnectionManager:
 
         if publisher_pc:
             if self._stats_tracer:
-                self._stats_tracer.trace("close", "pub", None)
+                self._stats_tracer.trace("close", "0-pub", None)
             cleanup_tasks.append(publisher_pc.close())
         if subscriber_pc:
             if self._stats_tracer:
-                self._stats_tracer.trace("close", "sub", None)
+                self._stats_tracer.trace("close", "0-sub", None)
             cleanup_tasks.append(subscriber_pc.close())
 
         # Run peer connection cleanup concurrently

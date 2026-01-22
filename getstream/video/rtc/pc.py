@@ -44,7 +44,7 @@ class PublisherPeerConnection(aiortc.RTCPeerConnection):
         manager: Any,
         configuration: Optional[aiortc.RTCConfiguration] = None,
         tracer: Optional["StatsTracer"] = None,
-        trace_id: str = "pub",
+        trace_id: str = "0-pub",
     ) -> None:
         if configuration is None:
             configuration = aiortc.RTCConfiguration(
@@ -190,7 +190,7 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
         connection,
         configuration: Optional[aiortc.RTCConfiguration] = None,
         tracer: Optional["StatsTracer"] = None,
-        trace_id: str = "sub",
+        trace_id: str = "0-sub",
     ) -> None:
         if configuration is None:
             configuration = aiortc.RTCConfiguration(
