@@ -12,12 +12,50 @@ import aiortc
 from getstream.version import VERSION
 from getstream.video.rtc.pb.stream.video.sfu.signal_rpc import signal_pb2
 from getstream.video.rtc.tracer import TraceSlice
+from getstream.video.rtc.stats_tracer import _sanitize_value
 
 if TYPE_CHECKING:
     from getstream.video.rtc.connection_manager import ConnectionManager
     from getstream.video.rtc.stats_tracer import ComputedStats
 
 logger = logging.getLogger(__name__)
+
+
+def _flatten_stats(report) -> List[Any]:
+    """Flatten RTCStatsReport to an array of stats objects.
+
+    Matches the JS SDK's flatten() function which converts
+    RTCStatsReport (Map-like) to an array of RTCStats objects.
+
+    Args:
+        report: The RTCStatsReport from getStats()
+
+    Returns:
+        List of stats objects with sanitized values
+    """
+    if report is None:
+        return []
+
+    stats = []
+    if hasattr(report, "items"):
+        # Dict-like report (aiortc RTCStatsReport)
+        for stat_id, stat in report.items():
+            stat_obj = {"id": stat_id}
+            if hasattr(stat, "__dict__"):
+                for key, value in vars(stat).items():
+                    stat_obj[key] = _sanitize_value(value)
+            elif isinstance(stat, dict):
+                for key, value in stat.items():
+                    stat_obj[key] = _sanitize_value(value)
+            stats.append(stat_obj)
+    elif hasattr(report, "__iter__"):
+        # List-like report
+        for stat in report:
+            if hasattr(stat, "__dict__"):
+                stat_obj = {k: _sanitize_value(v) for k, v in vars(stat).items()}
+                stats.append(stat_obj)
+
+    return stats
 
 # Default stats reporting interval in milliseconds
 DEFAULT_STATS_INTERVAL_MS = 8000
@@ -161,11 +199,25 @@ class SfuStatsReporter:
         # Serialize traces to JSON - this is the core tracing data
         rtc_stats_json = json.dumps(trace_slice.snapshot, separators=(",", ":"))
 
+        # Flatten raw stats to arrays (matching JS SDK format)
+        # JS SDK sends: subscriberStats: JSON.stringify(flatten(subscriberStats.stats))
+        publisher_stats_json = json.dumps(
+            _flatten_stats(pub_stats.stats) if pub_stats else [],
+            separators=(",", ":"),
+        )
+        subscriber_stats_json = json.dumps(
+            _flatten_stats(sub_stats.stats) if sub_stats else [],
+            separators=(",", ":"),
+        )
+
         request = signal_pb2.SendStatsRequest(
             session_id=self._cm.session_id,
             sdk="python",
             sdk_version=VERSION,
             webrtc_version=webrtc_version,
+            # Raw stats per peer connection (matching JS SDK)
+            publisher_stats=publisher_stats_json,
+            subscriber_stats=subscriber_stats_json,
             # Core tracing fields per spec
             rtc_stats=rtc_stats_json,
             encode_stats=encode_stats,
