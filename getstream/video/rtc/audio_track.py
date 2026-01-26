@@ -118,8 +118,7 @@ class AudioStreamTrack(aiortc.mediastreams.MediaStreamTrack):
                     / (self.sample_rate * self.channels * self._bytes_per_sample)
                 ) * 1000
 
-                # TODO: do not perform logging inside critical section, move this code outside the lock
-                logger.warning(
+                logger.debug(
                     "Audio buffer overflow, dropping %.1fms of audio. Buffer max is %dms",
                     dropped_ms,
                     self.audio_buffer_size_ms,
@@ -170,7 +169,6 @@ class AudioStreamTrack(aiortc.mediastreams.MediaStreamTrack):
 
         # Calculate samples needed for 20ms frame
         samples_per_frame = int(aiortc.mediastreams.AUDIO_PTIME * self.sample_rate)
-        wakeup_time = 0
 
         # Initialize timestamp if not already done
         if self._timestamp is None:
@@ -185,12 +183,7 @@ class AudioStreamTrack(aiortc.mediastreams.MediaStreamTrack):
             start_ts = self._start or time.time()
             wait = start_ts + (self._timestamp / self.sample_rate) - time.time()
             if wait > 0:
-                wakeup_time += time.time() + wait
                 await asyncio.sleep(wait)
-                if time.time() - wakeup_time > 0.1:
-                    logger.warning(
-                        f"scheduled sleep took {time.time() - wakeup_time} instead of {wait}, this can happen if there is something blocking the main event-loop, you can enable --debug mode to see blocking traces"
-                    )
 
             self._last_frame_time = time.time()
 
