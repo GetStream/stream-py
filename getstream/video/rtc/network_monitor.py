@@ -87,7 +87,7 @@ class NetworkMonitor(AsyncIOEventEmitter):
                 await asyncio.sleep(self.check_interval)
             except asyncio.CancelledError:
                 self.logger.debug("Network monitoring loop cancelled")
-                break
+                raise
             except Exception as e:
                 self.logger.error(
                     "Error in network monitoring",
