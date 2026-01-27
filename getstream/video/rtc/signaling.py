@@ -134,7 +134,17 @@ class WebSocketClient(StreamAsyncIOEventEmitter):
         """Handle WebSocket open event."""
         logger.debug("WebSocket connection established")
 
-        # Serialize and send JoinRequest
+        if self._tracer:
+            from google.protobuf.json_format import MessageToDict
+
+            sfu_id = self._sfu_id_fn() if self._sfu_id_fn else None
+            self._tracer.trace("signal.ws.open", sfu_id, {"isTrusted": True})
+            self._tracer.trace(
+                "joinRequest",
+                sfu_id,
+                {"requestPayload": {"oneofKind": "joinRequest", "joinRequest": MessageToDict(self.join_request)}},
+            )
+
         request = events_pb2.SfuRequest(join_request=self.join_request)
         ws.send(request.SerializeToString())
 

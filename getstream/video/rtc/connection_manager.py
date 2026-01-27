@@ -394,9 +394,6 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             else:
                 logger.exception(f"No join response from WebSocket: {sfu_event}")
 
-            # Trace WebSocket open event
-            self.tracer.trace("signal.ws.open", self.sfu_id(), {"isTrusted": True})
-
             logger.debug(f"WebSocket connected successfully to {ws_url}")
         except Exception as e:
             logger.exception(f"Failed to connect WebSocket to {ws_url}: {e}")
