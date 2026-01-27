@@ -11,6 +11,7 @@ This module provides core connection-related functionality including:
 
 import asyncio
 import logging
+import platform
 from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Callable, Optional, Tuple
@@ -23,12 +24,17 @@ import aiortc
 from getstream.base import StreamResponse
 from getstream.models import CallRequest
 from getstream.utils import build_body_dict, build_query_param
+from getstream.version import VERSION
 from getstream.video.async_call import Call
 from getstream.video.rtc.models import JoinCallResponse
 from getstream.video.rtc.pb.stream.video.sfu.event import events_pb2
 from getstream.video.rtc.pb.stream.video.sfu.models.models_pb2 import (
     TRACK_TYPE_AUDIO,
     TRACK_TYPE_VIDEO,
+    ClientDetails,
+    Device,
+    OS,
+    Sdk,
     TrackInfo,
     VideoDimension,
     VideoLayer,
@@ -232,6 +238,24 @@ async def create_join_request(token: str, session_id: str) -> events_pb2.JoinReq
     join_request = events_pb2.JoinRequest()
     join_request.token = token
     join_request.session_id = session_id
+
+    # Add client details for SDK identification in dashboard
+    version_parts = VERSION.split(".")
+    major = version_parts[0] if len(version_parts) > 0 else "0"
+    minor = version_parts[1] if len(version_parts) > 1 else "0"
+    patch = version_parts[2] if len(version_parts) > 2 else "0"
+
+    join_request.client_details.CopyFrom(
+        ClientDetails(
+            sdk=Sdk(major=major, minor=minor, patch=patch),
+            os=OS(
+                name=platform.system(),
+                version=platform.release(),
+                architecture=platform.machine(),
+            ),
+            device=Device(name="Python", version=platform.python_version()),
+        )
+    )
 
     # Create generic SDPs for send and recv
     temp_pub_pc = aiortc.RTCPeerConnection()
