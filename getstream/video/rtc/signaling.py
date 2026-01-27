@@ -134,7 +134,7 @@ class WebSocketClient(StreamAsyncIOEventEmitter):
         """Handle WebSocket open event."""
         logger.debug("WebSocket connection established")
 
-        if self._tracer:
+        if self._tracer is not None:
             from google.protobuf.json_format import MessageToDict
 
             sfu_id = self._sfu_id_fn() if self._sfu_id_fn else None
@@ -161,7 +161,7 @@ class WebSocketClient(StreamAsyncIOEventEmitter):
             self.last_health_check_time = time.time()
 
         # Trace certain SFU events for debugging
-        if event_type and event_type in SFU_EVENTS_TO_TRACE and self._tracer:
+        if event_type and event_type in SFU_EVENTS_TO_TRACE and self._tracer is not None:
             sfu_id = self._sfu_id_fn() if self._sfu_id_fn else None
             try:
                 from google.protobuf.json_format import MessageToDict
