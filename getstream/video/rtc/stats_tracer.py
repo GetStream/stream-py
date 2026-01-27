@@ -123,6 +123,9 @@ class StatsTracer:
         elif self._peer_type == "publisher":
             result = {k: v for k, v in result.items() if v.get("type") != "inbound-rtp"}
 
+        # Add codec stats and enhance RTP stats with mid/codecId/mediaType (not provided by aiortc)
+        self._add_codec_and_media_stats(result)
+
         # Add ICE candidate stats (not provided by aiortc getStats)
         self._add_ice_candidate_stats(result)
 
@@ -439,3 +442,132 @@ class StatsTracer:
 
         except Exception as e:
             logger.debug(f"Failed to extract ICE candidate stats: {e}")
+
+    def _add_codec_and_media_stats(self, result: Dict[str, Dict]) -> None:
+        """Add codec stats and enhance RTP stats with mid/codecId/mediaType.
+
+        aiortc doesn't include codec stats entries or mid/codecId fields in RTP stats.
+        This method adds them to match the JS SDK format by reading from transceivers.
+        """
+        try:
+            transceivers = self._pc.getTransceivers()
+
+            # Build mapping of SSRC -> transceiver info
+            ssrc_to_transceiver: Dict[int, Dict[str, Any]] = {}
+            codec_entries: Dict[str, Dict[str, Any]] = {}
+
+            for transceiver in transceivers:
+                mid = transceiver.mid
+                kind = transceiver.kind
+                codecs = getattr(transceiver, "_codecs", [])
+
+                # Get sender SSRC
+                sender = transceiver.sender
+                sender_ssrc = getattr(sender, "_ssrc", None)
+                if sender_ssrc:
+                    ssrc_to_transceiver[sender_ssrc] = {
+                        "mid": mid,
+                        "kind": kind,
+                        "codecs": codecs,
+                    }
+
+                # Get receiver SSRCs (may have multiple from remote streams)
+                receiver = transceiver.receiver
+                # aiortc stores remote SSRCs in __remote_streams dict
+                remote_streams = getattr(
+                    receiver, "_RTCRtpReceiver__remote_streams", {}
+                )
+                for recv_ssrc in remote_streams.keys():
+                    ssrc_to_transceiver[recv_ssrc] = {
+                        "mid": mid,
+                        "kind": kind,
+                        "codecs": codecs,
+                    }
+
+                # Create codec stats entries for this transceiver
+                for codec in codecs:
+                    codec_id = self._codec_id(codec, mid)
+                    if codec_id not in codec_entries:
+                        codec_type = (
+                            "encode"
+                            if self._peer_type == "publisher"
+                            else "decode"
+                        )
+                        codec_entries[codec_id] = {
+                            "type": "codec",
+                            "payloadType": codec.payloadType,
+                            "mimeType": codec.mimeType,
+                            "clockRate": codec.clockRate,
+                            "codecType": codec_type,
+                            "timestamp": 0,
+                        }
+                        # Add channels for audio codecs
+                        if kind == "audio":
+                            channels = getattr(codec, "channels", None)
+                            if channels:
+                                codec_entries[codec_id]["channels"] = channels
+                        # Add sdpFmtpLine if parameters exist
+                        params = getattr(codec, "parameters", {})
+                        if params:
+                            fmtp_parts = [
+                                f"{k}={v}" for k, v in params.items()
+                            ]
+                            if fmtp_parts:
+                                codec_entries[codec_id]["sdpFmtpLine"] = ";".join(
+                                    fmtp_parts
+                                )
+
+            # Enhance RTP stats with mid, codecId, and mediaType
+            for stat in result.values():
+                if not isinstance(stat, dict):
+                    continue
+
+                stat_type = stat.get("type", "")
+                if stat_type not in (
+                    "outbound-rtp",
+                    "inbound-rtp",
+                    "remote-inbound-rtp",
+                    "remote-outbound-rtp",
+                ):
+                    continue
+
+                ssrc = stat.get("ssrc")
+                if ssrc is None:
+                    continue
+
+                transceiver_info = ssrc_to_transceiver.get(ssrc)
+                if transceiver_info:
+                    # Add mid if available
+                    if transceiver_info["mid"] is not None:
+                        stat["mid"] = transceiver_info["mid"]
+
+                    # Add mediaType (same as kind, but JS SDK includes both)
+                    kind = transceiver_info["kind"]
+                    if kind:
+                        stat["mediaType"] = kind
+
+                    # Add codecId linking to first matching codec
+                    codecs = transceiver_info["codecs"]
+                    if codecs:
+                        # Use first non-RTX codec
+                        for codec in codecs:
+                            if not getattr(codec, "mimeType", "").endswith("/rtx"):
+                                codec_id = self._codec_id(
+                                    codec, transceiver_info["mid"]
+                                )
+                                stat["codecId"] = codec_id
+                                break
+
+            # Add codec entries to result
+            result.update(codec_entries)
+
+        except Exception as e:
+            logger.debug(f"Failed to add codec/media stats: {e}")
+
+    def _codec_id(self, codec, mid: Optional[str]) -> str:
+        """Generate stable 8-char hex ID for a codec."""
+        mime_type = getattr(codec, "mimeType", "")
+        payload_type = getattr(codec, "payloadType", 0)
+        clock_rate = getattr(codec, "clockRate", 0)
+        key = f"{mime_type}:{payload_type}:{clock_rate}:{mid}"
+        return hashlib.md5(key.encode()).hexdigest()[:8]

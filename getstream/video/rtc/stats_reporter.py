@@ -212,7 +212,7 @@ class SfuStatsReporter:
 
         request = signal_pb2.SendStatsRequest(
             session_id=self._cm.session_id,
-            sdk="python",
+            sdk="stream-python",
             sdk_version=VERSION,
             webrtc_version=webrtc_version,
             # Raw stats per peer connection (matching JS SDK)
