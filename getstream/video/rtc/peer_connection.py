@@ -44,7 +44,8 @@ class PeerConnectionManager:
             "failed",
         ]:
             self.subscriber_pc = SubscriberPeerConnection(
-                connection=self.connection_manager
+                connection=self.connection_manager,
+                configuration=self._build_rtc_configuration(),
             )
 
             # Trace create event
@@ -119,7 +120,8 @@ class PeerConnectionManager:
 
             if self.publisher_pc is None:
                 self.publisher_pc = PublisherPeerConnection(
-                    manager=self.connection_manager
+                    manager=self.connection_manager,
+                    configuration=self._build_rtc_configuration(),
                 )
 
                 # Trace create event
@@ -342,13 +344,46 @@ class PeerConnectionManager:
             except Exception as e:
                 logger.debug(f"Error during peer connection cleanup: {e}")
 
+    def _build_rtc_configuration(self) -> aiortc.RTCConfiguration:
+        """Build RTCConfiguration from coordinator credentials.
+
+        Returns:
+            aiortc.RTCConfiguration with ICE servers from join response
+        """
+        credentials = self.connection_manager.join_response.credentials
+        ice_servers = [
+            aiortc.RTCIceServer(
+                urls=server.get("urls"),
+                username=server.get("username"),
+                credential=server.get("password") or server.get("credential"),
+            )
+            for server in credentials.ice_servers
+        ]
+        return aiortc.RTCConfiguration(
+            iceServers=ice_servers,
+            bundlePolicy=aiortc.RTCBundlePolicy.MAX_BUNDLE,
+        )
+
     def _get_connection_config(self) -> dict:
         """Get the connection configuration for tracing.
 
         Returns:
-            Dict with ICE server configuration
+            Dict with ICE server configuration matching JS SDK format
         """
-        return {"iceServers": [{"urls": "stun:stun.l.google.com:19302"}]}
+        credentials = self.connection_manager.join_response.credentials
+        ice_servers = [
+            {
+                "urls": server.get("urls"),
+                "username": server.get("username"),
+                "credential": server.get("password") or server.get("credential"),
+            }
+            for server in credentials.ice_servers
+        ]
+        return {
+            "url": credentials.server.edge_name,
+            "bundlePolicy": "max-bundle",
+            "iceServers": ice_servers,
+        }
 
     def _setup_pc_tracing(self, pc, pc_id: str) -> None:
         """Attach event listeners that trace PC events.
