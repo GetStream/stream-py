@@ -9,7 +9,9 @@ from getstream.video.rtc.peer_connection import PeerConnectionManager
 class TestPeerConnectionConfig:
     """Tests for ICE server configuration conversion."""
 
-    def _create_manager_with_credentials(self, ice_servers: list) -> PeerConnectionManager:
+    def _create_manager_with_credentials(
+        self, ice_servers: list
+    ) -> PeerConnectionManager:
         """Create a PeerConnectionManager with mocked credentials."""
         mock_connection_manager = Mock()
         mock_connection_manager.join_response.credentials.ice_servers = ice_servers

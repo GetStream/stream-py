@@ -26,6 +26,7 @@ class TestStatsTracer:
 
             # Brief wait for ICE gathering
             import asyncio
+
             await asyncio.sleep(0.3)
 
             tracer = StatsTracer(pc, "publisher")
@@ -98,7 +99,8 @@ class TestStatsTracer:
             assert "codec" in stat_types
 
             codec = next(
-                v for v in result.delta.values()
+                v
+                for v in result.delta.values()
                 if isinstance(v, dict) and v.get("type") == "codec"
             )
             assert codec.get("codecType") == "decode"

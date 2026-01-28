@@ -119,7 +119,9 @@ class StatsTracer:
         # Filter out spurious stats from aiortc (creates sender/receiver for all transceivers)
         # Subscriber shouldn't have outbound-rtp, publisher shouldn't have inbound-rtp
         if self._peer_type == "subscriber":
-            result = {k: v for k, v in result.items() if v.get("type") != "outbound-rtp"}
+            result = {
+                k: v for k, v in result.items() if v.get("type") != "outbound-rtp"
+            }
         elif self._peer_type == "publisher":
             result = {k: v for k, v in result.items() if v.get("type") != "inbound-rtp"}
 
@@ -208,7 +210,9 @@ class StatsTracer:
 
             frame_encode_time_ms = 0.0
             if delta_frames_sent > 0:
-                frame_encode_time_ms = (delta_total_encode_time / delta_frames_sent) * 1000
+                frame_encode_time_ms = (
+                    delta_total_encode_time / delta_frames_sent
+                ) * 1000
             self._frame_time_history.append(frame_encode_time_ms)
 
             frames_per_second = report.get("framesPerSecond", 0)
@@ -284,7 +288,9 @@ class StatsTracer:
 
         frame_decode_time_ms = 0.0
         if delta_frames_decoded > 0:
-            frame_decode_time_ms = (delta_total_decode_time / delta_frames_decoded) * 1000
+            frame_decode_time_ms = (
+                delta_total_decode_time / delta_frames_decoded
+            ) * 1000
         self._frame_time_history.append(frame_decode_time_ms)
 
         frames_per_second = report.get("framesPerSecond", 0)
@@ -384,7 +390,9 @@ class StatsTracer:
 
                 for candidate in transport.getRemoteCandidates():
                     cid = self._candidate_id(candidate, transport_index)
-                    ip = getattr(candidate, "ip", None) or getattr(candidate, "host", "")
+                    ip = getattr(candidate, "ip", None) or getattr(
+                        candidate, "host", ""
+                    )
                     protocol = getattr(candidate, "protocol", "") or getattr(
                         candidate, "transport", "udp"
                     )
@@ -407,10 +415,14 @@ class StatsTracer:
 
                 for pair in check_list:
                     local_id = self._candidate_id(pair.local_candidate, transport_index)
-                    remote_id = self._candidate_id(pair.remote_candidate, transport_index)
+                    remote_id = self._candidate_id(
+                        pair.remote_candidate, transport_index
+                    )
 
                     is_nominated = any(p is pair for p in nominated.values())
-                    is_selected = is_nominated and pair.state == CandidatePair.State.SUCCEEDED
+                    is_selected = (
+                        is_nominated and pair.state == CandidatePair.State.SUCCEEDED
+                    )
                     is_connected = pair.state == CandidatePair.State.SUCCEEDED
 
                     pair_key = f"{local_id}:{remote_id}:{transport_index}"
@@ -489,9 +501,7 @@ class StatsTracer:
                     codec_id = self._codec_id(codec, mid)
                     if codec_id not in codec_entries:
                         codec_type = (
-                            "encode"
-                            if self._peer_type == "publisher"
-                            else "decode"
+                            "encode" if self._peer_type == "publisher" else "decode"
                         )
                         codec_entries[codec_id] = {
                             "type": "codec",
@@ -509,9 +519,7 @@ class StatsTracer:
                         # Add sdpFmtpLine if parameters exist
                         params = getattr(codec, "parameters", {})
                         if params:
-                            fmtp_parts = [
-                                f"{k}={v}" for k, v in params.items()
-                            ]
+                            fmtp_parts = [f"{k}={v}" for k, v in params.items()]
                             if fmtp_parts:
                                 codec_entries[codec_id]["sdpFmtpLine"] = ";".join(
                                     fmtp_parts

@@ -148,7 +148,9 @@ class PeerConnectionManager:
                 try:
                     offer = await self.publisher_pc.createOffer()
                     tracer.trace(
-                        "createOfferOnSuccess", pc_id, {"type": "offer", "sdp": offer.sdp}
+                        "createOfferOnSuccess",
+                        pc_id,
+                        {"type": "offer", "sdp": offer.sdp},
                     )
                     span.set_attribute("sdp", offer.sdp)
                 except Exception as e:

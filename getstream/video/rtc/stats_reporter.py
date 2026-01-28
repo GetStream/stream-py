@@ -57,6 +57,7 @@ def _flatten_stats(report) -> List[Any]:
 
     return stats
 
+
 # Default stats reporting interval in milliseconds
 DEFAULT_STATS_INTERVAL_MS = 8000
 
@@ -69,7 +70,9 @@ class SfuStatsReporter:
     """
 
     def __init__(
-        self, connection_manager: "ConnectionManager", interval_ms: int = DEFAULT_STATS_INTERVAL_MS
+        self,
+        connection_manager: "ConnectionManager",
+        interval_ms: int = DEFAULT_STATS_INTERVAL_MS,
     ):
         """Initialize the stats reporter.
 

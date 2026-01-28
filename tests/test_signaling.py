@@ -263,7 +263,9 @@ class TestWebSocketClient:
             assert not client.running
 
     @pytest.mark.asyncio
-    async def test_on_open_traces_ws_open_and_join_request(self, join_request, mock_websocket):
+    async def test_on_open_traces_ws_open_and_join_request(
+        self, join_request, mock_websocket
+    ):
         """Test that _on_open traces signal.ws.open and joinRequest events."""
         from getstream.video.rtc.tracer import Tracer
 

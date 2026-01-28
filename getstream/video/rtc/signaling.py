@@ -142,7 +142,12 @@ class WebSocketClient(StreamAsyncIOEventEmitter):
             self._tracer.trace(
                 "joinRequest",
                 sfu_id,
-                {"requestPayload": {"oneofKind": "joinRequest", "joinRequest": MessageToDict(self.join_request)}},
+                {
+                    "requestPayload": {
+                        "oneofKind": "joinRequest",
+                        "joinRequest": MessageToDict(self.join_request),
+                    }
+                },
             )
 
         request = events_pb2.SfuRequest(join_request=self.join_request)
@@ -161,7 +166,11 @@ class WebSocketClient(StreamAsyncIOEventEmitter):
             self.last_health_check_time = time.time()
 
         # Trace certain SFU events for debugging
-        if event_type and event_type in SFU_EVENTS_TO_TRACE and self._tracer is not None:
+        if (
+            event_type
+            and event_type in SFU_EVENTS_TO_TRACE
+            and self._tracer is not None
+        ):
             sfu_id = self._sfu_id_fn() if self._sfu_id_fn else None
             try:
                 from google.protobuf.json_format import MessageToDict
