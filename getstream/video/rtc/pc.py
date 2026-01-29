@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Optional, Any
+from typing import Any, Optional
 
 import aiortc
 from aiortc.contrib.media import MediaRelay
@@ -39,12 +39,8 @@ class PublisherPeerConnection(aiortc.RTCPeerConnection):
     def __init__(
         self,
         manager: Any,
-        configuration: Optional[aiortc.RTCConfiguration] = None,
+        configuration: aiortc.RTCConfiguration,
     ) -> None:
-        if configuration is None:
-            configuration = aiortc.RTCConfiguration(
-                iceServers=[aiortc.RTCIceServer(urls="stun:stun.l.google.com:19302")]
-            )
         logger.info(
             f"Creating publisher peer connection with configuration: {configuration}"
         )
@@ -124,12 +120,8 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
     def __init__(
         self,
         connection,
-        configuration: Optional[aiortc.RTCConfiguration] = None,
+        configuration: aiortc.RTCConfiguration,
     ) -> None:
-        if configuration is None:
-            configuration = aiortc.RTCConfiguration(
-                iceServers=[aiortc.RTCIceServer(urls="stun:stun.l.google.com:19302")]
-            )
         logger.info(
             f"creating subscriber peer connection with configuration: {configuration}"
         )

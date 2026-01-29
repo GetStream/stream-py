@@ -11,21 +11,30 @@ This module provides core connection-related functionality including:
 
 import asyncio
 import logging
+import platform
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Optional, Tuple
+
+if TYPE_CHECKING:
+    from getstream.video.rtc.tracer import Tracer
 
 import aiortc
 
 from getstream.base import StreamResponse
 from getstream.models import CallRequest
 from getstream.utils import build_body_dict, build_query_param
+from getstream.version import VERSION
 from getstream.video.async_call import Call
 from getstream.video.rtc.models import JoinCallResponse
 from getstream.video.rtc.pb.stream.video.sfu.event import events_pb2
 from getstream.video.rtc.pb.stream.video.sfu.models.models_pb2 import (
     TRACK_TYPE_AUDIO,
     TRACK_TYPE_VIDEO,
+    ClientDetails,
+    Device,
+    OS,
+    Sdk,
     TrackInfo,
     VideoDimension,
     VideoLayer,
@@ -230,6 +239,24 @@ async def create_join_request(token: str, session_id: str) -> events_pb2.JoinReq
     join_request.token = token
     join_request.session_id = session_id
 
+    # Add client details for SDK identification in dashboard
+    version_parts = VERSION.split(".")
+    major = version_parts[0] if len(version_parts) > 0 else "0"
+    minor = version_parts[1] if len(version_parts) > 1 else "0"
+    patch = version_parts[2] if len(version_parts) > 2 else "0"
+
+    join_request.client_details.CopyFrom(
+        ClientDetails(
+            sdk=Sdk(major=major, minor=minor, patch=patch),
+            os=OS(
+                name=platform.system(),
+                version=platform.release(),
+                architecture=platform.machine(),
+            ),
+            device=Device(name="Python", version=platform.python_version()),
+        )
+    )
+
     # Create generic SDPs for send and recv
     temp_pub_pc = aiortc.RTCPeerConnection()
     temp_sub_pc = aiortc.RTCPeerConnection()
@@ -374,6 +401,8 @@ async def connect_websocket(
     ws_url: str,
     session_id: str,
     options: ConnectionOptions,
+    tracer: Optional["Tracer"] = None,
+    sfu_id_fn: Optional[Callable[[], Optional[str]]] = None,
 ) -> Tuple[WebSocketClient, events_pb2.SfuEvent]:
     """
     Connect to the WebSocket server.
@@ -383,6 +412,8 @@ async def connect_websocket(
         ws_url: WebSocket URL to connect to
         session_id: Session ID for this connection
         options: Connection options
+        tracer: Optional tracer for SFU event tracing
+        sfu_id_fn: Optional function that returns the current SFU ID for tracing
 
     Returns:
         Tuple of (WebSocket client, initial SFU event)
@@ -407,7 +438,13 @@ async def connect_websocket(
             )
 
         # Create and connect WebSocket client
-        ws_client = WebSocketClient(ws_url, join_request, asyncio.get_running_loop())
+        ws_client = WebSocketClient(
+            ws_url,
+            join_request,
+            asyncio.get_running_loop(),
+            tracer=tracer,
+            sfu_id_fn=sfu_id_fn,
+        )
         sfu_event = await ws_client.connect()
 
         logger.debug("WebSocket connection established")

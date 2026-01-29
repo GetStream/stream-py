@@ -2,6 +2,7 @@
 import asyncio  # Import asyncio if not already present
 import functools
 import logging
+from typing import TYPE_CHECKING, Callable, Optional
 
 import structlog
 from structlog.stdlib import LoggerFactory, add_log_level
@@ -14,7 +15,16 @@ from getstream.video.rtc.pb.stream.video.sfu.signal_rpc.signal_twirp import (
     AsyncSignalServerClient,
 )
 
+if TYPE_CHECKING:
+    from getstream.video.rtc.tracer import Tracer
+
 logger = logging.getLogger(__name__)
+
+# RPC methods to exclude from tracing (to avoid circular tracing)
+RPC_TRACE_EXCLUSIONS = {"SendStats"}
+
+# RPC methods that should include response data in traces
+RPC_RESPONSE_INCLUSIONS = {"SetPublisher"}
 
 
 def _get_twirp_default_logger() -> BindableLogger:
@@ -123,7 +133,26 @@ class SignalClient(AsyncSignalServerClient):
     """An async TwirpClient wrapper that inherits from AsyncSignalServerClient
     (for IDE support) but uses __getattribute__ to dynamically wrap public
     methods with error checking, avoiding manual synchronization.
+
+    Also supports optional tracing of RPC calls for debugging.
     """
+
+    def __init__(
+        self,
+        address: str,
+        tracer: Optional["Tracer"] = None,
+        sfu_id_fn: Optional[Callable[[], Optional[str]]] = None,
+    ):
+        """Initialize the SignalClient.
+
+        Args:
+            address: The address of the signaling server
+            tracer: Optional tracer for RPC tracing
+            sfu_id_fn: Optional function that returns the current SFU ID for tracing
+        """
+        super().__init__(address)
+        self._tracer = tracer
+        self._sfu_id_fn = sfu_id_fn
 
     def __getattribute__(self, name: str):
         """Intercepts attribute access to dynamically wrap public async methods."""
@@ -138,14 +167,55 @@ class SignalClient(AsyncSignalServerClient):
             and not name.startswith("_")
             and asyncio.iscoroutinefunction(original_attr)
         ):
+            # Get tracer and sfu_id_fn from instance (use object.__getattribute__ to avoid recursion)
+            tracer = object.__getattribute__(self, "_tracer")
+            sfu_id_fn = object.__getattribute__(self, "_sfu_id_fn")
 
             @functools.wraps(original_attr)
             async def wrapped_method(*args, **kwargs):
+                # Trace RPC request (if not excluded)
+                should_trace = tracer and name not in RPC_TRACE_EXCLUSIONS
+                sfu_id = sfu_id_fn() if sfu_id_fn else None
+
+                # Extract request data for tracing
+                request_data = None
+                if should_trace:
+                    request = kwargs.get("request")
+                    if request:
+                        try:
+                            from google.protobuf.json_format import MessageToDict
+
+                            # Use default camelCase field names (no preserving_proto_field_name)
+                            request_data = MessageToDict(request)
+                        except Exception:
+                            request_data = str(request)
+                    tracer.trace(name, sfu_id, request_data)
+
                 with telemetry.start_as_current_span(f"signaling.twirp.{name}") as span:
-                    # Call the original async method retrieved earlier
-                    response = await original_attr(*args, **kwargs)
-                    # Check response and annotate span
-                    return _check_response_for_error(response, name, span=span)
+                    try:
+                        # Call the original async method retrieved earlier
+                        response = await original_attr(*args, **kwargs)
+
+                        # Trace response for certain methods
+                        if should_trace and name in RPC_RESPONSE_INCLUSIONS:
+                            try:
+                                from google.protobuf.json_format import MessageToDict
+
+                                # Use default camelCase field names
+                                response_data = MessageToDict(response)
+                                tracer.trace(f"{name}Response", sfu_id, response_data)
+                            except Exception:
+                                pass
+
+                        # Check response and annotate span
+                        return _check_response_for_error(response, name, span=span)
+                    except Exception as e:
+                        # Trace failure
+                        if should_trace:
+                            tracer.trace(
+                                f"{name}OnFailure", sfu_id, [str(e), request_data]
+                            )
+                        raise
 
             # Return the dynamic wrapper
             return wrapped_method
