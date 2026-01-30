@@ -19,6 +19,7 @@ from getstream.video.rtc.pb.stream.video.sfu.signal_rpc import signal_pb2
 from getstream.video.rtc.track_util import patch_sdp_offer
 from getstream.video.rtc.twirp_client_wrapper import SfuRpcError
 from getstream.video.rtc.pc import PublisherPeerConnection, SubscriberPeerConnection
+from getstream.video.rtc.stats_tracer import StatsTracer
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +33,9 @@ class PeerConnectionManager:
         self.subscriber_pc: Optional[SubscriberPeerConnection] = None
         self.publisher_negotiation_lock = asyncio.Lock()
         self.subscriber_negotiation_lock = asyncio.Lock()
+        # Stats tracers for getStats() delta compression
+        self.publisher_stats: Optional[StatsTracer] = None
+        self.subscriber_stats: Optional[StatsTracer] = None
 
     async def setup_subscriber(self):
         """Setup subscriber peer connection."""
@@ -40,8 +44,20 @@ class PeerConnectionManager:
             "failed",
         ]:
             self.subscriber_pc = SubscriberPeerConnection(
-                connection=self.connection_manager
+                connection=self.connection_manager,
+                configuration=self._build_rtc_configuration(),
             )
+
+            # Trace create event
+            tracer = self.connection_manager.tracer
+            pc_id = self.connection_manager.pc_id("sub")
+            tracer.trace("create", pc_id, self._get_connection_config())
+
+            # Setup PC event tracing
+            self._setup_pc_tracing(self.subscriber_pc, pc_id)
+
+            # Create stats tracer
+            self.subscriber_stats = StatsTracer(self.subscriber_pc, "subscriber")
 
             @self.subscriber_pc.on("audio")
             async def on_audio(pcm_data):
@@ -56,6 +72,11 @@ class PeerConnectionManager:
                 self.connection_manager.emit(
                     "track_added", track._source.id, track.kind, user
                 )
+
+            # Trace ontrack events for subscriber
+            @self.subscriber_pc.on("track")
+            def on_track_trace(track):
+                tracer.trace("ontrack", pc_id, f"{track.kind}:{track.id}")
 
             logger.debug("Created new subscriber peer connection")
         else:
@@ -94,10 +115,23 @@ class PeerConnectionManager:
         async with self.publisher_negotiation_lock:
             logger.info(f"Adding tracks: {len(track_infos)} tracks")
 
+            tracer = self.connection_manager.tracer
+            pc_id = self.connection_manager.pc_id("pub")
+
             if self.publisher_pc is None:
                 self.publisher_pc = PublisherPeerConnection(
-                    manager=self.connection_manager
+                    manager=self.connection_manager,
+                    configuration=self._build_rtc_configuration(),
                 )
+
+                # Trace create event
+                tracer.trace("create", pc_id, self._get_connection_config())
+
+                # Setup PC event tracing
+                self._setup_pc_tracing(self.publisher_pc, pc_id)
+
+                # Create stats tracer
+                self.publisher_stats = StatsTracer(self.publisher_pc, "publisher")
 
             if audio and relayed_audio:
                 self.publisher_pc.addTrack(relayed_audio)
@@ -106,17 +140,37 @@ class PeerConnectionManager:
                 self.publisher_pc.addTrack(relayed_video)
                 logger.info(f"Added relayed video track {relayed_video.id}")
 
+            # Trace createOffer
+            tracer.trace("createOffer", pc_id, [])
             with telemetry.start_as_current_span(
                 "rtc.publisher_pc.create_offer"
             ) as span:
-                offer = await self.publisher_pc.createOffer()
-                span.set_attribute("sdp", offer.sdp)
+                try:
+                    offer = await self.publisher_pc.createOffer()
+                    tracer.trace(
+                        "createOfferOnSuccess",
+                        pc_id,
+                        {"type": "offer", "sdp": offer.sdp},
+                    )
+                    span.set_attribute("sdp", offer.sdp)
+                except Exception as e:
+                    tracer.trace("createOfferOnFailure", pc_id, str(e))
+                    raise
 
+            # Trace setLocalDescription
+            tracer.trace(
+                "setLocalDescription", pc_id, [{"type": offer.type, "sdp": offer.sdp}]
+            )
             with telemetry.start_as_current_span(
                 "rtc.publisher_pc.set_local_description"
             ) as span:
                 span.set_attribute("sdp", offer.sdp)
-                await self.publisher_pc.setLocalDescription(offer)
+                try:
+                    await self.publisher_pc.setLocalDescription(offer)
+                    tracer.trace("setLocalDescriptionOnSuccess", pc_id, None)
+                except Exception as e:
+                    tracer.trace("setLocalDescriptionOnFailure", pc_id, str(e))
+                    raise
 
             try:
                 patched_sdp = patch_sdp_offer(self.publisher_pc.localDescription.sdp)
@@ -155,7 +209,19 @@ class PeerConnectionManager:
                         server_path_prefix="",
                     )
                 )
-                await self.publisher_pc.handle_answer(response)
+
+                # Trace setRemoteDescription
+                tracer.trace(
+                    "setRemoteDescription",
+                    pc_id,
+                    [{"type": "answer", "sdp": response.sdp}],
+                )
+                try:
+                    await self.publisher_pc.handle_answer(response)
+                    tracer.trace("setRemoteDescriptionOnSuccess", pc_id, None)
+                except Exception as e:
+                    tracer.trace("setRemoteDescriptionOnFailure", pc_id, str(e))
+                    raise
                 with telemetry.start_as_current_span(
                     "rtc.publisher_pc.wait_for_connected"
                 ):
@@ -183,6 +249,10 @@ class PeerConnectionManager:
                 track_infos[track_info_index],
                 relayed_video,
             )
+
+            # Schedule one-off stats send after video track is published
+            if self.connection_manager.stats_reporter:
+                self.connection_manager.stats_reporter.schedule_one(3000)
 
     async def restore_published_tracks(self):
         """Restore published tracks using their stored MediaRelay instances."""
@@ -249,6 +319,10 @@ class PeerConnectionManager:
             cleanup_tasks.append(self.subscriber_pc.close())
             self.subscriber_pc = None
 
+        # Clear stats tracers
+        self.publisher_stats = None
+        self.subscriber_stats = None
+
         # Run peer connection cleanup concurrently
         if cleanup_tasks:
             try:
@@ -271,3 +345,74 @@ class PeerConnectionManager:
                 await asyncio.gather(*cleanup_tasks, return_exceptions=True)
             except Exception as e:
                 logger.debug(f"Error during peer connection cleanup: {e}")
+
+    def _build_rtc_configuration(self) -> aiortc.RTCConfiguration:
+        """Build RTCConfiguration from coordinator credentials.
+
+        Returns:
+            aiortc.RTCConfiguration with ICE servers from join response
+        """
+        credentials = self.connection_manager.join_response.credentials
+        ice_servers = [
+            aiortc.RTCIceServer(
+                urls=server.get("urls"),
+                username=server.get("username"),
+                credential=server.get("password") or server.get("credential"),
+            )
+            for server in credentials.ice_servers
+        ]
+        return aiortc.RTCConfiguration(
+            iceServers=ice_servers,
+            bundlePolicy=aiortc.RTCBundlePolicy.MAX_BUNDLE,
+        )
+
+    def _get_connection_config(self) -> dict:
+        """Get the connection configuration for tracing.
+
+        Returns:
+            Dict with ICE server configuration matching JS SDK format
+        """
+        credentials = self.connection_manager.join_response.credentials
+        ice_servers = [
+            {
+                "urls": server.get("urls"),
+                "username": server.get("username"),
+                "credential": server.get("password") or server.get("credential"),
+            }
+            for server in credentials.ice_servers
+        ]
+        return {
+            "url": credentials.server.edge_name,
+            "bundlePolicy": "max-bundle",
+            "iceServers": ice_servers,
+        }
+
+    def _setup_pc_tracing(self, pc, pc_id: str) -> None:
+        """Attach event listeners that trace PC events.
+
+        Args:
+            pc: The RTCPeerConnection to trace
+            pc_id: The PC ID for tracing (e.g., "0-pub", "0-sub")
+        """
+        tracer = self.connection_manager.tracer
+
+        @pc.on("signalingstatechange")
+        def on_signaling():
+            tracer.trace("signalingstatechange", pc_id, pc.signalingState)
+
+        @pc.on("iceconnectionstatechange")
+        def on_ice_conn():
+            tracer.trace("iceconnectionstatechange", pc_id, pc.iceConnectionState)
+
+        @pc.on("icegatheringstatechange")
+        def on_ice_gather():
+            tracer.trace("icegatheringstatechange", pc_id, pc.iceGatheringState)
+
+        @pc.on("connectionstatechange")
+        def on_conn():
+            tracer.trace("connectionstatechange", pc_id, pc.connectionState)
+
+        @pc.on("icecandidate")
+        def on_ice_candidate(candidate):
+            # Trace ICE candidate (may be None when gathering is complete)
+            tracer.trace("onicecandidate", pc_id, candidate)

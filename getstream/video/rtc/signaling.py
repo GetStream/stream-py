@@ -3,13 +3,24 @@ import threading
 import websocket
 import logging
 import time
-from typing import Any, Callable, Awaitable
+from typing import TYPE_CHECKING, Any, Callable, Awaitable, Optional, Set
 
 from getstream.common import telemetry
 from getstream.utils import StreamAsyncIOEventEmitter
 from .pb.stream.video.sfu.event import events_pb2
 
+if TYPE_CHECKING:
+    from getstream.video.rtc.tracer import Tracer
+
 logger = logging.getLogger(__name__)
+
+# SFU events that should be traced for debugging
+SFU_EVENTS_TO_TRACE: Set[str] = {
+    "change_publish_quality",
+    "go_away",
+    "error",
+    "call_ended",
+}
 
 
 class SignalingError(Exception):
@@ -29,6 +40,8 @@ class WebSocketClient(StreamAsyncIOEventEmitter):
         url: str,
         join_request: events_pb2.JoinRequest,
         main_loop: asyncio.AbstractEventLoop,
+        tracer: Optional["Tracer"] = None,
+        sfu_id_fn: Optional[Callable[[], Optional[str]]] = None,
     ):
         """
         Initialize a new WebSocket client.
@@ -37,6 +50,8 @@ class WebSocketClient(StreamAsyncIOEventEmitter):
             url: The WebSocket server URL
             join_request: The JoinRequest protobuf message to send for authentication
             main_loop: The main asyncio event loop to run callbacks on
+            tracer: Optional tracer for SFU event tracing
+            sfu_id_fn: Optional function that returns the current SFU ID for tracing
         """
         super().__init__()
         self.url = url
@@ -55,6 +70,10 @@ class WebSocketClient(StreamAsyncIOEventEmitter):
         self.ping_interval = 10  # seconds
         # Capture the current span so we can re-attach it in background threads
         self.parent_span = telemetry.get_current_span()
+
+        # Tracer for SFU event tracing
+        self._tracer = tracer
+        self._sfu_id_fn = sfu_id_fn
 
     async def connect(self):
         """
@@ -115,7 +134,22 @@ class WebSocketClient(StreamAsyncIOEventEmitter):
         """Handle WebSocket open event."""
         logger.debug("WebSocket connection established")
 
-        # Serialize and send JoinRequest
+        if self._tracer is not None:
+            from google.protobuf.json_format import MessageToDict
+
+            sfu_id = self._sfu_id_fn() if self._sfu_id_fn else None
+            self._tracer.trace("signal.ws.open", sfu_id, {"isTrusted": True})
+            self._tracer.trace(
+                "joinRequest",
+                sfu_id,
+                {
+                    "requestPayload": {
+                        "oneofKind": "joinRequest",
+                        "joinRequest": MessageToDict(self.join_request),
+                    }
+                },
+            )
+
         request = events_pb2.SfuRequest(join_request=self.join_request)
         ws.send(request.SerializeToString())
 
@@ -124,11 +158,29 @@ class WebSocketClient(StreamAsyncIOEventEmitter):
 
         event = events_pb2.SfuEvent()
         event.ParseFromString(message)
-        logger.debug(f"WebSocket message received {event.WhichOneof('event_payload')}")
+        event_type = event.WhichOneof("event_payload")
+        logger.debug(f"WebSocket message received {event_type}")
 
         if event.HasField("health_check_response"):
             logger.debug("received health check response")
             self.last_health_check_time = time.time()
+
+        # Trace certain SFU events for debugging
+        if (
+            event_type
+            and event_type in SFU_EVENTS_TO_TRACE
+            and self._tracer is not None
+        ):
+            sfu_id = self._sfu_id_fn() if self._sfu_id_fn else None
+            try:
+                from google.protobuf.json_format import MessageToDict
+
+                payload = getattr(event, event_type)
+                # Use default camelCase field names
+                event_data = MessageToDict(payload)
+                self._tracer.trace(event_type, sfu_id, event_data)
+            except Exception:
+                pass
 
         # If this is the first message, set it and trigger the event
         if not self.first_message_event.is_set():

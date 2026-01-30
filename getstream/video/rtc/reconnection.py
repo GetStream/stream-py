@@ -239,6 +239,9 @@ class ReconnectionManager:
         logger.info("Executing REJOIN reconnection strategy")
         self.connection_manager.connection_state = ConnectionState.RECONNECTING
 
+        # Increment generation counter BEFORE creating new PCs
+        self.connection_manager._sfu_client_tag += 1
+
         # Store references to old connections for cleanup
         old_publisher = self.connection_manager.publisher_pc
         old_subscriber = self.connection_manager.subscriber_pc
@@ -273,6 +276,9 @@ class ReconnectionManager:
     async def _reconnect_migrate(self):
         """Migration reconnection strategy - server-coordinated."""
         logger.info("Executing MIGRATE reconnection strategy")
+
+        # Increment generation counter BEFORE creating new PCs
+        self.connection_manager._sfu_client_tag += 1
 
         current_ws_client = self.connection_manager.ws_client
         current_publisher = self.connection_manager.publisher_pc

@@ -261,3 +261,57 @@ class TestWebSocketClient:
 
             # Thread should be joined during close
             assert not client.running
+
+    @pytest.mark.asyncio
+    async def test_on_open_traces_ws_open_and_join_request(
+        self, join_request, mock_websocket
+    ):
+        """Test that _on_open traces signal.ws.open and joinRequest events."""
+        from getstream.video.rtc.tracer import Tracer
+
+        tracer = Tracer()
+        client = WebSocketClient(
+            "wss://test.url",
+            join_request,
+            asyncio.get_running_loop(),
+            tracer=tracer,
+            sfu_id_fn=lambda: "test-sfu-id",
+        )
+
+        # Prepare a successful response
+        success_response = events_pb2.SfuEvent()
+        success_response.join_response.reconnected = False
+        success_response_bytes = success_response.SerializeToString()
+
+        # Start connection
+        connect_task = asyncio.create_task(client.connect())
+        await asyncio.sleep(0.1)
+
+        # Simulate websocket open (this triggers tracing)
+        on_open_callback = mock_websocket.call_args[1]["on_open"]
+        on_open_callback(mock_websocket.return_value)
+
+        # Simulate receiving join response
+        on_message_callback = mock_websocket.call_args[1]["on_message"]
+        on_message_callback(mock_websocket.return_value, success_response_bytes)
+
+        await connect_task
+
+        # Check tracer recorded the events
+        snapshot = tracer.take()
+        tags = [record[0] for record in snapshot.snapshot]
+
+        assert "signal.ws.open" in tags, f"Expected signal.ws.open in {tags}"
+        assert "joinRequest" in tags, f"Expected joinRequest in {tags}"
+
+        # Verify signal.ws.open has correct structure
+        ws_open_record = next(r for r in snapshot.snapshot if r[0] == "signal.ws.open")
+        assert ws_open_record[1] == "test-sfu-id"
+        assert ws_open_record[2] == {"isTrusted": True}
+
+        # Verify joinRequest has payload
+        join_record = next(r for r in snapshot.snapshot if r[0] == "joinRequest")
+        assert join_record[1] == "test-sfu-id"
+        assert "requestPayload" in join_record[2]
+
+        client.close()
