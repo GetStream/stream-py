@@ -14,6 +14,7 @@ from getstream.video.rtc.coordinator.errors import (
     StreamWSConnectionError,
 )
 from getstream.stream import Stream
+from tests.conftest import skip_on_rate_limit
 
 
 @pytest.mark.asyncio
@@ -372,6 +373,7 @@ async def test_integration_test_simple_healthcheck(client: Stream):
 
 
 @pytest.mark.asyncio
+@skip_on_rate_limit
 async def test_integration_test_user_details_in_response(client: Stream):
     """Test that user details are returned in the 'me' field of the connection response."""
     user_details = {
