@@ -2303,7 +2303,7 @@ class VideoFrameTracker(aiortc.mediastreams.MediaStreamTrack):
             elapsed_ms = (time.monotonic() - start_time) * 1000
 
             # Update stats for video frames
-            if hasattr(frame, "width") and hasattr(frame, "height"):
+            if isinstance(frame, av.VideoFrame):
                 self.frames_processed += 1
                 self.frame_width = frame.width
                 self.frame_height = frame.height

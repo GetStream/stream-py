@@ -58,7 +58,9 @@ class PeerConnectionManager:
             self._setup_pc_tracing(self.subscriber_pc, pc_id)
 
             # Create stats tracer
-            self.subscriber_stats = StatsTracer(self.subscriber_pc, "subscriber", DEFAULT_STATS_INTERVAL_MS / 1000)
+            self.subscriber_stats = StatsTracer(
+                self.subscriber_pc, "subscriber", DEFAULT_STATS_INTERVAL_MS / 1000
+            )
 
             @self.subscriber_pc.on("audio")
             async def on_audio(pcm_data):
@@ -132,7 +134,9 @@ class PeerConnectionManager:
                 self._setup_pc_tracing(self.publisher_pc, pc_id)
 
                 # Create stats tracer
-                self.publisher_stats = StatsTracer(self.publisher_pc, "publisher", DEFAULT_STATS_INTERVAL_MS / 1000)
+                self.publisher_stats = StatsTracer(
+                    self.publisher_pc, "publisher", DEFAULT_STATS_INTERVAL_MS / 1000
+                )
 
             if audio and relayed_audio:
                 self.publisher_pc.addTrack(relayed_audio)
