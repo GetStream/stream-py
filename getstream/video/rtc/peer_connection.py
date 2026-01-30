@@ -19,6 +19,7 @@ from getstream.video.rtc.pb.stream.video.sfu.signal_rpc import signal_pb2
 from getstream.video.rtc.track_util import patch_sdp_offer
 from getstream.video.rtc.twirp_client_wrapper import SfuRpcError
 from getstream.video.rtc.pc import PublisherPeerConnection, SubscriberPeerConnection
+from getstream.video.rtc.stats_reporter import DEFAULT_STATS_INTERVAL_MS
 from getstream.video.rtc.stats_tracer import StatsTracer
 
 logger = logging.getLogger(__name__)
@@ -57,7 +58,7 @@ class PeerConnectionManager:
             self._setup_pc_tracing(self.subscriber_pc, pc_id)
 
             # Create stats tracer
-            self.subscriber_stats = StatsTracer(self.subscriber_pc, "subscriber")
+            self.subscriber_stats = StatsTracer(self.subscriber_pc, "subscriber", DEFAULT_STATS_INTERVAL_MS / 1000)
 
             @self.subscriber_pc.on("audio")
             async def on_audio(pcm_data):
@@ -131,7 +132,7 @@ class PeerConnectionManager:
                 self._setup_pc_tracing(self.publisher_pc, pc_id)
 
                 # Create stats tracer
-                self.publisher_stats = StatsTracer(self.publisher_pc, "publisher")
+                self.publisher_stats = StatsTracer(self.publisher_pc, "publisher", DEFAULT_STATS_INTERVAL_MS / 1000)
 
             if audio and relayed_audio:
                 self.publisher_pc.addTrack(relayed_audio)
@@ -139,6 +140,9 @@ class PeerConnectionManager:
             if video and relayed_video:
                 self.publisher_pc.addTrack(relayed_video)
                 logger.info(f"Added relayed video track {relayed_video.id}")
+                # Set frame tracker for video stats (BufferedMediaTrack has frame tracking)
+                if self.publisher_stats:
+                    self.publisher_stats.set_frame_tracker(relayed_video)
 
             # Trace createOffer
             tracer.trace("createOffer", pc_id, [])

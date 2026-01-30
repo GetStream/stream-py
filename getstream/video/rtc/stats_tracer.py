@@ -45,20 +45,28 @@ class StatsTracer:
     - Delta compression to reduce size by ~90%
     - Performance stats calculation (encode/decode metrics)
     - Frame time and FPS history for averaging
+    - Integration with VideoFrameTracker/BufferedMediaTrack for frame metrics
     """
 
-    def __init__(self, pc, peer_type: str):
+    def __init__(self, pc, peer_type: str, interval_s: float = 8.0):
         """Initialize StatsTracer for a peer connection.
 
         Args:
             pc: The RTCPeerConnection to collect stats from
             peer_type: "publisher" or "subscriber"
+            interval_s: Interval between stats collections in seconds (for FPS calculation)
         """
         self._pc = pc
         self._peer_type = peer_type
+        self._interval_s = interval_s
         self._previous_stats: Dict[str, Dict] = {}
         self._frame_time_history: List[float] = []
         self._fps_history: List[float] = []
+        self._frame_tracker: Optional[Any] = None
+
+    def set_frame_tracker(self, tracker: Any) -> None:
+        """Set the frame tracker for publisher stats (video track wrapper)."""
+        self._frame_tracker = tracker
 
     async def get(self) -> ComputedStats:
         """Get stats with delta compression and performance metrics.
@@ -130,6 +138,9 @@ class StatsTracer:
 
         # Add ICE candidate stats (not provided by aiortc getStats)
         self._add_ice_candidate_stats(result)
+
+        # Inject frame stats from tracker (not provided by aiortc)
+        self._inject_frame_stats(result)
 
         return result
 
@@ -579,3 +590,85 @@ class StatsTracer:
         clock_rate = getattr(codec, "clockRate", 0)
         key = f"{mime_type}:{payload_type}:{clock_rate}:{mid}"
         return hashlib.md5(key.encode()).hexdigest()[:8]
+
+    def _inject_frame_stats(self, result: Dict[str, Dict]) -> None:
+        """Inject frame stats from trackers into RTP stats.
+
+        aiortc doesn't provide frame metrics (dimensions, frame count, encode/decode time).
+        We inject these from our frame trackers into the appropriate RTP stats entries.
+        """
+        if self._peer_type == "publisher":
+            self._inject_publisher_stats(result)
+        else:
+            self._inject_subscriber_stats(result)
+
+    def _inject_publisher_stats(self, result: Dict[str, Dict]) -> None:
+        """Inject stats for publisher (outbound-rtp)."""
+        if not self._frame_tracker:
+            return
+
+        try:
+            frame_stats = self._frame_tracker.get_frame_stats()
+            if frame_stats.get("framesSent", 0) == 0:
+                return
+
+            for stat in result.values():
+                if not isinstance(stat, dict):
+                    continue
+                if stat.get("kind") != "video" or stat.get("type") != "outbound-rtp":
+                    continue
+
+                stat["framesSent"] = frame_stats["framesSent"]
+                stat["frameWidth"] = frame_stats["frameWidth"]
+                stat["frameHeight"] = frame_stats["frameHeight"]
+                stat["totalEncodeTime"] = frame_stats["totalEncodeTime"]
+
+                if self._previous_stats:
+                    prev = self._previous_stats.get(stat.get("id", ""), {})
+                    delta = frame_stats["framesSent"] - prev.get("framesSent", 0)
+                    if delta > 0:
+                        stat["framesPerSecond"] = delta / self._interval_s
+
+        except Exception as e:
+            logger.debug(f"Failed to inject publisher stats: {e}")
+
+    def _inject_subscriber_stats(self, result: Dict[str, Dict]) -> None:
+        """Inject frame stats for subscriber (inbound-rtp video).
+
+        Note: When multiple video tracks exist (e.g., webcam + screenshare),
+        get_video_frame_tracker() returns the first by insertion order, which
+        may not match the actively consumed track. This is a known limitation;
+        _get_decode_stats() mitigates by selecting the highest-resolution track
+        for performance calculations.
+        """
+        # Get video tracker from PC if not set
+        if not self._frame_tracker and hasattr(self._pc, "get_video_frame_tracker"):
+            self._frame_tracker = self._pc.get_video_frame_tracker()
+
+        if not self._frame_tracker:
+            return
+
+        try:
+            frame_stats = self._frame_tracker.get_frame_stats()
+            if frame_stats.get("framesDecoded", 0) == 0:
+                return
+
+            for stat in result.values():
+                if not isinstance(stat, dict):
+                    continue
+                if stat.get("type") != "inbound-rtp" or stat.get("kind") != "video":
+                    continue
+
+                stat["framesDecoded"] = frame_stats["framesDecoded"]
+                stat["frameWidth"] = frame_stats["frameWidth"]
+                stat["frameHeight"] = frame_stats["frameHeight"]
+                stat["totalDecodeTime"] = frame_stats["totalDecodeTime"]
+
+                if self._previous_stats:
+                    prev = self._previous_stats.get(stat.get("id", ""), {})
+                    delta = frame_stats["framesDecoded"] - prev.get("framesDecoded", 0)
+                    if delta > 0:
+                        stat["framesPerSecond"] = delta / self._interval_s
+
+        except Exception as e:
+            logger.debug(f"Failed to inject subscriber stats: {e}")
