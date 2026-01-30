@@ -129,6 +129,7 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
         self.connection = connection
 
         self.track_map = {}  # track_id -> (MediaRelay, original_track)
+        self.video_frame_trackers = {}  # track_id -> VideoFrameTracker
 
         @self.on("track")
         async def on_track(track: aiortc.mediastreams.MediaStreamTrack):
@@ -144,7 +145,16 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
                 )
 
             relay = MediaRelay()
-            self.track_map[track.id] = (relay, track)
+            tracked_track = track
+
+            # For video tracks, wrap with VideoFrameTracker to capture frame metrics
+            if track.kind == "video":
+                from getstream.video.rtc.track_util import VideoFrameTracker
+
+                tracked_track = VideoFrameTracker(track)
+                self.video_frame_trackers[track.id] = tracked_track
+
+            self.track_map[track.id] = (relay, tracked_track)
 
             if track.kind == "audio":
                 from getstream.video.rtc import PcmData
@@ -154,10 +164,10 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
                     pcm.participant = user
                     self.emit("audio", pcm)
 
-                handler = AudioTrackHandler(relay.subscribe(track), _emit_pcm)
+                handler = AudioTrackHandler(relay.subscribe(tracked_track), _emit_pcm)
                 asyncio.create_task(handler.start())
 
-            self.emit("track_added", relay.subscribe(track), user)
+            self.emit("track_added", relay.subscribe(tracked_track), user)
 
         @self.on("icegatheringstatechange")
         def on_icegatheringstatechange():
@@ -182,6 +192,20 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
         # Clean up stored references when track ends
         if track.id in self.track_map:
             del self.track_map[track.id]
+        if track.id in self.video_frame_trackers:
+            del self.video_frame_trackers[track.id]
+
+    def get_video_frame_tracker(self) -> Optional[Any]:
+        """Get a video frame tracker for stats collection.
+
+        Note: Returns the first tracker by insertion order. When multiple video
+        tracks exist simultaneously (e.g., webcam + screenshare), this may not
+        match the track being actively consumed. Performance stats calculation
+        in StatsTracer mitigates this by selecting the highest-resolution track.
+        """
+        if self.video_frame_trackers:
+            return next(iter(self.video_frame_trackers.values()))
+        return None
 
     async def restartIce(self):
         """Restart ICE connection for reconnection scenarios."""

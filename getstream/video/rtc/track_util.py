@@ -4,6 +4,7 @@ import fractions
 import io
 import logging
 import re
+import time
 import wave
 from enum import Enum
 from fractions import Fraction
@@ -2143,7 +2144,13 @@ def parse_track_stream_mapping(sdp: str) -> dict:
 
 
 class BufferedMediaTrack(aiortc.mediastreams.MediaStreamTrack):
-    """A wrapper for MediaStreamTrack that buffers one peeked frame."""
+    """A wrapper for MediaStreamTrack that buffers one peeked frame.
+
+    Also tracks video frame statistics when kind is 'video':
+    - frames_processed: total frames that passed through recv()
+    - frame_width, frame_height: dimensions of the last frame
+    - total_processing_time_ms: cumulative time spent in recv()
+    """
 
     def __init__(self, track):
         super().__init__()
@@ -2152,6 +2159,12 @@ class BufferedMediaTrack(aiortc.mediastreams.MediaStreamTrack):
         self._kind = track.kind
         self._id = track.id
         self._ended = False
+
+        # Frame statistics (for video tracks)
+        self.frames_processed: int = 0
+        self.frame_width: int = 0
+        self.frame_height: int = 0
+        self.total_processing_time_ms: float = 0.0
 
     @property
     def kind(self):
@@ -2165,6 +2178,27 @@ class BufferedMediaTrack(aiortc.mediastreams.MediaStreamTrack):
     def readyState(self):
         return "ended" if self._ended else self._track.readyState
 
+    def get_frame_stats(self) -> Dict[str, Any]:
+        """Get current frame statistics for StatsTracer injection."""
+        return {
+            "framesSent": self.frames_processed,
+            "frameWidth": self.frame_width,
+            "frameHeight": self.frame_height,
+            "totalEncodeTime": self.total_processing_time_ms / 1000.0,
+        }
+
+    def _update_frame_stats(self, frame, processing_time_ms: float) -> None:
+        """Update frame statistics from a video frame."""
+        if (
+            self._kind == "video"
+            and hasattr(frame, "width")
+            and hasattr(frame, "height")
+        ):
+            self.frames_processed += 1
+            self.frame_width = frame.width
+            self.frame_height = frame.height
+            self.total_processing_time_ms += processing_time_ms
+
     async def recv(self):
         """Returns the next buffered frame if available, otherwise gets a new frame from the track."""
         if self._ended:
@@ -2172,10 +2206,16 @@ class BufferedMediaTrack(aiortc.mediastreams.MediaStreamTrack):
 
         if self._buffered_frames:
             # Return the oldest buffered frame (FIFO order)
-            return self._buffered_frames.pop(0)
+            frame = self._buffered_frames.pop(0)
+            self._update_frame_stats(frame, 0.0)
+            return frame
 
+        start_time = time.monotonic()
         try:
-            return await self._track.recv()
+            frame = await self._track.recv()
+            elapsed_ms = (time.monotonic() - start_time) * 1000
+            self._update_frame_stats(frame, elapsed_ms)
+            return frame
         except Exception as e:
             logger.error(f"Error receiving frame from track: {e}")
             self._ended = True
@@ -2212,6 +2252,78 @@ class BufferedMediaTrack(aiortc.mediastreams.MediaStreamTrack):
                     self._track.stop()
                 except Exception as e:
                     logger.error(f"Error stopping track: {e}")
+
+
+class VideoFrameTracker(aiortc.mediastreams.MediaStreamTrack):
+    """A transparent wrapper that tracks video frame statistics.
+
+    Used for subscriber video tracks to capture frame metrics that aiortc
+    doesn't provide natively (dimensions, frame count, decode time).
+    """
+
+    kind = "video"
+
+    def __init__(self, track: MediaStreamTrack):
+        super().__init__()
+        self._track = track
+        self._id = track.id
+        self._ended = False
+
+        # Frame statistics
+        self.frames_processed: int = 0
+        self.frame_width: int = 0
+        self.frame_height: int = 0
+        self.total_processing_time_ms: float = 0.0
+
+    @property
+    def id(self):
+        return self._id
+
+    @property
+    def readyState(self):
+        return "ended" if self._ended else self._track.readyState
+
+    def get_frame_stats(self) -> Dict[str, Any]:
+        """Get current frame statistics for StatsTracer injection."""
+        return {
+            "framesDecoded": self.frames_processed,
+            "frameWidth": self.frame_width,
+            "frameHeight": self.frame_height,
+            "totalDecodeTime": self.total_processing_time_ms / 1000.0,
+        }
+
+    async def recv(self):
+        """Receive a frame, tracking statistics."""
+        if self._ended:
+            raise MediaStreamError("Track is ended")
+
+        start_time = time.monotonic()
+        try:
+            frame = await self._track.recv()
+            elapsed_ms = (time.monotonic() - start_time) * 1000
+
+            # Update stats for video frames
+            if isinstance(frame, av.VideoFrame):
+                self.frames_processed += 1
+                self.frame_width = frame.width
+                self.frame_height = frame.height
+                self.total_processing_time_ms += elapsed_ms
+
+            return frame
+        except MediaStreamError:
+            self._ended = True
+            raise
+        except Exception as e:
+            logger.error(f"Error receiving frame: {e}")
+            self._ended = True
+            raise MediaStreamError(f"Error receiving frame: {e}") from e
+
+    def stop(self):
+        """Stop the track."""
+        if not self._ended:
+            self._ended = True
+            if hasattr(self._track, "stop"):
+                self._track.stop()
 
 
 async def detect_video_properties(
