@@ -1,1 +1,3 @@
-VERSION = "2.5.18"
+from importlib.metadata import version
+
+VERSION = version("getstream")
