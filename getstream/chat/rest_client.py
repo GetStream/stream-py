@@ -113,10 +113,13 @@ class ChatRestClient(BaseClient):
         member_limit: Optional[int] = None,
         message_limit: Optional[int] = None,
         offset: Optional[int] = None,
+        predefined_filter: Optional[str] = None,
         state: Optional[bool] = None,
         user_id: Optional[str] = None,
         sort: Optional[List[SortParamRequest]] = None,
         filter_conditions: Optional[Dict[str, object]] = None,
+        filter_values: Optional[Dict[str, object]] = None,
+        sort_values: Optional[Dict[str, object]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[QueryChannelsResponse]:
         json = build_body_dict(
@@ -124,13 +127,36 @@ class ChatRestClient(BaseClient):
             member_limit=member_limit,
             message_limit=message_limit,
             offset=offset,
+            predefined_filter=predefined_filter,
             state=state,
             user_id=user_id,
             sort=sort,
             filter_conditions=filter_conditions,
+            filter_values=filter_values,
+            sort_values=sort_values,
             user=user,
         )
         return self.post("/api/v2/chat/channels", QueryChannelsResponse, json=json)
+
+    @telemetry.operation_name("getstream.api.chat.channel_batch_update")
+    def channel_batch_update(
+        self,
+        operation: str,
+        filter: Dict[str, object],
+        filter_tags_update: Optional[List[str]] = None,
+        members: Optional[List[ChannelBatchMemberRequest]] = None,
+        data: Optional[ChannelDataUpdate] = None,
+    ) -> StreamResponse[ChannelBatchUpdateResponse]:
+        json = build_body_dict(
+            operation=operation,
+            filter=filter,
+            filter_tags_update=filter_tags_update,
+            members=members,
+            data=data,
+        )
+        return self.put(
+            "/api/v2/chat/channels/batch", ChannelBatchUpdateResponse, json=json
+        )
 
     @telemetry.operation_name("getstream.api.chat.delete_channels")
     def delete_channels(
@@ -1391,6 +1417,17 @@ class ChatRestClient(BaseClient):
         return self.get(
             "/api/v2/chat/query_banned_users",
             QueryBannedUsersResponse,
+            query_params=query_params,
+        )
+
+    @telemetry.operation_name("getstream.api.chat.query_future_channel_bans")
+    def query_future_channel_bans(
+        self, payload: Optional[QueryFutureChannelBansPayload] = None
+    ) -> StreamResponse[QueryFutureChannelBansResponse]:
+        query_params = build_query_param(payload=payload)
+        return self.get(
+            "/api/v2/chat/query_future_channel_bans",
+            QueryFutureChannelBansResponse,
             query_params=query_params,
         )
 
