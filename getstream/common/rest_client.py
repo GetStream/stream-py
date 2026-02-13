@@ -747,7 +747,7 @@ class CommonRestClient(BaseClient):
 
     @telemetry.operation_name("getstream.api.common.upsert_push_provider")
     def upsert_push_provider(
-        self, push_provider: Optional[PushProvider] = None
+        self, push_provider: Optional[PushProviderRequest] = None
     ) -> StreamResponse[UpsertPushProviderResponse]:
         json = build_body_dict(push_provider=push_provider)
         return self.post(
