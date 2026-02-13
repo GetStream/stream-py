@@ -263,7 +263,7 @@ class ModerationRestClient(AsyncBaseClient):
         flags: List[CustomCheckFlag],
         entity_creator_id: Optional[str] = None,
         user_id: Optional[str] = None,
-        moderation_payload: Optional[ModerationPayload] = None,
+        moderation_payload: Optional[ModerationPayloadRequest] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[CustomCheckResponse]:
         json = build_body_dict(
@@ -299,7 +299,7 @@ class ModerationRestClient(AsyncBaseClient):
 
     @telemetry.operation_name("getstream.api.moderation.v2_upsert_template")
     async def v2_upsert_template(
-        self, name: str, config: FeedsModerationTemplateConfig
+        self, name: str, config: FeedsModerationTemplateConfigPayload
     ) -> StreamResponse[UpsertModerationTemplateResponse]:
         json = build_body_dict(name=name, config=config)
         return await self.post(
@@ -338,7 +338,7 @@ class ModerationRestClient(AsyncBaseClient):
         limit: Optional[int] = None,
         next: Optional[str] = None,
         prev: Optional[str] = None,
-        sort: Optional[List[SortParam]] = None,
+        sort: Optional[List[SortParamRequest]] = None,
         filter: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[QueryModerationFlagsResponse]:
         json = build_body_dict(
@@ -511,20 +511,21 @@ class ModerationRestClient(AsyncBaseClient):
         appeal_id: Optional[str] = None,
         item_id: Optional[str] = None,
         user_id: Optional[str] = None,
-        ban: Optional[BanActionRequest] = None,
-        block: Optional[BlockActionRequest] = None,
-        custom: Optional[CustomActionRequest] = None,
-        delete_activity: Optional[DeleteActivityRequest] = None,
-        delete_comment: Optional[DeleteCommentRequest] = None,
-        delete_message: Optional[DeleteMessageRequest] = None,
-        delete_reaction: Optional[DeleteReactionRequest] = None,
-        delete_user: Optional[DeleteUserRequest] = None,
-        mark_reviewed: Optional[MarkReviewedRequest] = None,
-        reject_appeal: Optional[RejectAppealRequest] = None,
-        restore: Optional[RestoreActionRequest] = None,
-        shadow_block: Optional[ShadowBlockActionRequest] = None,
-        unban: Optional[UnbanActionRequest] = None,
-        unblock: Optional[UnblockActionRequest] = None,
+        ban: Optional[BanActionRequestPayload] = None,
+        block: Optional[BlockActionRequestPayload] = None,
+        custom: Optional[CustomActionRequestPayload] = None,
+        delete_activity: Optional[DeleteActivityRequestPayload] = None,
+        delete_comment: Optional[DeleteCommentRequestPayload] = None,
+        delete_message: Optional[DeleteMessageRequestPayload] = None,
+        delete_reaction: Optional[DeleteReactionRequestPayload] = None,
+        delete_user: Optional[DeleteUserRequestPayload] = None,
+        flag: Optional[FlagRequest] = None,
+        mark_reviewed: Optional[MarkReviewedRequestPayload] = None,
+        reject_appeal: Optional[RejectAppealRequestPayload] = None,
+        restore: Optional[RestoreActionRequestPayload] = None,
+        shadow_block: Optional[ShadowBlockActionRequestPayload] = None,
+        unban: Optional[UnbanActionRequestPayload] = None,
+        unblock: Optional[UnblockActionRequestPayload] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[SubmitActionResponse]:
         json = build_body_dict(
@@ -540,6 +541,7 @@ class ModerationRestClient(AsyncBaseClient):
             delete_message=delete_message,
             delete_reaction=delete_reaction,
             delete_user=delete_user,
+            flag=flag,
             mark_reviewed=mark_reviewed,
             reject_appeal=reject_appeal,
             restore=restore,
