@@ -1762,7 +1762,7 @@ class AsyncExportErrorEvent(DataClassJsonMixin):
     task_id: str = dc_field(metadata=dc_config(field_name="task_id"))
     custom: Dict[str, object] = dc_field(metadata=dc_config(field_name="custom"))
     type: str = dc_field(
-        default="export.moderation_logs.error", metadata=dc_config(field_name="type")
+        default="export.users.error", metadata=dc_config(field_name="type")
     )
     received_at: Optional[datetime] = dc_field(
         default=None,
@@ -13371,6 +13371,9 @@ class ModerationV2Response(DataClassJsonMixin):
     )
     semantic_filter_matched: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="semantic_filter_matched")
+    )
+    blocklists_matched: Optional[List[str]] = dc_field(
+        default=None, metadata=dc_config(field_name="blocklists_matched")
     )
     image_harms: Optional[List[str]] = dc_field(
         default=None, metadata=dc_config(field_name="image_harms")
