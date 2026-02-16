@@ -113,10 +113,13 @@ class ChatRestClient(BaseClient):
         member_limit: Optional[int] = None,
         message_limit: Optional[int] = None,
         offset: Optional[int] = None,
+        predefined_filter: Optional[str] = None,
         state: Optional[bool] = None,
         user_id: Optional[str] = None,
         sort: Optional[List[SortParamRequest]] = None,
         filter_conditions: Optional[Dict[str, object]] = None,
+        filter_values: Optional[Dict[str, object]] = None,
+        sort_values: Optional[Dict[str, object]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[QueryChannelsResponse]:
         json = build_body_dict(
@@ -124,10 +127,13 @@ class ChatRestClient(BaseClient):
             member_limit=member_limit,
             message_limit=message_limit,
             offset=offset,
+            predefined_filter=predefined_filter,
             state=state,
             user_id=user_id,
             sort=sort,
             filter_conditions=filter_conditions,
+            filter_values=filter_values,
+            sort_values=sort_values,
             user=user,
         )
         return self.post("/api/v2/chat/channels", QueryChannelsResponse, json=json)
@@ -676,6 +682,7 @@ class ChatRestClient(BaseClient):
         partition_size: Optional[int] = None,
         partition_ttl: Optional[str] = None,
         polls: Optional[bool] = None,
+        push_level: Optional[str] = None,
         push_notifications: Optional[bool] = None,
         reactions: Optional[bool] = None,
         read_events: Optional[bool] = None,
@@ -709,6 +716,7 @@ class ChatRestClient(BaseClient):
             partition_size=partition_size,
             partition_ttl=partition_ttl,
             polls=polls,
+            push_level=push_level,
             push_notifications=push_notifications,
             reactions=reactions,
             read_events=read_events,
@@ -767,6 +775,7 @@ class ChatRestClient(BaseClient):
         partition_size: Optional[int] = None,
         partition_ttl: Optional[str] = None,
         polls: Optional[bool] = None,
+        push_level: Optional[str] = None,
         push_notifications: Optional[bool] = None,
         quotes: Optional[bool] = None,
         reactions: Optional[bool] = None,
@@ -805,6 +814,7 @@ class ChatRestClient(BaseClient):
             partition_size=partition_size,
             partition_ttl=partition_ttl,
             polls=polls,
+            push_level=push_level,
             push_notifications=push_notifications,
             quotes=quotes,
             reactions=reactions,
@@ -1017,6 +1027,7 @@ class ChatRestClient(BaseClient):
         self,
         id: str,
         skip_enrich_url: Optional[bool] = None,
+        skip_push: Optional[bool] = None,
         user_id: Optional[str] = None,
         unset: Optional[List[str]] = None,
         set: Optional[Dict[str, object]] = None,
@@ -1027,6 +1038,7 @@ class ChatRestClient(BaseClient):
         }
         json = build_body_dict(
             skip_enrich_url=skip_enrich_url,
+            skip_push=skip_push,
             user_id=user_id,
             unset=unset,
             set=set,
@@ -1046,14 +1058,14 @@ class ChatRestClient(BaseClient):
         form_data: Dict[str, str],
         user_id: Optional[str] = None,
         user: Optional[UserRequest] = None,
-    ) -> StreamResponse[MessageResponse]:
+    ) -> StreamResponse[MessageActionResponse]:
         path_params = {
             "id": id,
         }
         json = build_body_dict(form_data=form_data, user_id=user_id, user=user)
         return self.post(
             "/api/v2/chat/messages/{id}/action",
-            MessageResponse,
+            MessageActionResponse,
             path_params=path_params,
             json=json,
         )
@@ -1062,14 +1074,14 @@ class ChatRestClient(BaseClient):
     def commit_message(
         self,
         id: str,
-    ) -> StreamResponse[MessageResponse]:
+    ) -> StreamResponse[MessageActionResponse]:
         path_params = {
             "id": id,
         }
         json = build_body_dict()
         return self.post(
             "/api/v2/chat/messages/{id}/commit",
-            MessageResponse,
+            MessageActionResponse,
             path_params=path_params,
             json=json,
         )
@@ -1079,6 +1091,7 @@ class ChatRestClient(BaseClient):
         self,
         id: str,
         skip_enrich_url: Optional[bool] = None,
+        skip_push: Optional[bool] = None,
         user_id: Optional[str] = None,
         unset: Optional[List[str]] = None,
         set: Optional[Dict[str, object]] = None,
@@ -1089,6 +1102,7 @@ class ChatRestClient(BaseClient):
         }
         json = build_body_dict(
             skip_enrich_url=skip_enrich_url,
+            skip_push=skip_push,
             user_id=user_id,
             unset=unset,
             set=set,
@@ -1187,14 +1201,14 @@ class ChatRestClient(BaseClient):
     @telemetry.operation_name("getstream.api.chat.translate_message")
     def translate_message(
         self, id: str, language: str
-    ) -> StreamResponse[MessageResponse]:
+    ) -> StreamResponse[MessageActionResponse]:
         path_params = {
             "id": id,
         }
         json = build_body_dict(language=language)
         return self.post(
             "/api/v2/chat/messages/{id}/translate",
-            MessageResponse,
+            MessageActionResponse,
             path_params=path_params,
             json=json,
         )
@@ -1391,6 +1405,17 @@ class ChatRestClient(BaseClient):
         return self.get(
             "/api/v2/chat/query_banned_users",
             QueryBannedUsersResponse,
+            query_params=query_params,
+        )
+
+    @telemetry.operation_name("getstream.api.chat.query_future_channel_bans")
+    def query_future_channel_bans(
+        self, payload: Optional[QueryFutureChannelBansPayload] = None
+    ) -> StreamResponse[QueryFutureChannelBansResponse]:
+        query_params = build_query_param(payload=payload)
+        return self.get(
+            "/api/v2/chat/query_future_channel_bans",
+            QueryFutureChannelBansResponse,
             query_params=query_params,
         )
 

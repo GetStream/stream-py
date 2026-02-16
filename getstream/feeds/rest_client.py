@@ -36,12 +36,15 @@ class FeedsRestClient(BaseClient):
         self,
         type: str,
         feeds: List[str],
+        copy_custom_to_notification: Optional[bool] = None,
+        create_notification_activity: Optional[bool] = None,
         expires_at: Optional[str] = None,
         id: Optional[str] = None,
         parent_id: Optional[str] = None,
         poll_id: Optional[str] = None,
         restrict_replies: Optional[str] = None,
         skip_enrich_url: Optional[bool] = None,
+        skip_push: Optional[bool] = None,
         text: Optional[str] = None,
         user_id: Optional[str] = None,
         visibility: Optional[str] = None,
@@ -58,12 +61,15 @@ class FeedsRestClient(BaseClient):
         json = build_body_dict(
             type=type,
             feeds=feeds,
+            copy_custom_to_notification=copy_custom_to_notification,
+            create_notification_activity=create_notification_activity,
             expires_at=expires_at,
             id=id,
             parent_id=parent_id,
             poll_id=poll_id,
             restrict_replies=restrict_replies,
             skip_enrich_url=skip_enrich_url,
+            skip_push=skip_push,
             text=text,
             user_id=user_id,
             visibility=visibility,
@@ -88,16 +94,32 @@ class FeedsRestClient(BaseClient):
             "/api/v2/feeds/activities/batch", UpsertActivitiesResponse, json=json
         )
 
+    @telemetry.operation_name("getstream.api.feeds.update_activities_partial_batch")
+    def update_activities_partial_batch(
+        self, changes: List[UpdateActivityPartialChangeRequest]
+    ) -> StreamResponse[UpdateActivitiesPartialBatchResponse]:
+        json = build_body_dict(changes=changes)
+        return self.patch(
+            "/api/v2/feeds/activities/batch/partial",
+            UpdateActivitiesPartialBatchResponse,
+            json=json,
+        )
+
     @telemetry.operation_name("getstream.api.feeds.delete_activities")
     def delete_activities(
         self,
         ids: List[str],
+        delete_notification_activity: Optional[bool] = None,
         hard_delete: Optional[bool] = None,
         user_id: Optional[str] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[DeleteActivitiesResponse]:
         json = build_body_dict(
-            ids=ids, hard_delete=hard_delete, user_id=user_id, user=user
+            ids=ids,
+            delete_notification_activity=delete_notification_activity,
+            hard_delete=hard_delete,
+            user_id=user_id,
+            user=user,
         )
         return self.post(
             "/api/v2/feeds/activities/delete", DeleteActivitiesResponse, json=json
@@ -277,6 +299,7 @@ class FeedsRestClient(BaseClient):
         self,
         activity_id: str,
         type: str,
+        copy_custom_to_notification: Optional[bool] = None,
         create_notification_activity: Optional[bool] = None,
         enforce_unique: Optional[bool] = None,
         skip_push: Optional[bool] = None,
@@ -289,6 +312,7 @@ class FeedsRestClient(BaseClient):
         }
         json = build_body_dict(
             type=type,
+            copy_custom_to_notification=copy_custom_to_notification,
             create_notification_activity=create_notification_activity,
             enforce_unique=enforce_unique,
             skip_push=skip_push,
@@ -328,9 +352,15 @@ class FeedsRestClient(BaseClient):
 
     @telemetry.operation_name("getstream.api.feeds.delete_activity_reaction")
     def delete_activity_reaction(
-        self, activity_id: str, type: str, user_id: Optional[str] = None
+        self,
+        activity_id: str,
+        type: str,
+        delete_notification_activity: Optional[bool] = None,
+        user_id: Optional[str] = None,
     ) -> StreamResponse[DeleteActivityReactionResponse]:
-        query_params = build_query_param(user_id=user_id)
+        query_params = build_query_param(
+            delete_notification_activity=delete_notification_activity, user_id=user_id
+        )
         path_params = {
             "activity_id": activity_id,
             "type": type,
@@ -344,9 +374,15 @@ class FeedsRestClient(BaseClient):
 
     @telemetry.operation_name("getstream.api.feeds.delete_activity")
     def delete_activity(
-        self, id: str, hard_delete: Optional[bool] = None
+        self,
+        id: str,
+        hard_delete: Optional[bool] = None,
+        delete_notification_activity: Optional[bool] = None,
     ) -> StreamResponse[DeleteActivityResponse]:
-        query_params = build_query_param(hard_delete=hard_delete)
+        query_params = build_query_param(
+            hard_delete=hard_delete,
+            delete_notification_activity=delete_notification_activity,
+        )
         path_params = {
             "id": id,
         }
@@ -372,6 +408,9 @@ class FeedsRestClient(BaseClient):
     def update_activity_partial(
         self,
         id: str,
+        copy_custom_to_notification: Optional[bool] = None,
+        handle_mention_notifications: Optional[bool] = None,
+        run_activity_processors: Optional[bool] = None,
         user_id: Optional[str] = None,
         unset: Optional[List[str]] = None,
         set: Optional[Dict[str, object]] = None,
@@ -380,7 +419,15 @@ class FeedsRestClient(BaseClient):
         path_params = {
             "id": id,
         }
-        json = build_body_dict(user_id=user_id, unset=unset, set=set, user=user)
+        json = build_body_dict(
+            copy_custom_to_notification=copy_custom_to_notification,
+            handle_mention_notifications=handle_mention_notifications,
+            run_activity_processors=run_activity_processors,
+            user_id=user_id,
+            unset=unset,
+            set=set,
+            user=user,
+        )
         return self.patch(
             "/api/v2/feeds/activities/{id}",
             UpdateActivityPartialResponse,
@@ -392,13 +439,17 @@ class FeedsRestClient(BaseClient):
     def update_activity(
         self,
         id: str,
+        copy_custom_to_notification: Optional[bool] = None,
         expires_at: Optional[datetime] = None,
+        handle_mention_notifications: Optional[bool] = None,
         poll_id: Optional[str] = None,
         restrict_replies: Optional[str] = None,
+        run_activity_processors: Optional[bool] = None,
         skip_enrich_url: Optional[bool] = None,
         text: Optional[str] = None,
         user_id: Optional[str] = None,
         visibility: Optional[str] = None,
+        visibility_tag: Optional[str] = None,
         attachments: Optional[List[Attachment]] = None,
         collection_refs: Optional[List[str]] = None,
         feeds: Optional[List[str]] = None,
@@ -407,19 +458,24 @@ class FeedsRestClient(BaseClient):
         mentioned_user_ids: Optional[List[str]] = None,
         custom: Optional[Dict[str, object]] = None,
         location: Optional[ActivityLocation] = None,
+        search_data: Optional[Dict[str, object]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[UpdateActivityResponse]:
         path_params = {
             "id": id,
         }
         json = build_body_dict(
+            copy_custom_to_notification=copy_custom_to_notification,
             expires_at=expires_at,
+            handle_mention_notifications=handle_mention_notifications,
             poll_id=poll_id,
             restrict_replies=restrict_replies,
+            run_activity_processors=run_activity_processors,
             skip_enrich_url=skip_enrich_url,
             text=text,
             user_id=user_id,
             visibility=visibility,
+            visibility_tag=visibility_tag,
             attachments=attachments,
             collection_refs=collection_refs,
             feeds=feeds,
@@ -428,11 +484,27 @@ class FeedsRestClient(BaseClient):
             mentioned_user_ids=mentioned_user_ids,
             custom=custom,
             location=location,
+            search_data=search_data,
             user=user,
         )
         return self.put(
             "/api/v2/feeds/activities/{id}",
             UpdateActivityResponse,
+            path_params=path_params,
+            json=json,
+        )
+
+    @telemetry.operation_name("getstream.api.feeds.restore_activity")
+    def restore_activity(
+        self, id: str, user_id: Optional[str] = None, user: Optional[UserRequest] = None
+    ) -> StreamResponse[RestoreActivityResponse]:
+        path_params = {
+            "id": id,
+        }
+        json = build_body_dict(user_id=user_id, user=user)
+        return self.post(
+            "/api/v2/feeds/activities/{id}/restore",
+            RestoreActivityResponse,
             path_params=path_params,
             json=json,
         )
@@ -569,6 +641,7 @@ class FeedsRestClient(BaseClient):
         depth: Optional[int] = None,
         sort: Optional[str] = None,
         replies_limit: Optional[int] = None,
+        user_id: Optional[str] = None,
         limit: Optional[int] = None,
         prev: Optional[str] = None,
         next: Optional[str] = None,
@@ -579,6 +652,7 @@ class FeedsRestClient(BaseClient):
             depth=depth,
             sort=sort,
             replies_limit=replies_limit,
+            user_id=user_id,
             limit=limit,
             prev=prev,
             next=next,
@@ -591,6 +665,7 @@ class FeedsRestClient(BaseClient):
     def add_comment(
         self,
         comment: Optional[str] = None,
+        copy_custom_to_notification: Optional[bool] = None,
         create_notification_activity: Optional[bool] = None,
         id: Optional[str] = None,
         object_id: Optional[str] = None,
@@ -606,6 +681,7 @@ class FeedsRestClient(BaseClient):
     ) -> StreamResponse[AddCommentResponse]:
         json = build_body_dict(
             comment=comment,
+            copy_custom_to_notification=copy_custom_to_notification,
             create_notification_activity=create_notification_activity,
             id=id,
             object_id=object_id,
@@ -648,9 +724,15 @@ class FeedsRestClient(BaseClient):
 
     @telemetry.operation_name("getstream.api.feeds.delete_comment")
     def delete_comment(
-        self, id: str, hard_delete: Optional[bool] = None
+        self,
+        id: str,
+        hard_delete: Optional[bool] = None,
+        delete_notification_activity: Optional[bool] = None,
     ) -> StreamResponse[DeleteCommentResponse]:
-        query_params = build_query_param(hard_delete=hard_delete)
+        query_params = build_query_param(
+            hard_delete=hard_delete,
+            delete_notification_activity=delete_notification_activity,
+        )
         path_params = {
             "id": id,
         }
@@ -675,10 +757,13 @@ class FeedsRestClient(BaseClient):
         self,
         id: str,
         comment: Optional[str] = None,
+        copy_custom_to_notification: Optional[bool] = None,
+        handle_mention_notifications: Optional[bool] = None,
         skip_enrich_url: Optional[bool] = None,
         skip_push: Optional[bool] = None,
         user_id: Optional[str] = None,
         attachments: Optional[List[Attachment]] = None,
+        mentioned_user_ids: Optional[List[str]] = None,
         custom: Optional[Dict[str, object]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[UpdateCommentResponse]:
@@ -687,10 +772,13 @@ class FeedsRestClient(BaseClient):
         }
         json = build_body_dict(
             comment=comment,
+            copy_custom_to_notification=copy_custom_to_notification,
+            handle_mention_notifications=handle_mention_notifications,
             skip_enrich_url=skip_enrich_url,
             skip_push=skip_push,
             user_id=user_id,
             attachments=attachments,
+            mentioned_user_ids=mentioned_user_ids,
             custom=custom,
             user=user,
         )
@@ -706,6 +794,7 @@ class FeedsRestClient(BaseClient):
         self,
         id: str,
         type: str,
+        copy_custom_to_notification: Optional[bool] = None,
         create_notification_activity: Optional[bool] = None,
         enforce_unique: Optional[bool] = None,
         skip_push: Optional[bool] = None,
@@ -718,6 +807,7 @@ class FeedsRestClient(BaseClient):
         }
         json = build_body_dict(
             type=type,
+            copy_custom_to_notification=copy_custom_to_notification,
             create_notification_activity=create_notification_activity,
             enforce_unique=enforce_unique,
             skip_push=skip_push,
@@ -757,9 +847,15 @@ class FeedsRestClient(BaseClient):
 
     @telemetry.operation_name("getstream.api.feeds.delete_comment_reaction")
     def delete_comment_reaction(
-        self, id: str, type: str, user_id: Optional[str] = None
+        self,
+        id: str,
+        type: str,
+        delete_notification_activity: Optional[bool] = None,
+        user_id: Optional[str] = None,
     ) -> StreamResponse[DeleteCommentReactionResponse]:
-        query_params = build_query_param(user_id=user_id)
+        query_params = build_query_param(
+            delete_notification_activity=delete_notification_activity, user_id=user_id
+        )
         path_params = {
             "id": id,
             "type": type,
@@ -778,6 +874,7 @@ class FeedsRestClient(BaseClient):
         depth: Optional[int] = None,
         sort: Optional[str] = None,
         replies_limit: Optional[int] = None,
+        user_id: Optional[str] = None,
         limit: Optional[int] = None,
         prev: Optional[str] = None,
         next: Optional[str] = None,
@@ -786,6 +883,7 @@ class FeedsRestClient(BaseClient):
             depth=depth,
             sort=sort,
             replies_limit=replies_limit,
+            user_id=user_id,
             limit=limit,
             prev=prev,
             next=next,
@@ -875,6 +973,7 @@ class FeedsRestClient(BaseClient):
         filter: Optional[Dict[str, object]] = None,
         followers_pagination: Optional[PagerRequest] = None,
         following_pagination: Optional[PagerRequest] = None,
+        friend_reactions_options: Optional[FriendReactionsOptions] = None,
         interest_weights: Optional[Dict[str, float]] = None,
         member_pagination: Optional[PagerRequest] = None,
         user: Optional[UserRequest] = None,
@@ -897,6 +996,7 @@ class FeedsRestClient(BaseClient):
             filter=filter,
             followers_pagination=followers_pagination,
             following_pagination=following_pagination,
+            friend_reactions_options=friend_reactions_options,
             interest_weights=interest_weights,
             member_pagination=member_pagination,
             user=user,
@@ -1412,19 +1512,23 @@ class FeedsRestClient(BaseClient):
         self,
         source: str,
         target: str,
+        copy_custom_to_notification: Optional[bool] = None,
         create_notification_activity: Optional[bool] = None,
         follower_role: Optional[str] = None,
         push_preference: Optional[str] = None,
         skip_push: Optional[bool] = None,
+        status: Optional[str] = None,
         custom: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[UpdateFollowResponse]:
         json = build_body_dict(
             source=source,
             target=target,
+            copy_custom_to_notification=copy_custom_to_notification,
             create_notification_activity=create_notification_activity,
             follower_role=follower_role,
             push_preference=push_preference,
             skip_push=skip_push,
+            status=status,
             custom=custom,
         )
         return self.patch("/api/v2/feeds/follows", UpdateFollowResponse, json=json)
@@ -1434,17 +1538,21 @@ class FeedsRestClient(BaseClient):
         self,
         source: str,
         target: str,
+        copy_custom_to_notification: Optional[bool] = None,
         create_notification_activity: Optional[bool] = None,
         push_preference: Optional[str] = None,
         skip_push: Optional[bool] = None,
+        status: Optional[str] = None,
         custom: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[SingleFollowResponse]:
         json = build_body_dict(
             source=source,
             target=target,
+            copy_custom_to_notification=copy_custom_to_notification,
             create_notification_activity=create_notification_activity,
             push_preference=push_preference,
             skip_push=skip_push,
+            status=status,
             custom=custom,
         )
         return self.post("/api/v2/feeds/follows", SingleFollowResponse, json=json)
@@ -1500,7 +1608,15 @@ class FeedsRestClient(BaseClient):
         )
 
     @telemetry.operation_name("getstream.api.feeds.unfollow")
-    def unfollow(self, source: str, target: str) -> StreamResponse[UnfollowResponse]:
+    def unfollow(
+        self,
+        source: str,
+        target: str,
+        delete_notification_activity: Optional[bool] = None,
+    ) -> StreamResponse[UnfollowResponse]:
+        query_params = build_query_param(
+            delete_notification_activity=delete_notification_activity
+        )
         path_params = {
             "source": source,
             "target": target,
@@ -1508,6 +1624,7 @@ class FeedsRestClient(BaseClient):
         return self.delete(
             "/api/v2/feeds/follows/{source}/{target}",
             UnfollowResponse,
+            query_params=query_params,
             path_params=path_params,
         )
 
@@ -1598,18 +1715,26 @@ class FeedsRestClient(BaseClient):
 
     @telemetry.operation_name("getstream.api.feeds.unfollow_batch")
     def unfollow_batch(
-        self, follows: List[FollowPair]
+        self,
+        follows: List[FollowPair],
+        delete_notification_activity: Optional[bool] = None,
     ) -> StreamResponse[UnfollowBatchResponse]:
-        json = build_body_dict(follows=follows)
+        json = build_body_dict(
+            follows=follows, delete_notification_activity=delete_notification_activity
+        )
         return self.post(
             "/api/v2/feeds/unfollow/batch", UnfollowBatchResponse, json=json
         )
 
     @telemetry.operation_name("getstream.api.feeds.get_or_create_unfollows")
     def get_or_create_unfollows(
-        self, follows: List[FollowPair]
+        self,
+        follows: List[FollowPair],
+        delete_notification_activity: Optional[bool] = None,
     ) -> StreamResponse[UnfollowBatchResponse]:
-        json = build_body_dict(follows=follows)
+        json = build_body_dict(
+            follows=follows, delete_notification_activity=delete_notification_activity
+        )
         return self.post(
             "/api/v2/feeds/unfollow/batch/upsert", UnfollowBatchResponse, json=json
         )
