@@ -381,7 +381,10 @@ def parse_webhook_event(raw_event: Union[bytes, str, Dict[str, Any]]) -> Any:
     if event_class is None:
         raise ValueError(f"Unknown webhook event type: {event_type}")
 
-    return event_class(**data)
+    try:
+        return event_class.from_dict(data, infer_missing=True)
+    except Exception as e:
+        raise ValueError(f"Failed to deserialize webhook event: {e}")
 
 
 def _get_event_class(event_type: str):
