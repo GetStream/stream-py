@@ -329,21 +329,21 @@ def test_start_stop_frame_recording(client: Stream):
     call.get_or_create(data=CallRequest(created_by_id=user_id))
 
     with pytest.raises(StreamAPIException) as e_info:
-        call.start_recording()
+        call.start_frame_recording()
 
     assert e_info.value.status_code == 400
     assert (
         e_info.value.api_error.message
-        == 'StartRecording failed with error: "there is no active session"'
+        == 'StartFrameRecording failed with error: "there is no active session"'
     )
 
     with pytest.raises(StreamAPIException) as e_info:
-        call.stop_recording()
+        call.stop_frame_recording()
 
     assert e_info.value.status_code == 400
     assert (
         e_info.value.api_error.message
-        == 'StopRecording failed with error: "call egress is not running"'
+        == 'StopFrameRecording failed with error: "call egress is not running"'
     )
 
 
