@@ -93,12 +93,22 @@ def datetime_from_unix_ns(
     raise TypeError(f"Unsupported type for ts: {type(ts)}")
 
 
+def _serialize_query_value(value) -> str:
+    """Serialize a single value for use in a query parameter."""
+    if hasattr(value, "to_json") and callable(value.to_json):
+        return value.to_json()
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return str(value)
+
+
 def build_query_param(**kwargs):
     """
     Constructs a dictionary of query parameters from keyword arguments.
 
     This function handles various data types:
     - JSON-serializable objects with a `to_json` method will be serialized using that method.
+    - datetime objects are converted to ISO 8601 strings.
     - Booleans are converted to lowercase strings.
     - Lists are converted to comma-separated strings with URL-encoded values.
     - Other types (strings, integers, dictionaries) are handled appropriately.
@@ -115,13 +125,14 @@ def build_query_param(**kwargs):
             continue
         if hasattr(value, "to_json") and callable(value.to_json):
             params[key] = value.to_json()
+        elif isinstance(value, datetime):
+            params[key] = encode_datetime(value)
         elif isinstance(value, bool):
             params[key] = str(value).lower()
         elif isinstance(value, (str, int)):
             params[key] = str(value)
         elif isinstance(value, list):
-            # Process each element, escaping commas in the string representation
-            params[key] = ",".join(quote(str(v)) for v in value)
+            params[key] = ",".join(quote(_serialize_query_value(v)) for v in value)
         else:
             # For dictionaries or any other types of objects
             params[key] = json.dumps(value)

@@ -47,13 +47,15 @@ class VideoRestClient(BaseClient):
         sort: Optional[List[SortParamRequest]] = None,
         filter_conditions: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[QueryUserFeedbackResponse]:
-        query_params = build_query_param(full=full)
+        query_params = build_query_param(**{"full": full})
         json = build_body_dict(
-            limit=limit,
-            next=next,
-            prev=prev,
-            sort=sort,
-            filter_conditions=filter_conditions,
+            **{
+                "limit": limit,
+                "next": next,
+                "prev": prev,
+                "sort": sort,
+                "filter_conditions": filter_conditions,
+            }
         )
         return self.post(
             "/api/v2/video/call/feedback",
@@ -74,13 +76,15 @@ class VideoRestClient(BaseClient):
         filter_conditions: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[QueryCallMembersResponse]:
         json = build_body_dict(
-            id=id,
-            type=type,
-            limit=limit,
-            next=next,
-            prev=prev,
-            sort=sort,
-            filter_conditions=filter_conditions,
+            **{
+                "id": id,
+                "type": type,
+                "limit": limit,
+                "next": next,
+                "prev": prev,
+                "sort": sort,
+                "filter_conditions": filter_conditions,
+            }
         )
         return self.post(
             "/api/v2/video/call/members", QueryCallMembersResponse, json=json
@@ -96,11 +100,13 @@ class VideoRestClient(BaseClient):
         filter_conditions: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[QueryCallStatsResponse]:
         json = build_body_dict(
-            limit=limit,
-            next=next,
-            prev=prev,
-            sort=sort,
-            filter_conditions=filter_conditions,
+            **{
+                "limit": limit,
+                "next": next,
+                "prev": prev,
+                "sort": sort,
+                "filter_conditions": filter_conditions,
+            }
         )
         return self.post("/api/v2/video/call/stats", QueryCallStatsResponse, json=json)
 
@@ -115,7 +121,12 @@ class VideoRestClient(BaseClient):
         video: Optional[bool] = None,
     ) -> StreamResponse[GetCallResponse]:
         query_params = build_query_param(
-            members_limit=members_limit, ring=ring, notify=notify, video=video
+            **{
+                "members_limit": members_limit,
+                "ring": ring,
+                "notify": notify,
+                "video": video,
+            }
         )
         path_params = {
             "type": type,
@@ -142,7 +153,11 @@ class VideoRestClient(BaseClient):
             "id": id,
         }
         json = build_body_dict(
-            starts_at=starts_at, custom=custom, settings_override=settings_override
+            **{
+                "starts_at": starts_at,
+                "custom": custom,
+                "settings_override": settings_override,
+            }
         )
         return self.patch(
             "/api/v2/video/call/{type}/{id}",
@@ -167,11 +182,13 @@ class VideoRestClient(BaseClient):
             "id": id,
         }
         json = build_body_dict(
-            members_limit=members_limit,
-            notify=notify,
-            ring=ring,
-            video=video,
-            data=data,
+            **{
+                "members_limit": members_limit,
+                "notify": notify,
+                "ring": ring,
+                "video": video,
+                "data": data,
+            }
         )
         return self.post(
             "/api/v2/video/call/{type}/{id}",
@@ -188,7 +205,7 @@ class VideoRestClient(BaseClient):
             "type": type,
             "id": id,
         }
-        json = build_body_dict(user_id=user_id)
+        json = build_body_dict(**{"user_id": user_id})
         return self.post(
             "/api/v2/video/call/{type}/{id}/block",
             BlockUserResponse,
@@ -216,15 +233,17 @@ class VideoRestClient(BaseClient):
             "id": id,
         }
         json = build_body_dict(
-            speaker_id=speaker_id,
-            text=text,
-            end_time=end_time,
-            language=language,
-            service=service,
-            start_time=start_time,
-            translated=translated,
-            user_id=user_id,
-            user=user,
+            **{
+                "speaker_id": speaker_id,
+                "text": text,
+                "end_time": end_time,
+                "language": language,
+                "service": service,
+                "start_time": start_time,
+                "translated": translated,
+                "user_id": user_id,
+                "user": user,
+            }
         )
         return self.post(
             "/api/v2/video/call/{type}/{id}/closed_captions",
@@ -241,7 +260,7 @@ class VideoRestClient(BaseClient):
             "type": type,
             "id": id,
         }
-        json = build_body_dict(hard=hard)
+        json = build_body_dict(**{"hard": hard})
         return self.post(
             "/api/v2/video/call/{type}/{id}/delete",
             DeleteCallResponse,
@@ -262,7 +281,7 @@ class VideoRestClient(BaseClient):
             "type": type,
             "id": id,
         }
-        json = build_body_dict(user_id=user_id, custom=custom, user=user)
+        json = build_body_dict(**{"user_id": user_id, "custom": custom, "user": user})
         return self.post(
             "/api/v2/video/call/{type}/{id}/event",
             SendCallEventResponse,
@@ -287,12 +306,14 @@ class VideoRestClient(BaseClient):
             "id": id,
         }
         json = build_body_dict(
-            rating=rating,
-            sdk=sdk,
-            sdk_version=sdk_version,
-            reason=reason,
-            user_session_id=user_session_id,
-            custom=custom,
+            **{
+                "rating": rating,
+                "sdk": sdk,
+                "sdk_version": sdk_version,
+                "reason": reason,
+                "user_session_id": user_session_id,
+                "custom": custom,
+            }
         )
         return self.post(
             "/api/v2/video/call/{type}/{id}/feedback",
@@ -321,15 +342,17 @@ class VideoRestClient(BaseClient):
             "id": id,
         }
         json = build_body_dict(
-            recording_storage_name=recording_storage_name,
-            start_closed_caption=start_closed_caption,
-            start_composite_recording=start_composite_recording,
-            start_hls=start_hls,
-            start_individual_recording=start_individual_recording,
-            start_raw_recording=start_raw_recording,
-            start_recording=start_recording,
-            start_transcription=start_transcription,
-            transcription_storage_name=transcription_storage_name,
+            **{
+                "recording_storage_name": recording_storage_name,
+                "start_closed_caption": start_closed_caption,
+                "start_composite_recording": start_composite_recording,
+                "start_hls": start_hls,
+                "start_individual_recording": start_individual_recording,
+                "start_raw_recording": start_raw_recording,
+                "start_recording": start_recording,
+                "start_transcription": start_transcription,
+                "transcription_storage_name": transcription_storage_name,
+            }
         )
         return self.post(
             "/api/v2/video/call/{type}/{id}/go_live",
@@ -353,7 +376,12 @@ class VideoRestClient(BaseClient):
             "id": id,
         }
         json = build_body_dict(
-            user_id=user_id, block=block, kicked_by_id=kicked_by_id, kicked_by=kicked_by
+            **{
+                "user_id": user_id,
+                "block": block,
+                "kicked_by_id": kicked_by_id,
+                "kicked_by": kicked_by,
+            }
         )
         return self.post(
             "/api/v2/video/call/{type}/{id}/kick",
@@ -387,7 +415,7 @@ class VideoRestClient(BaseClient):
             "id": id,
         }
         json = build_body_dict(
-            remove_members=remove_members, update_members=update_members
+            **{"remove_members": remove_members, "update_members": update_members}
         )
         return self.post(
             "/api/v2/video/call/{type}/{id}/members",
@@ -415,14 +443,16 @@ class VideoRestClient(BaseClient):
             "id": id,
         }
         json = build_body_dict(
-            audio=audio,
-            mute_all_users=mute_all_users,
-            muted_by_id=muted_by_id,
-            screenshare=screenshare,
-            screenshare_audio=screenshare_audio,
-            video=video,
-            user_ids=user_ids,
-            muted_by=muted_by,
+            **{
+                "audio": audio,
+                "mute_all_users": mute_all_users,
+                "muted_by_id": muted_by_id,
+                "screenshare": screenshare,
+                "screenshare_audio": screenshare_audio,
+                "video": video,
+                "user_ids": user_ids,
+                "muted_by": muted_by,
+            }
         )
         return self.post(
             "/api/v2/video/call/{type}/{id}/mute_users",
@@ -439,12 +469,12 @@ class VideoRestClient(BaseClient):
         limit: Optional[int] = None,
         filter_conditions: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[QueryCallParticipantsResponse]:
-        query_params = build_query_param(limit=limit)
+        query_params = build_query_param(**{"limit": limit})
         path_params = {
             "id": id,
             "type": type,
         }
-        json = build_body_dict(filter_conditions=filter_conditions)
+        json = build_body_dict(**{"filter_conditions": filter_conditions})
         return self.post(
             "/api/v2/video/call/{type}/{id}/participants",
             QueryCallParticipantsResponse,
@@ -461,7 +491,7 @@ class VideoRestClient(BaseClient):
             "type": type,
             "id": id,
         }
-        json = build_body_dict(session_id=session_id, user_id=user_id)
+        json = build_body_dict(**{"session_id": session_id, "user_id": user_id})
         return self.post(
             "/api/v2/video/call/{type}/{id}/pin",
             PinResponse,
@@ -496,7 +526,9 @@ class VideoRestClient(BaseClient):
             "id": id,
             "recording_type": recording_type,
         }
-        json = build_body_dict(recording_external_storage=recording_external_storage)
+        json = build_body_dict(
+            **{"recording_external_storage": recording_external_storage}
+        )
         return self.post(
             "/api/v2/video/call/{type}/{id}/recordings/{recording_type}/start",
             StartRecordingResponse,
@@ -516,7 +548,7 @@ class VideoRestClient(BaseClient):
             "id": id,
             "recording_type": recording_type,
         }
-        json = build_body_dict()
+        json = build_body_dict(**{})
         return self.post(
             "/api/v2/video/call/{type}/{id}/recordings/{recording_type}/stop",
             StopRecordingResponse,
@@ -528,7 +560,7 @@ class VideoRestClient(BaseClient):
     def get_call_report(
         self, type: str, id: str, session_id: Optional[str] = None
     ) -> StreamResponse[GetCallReportResponse]:
-        query_params = build_query_param(session_id=session_id)
+        query_params = build_query_param(**{"session_id": session_id})
         path_params = {
             "type": type,
             "id": id,
@@ -552,7 +584,7 @@ class VideoRestClient(BaseClient):
             "type": type,
             "id": id,
         }
-        json = build_body_dict(video=video, members_ids=members_ids)
+        json = build_body_dict(**{"video": video, "members_ids": members_ids})
         return self.post(
             "/api/v2/video/call/{type}/{id}/ring",
             RingCallResponse,
@@ -568,7 +600,7 @@ class VideoRestClient(BaseClient):
             "type": type,
             "id": id,
         }
-        json = build_body_dict(broadcasts=broadcasts)
+        json = build_body_dict(**{"broadcasts": broadcasts})
         return self.post(
             "/api/v2/video/call/{type}/{id}/rtmp_broadcasts",
             StartRTMPBroadcastsResponse,
@@ -602,7 +634,7 @@ class VideoRestClient(BaseClient):
             "id": id,
             "name": name,
         }
-        json = build_body_dict()
+        json = build_body_dict(**{})
         return self.post(
             "/api/v2/video/call/{type}/{id}/rtmp_broadcasts/{name}/stop",
             StopRTMPBroadcastsResponse,
@@ -623,7 +655,7 @@ class VideoRestClient(BaseClient):
         since: Optional[datetime] = None,
         until: Optional[datetime] = None,
     ) -> StreamResponse[GetCallParticipantSessionMetricsResponse]:
-        query_params = build_query_param(since=since, until=until)
+        query_params = build_query_param(**{"since": since, "until": until})
         path_params = {
             "type": type,
             "id": id,
@@ -650,7 +682,12 @@ class VideoRestClient(BaseClient):
         filter_conditions: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[QueryCallParticipantSessionsResponse]:
         query_params = build_query_param(
-            limit=limit, prev=prev, next=next, filter_conditions=filter_conditions
+            **{
+                "limit": limit,
+                "prev": prev,
+                "next": next,
+                "filter_conditions": filter_conditions,
+            }
         )
         path_params = {
             "type": type,
@@ -693,10 +730,12 @@ class VideoRestClient(BaseClient):
             "id": id,
         }
         json = build_body_dict(
-            enable_transcription=enable_transcription,
-            external_storage=external_storage,
-            language=language,
-            speech_segment_config=speech_segment_config,
+            **{
+                "enable_transcription": enable_transcription,
+                "external_storage": external_storage,
+                "language": language,
+                "speech_segment_config": speech_segment_config,
+            }
         )
         return self.post(
             "/api/v2/video/call/{type}/{id}/start_closed_captions",
@@ -713,7 +752,9 @@ class VideoRestClient(BaseClient):
             "type": type,
             "id": id,
         }
-        json = build_body_dict(recording_external_storage=recording_external_storage)
+        json = build_body_dict(
+            **{"recording_external_storage": recording_external_storage}
+        )
         return self.post(
             "/api/v2/video/call/{type}/{id}/start_frame_recording",
             StartFrameRecordingResponse,
@@ -735,9 +776,11 @@ class VideoRestClient(BaseClient):
             "id": id,
         }
         json = build_body_dict(
-            enable_closed_captions=enable_closed_captions,
-            language=language,
-            transcription_external_storage=transcription_external_storage,
+            **{
+                "enable_closed_captions": enable_closed_captions,
+                "language": language,
+                "transcription_external_storage": transcription_external_storage,
+            }
         )
         return self.post(
             "/api/v2/video/call/{type}/{id}/start_transcription",
@@ -768,7 +811,7 @@ class VideoRestClient(BaseClient):
             "type": type,
             "id": id,
         }
-        json = build_body_dict(stop_transcription=stop_transcription)
+        json = build_body_dict(**{"stop_transcription": stop_transcription})
         return self.post(
             "/api/v2/video/call/{type}/{id}/stop_closed_captions",
             StopClosedCaptionsResponse,
@@ -809,14 +852,16 @@ class VideoRestClient(BaseClient):
             "id": id,
         }
         json = build_body_dict(
-            continue_closed_caption=continue_closed_caption,
-            continue_composite_recording=continue_composite_recording,
-            continue_hls=continue_hls,
-            continue_individual_recording=continue_individual_recording,
-            continue_raw_recording=continue_raw_recording,
-            continue_recording=continue_recording,
-            continue_rtmp_broadcasts=continue_rtmp_broadcasts,
-            continue_transcription=continue_transcription,
+            **{
+                "continue_closed_caption": continue_closed_caption,
+                "continue_composite_recording": continue_composite_recording,
+                "continue_hls": continue_hls,
+                "continue_individual_recording": continue_individual_recording,
+                "continue_raw_recording": continue_raw_recording,
+                "continue_recording": continue_recording,
+                "continue_rtmp_broadcasts": continue_rtmp_broadcasts,
+                "continue_transcription": continue_transcription,
+            }
         )
         return self.post(
             "/api/v2/video/call/{type}/{id}/stop_live",
@@ -833,7 +878,7 @@ class VideoRestClient(BaseClient):
             "type": type,
             "id": id,
         }
-        json = build_body_dict(stop_closed_captions=stop_closed_captions)
+        json = build_body_dict(**{"stop_closed_captions": stop_closed_captions})
         return self.post(
             "/api/v2/video/call/{type}/{id}/stop_transcription",
             StopTranscriptionResponse,
@@ -863,7 +908,7 @@ class VideoRestClient(BaseClient):
             "type": type,
             "id": id,
         }
-        json = build_body_dict(user_id=user_id)
+        json = build_body_dict(**{"user_id": user_id})
         return self.post(
             "/api/v2/video/call/{type}/{id}/unblock",
             UnblockUserResponse,
@@ -879,7 +924,7 @@ class VideoRestClient(BaseClient):
             "type": type,
             "id": id,
         }
-        json = build_body_dict(session_id=session_id, user_id=user_id)
+        json = build_body_dict(**{"session_id": session_id, "user_id": user_id})
         return self.post(
             "/api/v2/video/call/{type}/{id}/unpin",
             UnpinResponse,
@@ -901,9 +946,11 @@ class VideoRestClient(BaseClient):
             "id": id,
         }
         json = build_body_dict(
-            user_id=user_id,
-            grant_permissions=grant_permissions,
-            revoke_permissions=revoke_permissions,
+            **{
+                "user_id": user_id,
+                "grant_permissions": grant_permissions,
+                "revoke_permissions": revoke_permissions,
+            }
         )
         return self.post(
             "/api/v2/video/call/{type}/{id}/user_permissions",
@@ -957,11 +1004,13 @@ class VideoRestClient(BaseClient):
         exclude_sfus: Optional[bool] = None,
     ) -> StreamResponse[QueryCallStatsMapResponse]:
         query_params = build_query_param(
-            start_time=start_time,
-            end_time=end_time,
-            exclude_publishers=exclude_publishers,
-            exclude_subscribers=exclude_subscribers,
-            exclude_sfus=exclude_sfus,
+            **{
+                "start_time": start_time,
+                "end_time": end_time,
+                "exclude_publishers": exclude_publishers,
+                "exclude_subscribers": exclude_subscribers,
+                "exclude_sfus": exclude_sfus,
+            }
         )
         path_params = {
             "call_type": call_type,
@@ -990,7 +1039,7 @@ class VideoRestClient(BaseClient):
         max_points: Optional[int] = None,
     ) -> StreamResponse[GetCallSessionParticipantStatsDetailsResponse]:
         query_params = build_query_param(
-            since=since, until=until, max_points=max_points
+            **{"since": since, "until": until, "max_points": max_points}
         )
         path_params = {
             "call_type": call_type,
@@ -1021,11 +1070,13 @@ class VideoRestClient(BaseClient):
         filter_conditions: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[QueryCallSessionParticipantStatsResponse]:
         query_params = build_query_param(
-            limit=limit,
-            prev=prev,
-            next=next,
-            sort=sort,
-            filter_conditions=filter_conditions,
+            **{
+                "limit": limit,
+                "prev": prev,
+                "next": next,
+                "sort": sort,
+                "filter_conditions": filter_conditions,
+            }
         )
         path_params = {
             "call_type": call_type,
@@ -1054,7 +1105,7 @@ class VideoRestClient(BaseClient):
         severity: Optional[List[str]] = None,
     ) -> StreamResponse[QueryCallSessionParticipantStatsTimelineResponse]:
         query_params = build_query_param(
-            start_time=start_time, end_time=end_time, severity=severity
+            **{"start_time": start_time, "end_time": end_time, "severity": severity}
         )
         path_params = {
             "call_type": call_type,
@@ -1080,11 +1131,13 @@ class VideoRestClient(BaseClient):
         filter_conditions: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[QueryCallsResponse]:
         json = build_body_dict(
-            limit=limit,
-            next=next,
-            prev=prev,
-            sort=sort,
-            filter_conditions=filter_conditions,
+            **{
+                "limit": limit,
+                "next": next,
+                "prev": prev,
+                "sort": sort,
+                "filter_conditions": filter_conditions,
+            }
         )
         return self.post("/api/v2/video/calls", QueryCallsResponse, json=json)
 
@@ -1102,11 +1155,13 @@ class VideoRestClient(BaseClient):
         settings: Optional[CallSettingsRequest] = None,
     ) -> StreamResponse[CreateCallTypeResponse]:
         json = build_body_dict(
-            name=name,
-            external_storage=external_storage,
-            grants=grants,
-            notification_settings=notification_settings,
-            settings=settings,
+            **{
+                "name": name,
+                "external_storage": external_storage,
+                "grants": grants,
+                "notification_settings": notification_settings,
+                "settings": settings,
+            }
         )
         return self.post("/api/v2/video/calltypes", CreateCallTypeResponse, json=json)
 
@@ -1143,10 +1198,12 @@ class VideoRestClient(BaseClient):
             "name": name,
         }
         json = build_body_dict(
-            external_storage=external_storage,
-            grants=grants,
-            notification_settings=notification_settings,
-            settings=settings,
+            **{
+                "external_storage": external_storage,
+                "grants": grants,
+                "notification_settings": notification_settings,
+                "settings": settings,
+            }
         )
         return self.put(
             "/api/v2/video/calltypes/{name}",
@@ -1181,15 +1238,17 @@ class VideoRestClient(BaseClient):
         pin_routing_configs: Optional[SIPInboundRoutingRulePinConfigsRequest] = None,
     ) -> StreamResponse[SIPInboundRoutingRuleResponse]:
         json = build_body_dict(
-            name=name,
-            trunk_ids=trunk_ids,
-            caller_configs=caller_configs,
-            called_numbers=called_numbers,
-            caller_numbers=caller_numbers,
-            call_configs=call_configs,
-            direct_routing_configs=direct_routing_configs,
-            pin_protection_configs=pin_protection_configs,
-            pin_routing_configs=pin_routing_configs,
+            **{
+                "name": name,
+                "trunk_ids": trunk_ids,
+                "caller_configs": caller_configs,
+                "called_numbers": called_numbers,
+                "caller_numbers": caller_numbers,
+                "call_configs": call_configs,
+                "direct_routing_configs": direct_routing_configs,
+                "pin_protection_configs": pin_protection_configs,
+                "pin_routing_configs": pin_routing_configs,
+            }
         )
         return self.post(
             "/api/v2/video/sip/inbound_routing_rules",
@@ -1228,15 +1287,17 @@ class VideoRestClient(BaseClient):
             "id": id,
         }
         json = build_body_dict(
-            name=name,
-            called_numbers=called_numbers,
-            trunk_ids=trunk_ids,
-            caller_configs=caller_configs,
-            caller_numbers=caller_numbers,
-            call_configs=call_configs,
-            direct_routing_configs=direct_routing_configs,
-            pin_protection_configs=pin_protection_configs,
-            pin_routing_configs=pin_routing_configs,
+            **{
+                "name": name,
+                "called_numbers": called_numbers,
+                "trunk_ids": trunk_ids,
+                "caller_configs": caller_configs,
+                "caller_numbers": caller_numbers,
+                "call_configs": call_configs,
+                "direct_routing_configs": direct_routing_configs,
+                "pin_protection_configs": pin_protection_configs,
+                "pin_routing_configs": pin_routing_configs,
+            }
         )
         return self.put(
             "/api/v2/video/sip/inbound_routing_rules/{id}",
@@ -1253,7 +1314,7 @@ class VideoRestClient(BaseClient):
     def create_sip_trunk(
         self, name: str, numbers: List[str]
     ) -> StreamResponse[CreateSIPTrunkResponse]:
-        json = build_body_dict(name=name, numbers=numbers)
+        json = build_body_dict(**{"name": name, "numbers": numbers})
         return self.post(
             "/api/v2/video/sip/inbound_trunks", CreateSIPTrunkResponse, json=json
         )
@@ -1276,7 +1337,7 @@ class VideoRestClient(BaseClient):
         path_params = {
             "id": id,
         }
-        json = build_body_dict(name=name, numbers=numbers)
+        json = build_body_dict(**{"name": name, "numbers": numbers})
         return self.put(
             "/api/v2/video/sip/inbound_trunks/{id}",
             UpdateSIPTrunkResponse,
@@ -1294,11 +1355,13 @@ class VideoRestClient(BaseClient):
         sip_headers: Optional[Dict[str, str]] = None,
     ) -> StreamResponse[ResolveSipInboundResponse]:
         json = build_body_dict(
-            sip_caller_number=sip_caller_number,
-            sip_trunk_number=sip_trunk_number,
-            challenge=challenge,
-            routing_number=routing_number,
-            sip_headers=sip_headers,
+            **{
+                "sip_caller_number": sip_caller_number,
+                "sip_trunk_number": sip_trunk_number,
+                "challenge": challenge,
+                "routing_number": routing_number,
+                "sip_headers": sip_headers,
+            }
         )
         return self.post(
             "/api/v2/video/sip/resolve", ResolveSipInboundResponse, json=json
@@ -1311,7 +1374,9 @@ class VideoRestClient(BaseClient):
         to: Optional[str] = None,
         report_types: Optional[List[str]] = None,
     ) -> StreamResponse[QueryAggregateCallStatsResponse]:
-        json = build_body_dict(_from=_from, to=to, report_types=report_types)
+        json = build_body_dict(
+            **{"from": _from, "to": to, "report_types": report_types}
+        )
         return self.post(
             "/api/v2/video/stats", QueryAggregateCallStatsResponse, json=json
         )
