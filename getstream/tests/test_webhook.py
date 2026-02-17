@@ -897,6 +897,12 @@ class TestParseWebhookEvent:
             event = parse_webhook_event({"type": "moderation_check.completed"})
         assert type(event).__name__ == "ModerationCheckCompletedEvent"
 
+    def test_parse_moderation_rule_triggered(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            event = parse_webhook_event({"type": "moderation_rule.triggered"})
+        assert type(event).__name__ == "ModerationRulesTriggeredEvent"
+
     def test_parse_notification_mark_unread(self):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", RuntimeWarning)

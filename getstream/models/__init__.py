@@ -2705,6 +2705,31 @@ class CallAcceptedEvent(DataClassJsonMixin):
 
 
 @dataclass
+class CallActionOptions(DataClassJsonMixin):
+    duration: Optional[int] = dc_field(
+        default=None, metadata=dc_config(field_name="duration")
+    )
+    flag_reason: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="flag_reason")
+    )
+    kick_reason: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="kick_reason")
+    )
+    mute_audio: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="mute_audio")
+    )
+    mute_video: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="mute_video")
+    )
+    reason: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="reason")
+    )
+    warning_text: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="warning_text")
+    )
+
+
+@dataclass
 class CallClosedCaption(DataClassJsonMixin):
     end_time: datetime = dc_field(
         metadata=dc_config(
@@ -2795,6 +2820,16 @@ class CallCreatedEvent(DataClassJsonMixin):
     members: "List[MemberResponse]" = dc_field(metadata=dc_config(field_name="members"))
     call: "CallResponse" = dc_field(metadata=dc_config(field_name="call"))
     type: str = dc_field(default="call.created", metadata=dc_config(field_name="type"))
+
+
+@dataclass
+class CallCustomPropertyParameters(DataClassJsonMixin):
+    operator: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="operator")
+    )
+    property_key: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="property_key")
+    )
 
 
 @dataclass
@@ -3566,6 +3601,19 @@ class CallRtmpBroadcastStoppedEvent(DataClassJsonMixin):
 
 
 @dataclass
+class CallRuleActionSequence(DataClassJsonMixin):
+    violation_number: Optional[int] = dc_field(
+        default=None, metadata=dc_config(field_name="violation_number")
+    )
+    actions: Optional[List[str]] = dc_field(
+        default=None, metadata=dc_config(field_name="actions")
+    )
+    call_options: "Optional[CallActionOptions]" = dc_field(
+        default=None, metadata=dc_config(field_name="call_options")
+    )
+
+
+@dataclass
 class CallSessionEndedEvent(DataClassJsonMixin):
     call_cid: str = dc_field(metadata=dc_config(field_name="call_cid"))
     created_at: datetime = dc_field(
@@ -4303,6 +4351,13 @@ class CallTypeResponse(DataClassJsonMixin):
     )
     external_storage: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="external_storage")
+    )
+
+
+@dataclass
+class CallTypeRuleParameters(DataClassJsonMixin):
+    call_type: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="call_type")
     )
 
 
@@ -6112,6 +6167,19 @@ class ClosedCaptionEvent(DataClassJsonMixin):
     )
     type: str = dc_field(
         default="call.closed_caption", metadata=dc_config(field_name="type")
+    )
+
+
+@dataclass
+class ClosedCaptionRuleParameters(DataClassJsonMixin):
+    threshold: Optional[int] = dc_field(
+        default=None, metadata=dc_config(field_name="threshold")
+    )
+    harm_labels: Optional[List[str]] = dc_field(
+        default=None, metadata=dc_config(field_name="harm_labels")
+    )
+    llm_harm_labels: "Optional[Dict[str, str]]" = dc_field(
+        default=None, metadata=dc_config(field_name="llm_harm_labels")
     )
 
 
@@ -11237,6 +11305,19 @@ class JoinCallAPIMetrics(DataClassJsonMixin):
 
 
 @dataclass
+class KeyframeRuleParameters(DataClassJsonMixin):
+    min_confidence: Optional[float] = dc_field(
+        default=None, metadata=dc_config(field_name="min_confidence")
+    )
+    threshold: Optional[int] = dc_field(
+        default=None, metadata=dc_config(field_name="threshold")
+    )
+    harm_labels: Optional[List[str]] = dc_field(
+        default=None, metadata=dc_config(field_name="harm_labels")
+    )
+
+
+@dataclass
 class KickUserRequest(DataClassJsonMixin):
     user_id: str = dc_field(metadata=dc_config(field_name="user_id"))
     block: Optional[bool] = dc_field(
@@ -13320,6 +13401,14 @@ class ModerationResponse(DataClassJsonMixin):
 
 
 @dataclass
+class ModerationRuleInfo(DataClassJsonMixin):
+    description: str = dc_field(metadata=dc_config(field_name="description"))
+    id: str = dc_field(metadata=dc_config(field_name="id"))
+    name: str = dc_field(metadata=dc_config(field_name="name"))
+    type: str = dc_field(metadata=dc_config(field_name="type"))
+
+
+@dataclass
 class ModerationRuleV2Response(DataClassJsonMixin):
     created_at: datetime = dc_field(
         metadata=dc_config(
@@ -13344,18 +13433,61 @@ class ModerationRuleV2Response(DataClassJsonMixin):
         )
     )
     config_keys: List[str] = dc_field(metadata=dc_config(field_name="config_keys"))
-    action: "RuleBuilderAction" = dc_field(metadata=dc_config(field_name="action"))
     cooldown_period: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="cooldown_period")
     )
     logic: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="logic")
     )
+    action_sequences: "Optional[List[CallRuleActionSequence]]" = dc_field(
+        default=None, metadata=dc_config(field_name="action_sequences")
+    )
     conditions: "Optional[List[RuleBuilderCondition]]" = dc_field(
         default=None, metadata=dc_config(field_name="conditions")
     )
     groups: "Optional[List[RuleBuilderConditionGroup]]" = dc_field(
         default=None, metadata=dc_config(field_name="groups")
+    )
+    action: "Optional[RuleBuilderAction]" = dc_field(
+        default=None, metadata=dc_config(field_name="action")
+    )
+
+
+@dataclass
+class ModerationRulesTriggeredEvent(DataClassJsonMixin):
+    created_at: datetime = dc_field(
+        metadata=dc_config(
+            field_name="created_at",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        )
+    )
+    entity_id: str = dc_field(metadata=dc_config(field_name="entity_id"))
+    entity_type: str = dc_field(metadata=dc_config(field_name="entity_type"))
+    user_id: str = dc_field(metadata=dc_config(field_name="user_id"))
+    triggered_actions: List[str] = dc_field(
+        metadata=dc_config(field_name="triggered_actions")
+    )
+    custom: Dict[str, object] = dc_field(metadata=dc_config(field_name="custom"))
+    rule: "ModerationRuleInfo" = dc_field(metadata=dc_config(field_name="rule"))
+    type: str = dc_field(
+        default="moderation_rule.triggered", metadata=dc_config(field_name="type")
+    )
+    received_at: Optional[datetime] = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="received_at",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+    )
+    review_queue_item_id: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="review_queue_item_id")
+    )
+    violation_number: Optional[int] = dc_field(
+        default=None, metadata=dc_config(field_name="violation_number")
     )
 
 
@@ -15152,6 +15284,9 @@ class QualityScoreReportResponse(DataClassJsonMixin):
 
 @dataclass
 class QueryActivitiesRequest(DataClassJsonMixin):
+    include_expired_activities: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="include_expired_activities")
+    )
     include_private_activities: Optional[bool] = dc_field(
         default=None, metadata=dc_config(field_name="include_private_activities")
     )
@@ -16122,6 +16257,12 @@ class QueryModerationRulesRequest(DataClassJsonMixin):
 @dataclass
 class QueryModerationRulesResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    closed_caption_labels: List[str] = dc_field(
+        metadata=dc_config(field_name="closed_caption_labels")
+    )
+    keyframe_labels: List[str] = dc_field(
+        metadata=dc_config(field_name="keyframe_labels")
+    )
     rules: "List[ModerationRuleV2Response]" = dc_field(
         metadata=dc_config(field_name="rules")
     )
@@ -17525,9 +17666,12 @@ class Role(DataClassJsonMixin):
 
 @dataclass
 class RuleBuilderAction(DataClassJsonMixin):
-    type: str = dc_field(metadata=dc_config(field_name="type"))
+    type: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="type"))
     ban_options: "Optional[BanOptions]" = dc_field(
         default=None, metadata=dc_config(field_name="ban_options")
+    )
+    call_options: "Optional[CallActionOptions]" = dc_field(
+        default=None, metadata=dc_config(field_name="call_options")
     )
     flag_user_options: "Optional[FlagUserOptions]" = dc_field(
         default=None, metadata=dc_config(field_name="flag_user_options")
@@ -17540,6 +17684,15 @@ class RuleBuilderCondition(DataClassJsonMixin):
         default=None, metadata=dc_config(field_name="confidence")
     )
     type: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="type"))
+    call_custom_property_params: "Optional[CallCustomPropertyParameters]" = dc_field(
+        default=None, metadata=dc_config(field_name="call_custom_property_params")
+    )
+    call_type_rule_params: "Optional[CallTypeRuleParameters]" = dc_field(
+        default=None, metadata=dc_config(field_name="call_type_rule_params")
+    )
+    closed_caption_rule_params: "Optional[ClosedCaptionRuleParameters]" = dc_field(
+        default=None, metadata=dc_config(field_name="closed_caption_rule_params")
+    )
     content_count_rule_params: "Optional[ContentCountRuleParameters]" = dc_field(
         default=None, metadata=dc_config(field_name="content_count_rule_params")
     )
@@ -17551,6 +17704,9 @@ class RuleBuilderCondition(DataClassJsonMixin):
     )
     image_rule_params: "Optional[ImageRuleParameters]" = dc_field(
         default=None, metadata=dc_config(field_name="image_rule_params")
+    )
+    keyframe_rule_params: "Optional[KeyframeRuleParameters]" = dc_field(
+        default=None, metadata=dc_config(field_name="keyframe_rule_params")
     )
     text_content_params: "Optional[TextContentParameters]" = dc_field(
         default=None, metadata=dc_config(field_name="text_content_params")
@@ -17608,7 +17764,6 @@ class RuleBuilderConfig(DataClassJsonMixin):
 @dataclass
 class RuleBuilderRule(DataClassJsonMixin):
     rule_type: str = dc_field(metadata=dc_config(field_name="rule_type"))
-    action: "RuleBuilderAction" = dc_field(metadata=dc_config(field_name="action"))
     cooldown_period: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="cooldown_period")
     )
@@ -17616,11 +17771,17 @@ class RuleBuilderRule(DataClassJsonMixin):
     logic: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="logic")
     )
+    action_sequences: "Optional[List[CallRuleActionSequence]]" = dc_field(
+        default=None, metadata=dc_config(field_name="action_sequences")
+    )
     conditions: "Optional[List[RuleBuilderCondition]]" = dc_field(
         default=None, metadata=dc_config(field_name="conditions")
     )
     groups: "Optional[List[RuleBuilderConditionGroup]]" = dc_field(
         default=None, metadata=dc_config(field_name="groups")
+    )
+    action: "Optional[RuleBuilderAction]" = dc_field(
+        default=None, metadata=dc_config(field_name="action")
     )
 
 
@@ -21303,7 +21464,6 @@ class UpsertConfigResponse(DataClassJsonMixin):
 class UpsertModerationRuleRequest(DataClassJsonMixin):
     name: str = dc_field(metadata=dc_config(field_name="name"))
     rule_type: str = dc_field(metadata=dc_config(field_name="rule_type"))
-    action: "RuleBuilderAction" = dc_field(metadata=dc_config(field_name="action"))
     cooldown_period: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="cooldown_period")
     )
@@ -21317,6 +21477,9 @@ class UpsertModerationRuleRequest(DataClassJsonMixin):
         default=None, metadata=dc_config(field_name="logic")
     )
     team: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="team"))
+    action_sequences: "Optional[List[CallRuleActionSequence]]" = dc_field(
+        default=None, metadata=dc_config(field_name="action_sequences")
+    )
     conditions: "Optional[List[RuleBuilderCondition]]" = dc_field(
         default=None, metadata=dc_config(field_name="conditions")
     )
@@ -21325,6 +21488,9 @@ class UpsertModerationRuleRequest(DataClassJsonMixin):
     )
     groups: "Optional[List[RuleBuilderConditionGroup]]" = dc_field(
         default=None, metadata=dc_config(field_name="groups")
+    )
+    action: "Optional[RuleBuilderAction]" = dc_field(
+        default=None, metadata=dc_config(field_name="action")
     )
 
 

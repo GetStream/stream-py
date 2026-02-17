@@ -128,6 +128,7 @@ class FeedsRestClient(BaseClient):
     @telemetry.operation_name("getstream.api.feeds.query_activities")
     def query_activities(
         self,
+        include_expired_activities: Optional[bool] = None,
         include_private_activities: Optional[bool] = None,
         limit: Optional[int] = None,
         next: Optional[str] = None,
@@ -138,6 +139,7 @@ class FeedsRestClient(BaseClient):
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[QueryActivitiesResponse]:
         json = build_body_dict(
+            include_expired_activities=include_expired_activities,
             include_private_activities=include_private_activities,
             limit=limit,
             next=next,

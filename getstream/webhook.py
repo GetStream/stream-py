@@ -138,6 +138,7 @@ from .models import (
     ModerationFlaggedEvent,
     ModerationMarkReviewedEvent,
     ModerationCheckCompletedEvent,
+    ModerationRulesTriggeredEvent,
     NotificationMarkUnreadEvent,
     ReminderNotificationEvent,
     NotificationThreadMessageNewEvent,
@@ -303,6 +304,7 @@ EVENT_TYPE_MODERATION_CUSTOM_ACTION = "moderation.custom_action"
 EVENT_TYPE_MODERATION_FLAGGED = "moderation.flagged"
 EVENT_TYPE_MODERATION_MARK_REVIEWED = "moderation.mark_reviewed"
 EVENT_TYPE_MODERATION_CHECK_COMPLETED = "moderation_check.completed"
+EVENT_TYPE_MODERATION_RULE_TRIGGERED = "moderation_rule.triggered"
 EVENT_TYPE_NOTIFICATION_MARK_UNREAD = "notification.mark_unread"
 EVENT_TYPE_NOTIFICATION_REMINDER_DUE = "notification.reminder_due"
 EVENT_TYPE_NOTIFICATION_THREAD_MESSAGE_NEW = "notification.thread_message_new"
@@ -526,6 +528,7 @@ def _get_event_class(event_type: str):
         "moderation.flagged": ModerationFlaggedEvent,
         "moderation.mark_reviewed": ModerationMarkReviewedEvent,
         "moderation_check.completed": ModerationCheckCompletedEvent,
+        "moderation_rule.triggered": ModerationRulesTriggeredEvent,
         "notification.mark_unread": NotificationMarkUnreadEvent,
         "notification.reminder_due": ReminderNotificationEvent,
         "notification.thread_message_new": NotificationThreadMessageNewEvent,
