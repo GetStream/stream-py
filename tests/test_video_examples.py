@@ -321,7 +321,7 @@ def test_create_call_type_with_custom_session_inactivity_timeout(client: Stream)
     assert response.data.settings.session.inactivity_timeout_seconds == 300
 
 
-def test_start_stop_frame_recording(client: Stream):
+def test_start_stop_recording(client: Stream):
     user_id = str(uuid.uuid4())
 
     # create a call and set its frame recording settings
@@ -329,21 +329,21 @@ def test_start_stop_frame_recording(client: Stream):
     call.get_or_create(data=CallRequest(created_by_id=user_id))
 
     with pytest.raises(StreamAPIException) as e_info:
-        call.start_frame_recording()
+        call.start_recording("composite")
 
     assert e_info.value.status_code == 400
     assert (
         e_info.value.api_error.message
-        == 'StartFrameRecording failed with error: "there is no active session"'
+        == 'StartRecording failed with error: "there is no active session"'
     )
 
     with pytest.raises(StreamAPIException) as e_info:
-        call.stop_frame_recording()
+        call.stop_recording("composite")
 
     assert e_info.value.status_code == 400
     assert (
         e_info.value.api_error.message
-        == 'StopFrameRecording failed with error: "call egress is not running"'
+        == 'StopRecording failed with error: "call egress is not running"'
     )
 
 
