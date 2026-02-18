@@ -96,7 +96,7 @@ def datetime_from_unix_ns(
 def _serialize_query_value(value) -> str:
     """Serialize a single value for use in a query parameter."""
     if hasattr(value, "to_json") and callable(value.to_json):
-        return value.to_json()
+        return str(value.to_json())
     if isinstance(value, datetime):
         return value.isoformat()
     return str(value)
