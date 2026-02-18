@@ -10256,6 +10256,7 @@ class GetCommandResponse(DataClassJsonMixin):
 @dataclass
 class GetCommentRepliesResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    sort: str = dc_field(metadata=dc_config(field_name="sort"))
     comments: "List[ThreadedCommentResponse]" = dc_field(
         metadata=dc_config(field_name="comments")
     )
@@ -10272,6 +10273,7 @@ class GetCommentResponse(DataClassJsonMixin):
 @dataclass
 class GetCommentsResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    sort: str = dc_field(metadata=dc_config(field_name="sort"))
     comments: "List[ThreadedCommentResponse]" = dc_field(
         metadata=dc_config(field_name="comments")
     )
@@ -12530,6 +12532,9 @@ class MessageRequest(DataClassJsonMixin):
     mentioned_channel: Optional[bool] = dc_field(
         default=None, metadata=dc_config(field_name="mentioned_channel")
     )
+    mentioned_here: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="mentioned_here")
+    )
     mml: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="mml"))
     parent_id: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="parent_id")
@@ -12611,6 +12616,7 @@ class MessageResponse(DataClassJsonMixin):
     mentioned_channel: bool = dc_field(
         metadata=dc_config(field_name="mentioned_channel")
     )
+    mentioned_here: bool = dc_field(metadata=dc_config(field_name="mentioned_here"))
     pinned: bool = dc_field(metadata=dc_config(field_name="pinned"))
     reply_count: int = dc_field(metadata=dc_config(field_name="reply_count"))
     shadowed: bool = dc_field(metadata=dc_config(field_name="shadowed"))
@@ -12902,6 +12908,7 @@ class MessageWithChannelResponse(DataClassJsonMixin):
     mentioned_channel: bool = dc_field(
         metadata=dc_config(field_name="mentioned_channel")
     )
+    mentioned_here: bool = dc_field(metadata=dc_config(field_name="mentioned_here"))
     pinned: bool = dc_field(metadata=dc_config(field_name="pinned"))
     reply_count: int = dc_field(metadata=dc_config(field_name="reply_count"))
     shadowed: bool = dc_field(metadata=dc_config(field_name="shadowed"))
@@ -16274,6 +16281,31 @@ class QueryModerationRulesResponse(DataClassJsonMixin):
 
 
 @dataclass
+class QueryPinnedActivitiesRequest(DataClassJsonMixin):
+    limit: Optional[int] = dc_field(
+        default=None, metadata=dc_config(field_name="limit")
+    )
+    next: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="next"))
+    prev: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="prev"))
+    sort: "Optional[List[SortParamRequest]]" = dc_field(
+        default=None, metadata=dc_config(field_name="sort")
+    )
+    filter: Optional[Dict[str, object]] = dc_field(
+        default=None, metadata=dc_config(field_name="filter")
+    )
+
+
+@dataclass
+class QueryPinnedActivitiesResponse(DataClassJsonMixin):
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    pinned_activities: "List[ActivityPinResponse]" = dc_field(
+        metadata=dc_config(field_name="pinned_activities")
+    )
+    next: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="next"))
+    prev: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="prev"))
+
+
+@dataclass
 class QueryPollVotesRequest(DataClassJsonMixin):
     limit: Optional[int] = dc_field(
         default=None, metadata=dc_config(field_name="limit")
@@ -18191,6 +18223,7 @@ class SearchResultMessage(DataClassJsonMixin):
     mentioned_channel: bool = dc_field(
         metadata=dc_config(field_name="mentioned_channel")
     )
+    mentioned_here: bool = dc_field(metadata=dc_config(field_name="mentioned_here"))
     pinned: bool = dc_field(metadata=dc_config(field_name="pinned"))
     reply_count: int = dc_field(metadata=dc_config(field_name="reply_count"))
     shadowed: bool = dc_field(metadata=dc_config(field_name="shadowed"))

@@ -3,7 +3,7 @@ from getstream.base import AsyncBaseClient
 from getstream.common import telemetry
 from getstream.models import *
 from getstream.stream_response import StreamResponse
-from getstream.utils import build_query_param, build_body_dict
+from getstream.utils import build_query_param
 
 
 class ChatRestClient(AsyncBaseClient):
@@ -41,16 +41,14 @@ class ChatRestClient(AsyncBaseClient):
         sort: Optional[List[SortParamRequest]] = None,
         filter: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[QueryCampaignsResponse]:
-        json = build_body_dict(
-            **{
-                "limit": limit,
-                "next": next,
-                "prev": prev,
-                "user_limit": user_limit,
-                "sort": sort,
-                "filter": filter,
-            }
-        )
+        json = QueryCampaignsRequest(
+            limit=limit,
+            next=next,
+            prev=prev,
+            user_limit=user_limit,
+            sort=sort,
+            filter=filter,
+        ).to_dict()
         return await self.post(
             "/api/v2/chat/campaigns/query", QueryCampaignsResponse, json=json
         )
@@ -84,7 +82,9 @@ class ChatRestClient(AsyncBaseClient):
         path_params = {
             "id": id,
         }
-        json = build_body_dict(**{"scheduled_for": scheduled_for, "stop_at": stop_at})
+        json = StartCampaignRequest(
+            scheduled_for=scheduled_for, stop_at=stop_at
+        ).to_dict()
         return await self.post(
             "/api/v2/chat/campaigns/{id}/start",
             StartCampaignResponse,
@@ -100,7 +100,7 @@ class ChatRestClient(AsyncBaseClient):
         path_params = {
             "id": id,
         }
-        json = build_body_dict(**{})
+        json = StopCampaignRequest().to_dict()
         return await self.post(
             "/api/v2/chat/campaigns/{id}/stop",
             CampaignResponse,
@@ -124,22 +124,20 @@ class ChatRestClient(AsyncBaseClient):
         sort_values: Optional[Dict[str, object]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[QueryChannelsResponse]:
-        json = build_body_dict(
-            **{
-                "limit": limit,
-                "member_limit": member_limit,
-                "message_limit": message_limit,
-                "offset": offset,
-                "predefined_filter": predefined_filter,
-                "state": state,
-                "user_id": user_id,
-                "sort": sort,
-                "filter_conditions": filter_conditions,
-                "filter_values": filter_values,
-                "sort_values": sort_values,
-                "user": user,
-            }
-        )
+        json = QueryChannelsRequest(
+            limit=limit,
+            member_limit=member_limit,
+            message_limit=message_limit,
+            offset=offset,
+            predefined_filter=predefined_filter,
+            state=state,
+            user_id=user_id,
+            sort=sort,
+            filter_conditions=filter_conditions,
+            filter_values=filter_values,
+            sort_values=sort_values,
+            user=user,
+        ).to_dict()
         return await self.post(
             "/api/v2/chat/channels", QueryChannelsResponse, json=json
         )
@@ -148,7 +146,7 @@ class ChatRestClient(AsyncBaseClient):
     async def delete_channels(
         self, cids: List[str], hard_delete: Optional[bool] = None
     ) -> StreamResponse[DeleteChannelsResponse]:
-        json = build_body_dict(**{"cids": cids, "hard_delete": hard_delete})
+        json = DeleteChannelsRequest(cids=cids, hard_delete=hard_delete).to_dict()
         return await self.post(
             "/api/v2/chat/channels/delete", DeleteChannelsResponse, json=json
         )
@@ -160,9 +158,9 @@ class ChatRestClient(AsyncBaseClient):
         latest_delivered_messages: Optional[List[DeliveredMessagePayload]] = None,
     ) -> StreamResponse[MarkDeliveredResponse]:
         query_params = build_query_param(**{"user_id": user_id})
-        json = build_body_dict(
-            **{"latest_delivered_messages": latest_delivered_messages}
-        )
+        json = MarkDeliveredRequest(
+            latest_delivered_messages=latest_delivered_messages
+        ).to_dict()
         return await self.post(
             "/api/v2/chat/channels/delivered",
             MarkDeliveredResponse,
@@ -177,9 +175,9 @@ class ChatRestClient(AsyncBaseClient):
         read_by_channel: Optional[Dict[str, str]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[MarkReadResponse]:
-        json = build_body_dict(
-            **{"user_id": user_id, "read_by_channel": read_by_channel, "user": user}
-        )
+        json = MarkChannelsReadRequest(
+            user_id=user_id, read_by_channel=read_by_channel, user=user
+        ).to_dict()
         return await self.post(
             "/api/v2/chat/channels/read", MarkReadResponse, json=json
         )
@@ -199,17 +197,15 @@ class ChatRestClient(AsyncBaseClient):
         path_params = {
             "type": type,
         }
-        json = build_body_dict(
-            **{
-                "hide_for_creator": hide_for_creator,
-                "state": state,
-                "thread_unread_counts": thread_unread_counts,
-                "data": data,
-                "members": members,
-                "messages": messages,
-                "watchers": watchers,
-            }
-        )
+        json = ChannelGetOrCreateRequest(
+            hide_for_creator=hide_for_creator,
+            state=state,
+            thread_unread_counts=thread_unread_counts,
+            data=data,
+            members=members,
+            messages=messages,
+            watchers=watchers,
+        ).to_dict()
         return await self.post(
             "/api/v2/chat/channels/{type}/query",
             ChannelStateResponse,
@@ -247,9 +243,9 @@ class ChatRestClient(AsyncBaseClient):
             "type": type,
             "id": id,
         }
-        json = build_body_dict(
-            **{"user_id": user_id, "unset": unset, "set": set, "user": user}
-        )
+        json = UpdateChannelPartialRequest(
+            user_id=user_id, unset=unset, set=set, user=user
+        ).to_dict()
         return await self.patch(
             "/api/v2/chat/channels/{type}/{id}",
             UpdateChannelPartialResponse,
@@ -285,28 +281,26 @@ class ChatRestClient(AsyncBaseClient):
             "type": type,
             "id": id,
         }
-        json = build_body_dict(
-            **{
-                "accept_invite": accept_invite,
-                "cooldown": cooldown,
-                "hide_history": hide_history,
-                "hide_history_before": hide_history_before,
-                "reject_invite": reject_invite,
-                "skip_push": skip_push,
-                "user_id": user_id,
-                "add_filter_tags": add_filter_tags,
-                "add_members": add_members,
-                "add_moderators": add_moderators,
-                "assign_roles": assign_roles,
-                "demote_moderators": demote_moderators,
-                "invites": invites,
-                "remove_filter_tags": remove_filter_tags,
-                "remove_members": remove_members,
-                "data": data,
-                "message": message,
-                "user": user,
-            }
-        )
+        json = UpdateChannelRequest(
+            accept_invite=accept_invite,
+            cooldown=cooldown,
+            hide_history=hide_history,
+            hide_history_before=hide_history_before,
+            reject_invite=reject_invite,
+            skip_push=skip_push,
+            user_id=user_id,
+            add_filter_tags=add_filter_tags,
+            add_members=add_members,
+            add_moderators=add_moderators,
+            assign_roles=assign_roles,
+            demote_moderators=demote_moderators,
+            invites=invites,
+            remove_filter_tags=remove_filter_tags,
+            remove_members=remove_members,
+            data=data,
+            message=message,
+            user=user,
+        ).to_dict()
         return await self.post(
             "/api/v2/chat/channels/{type}/{id}",
             UpdateChannelResponse,
@@ -362,7 +356,7 @@ class ChatRestClient(AsyncBaseClient):
             "type": type,
             "id": id,
         }
-        json = build_body_dict(**{"event": event})
+        json = SendEventRequest(event=event).to_dict()
         return await self.post(
             "/api/v2/chat/channels/{type}/{id}/event",
             EventResponse,
@@ -398,7 +392,7 @@ class ChatRestClient(AsyncBaseClient):
             "type": type,
             "id": id,
         }
-        json = build_body_dict(**{"file": file, "user": user})
+        json = UploadChannelFileRequest(file=file, user=user).to_dict()
         return await self.post(
             "/api/v2/chat/channels/{type}/{id}/file",
             UploadChannelFileResponse,
@@ -419,9 +413,9 @@ class ChatRestClient(AsyncBaseClient):
             "type": type,
             "id": id,
         }
-        json = build_body_dict(
-            **{"clear_history": clear_history, "user_id": user_id, "user": user}
-        )
+        json = HideChannelRequest(
+            clear_history=clear_history, user_id=user_id, user=user
+        ).to_dict()
         return await self.post(
             "/api/v2/chat/channels/{type}/{id}/hide",
             HideChannelResponse,
@@ -458,9 +452,9 @@ class ChatRestClient(AsyncBaseClient):
             "type": type,
             "id": id,
         }
-        json = build_body_dict(
-            **{"file": file, "upload_sizes": upload_sizes, "user": user}
-        )
+        json = UploadChannelRequest(
+            file=file, upload_sizes=upload_sizes, user=user
+        ).to_dict()
         return await self.post(
             "/api/v2/chat/channels/{type}/{id}/image",
             UploadChannelResponse,
@@ -482,7 +476,7 @@ class ChatRestClient(AsyncBaseClient):
             "type": type,
             "id": id,
         }
-        json = build_body_dict(**{"unset": unset, "set": set})
+        json = UpdateMemberPartialRequest(unset=unset, set=set).to_dict()
         return await self.patch(
             "/api/v2/chat/channels/{type}/{id}/member",
             UpdateMemberPartialResponse,
@@ -508,17 +502,15 @@ class ChatRestClient(AsyncBaseClient):
             "type": type,
             "id": id,
         }
-        json = build_body_dict(
-            **{
-                "message": message,
-                "force_moderation": force_moderation,
-                "keep_channel_hidden": keep_channel_hidden,
-                "pending": pending,
-                "skip_enrich_url": skip_enrich_url,
-                "skip_push": skip_push,
-                "pending_message_metadata": pending_message_metadata,
-            }
-        )
+        json = SendMessageRequest(
+            message=message,
+            force_moderation=force_moderation,
+            keep_channel_hidden=keep_channel_hidden,
+            pending=pending,
+            skip_enrich_url=skip_enrich_url,
+            skip_push=skip_push,
+            pending_message_metadata=pending_message_metadata,
+        ).to_dict()
         return await self.post(
             "/api/v2/chat/channels/{type}/{id}/message",
             SendMessageResponse,
@@ -559,17 +551,15 @@ class ChatRestClient(AsyncBaseClient):
             "type": type,
             "id": id,
         }
-        json = build_body_dict(
-            **{
-                "hide_for_creator": hide_for_creator,
-                "state": state,
-                "thread_unread_counts": thread_unread_counts,
-                "data": data,
-                "members": members,
-                "messages": messages,
-                "watchers": watchers,
-            }
-        )
+        json = ChannelGetOrCreateRequest(
+            hide_for_creator=hide_for_creator,
+            state=state,
+            thread_unread_counts=thread_unread_counts,
+            data=data,
+            members=members,
+            messages=messages,
+            watchers=watchers,
+        ).to_dict()
         return await self.post(
             "/api/v2/chat/channels/{type}/{id}/query",
             ChannelStateResponse,
@@ -591,14 +581,9 @@ class ChatRestClient(AsyncBaseClient):
             "type": type,
             "id": id,
         }
-        json = build_body_dict(
-            **{
-                "message_id": message_id,
-                "thread_id": thread_id,
-                "user_id": user_id,
-                "user": user,
-            }
-        )
+        json = MarkReadRequest(
+            message_id=message_id, thread_id=thread_id, user_id=user_id, user=user
+        ).to_dict()
         return await self.post(
             "/api/v2/chat/channels/{type}/{id}/read",
             MarkReadResponse,
@@ -618,7 +603,7 @@ class ChatRestClient(AsyncBaseClient):
             "type": type,
             "id": id,
         }
-        json = build_body_dict(**{"user_id": user_id, "user": user})
+        json = ShowChannelRequest(user_id=user_id, user=user).to_dict()
         return await self.post(
             "/api/v2/chat/channels/{type}/{id}/show",
             ShowChannelResponse,
@@ -643,17 +628,15 @@ class ChatRestClient(AsyncBaseClient):
             "type": type,
             "id": id,
         }
-        json = build_body_dict(
-            **{
-                "hard_delete": hard_delete,
-                "skip_push": skip_push,
-                "truncated_at": truncated_at,
-                "user_id": user_id,
-                "member_ids": member_ids,
-                "message": message,
-                "user": user,
-            }
-        )
+        json = TruncateChannelRequest(
+            hard_delete=hard_delete,
+            skip_push=skip_push,
+            truncated_at=truncated_at,
+            user_id=user_id,
+            member_ids=member_ids,
+            message=message,
+            user=user,
+        ).to_dict()
         return await self.post(
             "/api/v2/chat/channels/{type}/{id}/truncate",
             TruncateChannelResponse,
@@ -676,15 +659,13 @@ class ChatRestClient(AsyncBaseClient):
             "type": type,
             "id": id,
         }
-        json = build_body_dict(
-            **{
-                "message_id": message_id,
-                "message_timestamp": message_timestamp,
-                "thread_id": thread_id,
-                "user_id": user_id,
-                "user": user,
-            }
-        )
+        json = MarkUnreadRequest(
+            message_id=message_id,
+            message_timestamp=message_timestamp,
+            thread_id=thread_id,
+            user_id=user_id,
+            user=user,
+        ).to_dict()
         return await self.post(
             "/api/v2/chat/channels/{type}/{id}/unread",
             Response,
@@ -732,42 +713,40 @@ class ChatRestClient(AsyncBaseClient):
         permissions: Optional[List[PolicyRequest]] = None,
         grants: Optional[Dict[str, List[str]]] = None,
     ) -> StreamResponse[CreateChannelTypeResponse]:
-        json = build_body_dict(
-            **{
-                "automod": automod,
-                "automod_behavior": automod_behavior,
-                "max_message_length": max_message_length,
-                "name": name,
-                "blocklist": blocklist,
-                "blocklist_behavior": blocklist_behavior,
-                "connect_events": connect_events,
-                "count_messages": count_messages,
-                "custom_events": custom_events,
-                "delivery_events": delivery_events,
-                "mark_messages_pending": mark_messages_pending,
-                "message_retention": message_retention,
-                "mutes": mutes,
-                "partition_size": partition_size,
-                "partition_ttl": partition_ttl,
-                "polls": polls,
-                "push_level": push_level,
-                "push_notifications": push_notifications,
-                "reactions": reactions,
-                "read_events": read_events,
-                "replies": replies,
-                "search": search,
-                "shared_locations": shared_locations,
-                "skip_last_msg_update_for_system_msgs": skip_last_msg_update_for_system_msgs,
-                "typing_events": typing_events,
-                "uploads": uploads,
-                "url_enrichment": url_enrichment,
-                "user_message_reminders": user_message_reminders,
-                "blocklists": blocklists,
-                "commands": commands,
-                "permissions": permissions,
-                "grants": grants,
-            }
-        )
+        json = CreateChannelTypeRequest(
+            automod=automod,
+            automod_behavior=automod_behavior,
+            max_message_length=max_message_length,
+            name=name,
+            blocklist=blocklist,
+            blocklist_behavior=blocklist_behavior,
+            connect_events=connect_events,
+            count_messages=count_messages,
+            custom_events=custom_events,
+            delivery_events=delivery_events,
+            mark_messages_pending=mark_messages_pending,
+            message_retention=message_retention,
+            mutes=mutes,
+            partition_size=partition_size,
+            partition_ttl=partition_ttl,
+            polls=polls,
+            push_level=push_level,
+            push_notifications=push_notifications,
+            reactions=reactions,
+            read_events=read_events,
+            replies=replies,
+            search=search,
+            shared_locations=shared_locations,
+            skip_last_msg_update_for_system_msgs=skip_last_msg_update_for_system_msgs,
+            typing_events=typing_events,
+            uploads=uploads,
+            url_enrichment=url_enrichment,
+            user_message_reminders=user_message_reminders,
+            blocklists=blocklists,
+            commands=commands,
+            permissions=permissions,
+            grants=grants,
+        ).to_dict()
         return await self.post(
             "/api/v2/chat/channeltypes", CreateChannelTypeResponse, json=json
         )
@@ -836,44 +815,42 @@ class ChatRestClient(AsyncBaseClient):
         path_params = {
             "name": name,
         }
-        json = build_body_dict(
-            **{
-                "automod": automod,
-                "automod_behavior": automod_behavior,
-                "max_message_length": max_message_length,
-                "blocklist": blocklist,
-                "blocklist_behavior": blocklist_behavior,
-                "connect_events": connect_events,
-                "count_messages": count_messages,
-                "custom_events": custom_events,
-                "delivery_events": delivery_events,
-                "mark_messages_pending": mark_messages_pending,
-                "mutes": mutes,
-                "partition_size": partition_size,
-                "partition_ttl": partition_ttl,
-                "polls": polls,
-                "push_level": push_level,
-                "push_notifications": push_notifications,
-                "quotes": quotes,
-                "reactions": reactions,
-                "read_events": read_events,
-                "reminders": reminders,
-                "replies": replies,
-                "search": search,
-                "shared_locations": shared_locations,
-                "skip_last_msg_update_for_system_msgs": skip_last_msg_update_for_system_msgs,
-                "typing_events": typing_events,
-                "uploads": uploads,
-                "url_enrichment": url_enrichment,
-                "user_message_reminders": user_message_reminders,
-                "allowed_flag_reasons": allowed_flag_reasons,
-                "blocklists": blocklists,
-                "commands": commands,
-                "permissions": permissions,
-                "automod_thresholds": automod_thresholds,
-                "grants": grants,
-            }
-        )
+        json = UpdateChannelTypeRequest(
+            automod=automod,
+            automod_behavior=automod_behavior,
+            max_message_length=max_message_length,
+            blocklist=blocklist,
+            blocklist_behavior=blocklist_behavior,
+            connect_events=connect_events,
+            count_messages=count_messages,
+            custom_events=custom_events,
+            delivery_events=delivery_events,
+            mark_messages_pending=mark_messages_pending,
+            mutes=mutes,
+            partition_size=partition_size,
+            partition_ttl=partition_ttl,
+            polls=polls,
+            push_level=push_level,
+            push_notifications=push_notifications,
+            quotes=quotes,
+            reactions=reactions,
+            read_events=read_events,
+            reminders=reminders,
+            replies=replies,
+            search=search,
+            shared_locations=shared_locations,
+            skip_last_msg_update_for_system_msgs=skip_last_msg_update_for_system_msgs,
+            typing_events=typing_events,
+            uploads=uploads,
+            url_enrichment=url_enrichment,
+            user_message_reminders=user_message_reminders,
+            allowed_flag_reasons=allowed_flag_reasons,
+            blocklists=blocklists,
+            commands=commands,
+            permissions=permissions,
+            automod_thresholds=automod_thresholds,
+            grants=grants,
+        ).to_dict()
         return await self.put(
             "/api/v2/chat/channeltypes/{name}",
             UpdateChannelTypeResponse,
@@ -893,9 +870,9 @@ class ChatRestClient(AsyncBaseClient):
         args: Optional[str] = None,
         set: Optional[str] = None,
     ) -> StreamResponse[CreateCommandResponse]:
-        json = build_body_dict(
-            **{"description": description, "name": name, "args": args, "set": set}
-        )
+        json = CreateCommandRequest(
+            description=description, name=name, args=args, set=set
+        ).to_dict()
         return await self.post(
             "/api/v2/chat/commands", CreateCommandResponse, json=json
         )
@@ -931,7 +908,9 @@ class ChatRestClient(AsyncBaseClient):
         path_params = {
             "name": name,
         }
-        json = build_body_dict(**{"description": description, "args": args, "set": set})
+        json = UpdateCommandRequest(
+            description=description, args=args, set=set
+        ).to_dict()
         return await self.put(
             "/api/v2/chat/commands/{name}",
             UpdateCommandResponse,
@@ -950,17 +929,15 @@ class ChatRestClient(AsyncBaseClient):
         filter: Optional[Dict[str, object]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[QueryDraftsResponse]:
-        json = build_body_dict(
-            **{
-                "limit": limit,
-                "next": next,
-                "prev": prev,
-                "user_id": user_id,
-                "sort": sort,
-                "filter": filter,
-                "user": user,
-            }
-        )
+        json = QueryDraftsRequest(
+            limit=limit,
+            next=next,
+            prev=prev,
+            user_id=user_id,
+            sort=sort,
+            filter=filter,
+            user=user,
+        ).to_dict()
         return await self.post(
             "/api/v2/chat/drafts/query", QueryDraftsResponse, json=json
         )
@@ -975,16 +952,14 @@ class ChatRestClient(AsyncBaseClient):
         include_truncated_messages: Optional[bool] = None,
         version: Optional[str] = None,
     ) -> StreamResponse[ExportChannelsResponse]:
-        json = build_body_dict(
-            **{
-                "channels": channels,
-                "clear_deleted_message_text": clear_deleted_message_text,
-                "export_users": export_users,
-                "include_soft_deleted_channels": include_soft_deleted_channels,
-                "include_truncated_messages": include_truncated_messages,
-                "version": version,
-            }
-        )
+        json = ExportChannelsRequest(
+            channels=channels,
+            clear_deleted_message_text=clear_deleted_message_text,
+            export_users=export_users,
+            include_soft_deleted_channels=include_soft_deleted_channels,
+            include_truncated_messages=include_truncated_messages,
+            version=version,
+        ).to_dict()
         return await self.post(
             "/api/v2/chat/export_channels", ExportChannelsResponse, json=json
         )
@@ -1007,15 +982,9 @@ class ChatRestClient(AsyncBaseClient):
         prev: Optional[str] = None,
         sort: Optional[List[SortParamRequest]] = None,
     ) -> StreamResponse[QueryMessageHistoryResponse]:
-        json = build_body_dict(
-            **{
-                "filter": filter,
-                "limit": limit,
-                "next": next,
-                "prev": prev,
-                "sort": sort,
-            }
-        )
+        json = QueryMessageHistoryRequest(
+            filter=filter, limit=limit, next=next, prev=prev, sort=sort
+        ).to_dict()
         return await self.post(
             "/api/v2/chat/messages/history", QueryMessageHistoryResponse, json=json
         )
@@ -1069,13 +1038,9 @@ class ChatRestClient(AsyncBaseClient):
         path_params = {
             "id": id,
         }
-        json = build_body_dict(
-            **{
-                "message": message,
-                "skip_enrich_url": skip_enrich_url,
-                "skip_push": skip_push,
-            }
-        )
+        json = UpdateMessageRequest(
+            message=message, skip_enrich_url=skip_enrich_url, skip_push=skip_push
+        ).to_dict()
         return await self.post(
             "/api/v2/chat/messages/{id}",
             UpdateMessageResponse,
@@ -1097,16 +1062,14 @@ class ChatRestClient(AsyncBaseClient):
         path_params = {
             "id": id,
         }
-        json = build_body_dict(
-            **{
-                "skip_enrich_url": skip_enrich_url,
-                "skip_push": skip_push,
-                "user_id": user_id,
-                "unset": unset,
-                "set": set,
-                "user": user,
-            }
-        )
+        json = UpdateMessagePartialRequest(
+            skip_enrich_url=skip_enrich_url,
+            skip_push=skip_push,
+            user_id=user_id,
+            unset=unset,
+            set=set,
+            user=user,
+        ).to_dict()
         return await self.put(
             "/api/v2/chat/messages/{id}",
             UpdateMessagePartialResponse,
@@ -1125,9 +1088,9 @@ class ChatRestClient(AsyncBaseClient):
         path_params = {
             "id": id,
         }
-        json = build_body_dict(
-            **{"form_data": form_data, "user_id": user_id, "user": user}
-        )
+        json = MessageActionRequest(
+            form_data=form_data, user_id=user_id, user=user
+        ).to_dict()
         return await self.post(
             "/api/v2/chat/messages/{id}/action",
             MessageActionResponse,
@@ -1143,7 +1106,7 @@ class ChatRestClient(AsyncBaseClient):
         path_params = {
             "id": id,
         }
-        json = build_body_dict(**{})
+        json = CommitMessageRequest().to_dict()
         return await self.post(
             "/api/v2/chat/messages/{id}/commit",
             MessageActionResponse,
@@ -1165,16 +1128,14 @@ class ChatRestClient(AsyncBaseClient):
         path_params = {
             "id": id,
         }
-        json = build_body_dict(
-            **{
-                "skip_enrich_url": skip_enrich_url,
-                "skip_push": skip_push,
-                "user_id": user_id,
-                "unset": unset,
-                "set": set,
-                "user": user,
-            }
-        )
+        json = UpdateMessagePartialRequest(
+            skip_enrich_url=skip_enrich_url,
+            skip_push=skip_push,
+            user_id=user_id,
+            unset=unset,
+            set=set,
+            user=user,
+        ).to_dict()
         return await self.patch(
             "/api/v2/chat/messages/{id}/ephemeral",
             UpdateMessagePartialResponse,
@@ -1193,13 +1154,9 @@ class ChatRestClient(AsyncBaseClient):
         path_params = {
             "id": id,
         }
-        json = build_body_dict(
-            **{
-                "reaction": reaction,
-                "enforce_unique": enforce_unique,
-                "skip_push": skip_push,
-            }
-        )
+        json = SendReactionRequest(
+            reaction=reaction, enforce_unique=enforce_unique, skip_push=skip_push
+        ).to_dict()
         return await self.post(
             "/api/v2/chat/messages/{id}/reaction",
             SendReactionResponse,
@@ -1253,17 +1210,15 @@ class ChatRestClient(AsyncBaseClient):
         path_params = {
             "id": id,
         }
-        json = build_body_dict(
-            **{
-                "limit": limit,
-                "next": next,
-                "prev": prev,
-                "user_id": user_id,
-                "sort": sort,
-                "filter": filter,
-                "user": user,
-            }
-        )
+        json = QueryReactionsRequest(
+            limit=limit,
+            next=next,
+            prev=prev,
+            user_id=user_id,
+            sort=sort,
+            filter=filter,
+            user=user,
+        ).to_dict()
         return await self.post(
             "/api/v2/chat/messages/{id}/reactions",
             QueryReactionsResponse,
@@ -1278,7 +1233,7 @@ class ChatRestClient(AsyncBaseClient):
         path_params = {
             "id": id,
         }
-        json = build_body_dict(**{"language": language})
+        json = TranslateMessageRequest(language=language).to_dict()
         return await self.post(
             "/api/v2/chat/messages/{id}/translate",
             MessageActionResponse,
@@ -1297,13 +1252,9 @@ class ChatRestClient(AsyncBaseClient):
         path_params = {
             "id": id,
         }
-        json = build_body_dict(
-            **{
-                "message": message,
-                "skip_enrich_url": skip_enrich_url,
-                "skip_push": skip_push,
-            }
-        )
+        json = UpdateMessageRequest(
+            message=message, skip_enrich_url=skip_enrich_url, skip_push=skip_push
+        ).to_dict()
         return await self.post(
             "/api/v2/chat/messages/{id}/undelete",
             UpdateMessageResponse,
@@ -1324,7 +1275,7 @@ class ChatRestClient(AsyncBaseClient):
             "message_id": message_id,
             "poll_id": poll_id,
         }
-        json = build_body_dict(**{"user_id": user_id, "user": user, "vote": vote})
+        json = CastPollVoteRequest(user_id=user_id, user=user, vote=vote).to_dict()
         return await self.post(
             "/api/v2/chat/messages/{message_id}/polls/{poll_id}/vote",
             PollVoteResponse,
@@ -1375,9 +1326,9 @@ class ChatRestClient(AsyncBaseClient):
         path_params = {
             "message_id": message_id,
         }
-        json = build_body_dict(
-            **{"remind_at": remind_at, "user_id": user_id, "user": user}
-        )
+        json = UpdateReminderRequest(
+            remind_at=remind_at, user_id=user_id, user=user
+        ).to_dict()
         return await self.patch(
             "/api/v2/chat/messages/{message_id}/reminders",
             UpdateReminderResponse,
@@ -1396,9 +1347,9 @@ class ChatRestClient(AsyncBaseClient):
         path_params = {
             "message_id": message_id,
         }
-        json = build_body_dict(
-            **{"remind_at": remind_at, "user_id": user_id, "user": user}
-        )
+        json = CreateReminderRequest(
+            remind_at=remind_at, user_id=user_id, user=user
+        ).to_dict()
         return await self.post(
             "/api/v2/chat/messages/{message_id}/reminders",
             ReminderResponseData,
@@ -1458,14 +1409,9 @@ class ChatRestClient(AsyncBaseClient):
         channel_cids: Optional[List[str]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[MuteChannelResponse]:
-        json = build_body_dict(
-            **{
-                "expiration": expiration,
-                "user_id": user_id,
-                "channel_cids": channel_cids,
-                "user": user,
-            }
-        )
+        json = MuteChannelRequest(
+            expiration=expiration, user_id=user_id, channel_cids=channel_cids, user=user
+        ).to_dict()
         return await self.post(
             "/api/v2/chat/moderation/mute/channel", MuteChannelResponse, json=json
         )
@@ -1478,14 +1424,9 @@ class ChatRestClient(AsyncBaseClient):
         channel_cids: Optional[List[str]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[UnmuteResponse]:
-        json = build_body_dict(
-            **{
-                "expiration": expiration,
-                "user_id": user_id,
-                "channel_cids": channel_cids,
-                "user": user,
-            }
-        )
+        json = UnmuteChannelRequest(
+            expiration=expiration, user_id=user_id, channel_cids=channel_cids, user=user
+        ).to_dict()
         return await self.post(
             "/api/v2/chat/moderation/unmute/channel", UnmuteResponse, json=json
         )
@@ -1523,17 +1464,15 @@ class ChatRestClient(AsyncBaseClient):
         filter: Optional[Dict[str, object]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[QueryRemindersResponse]:
-        json = build_body_dict(
-            **{
-                "limit": limit,
-                "next": next,
-                "prev": prev,
-                "user_id": user_id,
-                "sort": sort,
-                "filter": filter,
-                "user": user,
-            }
-        )
+        json = QueryRemindersRequest(
+            limit=limit,
+            next=next,
+            prev=prev,
+            user_id=user_id,
+            sort=sort,
+            filter=filter,
+            user=user,
+        ).to_dict()
         return await self.post(
             "/api/v2/chat/reminders/query", QueryRemindersResponse, json=json
         )
@@ -1556,15 +1495,9 @@ class ChatRestClient(AsyncBaseClient):
         prev: Optional[str] = None,
         sort: Optional[List[SortParamRequest]] = None,
     ) -> StreamResponse[QuerySegmentsResponse]:
-        json = build_body_dict(
-            **{
-                "filter": filter,
-                "limit": limit,
-                "next": next,
-                "prev": prev,
-                "sort": sort,
-            }
-        )
+        json = QuerySegmentsRequest(
+            filter=filter, limit=limit, next=next, prev=prev, sort=sort
+        ).to_dict()
         return await self.post(
             "/api/v2/chat/segments/query", QuerySegmentsResponse, json=json
         )
@@ -1594,7 +1527,7 @@ class ChatRestClient(AsyncBaseClient):
         path_params = {
             "id": id,
         }
-        json = build_body_dict(**{"target_ids": target_ids})
+        json = DeleteSegmentTargetsRequest(target_ids=target_ids).to_dict()
         return await self.post(
             "/api/v2/chat/segments/{id}/deletetargets",
             Response,
@@ -1629,15 +1562,9 @@ class ChatRestClient(AsyncBaseClient):
         path_params = {
             "id": id,
         }
-        json = build_body_dict(
-            **{
-                "limit": limit,
-                "next": next,
-                "prev": prev,
-                "Sort": sort,
-                "Filter": filter,
-            }
-        )
+        json = QuerySegmentTargetsRequest(
+            limit=limit, next=next, prev=prev, sort=sort, filter=filter
+        ).to_dict()
         return await self.post(
             "/api/v2/chat/segments/{id}/targets/query",
             QuerySegmentTargetsResponse,
@@ -1659,20 +1586,18 @@ class ChatRestClient(AsyncBaseClient):
         filter: Optional[Dict[str, object]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[QueryThreadsResponse]:
-        json = build_body_dict(
-            **{
-                "limit": limit,
-                "member_limit": member_limit,
-                "next": next,
-                "participant_limit": participant_limit,
-                "prev": prev,
-                "reply_limit": reply_limit,
-                "user_id": user_id,
-                "sort": sort,
-                "filter": filter,
-                "user": user,
-            }
-        )
+        json = QueryThreadsRequest(
+            limit=limit,
+            member_limit=member_limit,
+            next=next,
+            participant_limit=participant_limit,
+            prev=prev,
+            reply_limit=reply_limit,
+            user_id=user_id,
+            sort=sort,
+            filter=filter,
+            user=user,
+        ).to_dict()
         return await self.post("/api/v2/chat/threads", QueryThreadsResponse, json=json)
 
     @telemetry.operation_name("getstream.api.chat.get_thread")
@@ -1712,9 +1637,9 @@ class ChatRestClient(AsyncBaseClient):
         path_params = {
             "message_id": message_id,
         }
-        json = build_body_dict(
-            **{"user_id": user_id, "unset": unset, "set": set, "user": user}
-        )
+        json = UpdateThreadPartialRequest(
+            user_id=user_id, unset=unset, set=set, user=user
+        ).to_dict()
         return await self.patch(
             "/api/v2/chat/threads/{message_id}",
             UpdateThreadPartialResponse,
@@ -1737,7 +1662,7 @@ class ChatRestClient(AsyncBaseClient):
     async def unread_counts_batch(
         self, user_ids: List[str]
     ) -> StreamResponse[UnreadCountsBatchResponse]:
-        json = build_body_dict(**{"user_ids": user_ids})
+        json = UnreadCountsBatchRequest(user_ids=user_ids).to_dict()
         return await self.post(
             "/api/v2/chat/unread_batch", UnreadCountsBatchResponse, json=json
         )
@@ -1749,7 +1674,7 @@ class ChatRestClient(AsyncBaseClient):
         path_params = {
             "user_id": user_id,
         }
-        json = build_body_dict(**{"event": event})
+        json = SendUserCustomEventRequest(event=event).to_dict()
         return await self.post(
             "/api/v2/chat/users/{user_id}/event",
             Response,

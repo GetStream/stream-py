@@ -3,7 +3,7 @@ from getstream.base import BaseClient
 from getstream.common import telemetry
 from getstream.models import *
 from getstream.stream_response import StreamResponse
-from getstream.utils import build_query_param, build_body_dict
+from getstream.utils import build_query_param
 
 
 class ModerationRestClient(BaseClient):
@@ -41,16 +41,14 @@ class ModerationRestClient(BaseClient):
         attachments: Optional[List[str]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[AppealResponse]:
-        json = build_body_dict(
-            **{
-                "appeal_reason": appeal_reason,
-                "entity_id": entity_id,
-                "entity_type": entity_type,
-                "user_id": user_id,
-                "attachments": attachments,
-                "user": user,
-            }
-        )
+        json = AppealRequest(
+            appeal_reason=appeal_reason,
+            entity_id=entity_id,
+            entity_type=entity_type,
+            user_id=user_id,
+            attachments=attachments,
+            user=user,
+        ).to_dict()
         return self.post("/api/v2/moderation/appeal", AppealResponse, json=json)
 
     @telemetry.operation_name("getstream.api.moderation.get_appeal")
@@ -73,17 +71,15 @@ class ModerationRestClient(BaseClient):
         filter: Optional[Dict[str, object]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[QueryAppealsResponse]:
-        json = build_body_dict(
-            **{
-                "limit": limit,
-                "next": next,
-                "prev": prev,
-                "user_id": user_id,
-                "sort": sort,
-                "filter": filter,
-                "user": user,
-            }
-        )
+        json = QueryAppealsRequest(
+            limit=limit,
+            next=next,
+            prev=prev,
+            user_id=user_id,
+            sort=sort,
+            filter=filter,
+            user=user,
+        ).to_dict()
         return self.post("/api/v2/moderation/appeals", QueryAppealsResponse, json=json)
 
     @telemetry.operation_name("getstream.api.moderation.ban")
@@ -99,26 +95,24 @@ class ModerationRestClient(BaseClient):
         timeout: Optional[int] = None,
         banned_by: Optional[UserRequest] = None,
     ) -> StreamResponse[BanResponse]:
-        json = build_body_dict(
-            **{
-                "target_user_id": target_user_id,
-                "banned_by_id": banned_by_id,
-                "channel_cid": channel_cid,
-                "delete_messages": delete_messages,
-                "ip_ban": ip_ban,
-                "reason": reason,
-                "shadow": shadow,
-                "timeout": timeout,
-                "banned_by": banned_by,
-            }
-        )
+        json = BanRequest(
+            target_user_id=target_user_id,
+            banned_by_id=banned_by_id,
+            channel_cid=channel_cid,
+            delete_messages=delete_messages,
+            ip_ban=ip_ban,
+            reason=reason,
+            shadow=shadow,
+            timeout=timeout,
+            banned_by=banned_by,
+        ).to_dict()
         return self.post("/api/v2/moderation/ban", BanResponse, json=json)
 
     @telemetry.operation_name("getstream.api.moderation.bulk_image_moderation")
     def bulk_image_moderation(
         self, csv_file: str
     ) -> StreamResponse[BulkImageModerationResponse]:
-        json = build_body_dict(**{"csv_file": csv_file})
+        json = BulkImageModerationRequest(csv_file=csv_file).to_dict()
         return self.post(
             "/api/v2/moderation/bulk_image_moderation",
             BulkImageModerationResponse,
@@ -140,21 +134,19 @@ class ModerationRestClient(BaseClient):
         options: Optional[Dict[str, object]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[CheckResponse]:
-        json = build_body_dict(
-            **{
-                "entity_creator_id": entity_creator_id,
-                "entity_id": entity_id,
-                "entity_type": entity_type,
-                "config_key": config_key,
-                "config_team": config_team,
-                "test_mode": test_mode,
-                "user_id": user_id,
-                "config": config,
-                "moderation_payload": moderation_payload,
-                "options": options,
-                "user": user,
-            }
-        )
+        json = CheckRequest(
+            entity_creator_id=entity_creator_id,
+            entity_id=entity_id,
+            entity_type=entity_type,
+            config_key=config_key,
+            config_team=config_team,
+            test_mode=test_mode,
+            user_id=user_id,
+            config=config,
+            moderation_payload=moderation_payload,
+            options=options,
+            user=user,
+        ).to_dict()
         return self.post("/api/v2/moderation/check", CheckResponse, json=json)
 
     @telemetry.operation_name("getstream.api.moderation.upsert_config")
@@ -182,29 +174,27 @@ class ModerationRestClient(BaseClient):
         velocity_filter_config: Optional[VelocityFilterConfig] = None,
         video_call_rule_config: Optional[VideoCallRuleConfig] = None,
     ) -> StreamResponse[UpsertConfigResponse]:
-        json = build_body_dict(
-            **{
-                "key": key,
-                "async": _async,
-                "team": team,
-                "user_id": user_id,
-                "ai_image_config": ai_image_config,
-                "ai_text_config": ai_text_config,
-                "ai_video_config": ai_video_config,
-                "automod_platform_circumvention_config": automod_platform_circumvention_config,
-                "automod_semantic_filters_config": automod_semantic_filters_config,
-                "automod_toxicity_config": automod_toxicity_config,
-                "aws_rekognition_config": aws_rekognition_config,
-                "block_list_config": block_list_config,
-                "bodyguard_config": bodyguard_config,
-                "google_vision_config": google_vision_config,
-                "llm_config": llm_config,
-                "rule_builder_config": rule_builder_config,
-                "user": user,
-                "velocity_filter_config": velocity_filter_config,
-                "video_call_rule_config": video_call_rule_config,
-            }
-        )
+        json = UpsertConfigRequest(
+            key=key,
+            _async=_async,
+            team=team,
+            user_id=user_id,
+            ai_image_config=ai_image_config,
+            ai_text_config=ai_text_config,
+            ai_video_config=ai_video_config,
+            automod_platform_circumvention_config=automod_platform_circumvention_config,
+            automod_semantic_filters_config=automod_semantic_filters_config,
+            automod_toxicity_config=automod_toxicity_config,
+            aws_rekognition_config=aws_rekognition_config,
+            block_list_config=block_list_config,
+            bodyguard_config=bodyguard_config,
+            google_vision_config=google_vision_config,
+            llm_config=llm_config,
+            rule_builder_config=rule_builder_config,
+            user=user,
+            velocity_filter_config=velocity_filter_config,
+            video_call_rule_config=video_call_rule_config,
+        ).to_dict()
         return self.post("/api/v2/moderation/config", UpsertConfigResponse, json=json)
 
     @telemetry.operation_name("getstream.api.moderation.delete_config")
@@ -248,17 +238,15 @@ class ModerationRestClient(BaseClient):
         filter: Optional[Dict[str, object]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[QueryModerationConfigsResponse]:
-        json = build_body_dict(
-            **{
-                "limit": limit,
-                "next": next,
-                "prev": prev,
-                "user_id": user_id,
-                "sort": sort,
-                "filter": filter,
-                "user": user,
-            }
-        )
+        json = QueryModerationConfigsRequest(
+            limit=limit,
+            next=next,
+            prev=prev,
+            user_id=user_id,
+            sort=sort,
+            filter=filter,
+            user=user,
+        ).to_dict()
         return self.post(
             "/api/v2/moderation/configs", QueryModerationConfigsResponse, json=json
         )
@@ -274,17 +262,15 @@ class ModerationRestClient(BaseClient):
         moderation_payload: Optional[ModerationPayloadRequest] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[CustomCheckResponse]:
-        json = build_body_dict(
-            **{
-                "entity_id": entity_id,
-                "entity_type": entity_type,
-                "flags": flags,
-                "entity_creator_id": entity_creator_id,
-                "user_id": user_id,
-                "moderation_payload": moderation_payload,
-                "user": user,
-            }
-        )
+        json = CustomCheckRequest(
+            entity_id=entity_id,
+            entity_type=entity_type,
+            flags=flags,
+            entity_creator_id=entity_creator_id,
+            user_id=user_id,
+            moderation_payload=moderation_payload,
+            user=user,
+        ).to_dict()
         return self.post(
             "/api/v2/moderation/custom_check", CustomCheckResponse, json=json
         )
@@ -309,7 +295,7 @@ class ModerationRestClient(BaseClient):
     def v2_upsert_template(
         self, name: str, config: FeedsModerationTemplateConfigPayload
     ) -> StreamResponse[UpsertModerationTemplateResponse]:
-        json = build_body_dict(**{"name": name, "config": config})
+        json = UpsertModerationTemplateRequest(name=name, config=config).to_dict()
         return self.post(
             "/api/v2/moderation/feeds_moderation_template",
             UpsertModerationTemplateResponse,
@@ -328,18 +314,16 @@ class ModerationRestClient(BaseClient):
         moderation_payload: Optional[ModerationPayload] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[FlagResponse]:
-        json = build_body_dict(
-            **{
-                "entity_id": entity_id,
-                "entity_type": entity_type,
-                "entity_creator_id": entity_creator_id,
-                "reason": reason,
-                "user_id": user_id,
-                "custom": custom,
-                "moderation_payload": moderation_payload,
-                "user": user,
-            }
-        )
+        json = FlagRequest(
+            entity_id=entity_id,
+            entity_type=entity_type,
+            entity_creator_id=entity_creator_id,
+            reason=reason,
+            user_id=user_id,
+            custom=custom,
+            moderation_payload=moderation_payload,
+            user=user,
+        ).to_dict()
         return self.post("/api/v2/moderation/flag", FlagResponse, json=json)
 
     @telemetry.operation_name("getstream.api.moderation.query_moderation_flags")
@@ -351,15 +335,9 @@ class ModerationRestClient(BaseClient):
         sort: Optional[List[SortParamRequest]] = None,
         filter: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[QueryModerationFlagsResponse]:
-        json = build_body_dict(
-            **{
-                "limit": limit,
-                "next": next,
-                "prev": prev,
-                "sort": sort,
-                "filter": filter,
-            }
-        )
+        json = QueryModerationFlagsRequest(
+            limit=limit, next=next, prev=prev, sort=sort, filter=filter
+        ).to_dict()
         return self.post(
             "/api/v2/moderation/flags", QueryModerationFlagsResponse, json=json
         )
@@ -375,17 +353,15 @@ class ModerationRestClient(BaseClient):
         filter: Optional[Dict[str, object]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[QueryModerationLogsResponse]:
-        json = build_body_dict(
-            **{
-                "limit": limit,
-                "next": next,
-                "prev": prev,
-                "user_id": user_id,
-                "sort": sort,
-                "filter": filter,
-                "user": user,
-            }
-        )
+        json = QueryModerationLogsRequest(
+            limit=limit,
+            next=next,
+            prev=prev,
+            user_id=user_id,
+            sort=sort,
+            filter=filter,
+            user=user,
+        ).to_dict()
         return self.post(
             "/api/v2/moderation/logs", QueryModerationLogsResponse, json=json
         )
@@ -406,22 +382,20 @@ class ModerationRestClient(BaseClient):
         groups: Optional[List[RuleBuilderConditionGroup]] = None,
         action: Optional[RuleBuilderAction] = None,
     ) -> StreamResponse[UpsertModerationRuleResponse]:
-        json = build_body_dict(
-            **{
-                "name": name,
-                "rule_type": rule_type,
-                "cooldown_period": cooldown_period,
-                "description": description,
-                "enabled": enabled,
-                "logic": logic,
-                "team": team,
-                "action_sequences": action_sequences,
-                "conditions": conditions,
-                "config_keys": config_keys,
-                "groups": groups,
-                "action": action,
-            }
-        )
+        json = UpsertModerationRuleRequest(
+            name=name,
+            rule_type=rule_type,
+            cooldown_period=cooldown_period,
+            description=description,
+            enabled=enabled,
+            logic=logic,
+            team=team,
+            action_sequences=action_sequences,
+            conditions=conditions,
+            config_keys=config_keys,
+            groups=groups,
+            action=action,
+        ).to_dict()
         return self.post(
             "/api/v2/moderation/moderation_rule",
             UpsertModerationRuleResponse,
@@ -451,17 +425,15 @@ class ModerationRestClient(BaseClient):
         filter: Optional[Dict[str, object]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[QueryModerationRulesResponse]:
-        json = build_body_dict(
-            **{
-                "limit": limit,
-                "next": next,
-                "prev": prev,
-                "user_id": user_id,
-                "sort": sort,
-                "filter": filter,
-                "user": user,
-            }
-        )
+        json = QueryModerationRulesRequest(
+            limit=limit,
+            next=next,
+            prev=prev,
+            user_id=user_id,
+            sort=sort,
+            filter=filter,
+            user=user,
+        ).to_dict()
         return self.post(
             "/api/v2/moderation/moderation_rules",
             QueryModerationRulesResponse,
@@ -476,14 +448,9 @@ class ModerationRestClient(BaseClient):
         user_id: Optional[str] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[MuteResponse]:
-        json = build_body_dict(
-            **{
-                "target_ids": target_ids,
-                "timeout": timeout,
-                "user_id": user_id,
-                "user": user,
-            }
-        )
+        json = MuteRequest(
+            target_ids=target_ids, timeout=timeout, user_id=user_id, user=user
+        ).to_dict()
         return self.post("/api/v2/moderation/mute", MuteResponse, json=json)
 
     @telemetry.operation_name("getstream.api.moderation.query_review_queue")
@@ -501,21 +468,19 @@ class ModerationRestClient(BaseClient):
         filter: Optional[Dict[str, object]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[QueryReviewQueueResponse]:
-        json = build_body_dict(
-            **{
-                "limit": limit,
-                "lock_count": lock_count,
-                "lock_duration": lock_duration,
-                "lock_items": lock_items,
-                "next": next,
-                "prev": prev,
-                "stats_only": stats_only,
-                "user_id": user_id,
-                "sort": sort,
-                "filter": filter,
-                "user": user,
-            }
-        )
+        json = QueryReviewQueueRequest(
+            limit=limit,
+            lock_count=lock_count,
+            lock_duration=lock_duration,
+            lock_items=lock_items,
+            next=next,
+            prev=prev,
+            stats_only=stats_only,
+            user_id=user_id,
+            sort=sort,
+            filter=filter,
+            user=user,
+        ).to_dict()
         return self.post(
             "/api/v2/moderation/review_queue", QueryReviewQueueResponse, json=json
         )
@@ -557,30 +522,28 @@ class ModerationRestClient(BaseClient):
         unblock: Optional[UnblockActionRequestPayload] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[SubmitActionResponse]:
-        json = build_body_dict(
-            **{
-                "action_type": action_type,
-                "appeal_id": appeal_id,
-                "item_id": item_id,
-                "user_id": user_id,
-                "ban": ban,
-                "block": block,
-                "custom": custom,
-                "delete_activity": delete_activity,
-                "delete_comment": delete_comment,
-                "delete_message": delete_message,
-                "delete_reaction": delete_reaction,
-                "delete_user": delete_user,
-                "flag": flag,
-                "mark_reviewed": mark_reviewed,
-                "reject_appeal": reject_appeal,
-                "restore": restore,
-                "shadow_block": shadow_block,
-                "unban": unban,
-                "unblock": unblock,
-                "user": user,
-            }
-        )
+        json = SubmitActionRequest(
+            action_type=action_type,
+            appeal_id=appeal_id,
+            item_id=item_id,
+            user_id=user_id,
+            ban=ban,
+            block=block,
+            custom=custom,
+            delete_activity=delete_activity,
+            delete_comment=delete_comment,
+            delete_message=delete_message,
+            delete_reaction=delete_reaction,
+            delete_user=delete_user,
+            flag=flag,
+            mark_reviewed=mark_reviewed,
+            reject_appeal=reject_appeal,
+            restore=restore,
+            shadow_block=shadow_block,
+            unban=unban,
+            unblock=unblock,
+            user=user,
+        ).to_dict()
         return self.post(
             "/api/v2/moderation/submit_action", SubmitActionResponse, json=json
         )
@@ -601,9 +564,9 @@ class ModerationRestClient(BaseClient):
                 "created_by": created_by,
             }
         )
-        json = build_body_dict(
-            **{"unbanned_by_id": unbanned_by_id, "unbanned_by": unbanned_by}
-        )
+        json = UnbanRequest(
+            unbanned_by_id=unbanned_by_id, unbanned_by=unbanned_by
+        ).to_dict()
         return self.post(
             "/api/v2/moderation/unban",
             UnbanResponse,
@@ -618,7 +581,7 @@ class ModerationRestClient(BaseClient):
         user_id: Optional[str] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[UnmuteResponse]:
-        json = build_body_dict(
-            **{"target_ids": target_ids, "user_id": user_id, "user": user}
-        )
+        json = UnmuteRequest(
+            target_ids=target_ids, user_id=user_id, user=user
+        ).to_dict()
         return self.post("/api/v2/moderation/unmute", UnmuteResponse, json=json)

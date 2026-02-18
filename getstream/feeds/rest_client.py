@@ -3,7 +3,7 @@ from getstream.base import BaseClient
 from getstream.common import telemetry
 from getstream.models import *
 from getstream.stream_response import StreamResponse
-from getstream.utils import build_query_param, build_body_dict
+from getstream.utils import build_query_param
 
 
 class FeedsRestClient(BaseClient):
@@ -58,40 +58,38 @@ class FeedsRestClient(BaseClient):
         location: Optional[ActivityLocation] = None,
         search_data: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[AddActivityResponse]:
-        json = build_body_dict(
-            **{
-                "type": type,
-                "feeds": feeds,
-                "copy_custom_to_notification": copy_custom_to_notification,
-                "create_notification_activity": create_notification_activity,
-                "expires_at": expires_at,
-                "id": id,
-                "parent_id": parent_id,
-                "poll_id": poll_id,
-                "restrict_replies": restrict_replies,
-                "skip_enrich_url": skip_enrich_url,
-                "skip_push": skip_push,
-                "text": text,
-                "user_id": user_id,
-                "visibility": visibility,
-                "visibility_tag": visibility_tag,
-                "attachments": attachments,
-                "collection_refs": collection_refs,
-                "filter_tags": filter_tags,
-                "interest_tags": interest_tags,
-                "mentioned_user_ids": mentioned_user_ids,
-                "custom": custom,
-                "location": location,
-                "search_data": search_data,
-            }
-        )
+        json = AddActivityRequest(
+            type=type,
+            feeds=feeds,
+            copy_custom_to_notification=copy_custom_to_notification,
+            create_notification_activity=create_notification_activity,
+            expires_at=expires_at,
+            id=id,
+            parent_id=parent_id,
+            poll_id=poll_id,
+            restrict_replies=restrict_replies,
+            skip_enrich_url=skip_enrich_url,
+            skip_push=skip_push,
+            text=text,
+            user_id=user_id,
+            visibility=visibility,
+            visibility_tag=visibility_tag,
+            attachments=attachments,
+            collection_refs=collection_refs,
+            filter_tags=filter_tags,
+            interest_tags=interest_tags,
+            mentioned_user_ids=mentioned_user_ids,
+            custom=custom,
+            location=location,
+            search_data=search_data,
+        ).to_dict()
         return self.post("/api/v2/feeds/activities", AddActivityResponse, json=json)
 
     @telemetry.operation_name("getstream.api.feeds.upsert_activities")
     def upsert_activities(
         self, activities: List[ActivityRequest]
     ) -> StreamResponse[UpsertActivitiesResponse]:
-        json = build_body_dict(**{"activities": activities})
+        json = UpsertActivitiesRequest(activities=activities).to_dict()
         return self.post(
             "/api/v2/feeds/activities/batch", UpsertActivitiesResponse, json=json
         )
@@ -100,7 +98,7 @@ class FeedsRestClient(BaseClient):
     def update_activities_partial_batch(
         self, changes: List[UpdateActivityPartialChangeRequest]
     ) -> StreamResponse[UpdateActivitiesPartialBatchResponse]:
-        json = build_body_dict(**{"changes": changes})
+        json = UpdateActivitiesPartialBatchRequest(changes=changes).to_dict()
         return self.patch(
             "/api/v2/feeds/activities/batch/partial",
             UpdateActivitiesPartialBatchResponse,
@@ -116,15 +114,13 @@ class FeedsRestClient(BaseClient):
         user_id: Optional[str] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[DeleteActivitiesResponse]:
-        json = build_body_dict(
-            **{
-                "ids": ids,
-                "delete_notification_activity": delete_notification_activity,
-                "hard_delete": hard_delete,
-                "user_id": user_id,
-                "user": user,
-            }
-        )
+        json = DeleteActivitiesRequest(
+            ids=ids,
+            delete_notification_activity=delete_notification_activity,
+            hard_delete=hard_delete,
+            user_id=user_id,
+            user=user,
+        ).to_dict()
         return self.post(
             "/api/v2/feeds/activities/delete", DeleteActivitiesResponse, json=json
         )
@@ -142,19 +138,17 @@ class FeedsRestClient(BaseClient):
         filter: Optional[Dict[str, object]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[QueryActivitiesResponse]:
-        json = build_body_dict(
-            **{
-                "include_expired_activities": include_expired_activities,
-                "include_private_activities": include_private_activities,
-                "limit": limit,
-                "next": next,
-                "prev": prev,
-                "user_id": user_id,
-                "sort": sort,
-                "filter": filter,
-                "user": user,
-            }
-        )
+        json = QueryActivitiesRequest(
+            include_expired_activities=include_expired_activities,
+            include_private_activities=include_private_activities,
+            limit=limit,
+            next=next,
+            prev=prev,
+            user_id=user_id,
+            sort=sort,
+            filter=filter,
+            user=user,
+        ).to_dict()
         return self.post(
             "/api/v2/feeds/activities/query", QueryActivitiesResponse, json=json
         )
@@ -191,16 +185,14 @@ class FeedsRestClient(BaseClient):
         path_params = {
             "activity_id": activity_id,
         }
-        json = build_body_dict(
-            **{
-                "folder_id": folder_id,
-                "new_folder_id": new_folder_id,
-                "user_id": user_id,
-                "custom": custom,
-                "new_folder": new_folder,
-                "user": user,
-            }
-        )
+        json = UpdateBookmarkRequest(
+            folder_id=folder_id,
+            new_folder_id=new_folder_id,
+            user_id=user_id,
+            custom=custom,
+            new_folder=new_folder,
+            user=user,
+        ).to_dict()
         return self.patch(
             "/api/v2/feeds/activities/{activity_id}/bookmarks",
             UpdateBookmarkResponse,
@@ -221,15 +213,13 @@ class FeedsRestClient(BaseClient):
         path_params = {
             "activity_id": activity_id,
         }
-        json = build_body_dict(
-            **{
-                "folder_id": folder_id,
-                "user_id": user_id,
-                "custom": custom,
-                "new_folder": new_folder,
-                "user": user,
-            }
-        )
+        json = AddBookmarkRequest(
+            folder_id=folder_id,
+            user_id=user_id,
+            custom=custom,
+            new_folder=new_folder,
+            user=user,
+        ).to_dict()
         return self.post(
             "/api/v2/feeds/activities/{activity_id}/bookmarks",
             AddBookmarkResponse,
@@ -250,15 +240,13 @@ class FeedsRestClient(BaseClient):
         path_params = {
             "activity_id": activity_id,
         }
-        json = build_body_dict(
-            **{
-                "hide": hide,
-                "show_less": show_less,
-                "show_more": show_more,
-                "user_id": user_id,
-                "user": user,
-            }
-        )
+        json = ActivityFeedbackRequest(
+            hide=hide,
+            show_less=show_less,
+            show_more=show_more,
+            user_id=user_id,
+            user=user,
+        ).to_dict()
         return self.post(
             "/api/v2/feeds/activities/{activity_id}/feedback",
             ActivityFeedbackResponse,
@@ -279,7 +267,7 @@ class FeedsRestClient(BaseClient):
             "activity_id": activity_id,
             "poll_id": poll_id,
         }
-        json = build_body_dict(**{"user_id": user_id, "user": user, "vote": vote})
+        json = CastPollVoteRequest(user_id=user_id, user=user, vote=vote).to_dict()
         return self.post(
             "/api/v2/feeds/activities/{activity_id}/polls/{poll_id}/vote",
             PollVoteResponse,
@@ -324,18 +312,16 @@ class FeedsRestClient(BaseClient):
         path_params = {
             "activity_id": activity_id,
         }
-        json = build_body_dict(
-            **{
-                "type": type,
-                "copy_custom_to_notification": copy_custom_to_notification,
-                "create_notification_activity": create_notification_activity,
-                "enforce_unique": enforce_unique,
-                "skip_push": skip_push,
-                "user_id": user_id,
-                "custom": custom,
-                "user": user,
-            }
-        )
+        json = AddReactionRequest(
+            type=type,
+            copy_custom_to_notification=copy_custom_to_notification,
+            create_notification_activity=create_notification_activity,
+            enforce_unique=enforce_unique,
+            skip_push=skip_push,
+            user_id=user_id,
+            custom=custom,
+            user=user,
+        ).to_dict()
         return self.post(
             "/api/v2/feeds/activities/{activity_id}/reactions",
             AddReactionResponse,
@@ -356,15 +342,9 @@ class FeedsRestClient(BaseClient):
         path_params = {
             "activity_id": activity_id,
         }
-        json = build_body_dict(
-            **{
-                "limit": limit,
-                "next": next,
-                "prev": prev,
-                "sort": sort,
-                "filter": filter,
-            }
-        )
+        json = QueryActivityReactionsRequest(
+            limit=limit, next=next, prev=prev, sort=sort, filter=filter
+        ).to_dict()
         return self.post(
             "/api/v2/feeds/activities/{activity_id}/reactions/query",
             QueryActivityReactionsResponse,
@@ -446,17 +426,15 @@ class FeedsRestClient(BaseClient):
         path_params = {
             "id": id,
         }
-        json = build_body_dict(
-            **{
-                "copy_custom_to_notification": copy_custom_to_notification,
-                "handle_mention_notifications": handle_mention_notifications,
-                "run_activity_processors": run_activity_processors,
-                "user_id": user_id,
-                "unset": unset,
-                "set": set,
-                "user": user,
-            }
-        )
+        json = UpdateActivityPartialRequest(
+            copy_custom_to_notification=copy_custom_to_notification,
+            handle_mention_notifications=handle_mention_notifications,
+            run_activity_processors=run_activity_processors,
+            user_id=user_id,
+            unset=unset,
+            set=set,
+            user=user,
+        ).to_dict()
         return self.patch(
             "/api/v2/feeds/activities/{id}",
             UpdateActivityPartialResponse,
@@ -493,31 +471,29 @@ class FeedsRestClient(BaseClient):
         path_params = {
             "id": id,
         }
-        json = build_body_dict(
-            **{
-                "copy_custom_to_notification": copy_custom_to_notification,
-                "expires_at": expires_at,
-                "handle_mention_notifications": handle_mention_notifications,
-                "poll_id": poll_id,
-                "restrict_replies": restrict_replies,
-                "run_activity_processors": run_activity_processors,
-                "skip_enrich_url": skip_enrich_url,
-                "text": text,
-                "user_id": user_id,
-                "visibility": visibility,
-                "visibility_tag": visibility_tag,
-                "attachments": attachments,
-                "collection_refs": collection_refs,
-                "feeds": feeds,
-                "filter_tags": filter_tags,
-                "interest_tags": interest_tags,
-                "mentioned_user_ids": mentioned_user_ids,
-                "custom": custom,
-                "location": location,
-                "search_data": search_data,
-                "user": user,
-            }
-        )
+        json = UpdateActivityRequest(
+            copy_custom_to_notification=copy_custom_to_notification,
+            expires_at=expires_at,
+            handle_mention_notifications=handle_mention_notifications,
+            poll_id=poll_id,
+            restrict_replies=restrict_replies,
+            run_activity_processors=run_activity_processors,
+            skip_enrich_url=skip_enrich_url,
+            text=text,
+            user_id=user_id,
+            visibility=visibility,
+            visibility_tag=visibility_tag,
+            attachments=attachments,
+            collection_refs=collection_refs,
+            feeds=feeds,
+            filter_tags=filter_tags,
+            interest_tags=interest_tags,
+            mentioned_user_ids=mentioned_user_ids,
+            custom=custom,
+            location=location,
+            search_data=search_data,
+            user=user,
+        ).to_dict()
         return self.put(
             "/api/v2/feeds/activities/{id}",
             UpdateActivityResponse,
@@ -532,7 +508,7 @@ class FeedsRestClient(BaseClient):
         path_params = {
             "id": id,
         }
-        json = build_body_dict(**{"user_id": user_id, "user": user})
+        json = RestoreActivityRequest(user_id=user_id, user=user).to_dict()
         return self.post(
             "/api/v2/feeds/activities/{id}/restore",
             RestoreActivityResponse,
@@ -549,15 +525,9 @@ class FeedsRestClient(BaseClient):
         sort: Optional[List[SortParamRequest]] = None,
         filter: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[QueryBookmarkFoldersResponse]:
-        json = build_body_dict(
-            **{
-                "limit": limit,
-                "next": next,
-                "prev": prev,
-                "sort": sort,
-                "filter": filter,
-            }
-        )
+        json = QueryBookmarkFoldersRequest(
+            limit=limit, next=next, prev=prev, sort=sort, filter=filter
+        ).to_dict()
         return self.post(
             "/api/v2/feeds/bookmark_folders/query",
             QueryBookmarkFoldersResponse,
@@ -589,9 +559,9 @@ class FeedsRestClient(BaseClient):
         path_params = {
             "folder_id": folder_id,
         }
-        json = build_body_dict(
-            **{"name": name, "user_id": user_id, "custom": custom, "user": user}
-        )
+        json = UpdateBookmarkFolderRequest(
+            name=name, user_id=user_id, custom=custom, user=user
+        ).to_dict()
         return self.patch(
             "/api/v2/feeds/bookmark_folders/{folder_id}",
             UpdateBookmarkFolderResponse,
@@ -608,15 +578,9 @@ class FeedsRestClient(BaseClient):
         sort: Optional[List[SortParamRequest]] = None,
         filter: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[QueryBookmarksResponse]:
-        json = build_body_dict(
-            **{
-                "limit": limit,
-                "next": next,
-                "prev": prev,
-                "sort": sort,
-                "filter": filter,
-            }
-        )
+        json = QueryBookmarksRequest(
+            limit=limit, next=next, prev=prev, sort=sort, filter=filter
+        ).to_dict()
         return self.post(
             "/api/v2/feeds/bookmarks/query", QueryBookmarksResponse, json=json
         )
@@ -652,9 +616,9 @@ class FeedsRestClient(BaseClient):
         user_id: Optional[str] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[UpdateCollectionsResponse]:
-        json = build_body_dict(
-            **{"collections": collections, "user_id": user_id, "user": user}
-        )
+        json = UpdateCollectionsRequest(
+            collections=collections, user_id=user_id, user=user
+        ).to_dict()
         return self.patch(
             "/api/v2/feeds/collections", UpdateCollectionsResponse, json=json
         )
@@ -666,9 +630,9 @@ class FeedsRestClient(BaseClient):
         user_id: Optional[str] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[CreateCollectionsResponse]:
-        json = build_body_dict(
-            **{"collections": collections, "user_id": user_id, "user": user}
-        )
+        json = CreateCollectionsRequest(
+            collections=collections, user_id=user_id, user=user
+        ).to_dict()
         return self.post(
             "/api/v2/feeds/collections", CreateCollectionsResponse, json=json
         )
@@ -677,7 +641,7 @@ class FeedsRestClient(BaseClient):
     def upsert_collections(
         self, collections: List[CollectionRequest]
     ) -> StreamResponse[UpsertCollectionsResponse]:
-        json = build_body_dict(**{"collections": collections})
+        json = UpsertCollectionsRequest(collections=collections).to_dict()
         return self.put(
             "/api/v2/feeds/collections", UpsertCollectionsResponse, json=json
         )
@@ -730,31 +694,29 @@ class FeedsRestClient(BaseClient):
         custom: Optional[Dict[str, object]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[AddCommentResponse]:
-        json = build_body_dict(
-            **{
-                "comment": comment,
-                "copy_custom_to_notification": copy_custom_to_notification,
-                "create_notification_activity": create_notification_activity,
-                "id": id,
-                "object_id": object_id,
-                "object_type": object_type,
-                "parent_id": parent_id,
-                "skip_enrich_url": skip_enrich_url,
-                "skip_push": skip_push,
-                "user_id": user_id,
-                "attachments": attachments,
-                "mentioned_user_ids": mentioned_user_ids,
-                "custom": custom,
-                "user": user,
-            }
-        )
+        json = AddCommentRequest(
+            comment=comment,
+            copy_custom_to_notification=copy_custom_to_notification,
+            create_notification_activity=create_notification_activity,
+            id=id,
+            object_id=object_id,
+            object_type=object_type,
+            parent_id=parent_id,
+            skip_enrich_url=skip_enrich_url,
+            skip_push=skip_push,
+            user_id=user_id,
+            attachments=attachments,
+            mentioned_user_ids=mentioned_user_ids,
+            custom=custom,
+            user=user,
+        ).to_dict()
         return self.post("/api/v2/feeds/comments", AddCommentResponse, json=json)
 
     @telemetry.operation_name("getstream.api.feeds.add_comments_batch")
     def add_comments_batch(
         self, comments: List[AddCommentRequest]
     ) -> StreamResponse[AddCommentsBatchResponse]:
-        json = build_body_dict(**{"comments": comments})
+        json = AddCommentsBatchRequest(comments=comments).to_dict()
         return self.post(
             "/api/v2/feeds/comments/batch", AddCommentsBatchResponse, json=json
         )
@@ -768,15 +730,9 @@ class FeedsRestClient(BaseClient):
         prev: Optional[str] = None,
         sort: Optional[str] = None,
     ) -> StreamResponse[QueryCommentsResponse]:
-        json = build_body_dict(
-            **{
-                "filter": filter,
-                "limit": limit,
-                "next": next,
-                "prev": prev,
-                "sort": sort,
-            }
-        )
+        json = QueryCommentsRequest(
+            filter=filter, limit=limit, next=next, prev=prev, sort=sort
+        ).to_dict()
         return self.post(
             "/api/v2/feeds/comments/query", QueryCommentsResponse, json=json
         )
@@ -831,20 +787,18 @@ class FeedsRestClient(BaseClient):
         path_params = {
             "id": id,
         }
-        json = build_body_dict(
-            **{
-                "comment": comment,
-                "copy_custom_to_notification": copy_custom_to_notification,
-                "handle_mention_notifications": handle_mention_notifications,
-                "skip_enrich_url": skip_enrich_url,
-                "skip_push": skip_push,
-                "user_id": user_id,
-                "attachments": attachments,
-                "mentioned_user_ids": mentioned_user_ids,
-                "custom": custom,
-                "user": user,
-            }
-        )
+        json = UpdateCommentRequest(
+            comment=comment,
+            copy_custom_to_notification=copy_custom_to_notification,
+            handle_mention_notifications=handle_mention_notifications,
+            skip_enrich_url=skip_enrich_url,
+            skip_push=skip_push,
+            user_id=user_id,
+            attachments=attachments,
+            mentioned_user_ids=mentioned_user_ids,
+            custom=custom,
+            user=user,
+        ).to_dict()
         return self.patch(
             "/api/v2/feeds/comments/{id}",
             UpdateCommentResponse,
@@ -868,18 +822,16 @@ class FeedsRestClient(BaseClient):
         path_params = {
             "id": id,
         }
-        json = build_body_dict(
-            **{
-                "type": type,
-                "copy_custom_to_notification": copy_custom_to_notification,
-                "create_notification_activity": create_notification_activity,
-                "enforce_unique": enforce_unique,
-                "skip_push": skip_push,
-                "user_id": user_id,
-                "custom": custom,
-                "user": user,
-            }
-        )
+        json = AddCommentReactionRequest(
+            type=type,
+            copy_custom_to_notification=copy_custom_to_notification,
+            create_notification_activity=create_notification_activity,
+            enforce_unique=enforce_unique,
+            skip_push=skip_push,
+            user_id=user_id,
+            custom=custom,
+            user=user,
+        ).to_dict()
         return self.post(
             "/api/v2/feeds/comments/{id}/reactions",
             AddCommentReactionResponse,
@@ -900,15 +852,9 @@ class FeedsRestClient(BaseClient):
         path_params = {
             "id": id,
         }
-        json = build_body_dict(
-            **{
-                "limit": limit,
-                "next": next,
-                "prev": prev,
-                "sort": sort,
-                "filter": filter,
-            }
-        )
+        json = QueryCommentReactionsRequest(
+            limit=limit, next=next, prev=prev, sort=sort, filter=filter
+        ).to_dict()
         return self.post(
             "/api/v2/feeds/comments/{id}/reactions/query",
             QueryCommentReactionsResponse,
@@ -1001,20 +947,18 @@ class FeedsRestClient(BaseClient):
         ranking: Optional[RankingConfig] = None,
         stories: Optional[StoriesConfig] = None,
     ) -> StreamResponse[CreateFeedGroupResponse]:
-        json = build_body_dict(
-            **{
-                "id": id,
-                "default_visibility": default_visibility,
-                "activity_processors": activity_processors,
-                "activity_selectors": activity_selectors,
-                "aggregation": aggregation,
-                "custom": custom,
-                "notification": notification,
-                "push_notification": push_notification,
-                "ranking": ranking,
-                "stories": stories,
-            }
-        )
+        json = CreateFeedGroupRequest(
+            id=id,
+            default_visibility=default_visibility,
+            activity_processors=activity_processors,
+            activity_selectors=activity_selectors,
+            aggregation=aggregation,
+            custom=custom,
+            notification=notification,
+            push_notification=push_notification,
+            ranking=ranking,
+            stories=stories,
+        ).to_dict()
         return self.post(
             "/api/v2/feeds/feed_groups", CreateFeedGroupResponse, json=json
         )
@@ -1062,27 +1006,25 @@ class FeedsRestClient(BaseClient):
             "feed_group_id": feed_group_id,
             "feed_id": feed_id,
         }
-        json = build_body_dict(
-            **{
-                "id_around": id_around,
-                "limit": limit,
-                "next": next,
-                "prev": prev,
-                "user_id": user_id,
-                "view": view,
-                "watch": watch,
-                "data": data,
-                "enrichment_options": enrichment_options,
-                "external_ranking": external_ranking,
-                "filter": filter,
-                "followers_pagination": followers_pagination,
-                "following_pagination": following_pagination,
-                "friend_reactions_options": friend_reactions_options,
-                "interest_weights": interest_weights,
-                "member_pagination": member_pagination,
-                "user": user,
-            }
-        )
+        json = GetOrCreateFeedRequest(
+            id_around=id_around,
+            limit=limit,
+            next=next,
+            prev=prev,
+            user_id=user_id,
+            view=view,
+            watch=watch,
+            data=data,
+            enrichment_options=enrichment_options,
+            external_ranking=external_ranking,
+            filter=filter,
+            followers_pagination=followers_pagination,
+            following_pagination=following_pagination,
+            friend_reactions_options=friend_reactions_options,
+            interest_weights=interest_weights,
+            member_pagination=member_pagination,
+            user=user,
+        ).to_dict()
         return self.post(
             "/api/v2/feeds/feed_groups/{feed_group_id}/feeds/{feed_id}",
             GetOrCreateFeedResponse,
@@ -1105,15 +1047,13 @@ class FeedsRestClient(BaseClient):
             "feed_group_id": feed_group_id,
             "feed_id": feed_id,
         }
-        json = build_body_dict(
-            **{
-                "created_by_id": created_by_id,
-                "description": description,
-                "name": name,
-                "filter_tags": filter_tags,
-                "custom": custom,
-            }
-        )
+        json = UpdateFeedRequest(
+            created_by_id=created_by_id,
+            description=description,
+            name=name,
+            filter_tags=filter_tags,
+            custom=custom,
+        ).to_dict()
         return self.put(
             "/api/v2/feeds/feed_groups/{feed_group_id}/feeds/{feed_id}",
             UpdateFeedResponse,
@@ -1138,17 +1078,15 @@ class FeedsRestClient(BaseClient):
             "feed_group_id": feed_group_id,
             "feed_id": feed_id,
         }
-        json = build_body_dict(
-            **{
-                "mark_all_read": mark_all_read,
-                "mark_all_seen": mark_all_seen,
-                "user_id": user_id,
-                "mark_read": mark_read,
-                "mark_seen": mark_seen,
-                "mark_watched": mark_watched,
-                "user": user,
-            }
-        )
+        json = MarkActivityRequest(
+            mark_all_read=mark_all_read,
+            mark_all_seen=mark_all_seen,
+            user_id=user_id,
+            mark_read=mark_read,
+            mark_seen=mark_seen,
+            mark_watched=mark_watched,
+            user=user,
+        ).to_dict()
         return self.post(
             "/api/v2/feeds/feed_groups/{feed_group_id}/feeds/{feed_id}/activities/mark/batch",
             Response,
@@ -1191,7 +1129,7 @@ class FeedsRestClient(BaseClient):
             "feed_id": feed_id,
             "activity_id": activity_id,
         }
-        json = build_body_dict(**{"user_id": user_id, "user": user})
+        json = PinActivityRequest(user_id=user_id, user=user).to_dict()
         return self.post(
             "/api/v2/feeds/feed_groups/{feed_group_id}/feeds/{feed_id}/activities/{activity_id}/pin",
             PinActivityResponse,
@@ -1214,15 +1152,9 @@ class FeedsRestClient(BaseClient):
             "feed_group_id": feed_group_id,
             "feed_id": feed_id,
         }
-        json = build_body_dict(
-            **{
-                "operation": operation,
-                "limit": limit,
-                "next": next,
-                "prev": prev,
-                "members": members,
-            }
-        )
+        json = UpdateFeedMembersRequest(
+            operation=operation, limit=limit, next=next, prev=prev, members=members
+        ).to_dict()
         return self.patch(
             "/api/v2/feeds/feed_groups/{feed_group_id}/feeds/{feed_id}/members",
             UpdateFeedMembersResponse,
@@ -1242,7 +1174,7 @@ class FeedsRestClient(BaseClient):
             "feed_id": feed_id,
             "feed_group_id": feed_group_id,
         }
-        json = build_body_dict(**{"user_id": user_id, "user": user})
+        json = AcceptFeedMemberInviteRequest(user_id=user_id, user=user).to_dict()
         return self.post(
             "/api/v2/feeds/feed_groups/{feed_group_id}/feeds/{feed_id}/members/accept",
             AcceptFeedMemberInviteResponse,
@@ -1265,15 +1197,9 @@ class FeedsRestClient(BaseClient):
             "feed_group_id": feed_group_id,
             "feed_id": feed_id,
         }
-        json = build_body_dict(
-            **{
-                "limit": limit,
-                "next": next,
-                "prev": prev,
-                "sort": sort,
-                "filter": filter,
-            }
-        )
+        json = QueryFeedMembersRequest(
+            limit=limit, next=next, prev=prev, sort=sort, filter=filter
+        ).to_dict()
         return self.post(
             "/api/v2/feeds/feed_groups/{feed_group_id}/feeds/{feed_id}/members/query",
             QueryFeedMembersResponse,
@@ -1293,10 +1219,35 @@ class FeedsRestClient(BaseClient):
             "feed_group_id": feed_group_id,
             "feed_id": feed_id,
         }
-        json = build_body_dict(**{"user_id": user_id, "user": user})
+        json = RejectFeedMemberInviteRequest(user_id=user_id, user=user).to_dict()
         return self.post(
             "/api/v2/feeds/feed_groups/{feed_group_id}/feeds/{feed_id}/members/reject",
             RejectFeedMemberInviteResponse,
+            path_params=path_params,
+            json=json,
+        )
+
+    @telemetry.operation_name("getstream.api.feeds.query_pinned_activities")
+    def query_pinned_activities(
+        self,
+        feed_group_id: str,
+        feed_id: str,
+        limit: Optional[int] = None,
+        next: Optional[str] = None,
+        prev: Optional[str] = None,
+        sort: Optional[List[SortParamRequest]] = None,
+        filter: Optional[Dict[str, object]] = None,
+    ) -> StreamResponse[QueryPinnedActivitiesResponse]:
+        path_params = {
+            "feed_group_id": feed_group_id,
+            "feed_id": feed_id,
+        }
+        json = QueryPinnedActivitiesRequest(
+            limit=limit, next=next, prev=prev, sort=sort, filter=filter
+        ).to_dict()
+        return self.post(
+            "/api/v2/feeds/feed_groups/{feed_group_id}/feeds/{feed_id}/pinned_activities/query",
+            QueryPinnedActivitiesResponse,
             path_params=path_params,
             json=json,
         )
@@ -1368,19 +1319,17 @@ class FeedsRestClient(BaseClient):
         path_params = {
             "id": id,
         }
-        json = build_body_dict(
-            **{
-                "default_visibility": default_visibility,
-                "activity_processors": activity_processors,
-                "activity_selectors": activity_selectors,
-                "aggregation": aggregation,
-                "custom": custom,
-                "notification": notification,
-                "push_notification": push_notification,
-                "ranking": ranking,
-                "stories": stories,
-            }
-        )
+        json = GetOrCreateFeedGroupRequest(
+            default_visibility=default_visibility,
+            activity_processors=activity_processors,
+            activity_selectors=activity_selectors,
+            aggregation=aggregation,
+            custom=custom,
+            notification=notification,
+            push_notification=push_notification,
+            ranking=ranking,
+            stories=stories,
+        ).to_dict()
         return self.post(
             "/api/v2/feeds/feed_groups/{id}",
             GetOrCreateFeedGroupResponse,
@@ -1405,19 +1354,17 @@ class FeedsRestClient(BaseClient):
         path_params = {
             "id": id,
         }
-        json = build_body_dict(
-            **{
-                "default_visibility": default_visibility,
-                "activity_processors": activity_processors,
-                "activity_selectors": activity_selectors,
-                "aggregation": aggregation,
-                "custom": custom,
-                "notification": notification,
-                "push_notification": push_notification,
-                "ranking": ranking,
-                "stories": stories,
-            }
-        )
+        json = UpdateFeedGroupRequest(
+            default_visibility=default_visibility,
+            activity_processors=activity_processors,
+            activity_selectors=activity_selectors,
+            aggregation=aggregation,
+            custom=custom,
+            notification=notification,
+            push_notification=push_notification,
+            ranking=ranking,
+            stories=stories,
+        ).to_dict()
         return self.put(
             "/api/v2/feeds/feed_groups/{id}",
             UpdateFeedGroupResponse,
@@ -1437,14 +1384,12 @@ class FeedsRestClient(BaseClient):
         aggregation: Optional[AggregationConfig] = None,
         ranking: Optional[RankingConfig] = None,
     ) -> StreamResponse[CreateFeedViewResponse]:
-        json = build_body_dict(
-            **{
-                "id": id,
-                "activity_selectors": activity_selectors,
-                "aggregation": aggregation,
-                "ranking": ranking,
-            }
-        )
+        json = CreateFeedViewRequest(
+            id=id,
+            activity_selectors=activity_selectors,
+            aggregation=aggregation,
+            ranking=ranking,
+        ).to_dict()
         return self.post("/api/v2/feeds/feed_views", CreateFeedViewResponse, json=json)
 
     @telemetry.operation_name("getstream.api.feeds.delete_feed_view")
@@ -1480,13 +1425,11 @@ class FeedsRestClient(BaseClient):
         path_params = {
             "id": id,
         }
-        json = build_body_dict(
-            **{
-                "activity_selectors": activity_selectors,
-                "aggregation": aggregation,
-                "ranking": ranking,
-            }
-        )
+        json = GetOrCreateFeedViewRequest(
+            activity_selectors=activity_selectors,
+            aggregation=aggregation,
+            ranking=ranking,
+        ).to_dict()
         return self.post(
             "/api/v2/feeds/feed_views/{id}",
             GetOrCreateFeedViewResponse,
@@ -1505,13 +1448,11 @@ class FeedsRestClient(BaseClient):
         path_params = {
             "id": id,
         }
-        json = build_body_dict(
-            **{
-                "activity_selectors": activity_selectors,
-                "aggregation": aggregation,
-                "ranking": ranking,
-            }
-        )
+        json = UpdateFeedViewRequest(
+            activity_selectors=activity_selectors,
+            aggregation=aggregation,
+            ranking=ranking,
+        ).to_dict()
         return self.put(
             "/api/v2/feeds/feed_views/{id}",
             UpdateFeedViewResponse,
@@ -1543,7 +1484,7 @@ class FeedsRestClient(BaseClient):
         path_params = {
             "name": name,
         }
-        json = build_body_dict(**{"grants": grants})
+        json = UpdateFeedVisibilityRequest(grants=grants).to_dict()
         return self.put(
             "/api/v2/feeds/feed_visibilities/{name}",
             UpdateFeedVisibilityResponse,
@@ -1555,7 +1496,7 @@ class FeedsRestClient(BaseClient):
     def create_feeds_batch(
         self, feeds: List[FeedRequest]
     ) -> StreamResponse[CreateFeedsBatchResponse]:
-        json = build_body_dict(**{"feeds": feeds})
+        json = CreateFeedsBatchRequest(feeds=feeds).to_dict()
         return self.post(
             "/api/v2/feeds/feeds/batch", CreateFeedsBatchResponse, json=json
         )
@@ -1564,7 +1505,7 @@ class FeedsRestClient(BaseClient):
     def delete_feeds_batch(
         self, feeds: List[str], hard_delete: Optional[bool] = None
     ) -> StreamResponse[DeleteFeedsBatchResponse]:
-        json = build_body_dict(**{"feeds": feeds, "hard_delete": hard_delete})
+        json = DeleteFeedsBatchRequest(feeds=feeds, hard_delete=hard_delete).to_dict()
         return self.post(
             "/api/v2/feeds/feeds/delete", DeleteFeedsBatchResponse, json=json
         )
@@ -1577,9 +1518,9 @@ class FeedsRestClient(BaseClient):
         fields: Optional[List[str]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[OwnBatchResponse]:
-        json = build_body_dict(
-            **{"feeds": feeds, "user_id": user_id, "fields": fields, "user": user}
-        )
+        json = OwnBatchRequest(
+            feeds=feeds, user_id=user_id, fields=fields, user=user
+        ).to_dict()
         return self.post("/api/v2/feeds/feeds/own/batch", OwnBatchResponse, json=json)
 
     @telemetry.operation_name("getstream.api.feeds.query_feeds")
@@ -1592,16 +1533,9 @@ class FeedsRestClient(BaseClient):
         sort: Optional[List[SortParamRequest]] = None,
         filter: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[QueryFeedsResponse]:
-        json = build_body_dict(
-            **{
-                "limit": limit,
-                "next": next,
-                "prev": prev,
-                "watch": watch,
-                "sort": sort,
-                "filter": filter,
-            }
-        )
+        json = QueryFeedsRequest(
+            limit=limit, next=next, prev=prev, watch=watch, sort=sort, filter=filter
+        ).to_dict()
         return self.post("/api/v2/feeds/feeds/query", QueryFeedsResponse, json=json)
 
     @telemetry.operation_name("getstream.api.feeds.get_feeds_rate_limits")
@@ -1641,19 +1575,17 @@ class FeedsRestClient(BaseClient):
         status: Optional[str] = None,
         custom: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[UpdateFollowResponse]:
-        json = build_body_dict(
-            **{
-                "source": source,
-                "target": target,
-                "copy_custom_to_notification": copy_custom_to_notification,
-                "create_notification_activity": create_notification_activity,
-                "follower_role": follower_role,
-                "push_preference": push_preference,
-                "skip_push": skip_push,
-                "status": status,
-                "custom": custom,
-            }
-        )
+        json = UpdateFollowRequest(
+            source=source,
+            target=target,
+            copy_custom_to_notification=copy_custom_to_notification,
+            create_notification_activity=create_notification_activity,
+            follower_role=follower_role,
+            push_preference=push_preference,
+            skip_push=skip_push,
+            status=status,
+            custom=custom,
+        ).to_dict()
         return self.patch("/api/v2/feeds/follows", UpdateFollowResponse, json=json)
 
     @telemetry.operation_name("getstream.api.feeds.follow")
@@ -1668,27 +1600,25 @@ class FeedsRestClient(BaseClient):
         status: Optional[str] = None,
         custom: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[SingleFollowResponse]:
-        json = build_body_dict(
-            **{
-                "source": source,
-                "target": target,
-                "copy_custom_to_notification": copy_custom_to_notification,
-                "create_notification_activity": create_notification_activity,
-                "push_preference": push_preference,
-                "skip_push": skip_push,
-                "status": status,
-                "custom": custom,
-            }
-        )
+        json = FollowRequest(
+            source=source,
+            target=target,
+            copy_custom_to_notification=copy_custom_to_notification,
+            create_notification_activity=create_notification_activity,
+            push_preference=push_preference,
+            skip_push=skip_push,
+            status=status,
+            custom=custom,
+        ).to_dict()
         return self.post("/api/v2/feeds/follows", SingleFollowResponse, json=json)
 
     @telemetry.operation_name("getstream.api.feeds.accept_follow")
     def accept_follow(
         self, source: str, target: str, follower_role: Optional[str] = None
     ) -> StreamResponse[AcceptFollowResponse]:
-        json = build_body_dict(
-            **{"source": source, "target": target, "follower_role": follower_role}
-        )
+        json = AcceptFollowRequest(
+            source=source, target=target, follower_role=follower_role
+        ).to_dict()
         return self.post(
             "/api/v2/feeds/follows/accept", AcceptFollowResponse, json=json
         )
@@ -1697,14 +1627,14 @@ class FeedsRestClient(BaseClient):
     def follow_batch(
         self, follows: List[FollowRequest]
     ) -> StreamResponse[FollowBatchResponse]:
-        json = build_body_dict(**{"follows": follows})
+        json = FollowBatchRequest(follows=follows).to_dict()
         return self.post("/api/v2/feeds/follows/batch", FollowBatchResponse, json=json)
 
     @telemetry.operation_name("getstream.api.feeds.get_or_create_follows")
     def get_or_create_follows(
         self, follows: List[FollowRequest]
     ) -> StreamResponse[FollowBatchResponse]:
-        json = build_body_dict(**{"follows": follows})
+        json = FollowBatchRequest(follows=follows).to_dict()
         return self.post(
             "/api/v2/feeds/follows/batch/upsert", FollowBatchResponse, json=json
         )
@@ -1718,22 +1648,16 @@ class FeedsRestClient(BaseClient):
         sort: Optional[List[SortParamRequest]] = None,
         filter: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[QueryFollowsResponse]:
-        json = build_body_dict(
-            **{
-                "limit": limit,
-                "next": next,
-                "prev": prev,
-                "sort": sort,
-                "filter": filter,
-            }
-        )
+        json = QueryFollowsRequest(
+            limit=limit, next=next, prev=prev, sort=sort, filter=filter
+        ).to_dict()
         return self.post("/api/v2/feeds/follows/query", QueryFollowsResponse, json=json)
 
     @telemetry.operation_name("getstream.api.feeds.reject_follow")
     def reject_follow(
         self, source: str, target: str
     ) -> StreamResponse[RejectFollowResponse]:
-        json = build_body_dict(**{"source": source, "target": target})
+        json = RejectFollowRequest(source=source, target=target).to_dict()
         return self.post(
             "/api/v2/feeds/follows/reject", RejectFollowResponse, json=json
         )
@@ -1769,16 +1693,14 @@ class FeedsRestClient(BaseClient):
         tags: Optional[List[str]] = None,
         custom: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[CreateMembershipLevelResponse]:
-        json = build_body_dict(
-            **{
-                "id": id,
-                "name": name,
-                "description": description,
-                "priority": priority,
-                "tags": tags,
-                "custom": custom,
-            }
-        )
+        json = CreateMembershipLevelRequest(
+            id=id,
+            name=name,
+            description=description,
+            priority=priority,
+            tags=tags,
+            custom=custom,
+        ).to_dict()
         return self.post(
             "/api/v2/feeds/membership_levels", CreateMembershipLevelResponse, json=json
         )
@@ -1792,15 +1714,9 @@ class FeedsRestClient(BaseClient):
         sort: Optional[List[SortParamRequest]] = None,
         filter: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[QueryMembershipLevelsResponse]:
-        json = build_body_dict(
-            **{
-                "limit": limit,
-                "next": next,
-                "prev": prev,
-                "sort": sort,
-                "filter": filter,
-            }
-        )
+        json = QueryMembershipLevelsRequest(
+            limit=limit, next=next, prev=prev, sort=sort, filter=filter
+        ).to_dict()
         return self.post(
             "/api/v2/feeds/membership_levels/query",
             QueryMembershipLevelsResponse,
@@ -1829,15 +1745,13 @@ class FeedsRestClient(BaseClient):
         path_params = {
             "id": id,
         }
-        json = build_body_dict(
-            **{
-                "description": description,
-                "name": name,
-                "priority": priority,
-                "tags": tags,
-                "custom": custom,
-            }
-        )
+        json = UpdateMembershipLevelRequest(
+            description=description,
+            name=name,
+            priority=priority,
+            tags=tags,
+            custom=custom,
+        ).to_dict()
         return self.patch(
             "/api/v2/feeds/membership_levels/{id}",
             UpdateMembershipLevelResponse,
@@ -1849,7 +1763,7 @@ class FeedsRestClient(BaseClient):
     def query_feeds_usage_stats(
         self, _from: Optional[str] = None, to: Optional[str] = None
     ) -> StreamResponse[QueryFeedsUsageStatsResponse]:
-        json = build_body_dict(**{"from": _from, "to": to})
+        json = QueryFeedsUsageStatsRequest(_from=_from, to=to).to_dict()
         return self.post(
             "/api/v2/feeds/stats/usage", QueryFeedsUsageStatsResponse, json=json
         )
@@ -1860,12 +1774,9 @@ class FeedsRestClient(BaseClient):
         follows: List[FollowPair],
         delete_notification_activity: Optional[bool] = None,
     ) -> StreamResponse[UnfollowBatchResponse]:
-        json = build_body_dict(
-            **{
-                "follows": follows,
-                "delete_notification_activity": delete_notification_activity,
-            }
-        )
+        json = UnfollowBatchRequest(
+            follows=follows, delete_notification_activity=delete_notification_activity
+        ).to_dict()
         return self.post(
             "/api/v2/feeds/unfollow/batch", UnfollowBatchResponse, json=json
         )
@@ -1876,12 +1787,9 @@ class FeedsRestClient(BaseClient):
         follows: List[FollowPair],
         delete_notification_activity: Optional[bool] = None,
     ) -> StreamResponse[UnfollowBatchResponse]:
-        json = build_body_dict(
-            **{
-                "follows": follows,
-                "delete_notification_activity": delete_notification_activity,
-            }
-        )
+        json = UnfollowBatchRequest(
+            follows=follows, delete_notification_activity=delete_notification_activity
+        ).to_dict()
         return self.post(
             "/api/v2/feeds/unfollow/batch/upsert", UnfollowBatchResponse, json=json
         )
@@ -1893,7 +1801,7 @@ class FeedsRestClient(BaseClient):
         path_params = {
             "user_id": user_id,
         }
-        json = build_body_dict(**{"hard_delete": hard_delete})
+        json = DeleteFeedUserDataRequest(hard_delete=hard_delete).to_dict()
         return self.post(
             "/api/v2/feeds/users/{user_id}/delete",
             DeleteFeedUserDataResponse,
