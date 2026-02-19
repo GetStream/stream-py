@@ -329,7 +329,7 @@ def test_start_stop_recording(client: Stream):
     call.get_or_create(data=CallRequest(created_by_id=user_id))
 
     with pytest.raises(StreamAPIException) as e_info:
-        call.start_recording("composite")
+        call.start_recording(recording_type="composite")
 
     assert e_info.value.status_code == 400
     assert (
@@ -338,7 +338,7 @@ def test_start_stop_recording(client: Stream):
     )
 
     with pytest.raises(StreamAPIException) as e_info:
-        call.stop_recording("composite")
+        call.stop_recording(recording_type="composite")
 
     assert e_info.value.status_code == 400
     assert (
