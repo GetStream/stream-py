@@ -92,8 +92,8 @@ class ChatRestClient(BaseClient):
             json=json,
         )
 
-    @telemetry.operation_name("getstream.api.chat.schedule_campaign")
-    def schedule_campaign(
+    @telemetry.operation_name("getstream.api.chat.stop_campaign")
+    def stop_campaign(
         self,
         id: str,
     ) -> StreamResponse[CampaignResponse]:
