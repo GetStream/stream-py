@@ -3,7 +3,7 @@ from getstream.base import AsyncBaseClient
 from getstream.common import telemetry
 from getstream.models import *
 from getstream.stream_response import StreamResponse
-from getstream.utils import build_query_param, build_body_dict
+from getstream.utils import build_query_param
 
 
 class CommonRestClient(AsyncBaseClient):
@@ -88,7 +88,7 @@ class CommonRestClient(AsyncBaseClient):
         push_config: Optional[PushConfig] = None,
         xiaomi_config: Optional[XiaomiConfig] = None,
     ) -> StreamResponse[Response]:
-        json = build_body_dict(
+        json = UpdateAppRequest(
             async_url_enrich_enabled=async_url_enrich_enabled,
             auto_translation_enabled=auto_translation_enabled,
             before_message_send_hook_url=before_message_send_hook_url,
@@ -136,14 +136,14 @@ class CommonRestClient(AsyncBaseClient):
             moderation_dashboard_preferences=moderation_dashboard_preferences,
             push_config=push_config,
             xiaomi_config=xiaomi_config,
-        )
+        ).to_dict()
         return await self.patch("/api/v2/app", Response, json=json)
 
     @telemetry.operation_name("getstream.api.common.list_block_lists")
     async def list_block_lists(
         self, team: Optional[str] = None
     ) -> StreamResponse[ListBlockListResponse]:
-        query_params = build_query_param(team=team)
+        query_params = build_query_param(**{"team": team})
         return await self.get(
             "/api/v2/blocklists", ListBlockListResponse, query_params=query_params
         )
@@ -158,21 +158,21 @@ class CommonRestClient(AsyncBaseClient):
         team: Optional[str] = None,
         type: Optional[str] = None,
     ) -> StreamResponse[CreateBlockListResponse]:
-        json = build_body_dict(
+        json = CreateBlockListRequest(
             name=name,
             words=words,
             is_leet_check_enabled=is_leet_check_enabled,
             is_plural_check_enabled=is_plural_check_enabled,
             team=team,
             type=type,
-        )
+        ).to_dict()
         return await self.post("/api/v2/blocklists", CreateBlockListResponse, json=json)
 
     @telemetry.operation_name("getstream.api.common.delete_block_list")
     async def delete_block_list(
         self, name: str, team: Optional[str] = None
     ) -> StreamResponse[Response]:
-        query_params = build_query_param(team=team)
+        query_params = build_query_param(**{"team": team})
         path_params = {
             "name": name,
         }
@@ -187,7 +187,7 @@ class CommonRestClient(AsyncBaseClient):
     async def get_block_list(
         self, name: str, team: Optional[str] = None
     ) -> StreamResponse[GetBlockListResponse]:
-        query_params = build_query_param(team=team)
+        query_params = build_query_param(**{"team": team})
         path_params = {
             "name": name,
         }
@@ -210,12 +210,12 @@ class CommonRestClient(AsyncBaseClient):
         path_params = {
             "name": name,
         }
-        json = build_body_dict(
+        json = UpdateBlockListRequest(
             is_leet_check_enabled=is_leet_check_enabled,
             is_plural_check_enabled=is_plural_check_enabled,
             team=team,
             words=words,
-        )
+        ).to_dict()
         return await self.put(
             "/api/v2/blocklists/{name}",
             UpdateBlockListResponse,
@@ -237,7 +237,7 @@ class CommonRestClient(AsyncBaseClient):
         user_id: Optional[str] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[CheckPushResponse]:
-        json = build_body_dict(
+        json = CheckPushRequest(
             apn_template=apn_template,
             event_type=event_type,
             firebase_data_template=firebase_data_template,
@@ -248,7 +248,7 @@ class CommonRestClient(AsyncBaseClient):
             skip_devices=skip_devices,
             user_id=user_id,
             user=user,
-        )
+        ).to_dict()
         return await self.post("/api/v2/check_push", CheckPushResponse, json=json)
 
     @telemetry.operation_name("getstream.api.common.check_sns")
@@ -258,9 +258,9 @@ class CommonRestClient(AsyncBaseClient):
         sns_secret: Optional[str] = None,
         sns_topic_arn: Optional[str] = None,
     ) -> StreamResponse[CheckSNSResponse]:
-        json = build_body_dict(
+        json = CheckSNSRequest(
             sns_key=sns_key, sns_secret=sns_secret, sns_topic_arn=sns_topic_arn
-        )
+        ).to_dict()
         return await self.post("/api/v2/check_sns", CheckSNSResponse, json=json)
 
     @telemetry.operation_name("getstream.api.common.check_sqs")
@@ -270,21 +270,23 @@ class CommonRestClient(AsyncBaseClient):
         sqs_secret: Optional[str] = None,
         sqs_url: Optional[str] = None,
     ) -> StreamResponse[CheckSQSResponse]:
-        json = build_body_dict(sqs_key=sqs_key, sqs_secret=sqs_secret, sqs_url=sqs_url)
+        json = CheckSQSRequest(
+            sqs_key=sqs_key, sqs_secret=sqs_secret, sqs_url=sqs_url
+        ).to_dict()
         return await self.post("/api/v2/check_sqs", CheckSQSResponse, json=json)
 
     @telemetry.operation_name("getstream.api.common.delete_device")
     async def delete_device(
         self, id: str, user_id: Optional[str] = None
     ) -> StreamResponse[Response]:
-        query_params = build_query_param(id=id, user_id=user_id)
+        query_params = build_query_param(**{"id": id, "user_id": user_id})
         return await self.delete("/api/v2/devices", Response, query_params=query_params)
 
     @telemetry.operation_name("getstream.api.common.list_devices")
     async def list_devices(
         self, user_id: Optional[str] = None
     ) -> StreamResponse[ListDevicesResponse]:
-        query_params = build_query_param(user_id=user_id)
+        query_params = build_query_param(**{"user_id": user_id})
         return await self.get(
             "/api/v2/devices", ListDevicesResponse, query_params=query_params
         )
@@ -299,21 +301,21 @@ class CommonRestClient(AsyncBaseClient):
         voip_token: Optional[bool] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[Response]:
-        json = build_body_dict(
+        json = CreateDeviceRequest(
             id=id,
             push_provider=push_provider,
             push_provider_name=push_provider_name,
             user_id=user_id,
             voip_token=voip_token,
             user=user,
-        )
+        ).to_dict()
         return await self.post("/api/v2/devices", Response, json=json)
 
     @telemetry.operation_name("getstream.api.common.export_users")
     async def export_users(
         self, user_ids: List[str]
     ) -> StreamResponse[ExportUsersResponse]:
-        json = build_body_dict(user_ids=user_ids)
+        json = ExportUsersRequest(user_ids=user_ids).to_dict()
         return await self.post("/api/v2/export/users", ExportUsersResponse, json=json)
 
     @telemetry.operation_name("getstream.api.common.list_external_storage")
@@ -333,7 +335,7 @@ class CommonRestClient(AsyncBaseClient):
         aws_s3: Optional[S3Request] = None,
         azure_blob: Optional[AzureRequest] = None,
     ) -> StreamResponse[CreateExternalStorageResponse]:
-        json = build_body_dict(
+        json = CreateExternalStorageRequest(
             bucket=bucket,
             name=name,
             storage_type=storage_type,
@@ -341,7 +343,7 @@ class CommonRestClient(AsyncBaseClient):
             path=path,
             aws_s3=aws_s3,
             azure_blob=azure_blob,
-        )
+        ).to_dict()
         return await self.post(
             "/api/v2/external_storage", CreateExternalStorageResponse, json=json
         )
@@ -373,14 +375,14 @@ class CommonRestClient(AsyncBaseClient):
         path_params = {
             "name": name,
         }
-        json = build_body_dict(
+        json = UpdateExternalStorageRequest(
             bucket=bucket,
             storage_type=storage_type,
             gcs_credentials=gcs_credentials,
             path=path,
             aws_s3=aws_s3,
             azure_blob=azure_blob,
-        )
+        ).to_dict()
         return await self.put(
             "/api/v2/external_storage/{name}",
             UpdateExternalStorageResponse,
@@ -405,14 +407,14 @@ class CommonRestClient(AsyncBaseClient):
     async def create_guest(
         self, user: UserRequest
     ) -> StreamResponse[CreateGuestResponse]:
-        json = build_body_dict(user=user)
+        json = CreateGuestRequest(user=user).to_dict()
         return await self.post("/api/v2/guest", CreateGuestResponse, json=json)
 
     @telemetry.operation_name("getstream.api.common.create_import_url")
     async def create_import_url(
         self, filename: Optional[str] = None
     ) -> StreamResponse[CreateImportURLResponse]:
-        json = build_body_dict(filename=filename)
+        json = CreateImportURLRequest(filename=filename).to_dict()
         return await self.post(
             "/api/v2/import_urls", CreateImportURLResponse, json=json
         )
@@ -425,14 +427,14 @@ class CommonRestClient(AsyncBaseClient):
     async def create_import(
         self, mode: str, path: str
     ) -> StreamResponse[CreateImportResponse]:
-        json = build_body_dict(mode=mode, path=path)
+        json = CreateImportRequest(mode=mode, path=path).to_dict()
         return await self.post("/api/v2/imports", CreateImportResponse, json=json)
 
     @telemetry.operation_name("getstream.api.common.list_import_v2_tasks")
     async def list_import_v2_tasks(
         self, state: Optional[int] = None
     ) -> StreamResponse[ListImportV2TasksResponse]:
-        query_params = build_query_param(state=state)
+        query_params = build_query_param(**{"state": state})
         return await self.get(
             "/api/v2/imports/v2", ListImportV2TasksResponse, query_params=query_params
         )
@@ -445,9 +447,9 @@ class CommonRestClient(AsyncBaseClient):
         user_id: Optional[str] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[CreateImportV2TaskResponse]:
-        json = build_body_dict(
+        json = CreateImportV2TaskRequest(
             product=product, settings=settings, user_id=user_id, user=user
-        )
+        ).to_dict()
         return await self.post(
             "/api/v2/imports/v2", CreateImportV2TaskResponse, json=json
         )
@@ -487,7 +489,7 @@ class CommonRestClient(AsyncBaseClient):
 
     @telemetry.operation_name("getstream.api.common.get_og")
     async def get_og(self, url: str) -> StreamResponse[GetOGResponse]:
-        query_params = build_query_param(url=url)
+        query_params = build_query_param(**{"url": url})
         return await self.get("/api/v2/og", GetOGResponse, query_params=query_params)
 
     @telemetry.operation_name("getstream.api.common.list_permissions")
@@ -524,7 +526,7 @@ class CommonRestClient(AsyncBaseClient):
         custom: Optional[Dict[str, object]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[PollResponse]:
-        json = build_body_dict(
+        json = CreatePollRequest(
             name=name,
             allow_answers=allow_answers,
             allow_user_suggested_options=allow_user_suggested_options,
@@ -538,7 +540,7 @@ class CommonRestClient(AsyncBaseClient):
             options=options,
             custom=custom,
             user=user,
-        )
+        ).to_dict()
         return await self.post("/api/v2/polls", PollResponse, json=json)
 
     @telemetry.operation_name("getstream.api.common.update_poll")
@@ -558,7 +560,7 @@ class CommonRestClient(AsyncBaseClient):
         custom: Optional[Dict[str, object]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[PollResponse]:
-        json = build_body_dict(
+        json = UpdatePollRequest(
             id=id,
             name=name,
             allow_answers=allow_answers,
@@ -572,7 +574,7 @@ class CommonRestClient(AsyncBaseClient):
             options=options,
             custom=custom,
             user=user,
-        )
+        ).to_dict()
         return await self.put("/api/v2/polls", PollResponse, json=json)
 
     @telemetry.operation_name("getstream.api.common.query_polls")
@@ -585,10 +587,10 @@ class CommonRestClient(AsyncBaseClient):
         sort: Optional[List[SortParamRequest]] = None,
         filter: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[QueryPollsResponse]:
-        query_params = build_query_param(user_id=user_id)
-        json = build_body_dict(
+        query_params = build_query_param(**{"user_id": user_id})
+        json = QueryPollsRequest(
             limit=limit, next=next, prev=prev, sort=sort, filter=filter
-        )
+        ).to_dict()
         return await self.post(
             "/api/v2/polls/query",
             QueryPollsResponse,
@@ -600,7 +602,7 @@ class CommonRestClient(AsyncBaseClient):
     async def delete_poll(
         self, poll_id: str, user_id: Optional[str] = None
     ) -> StreamResponse[Response]:
-        query_params = build_query_param(user_id=user_id)
+        query_params = build_query_param(**{"user_id": user_id})
         path_params = {
             "poll_id": poll_id,
         }
@@ -615,7 +617,7 @@ class CommonRestClient(AsyncBaseClient):
     async def get_poll(
         self, poll_id: str, user_id: Optional[str] = None
     ) -> StreamResponse[PollResponse]:
-        query_params = build_query_param(user_id=user_id)
+        query_params = build_query_param(**{"user_id": user_id})
         path_params = {
             "poll_id": poll_id,
         }
@@ -638,7 +640,9 @@ class CommonRestClient(AsyncBaseClient):
         path_params = {
             "poll_id": poll_id,
         }
-        json = build_body_dict(user_id=user_id, unset=unset, set=set, user=user)
+        json = UpdatePollPartialRequest(
+            user_id=user_id, unset=unset, set=set, user=user
+        ).to_dict()
         return await self.patch(
             "/api/v2/polls/{poll_id}", PollResponse, path_params=path_params, json=json
         )
@@ -655,7 +659,9 @@ class CommonRestClient(AsyncBaseClient):
         path_params = {
             "poll_id": poll_id,
         }
-        json = build_body_dict(text=text, user_id=user_id, custom=custom, user=user)
+        json = CreatePollOptionRequest(
+            text=text, user_id=user_id, custom=custom, user=user
+        ).to_dict()
         return await self.post(
             "/api/v2/polls/{poll_id}/options",
             PollOptionResponse,
@@ -676,9 +682,9 @@ class CommonRestClient(AsyncBaseClient):
         path_params = {
             "poll_id": poll_id,
         }
-        json = build_body_dict(
+        json = UpdatePollOptionRequest(
             id=id, text=text, user_id=user_id, custom=custom, user=user
-        )
+        ).to_dict()
         return await self.put(
             "/api/v2/polls/{poll_id}/options",
             PollOptionResponse,
@@ -690,7 +696,7 @@ class CommonRestClient(AsyncBaseClient):
     async def delete_poll_option(
         self, poll_id: str, option_id: str, user_id: Optional[str] = None
     ) -> StreamResponse[Response]:
-        query_params = build_query_param(user_id=user_id)
+        query_params = build_query_param(**{"user_id": user_id})
         path_params = {
             "poll_id": poll_id,
             "option_id": option_id,
@@ -706,7 +712,7 @@ class CommonRestClient(AsyncBaseClient):
     async def get_poll_option(
         self, poll_id: str, option_id: str, user_id: Optional[str] = None
     ) -> StreamResponse[PollOptionResponse]:
-        query_params = build_query_param(user_id=user_id)
+        query_params = build_query_param(**{"user_id": user_id})
         path_params = {
             "poll_id": poll_id,
             "option_id": option_id,
@@ -729,13 +735,13 @@ class CommonRestClient(AsyncBaseClient):
         sort: Optional[List[SortParamRequest]] = None,
         filter: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[PollVotesResponse]:
-        query_params = build_query_param(user_id=user_id)
+        query_params = build_query_param(**{"user_id": user_id})
         path_params = {
             "poll_id": poll_id,
         }
-        json = build_body_dict(
+        json = QueryPollVotesRequest(
             limit=limit, next=next, prev=prev, sort=sort, filter=filter
-        )
+        ).to_dict()
         return await self.post(
             "/api/v2/polls/{poll_id}/votes",
             PollVotesResponse,
@@ -750,7 +756,7 @@ class CommonRestClient(AsyncBaseClient):
     async def update_push_notification_preferences(
         self, preferences: List[PushPreferenceInput]
     ) -> StreamResponse[UpsertPushPreferencesResponse]:
-        json = build_body_dict(preferences=preferences)
+        json = UpsertPushPreferencesRequest(preferences=preferences).to_dict()
         return await self.post(
             "/api/v2/push_preferences", UpsertPushPreferencesResponse, json=json
         )
@@ -761,9 +767,9 @@ class CommonRestClient(AsyncBaseClient):
 
     @telemetry.operation_name("getstream.api.common.upsert_push_provider")
     async def upsert_push_provider(
-        self, push_provider: Optional[PushProvider] = None
+        self, push_provider: Optional[PushProviderRequest] = None
     ) -> StreamResponse[UpsertPushProviderResponse]:
-        json = build_body_dict(push_provider=push_provider)
+        json = UpsertPushProviderRequest(push_provider=push_provider).to_dict()
         return await self.post(
             "/api/v2/push_providers", UpsertPushProviderResponse, json=json
         )
@@ -785,7 +791,10 @@ class CommonRestClient(AsyncBaseClient):
         self, push_provider_type: str, push_provider_name: Optional[str] = None
     ) -> StreamResponse[GetPushTemplatesResponse]:
         query_params = build_query_param(
-            push_provider_type=push_provider_type, push_provider_name=push_provider_name
+            **{
+                "push_provider_type": push_provider_type,
+                "push_provider_name": push_provider_name,
+            }
         )
         return await self.get(
             "/api/v2/push_templates",
@@ -802,13 +811,13 @@ class CommonRestClient(AsyncBaseClient):
         push_provider_name: Optional[str] = None,
         template: Optional[str] = None,
     ) -> StreamResponse[UpsertPushTemplateResponse]:
-        json = build_body_dict(
+        json = UpsertPushTemplateRequest(
             event_type=event_type,
             push_provider_type=push_provider_type,
             enable_push=enable_push,
             push_provider_name=push_provider_name,
             template=template,
-        )
+        ).to_dict()
         return await self.post(
             "/api/v2/push_templates", UpsertPushTemplateResponse, json=json
         )
@@ -823,11 +832,13 @@ class CommonRestClient(AsyncBaseClient):
         endpoints: Optional[str] = None,
     ) -> StreamResponse[GetRateLimitsResponse]:
         query_params = build_query_param(
-            server_side=server_side,
-            android=android,
-            ios=ios,
-            web=web,
-            endpoints=endpoints,
+            **{
+                "server_side": server_side,
+                "android": android,
+                "ios": ios,
+                "web": web,
+                "endpoints": endpoints,
+            }
         )
         return await self.get(
             "/api/v2/rate_limits", GetRateLimitsResponse, query_params=query_params
@@ -839,7 +850,7 @@ class CommonRestClient(AsyncBaseClient):
 
     @telemetry.operation_name("getstream.api.common.create_role")
     async def create_role(self, name: str) -> StreamResponse[CreateRoleResponse]:
-        json = build_body_dict(name=name)
+        json = CreateRoleRequest(name=name).to_dict()
         return await self.post("/api/v2/roles", CreateRoleResponse, json=json)
 
     @telemetry.operation_name("getstream.api.common.delete_role")
@@ -862,7 +873,7 @@ class CommonRestClient(AsyncBaseClient):
 
     @telemetry.operation_name("getstream.api.common.delete_file")
     async def delete_file(self, url: Optional[str] = None) -> StreamResponse[Response]:
-        query_params = build_query_param(url=url)
+        query_params = build_query_param(**{"url": url})
         return await self.delete(
             "/api/v2/uploads/file", Response, query_params=query_params
         )
@@ -871,12 +882,12 @@ class CommonRestClient(AsyncBaseClient):
     async def upload_file(
         self, file: Optional[str] = None, user: Optional[OnlyUserID] = None
     ) -> StreamResponse[FileUploadResponse]:
-        json = build_body_dict(file=file, user=user)
+        json = FileUploadRequest(file=file, user=user).to_dict()
         return await self.post("/api/v2/uploads/file", FileUploadResponse, json=json)
 
     @telemetry.operation_name("getstream.api.common.delete_image")
     async def delete_image(self, url: Optional[str] = None) -> StreamResponse[Response]:
-        query_params = build_query_param(url=url)
+        query_params = build_query_param(**{"url": url})
         return await self.delete(
             "/api/v2/uploads/image", Response, query_params=query_params
         )
@@ -888,14 +899,16 @@ class CommonRestClient(AsyncBaseClient):
         upload_sizes: Optional[List[ImageSize]] = None,
         user: Optional[OnlyUserID] = None,
     ) -> StreamResponse[ImageUploadResponse]:
-        json = build_body_dict(file=file, upload_sizes=upload_sizes, user=user)
+        json = ImageUploadRequest(
+            file=file, upload_sizes=upload_sizes, user=user
+        ).to_dict()
         return await self.post("/api/v2/uploads/image", ImageUploadResponse, json=json)
 
     @telemetry.operation_name("getstream.api.common.query_users")
     async def query_users(
         self, payload: Optional[QueryUsersPayload] = None
     ) -> StreamResponse[QueryUsersResponse]:
-        query_params = build_query_param(payload=payload)
+        query_params = build_query_param(**{"payload": payload})
         return await self.get(
             "/api/v2/users", QueryUsersResponse, query_params=query_params
         )
@@ -904,21 +917,21 @@ class CommonRestClient(AsyncBaseClient):
     async def update_users_partial(
         self, users: List[UpdateUserPartialRequest]
     ) -> StreamResponse[UpdateUsersResponse]:
-        json = build_body_dict(users=users)
+        json = UpdateUsersPartialRequest(users=users).to_dict()
         return await self.patch("/api/v2/users", UpdateUsersResponse, json=json)
 
     @telemetry.operation_name("getstream.api.common.update_users")
     async def update_users(
         self, users: Dict[str, UserRequest]
     ) -> StreamResponse[UpdateUsersResponse]:
-        json = build_body_dict(users=users)
+        json = UpdateUsersRequest(users=users).to_dict()
         return await self.post("/api/v2/users", UpdateUsersResponse, json=json)
 
     @telemetry.operation_name("getstream.api.common.get_blocked_users")
     async def get_blocked_users(
         self, user_id: Optional[str] = None
     ) -> StreamResponse[GetBlockedUsersResponse]:
-        query_params = build_query_param(user_id=user_id)
+        query_params = build_query_param(**{"user_id": user_id})
         return await self.get(
             "/api/v2/users/block", GetBlockedUsersResponse, query_params=query_params
         )
@@ -930,9 +943,9 @@ class CommonRestClient(AsyncBaseClient):
         user_id: Optional[str] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[BlockUsersResponse]:
-        json = build_body_dict(
+        json = BlockUsersRequest(
             blocked_user_id=blocked_user_id, user_id=user_id, user=user
-        )
+        ).to_dict()
         return await self.post("/api/v2/users/block", BlockUsersResponse, json=json)
 
     @telemetry.operation_name("getstream.api.common.deactivate_users")
@@ -943,12 +956,12 @@ class CommonRestClient(AsyncBaseClient):
         mark_channels_deleted: Optional[bool] = None,
         mark_messages_deleted: Optional[bool] = None,
     ) -> StreamResponse[DeactivateUsersResponse]:
-        json = build_body_dict(
+        json = DeactivateUsersRequest(
             user_ids=user_ids,
             created_by_id=created_by_id,
             mark_channels_deleted=mark_channels_deleted,
             mark_messages_deleted=mark_messages_deleted,
-        )
+        ).to_dict()
         return await self.post(
             "/api/v2/users/deactivate", DeactivateUsersResponse, json=json
         )
@@ -965,7 +978,7 @@ class CommonRestClient(AsyncBaseClient):
         new_channel_owner_id: Optional[str] = None,
         user: Optional[str] = None,
     ) -> StreamResponse[DeleteUsersResponse]:
-        json = build_body_dict(
+        json = DeleteUsersRequest(
             user_ids=user_ids,
             calls=calls,
             conversations=conversations,
@@ -974,14 +987,14 @@ class CommonRestClient(AsyncBaseClient):
             new_call_owner_id=new_call_owner_id,
             new_channel_owner_id=new_channel_owner_id,
             user=user,
-        )
+        ).to_dict()
         return await self.post("/api/v2/users/delete", DeleteUsersResponse, json=json)
 
     @telemetry.operation_name("getstream.api.common.get_user_live_locations")
     async def get_user_live_locations(
         self, user_id: Optional[str] = None
     ) -> StreamResponse[SharedLocationsResponse]:
-        query_params = build_query_param(user_id=user_id)
+        query_params = build_query_param(**{"user_id": user_id})
         return await self.get(
             "/api/v2/users/live_locations",
             SharedLocationsResponse,
@@ -997,10 +1010,10 @@ class CommonRestClient(AsyncBaseClient):
         longitude: Optional[float] = None,
         user_id: Optional[str] = None,
     ) -> StreamResponse[SharedLocationResponse]:
-        query_params = build_query_param(user_id=user_id)
-        json = build_body_dict(
+        query_params = build_query_param(**{"user_id": user_id})
+        json = UpdateLiveLocationRequest(
             message_id=message_id, end_at=end_at, latitude=latitude, longitude=longitude
-        )
+        ).to_dict()
         return await self.put(
             "/api/v2/users/live_locations",
             SharedLocationResponse,
@@ -1016,19 +1029,19 @@ class CommonRestClient(AsyncBaseClient):
         restore_channels: Optional[bool] = None,
         restore_messages: Optional[bool] = None,
     ) -> StreamResponse[ReactivateUsersResponse]:
-        json = build_body_dict(
+        json = ReactivateUsersRequest(
             user_ids=user_ids,
             created_by_id=created_by_id,
             restore_channels=restore_channels,
             restore_messages=restore_messages,
-        )
+        ).to_dict()
         return await self.post(
             "/api/v2/users/reactivate", ReactivateUsersResponse, json=json
         )
 
     @telemetry.operation_name("getstream.api.common.restore_users")
     async def restore_users(self, user_ids: List[str]) -> StreamResponse[Response]:
-        json = build_body_dict(user_ids=user_ids)
+        json = RestoreUsersRequest(user_ids=user_ids).to_dict()
         return await self.post("/api/v2/users/restore", Response, json=json)
 
     @telemetry.operation_name("getstream.api.common.unblock_users")
@@ -1038,9 +1051,9 @@ class CommonRestClient(AsyncBaseClient):
         user_id: Optional[str] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[UnblockUsersResponse]:
-        json = build_body_dict(
+        json = UnblockUsersRequest(
             blocked_user_id=blocked_user_id, user_id=user_id, user=user
-        )
+        ).to_dict()
         return await self.post("/api/v2/users/unblock", UnblockUsersResponse, json=json)
 
     @telemetry.operation_name("getstream.api.common.deactivate_user")
@@ -1053,9 +1066,9 @@ class CommonRestClient(AsyncBaseClient):
         path_params = {
             "user_id": user_id,
         }
-        json = build_body_dict(
+        json = DeactivateUserRequest(
             created_by_id=created_by_id, mark_messages_deleted=mark_messages_deleted
-        )
+        ).to_dict()
         return await self.post(
             "/api/v2/users/{user_id}/deactivate",
             DeactivateUserResponse,
@@ -1085,9 +1098,9 @@ class CommonRestClient(AsyncBaseClient):
         path_params = {
             "user_id": user_id,
         }
-        json = build_body_dict(
+        json = ReactivateUserRequest(
             created_by_id=created_by_id, name=name, restore_messages=restore_messages
-        )
+        ).to_dict()
         return await self.post(
             "/api/v2/users/{user_id}/reactivate",
             ReactivateUserResponse,

@@ -268,6 +268,32 @@ class Call(BaseCall):
         return response
 
     @attach_call_cid
+    def start_recording(
+        self, recording_type: str, recording_external_storage: Optional[str] = None
+    ) -> StreamResponse[StartRecordingResponse]:
+        response = self.client.start_recording(
+            type=self.call_type,
+            id=self.id,
+            recording_type=recording_type,
+            recording_external_storage=recording_external_storage,
+        )
+        self._sync_from_response(response.data)
+        return response
+
+    @attach_call_cid
+    def stop_recording(
+        self,
+        recording_type: str,
+    ) -> StreamResponse[StopRecordingResponse]:
+        response = self.client.stop_recording(
+            type=self.call_type,
+            id=self.id,
+            recording_type=recording_type,
+        )
+        self._sync_from_response(response.data)
+        return response
+
+    @attach_call_cid
     def get_call_report(
         self, session_id: Optional[str] = None
     ) -> StreamResponse[GetCallReportResponse]:
@@ -317,6 +343,48 @@ class Call(BaseCall):
         return response
 
     @attach_call_cid
+    def get_call_participant_session_metrics(
+        self,
+        session: str,
+        user: str,
+        user_session: str,
+        since: Optional[datetime] = None,
+        until: Optional[datetime] = None,
+    ) -> StreamResponse[GetCallParticipantSessionMetricsResponse]:
+        response = self.client.get_call_participant_session_metrics(
+            type=self.call_type,
+            id=self.id,
+            session=session,
+            user=user,
+            user_session=user_session,
+            since=since,
+            until=until,
+        )
+        self._sync_from_response(response.data)
+        return response
+
+    @attach_call_cid
+    def query_call_participant_sessions(
+        self,
+        session: str,
+        limit: Optional[int] = None,
+        prev: Optional[str] = None,
+        next: Optional[str] = None,
+        filter_conditions: Optional[Dict[str, object]] = None,
+    ) -> StreamResponse[QueryCallParticipantSessionsResponse]:
+        response = self.client.query_call_participant_sessions(
+            type=self.call_type,
+            id=self.id,
+            session=session,
+            limit=limit,
+            prev=prev,
+            next=next,
+            filter_conditions=filter_conditions,
+        )
+        self._sync_from_response(response.data)
+        return response
+
+    @attach_call_cid
     def start_hls_broadcasting(self) -> StreamResponse[StartHLSBroadcastingResponse]:
         response = self.client.start_hls_broadcasting(type=self.call_type, id=self.id)
         self._sync_from_response(response.data)
@@ -346,18 +414,6 @@ class Call(BaseCall):
         self, recording_external_storage: Optional[str] = None
     ) -> StreamResponse[StartFrameRecordingResponse]:
         response = self.client.start_frame_recording(
-            type=self.call_type,
-            id=self.id,
-            recording_external_storage=recording_external_storage,
-        )
-        self._sync_from_response(response.data)
-        return response
-
-    @attach_call_cid
-    def start_recording(
-        self, recording_external_storage: Optional[str] = None
-    ) -> StreamResponse[StartRecordingResponse]:
-        response = self.client.start_recording(
             type=self.call_type,
             id=self.id,
             recording_external_storage=recording_external_storage,
@@ -427,17 +483,6 @@ class Call(BaseCall):
             continue_recording=continue_recording,
             continue_rtmp_broadcasts=continue_rtmp_broadcasts,
             continue_transcription=continue_transcription,
-        )
-        self._sync_from_response(response.data)
-        return response
-
-    @attach_call_cid
-    def stop_recording(
-        self,
-    ) -> StreamResponse[StopRecordingResponse]:
-        response = self.client.stop_recording(
-            type=self.call_type,
-            id=self.id,
         )
         self._sync_from_response(response.data)
         return response

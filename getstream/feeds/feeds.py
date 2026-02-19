@@ -38,6 +38,7 @@ class Feed:
         filter: Optional[Dict[str, object]] = None,
         followers_pagination: Optional[PagerRequest] = None,
         following_pagination: Optional[PagerRequest] = None,
+        friend_reactions_options: Optional[FriendReactionsOptions] = None,
         interest_weights: Optional[Dict[str, float]] = None,
         member_pagination: Optional[PagerRequest] = None,
         user: Optional[UserRequest] = None,
@@ -58,6 +59,7 @@ class Feed:
             filter=filter,
             followers_pagination=followers_pagination,
             following_pagination=following_pagination,
+            friend_reactions_options=friend_reactions_options,
             interest_weights=interest_weights,
             member_pagination=member_pagination,
             user=user,
@@ -191,6 +193,26 @@ class Feed:
     ) -> StreamResponse[RejectFeedMemberInviteResponse]:
         response = self.client.reject_feed_member_invite(
             feed_group_id=self.feed_group, feed_id=self.id, user_id=user_id, user=user
+        )
+        self._sync_from_response(response.data)
+        return response
+
+    def query_pinned_activities(
+        self,
+        limit: Optional[int] = None,
+        next: Optional[str] = None,
+        prev: Optional[str] = None,
+        sort: Optional[List[SortParamRequest]] = None,
+        filter: Optional[Dict[str, object]] = None,
+    ) -> StreamResponse[QueryPinnedActivitiesResponse]:
+        response = self.client.query_pinned_activities(
+            feed_group_id=self.feed_group,
+            feed_id=self.id,
+            limit=limit,
+            next=next,
+            prev=prev,
+            sort=sort,
+            filter=filter,
         )
         self._sync_from_response(response.data)
         return response
