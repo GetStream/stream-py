@@ -9,12 +9,11 @@ import asyncio
 import json
 import logging
 import time
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 import websockets
 
-if TYPE_CHECKING:
-    from websockets.legacy.client import WebSocketClientProtocol
+from websockets import ClientConnection
 
 from getstream import AsyncStream
 from getstream.utils import StreamAsyncIOEventEmitter
@@ -88,7 +87,7 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
         self._logger = logger or globals()["logger"]
 
         # Connection state
-        self._websocket: Optional["WebSocketClientProtocol"] = None
+        self._websocket: Optional[ClientConnection] = None
         self._connected = False
         self._client_id: Optional[str] = None
 
@@ -152,6 +151,7 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
             self._build_auth_payload(),
         )
         self._logger.debug("WebSocket connection established")
+        assert self._websocket is not None
 
         # Send authentication payload immediately
         self._logger.debug("Sending auth payload")
