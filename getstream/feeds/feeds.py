@@ -197,6 +197,26 @@ class Feed:
         self._sync_from_response(response.data)
         return response
 
+    def query_pinned_activities(
+        self,
+        limit: Optional[int] = None,
+        next: Optional[str] = None,
+        prev: Optional[str] = None,
+        sort: Optional[List[SortParamRequest]] = None,
+        filter: Optional[Dict[str, object]] = None,
+    ) -> StreamResponse[QueryPinnedActivitiesResponse]:
+        response = self.client.query_pinned_activities(
+            feed_group_id=self.feed_group,
+            feed_id=self.id,
+            limit=limit,
+            next=next,
+            prev=prev,
+            sort=sort,
+            filter=filter,
+        )
+        self._sync_from_response(response.data)
+        return response
+
     def get_feed_identifier(self):
         return self.feed_group + ":" + self.id
 
