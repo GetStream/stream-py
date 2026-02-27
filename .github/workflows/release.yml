@@ -36,7 +36,8 @@ jobs:
       - name: Extract package version
         id: get_version
         run: |
-          VERSION=$(uvx -q hatch version)
+          FILE=$(ls dist/getstream-*.tar.gz | head -1)
+          VERSION=$(basename "$FILE" .tar.gz | sed 's/^getstream-//')
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Publish to PyPI (Trusted Publishing)
