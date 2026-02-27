@@ -61,7 +61,7 @@ class AudioFormat(str, Enum):
     F32 = "f32"  # 32-bit float
 
     @staticmethod
-    def validate(fmt: str) -> str:
+    def validate(fmt: str) -> "AudioFormat":
         """
         Validate that a format string is one of the supported audio formats.
 
@@ -69,14 +69,14 @@ class AudioFormat(str, Enum):
             fmt: Format string to validate
 
         Returns:
-            The validated format string
+            The validated format as an AudioFormat enum member
 
         Raises:
             ValueError: If format is not supported
 
         Example:
             >>> AudioFormat.validate("s16")
-            's16'
+            <AudioFormat.S16: 's16'>
             >>> AudioFormat.validate("invalid")  # doctest: +ELLIPSIS
             Traceback (most recent call last):
                 ...
@@ -87,7 +87,7 @@ class AudioFormat(str, Enum):
             raise ValueError(
                 f"Invalid audio format: {fmt!r}. Must be one of: {', '.join(sorted(valid_formats))}"
             )
-        return fmt
+        return AudioFormat(fmt)
 
 
 # Type alias for audio format parameters
