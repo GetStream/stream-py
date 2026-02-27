@@ -53,6 +53,7 @@ class CommonRestClient(AsyncBaseClient):
         image_moderation_enabled: Optional[bool] = None,
         max_aggregated_activities_length: Optional[int] = None,
         migrate_permissions_to_v2: Optional[bool] = None,
+        moderation_analytics_enabled: Optional[bool] = None,
         moderation_enabled: Optional[bool] = None,
         moderation_webhook_url: Optional[str] = None,
         multi_tenant_enabled: Optional[bool] = None,
@@ -104,6 +105,7 @@ class CommonRestClient(AsyncBaseClient):
             image_moderation_enabled=image_moderation_enabled,
             max_aggregated_activities_length=max_aggregated_activities_length,
             migrate_permissions_to_v2=migrate_permissions_to_v2,
+            moderation_analytics_enabled=moderation_analytics_enabled,
             moderation_enabled=moderation_enabled,
             moderation_webhook_url=moderation_webhook_url,
             multi_tenant_enabled=multi_tenant_enabled,
@@ -425,9 +427,11 @@ class CommonRestClient(AsyncBaseClient):
 
     @telemetry.operation_name("getstream.api.common.create_import")
     async def create_import(
-        self, mode: str, path: str
+        self, mode: str, path: str, merge_custom: Optional[bool] = None
     ) -> StreamResponse[CreateImportResponse]:
-        json = CreateImportRequest(mode=mode, path=path).to_dict()
+        json = CreateImportRequest(
+            mode=mode, path=path, merge_custom=merge_custom
+        ).to_dict()
         return await self.post("/api/v2/imports", CreateImportResponse, json=json)
 
     @telemetry.operation_name("getstream.api.common.list_import_v2_tasks")
@@ -903,6 +907,149 @@ class CommonRestClient(AsyncBaseClient):
             file=file, upload_sizes=upload_sizes, user=user
         ).to_dict()
         return await self.post("/api/v2/uploads/image", ImageUploadResponse, json=json)
+
+    @telemetry.operation_name("getstream.api.common.list_user_groups")
+    async def list_user_groups(
+        self,
+        limit: Optional[int] = None,
+        id_gt: Optional[str] = None,
+        created_at_gt: Optional[str] = None,
+        team_id: Optional[str] = None,
+    ) -> StreamResponse[ListUserGroupsResponse]:
+        query_params = build_query_param(
+            **{
+                "limit": limit,
+                "id_gt": id_gt,
+                "created_at_gt": created_at_gt,
+                "team_id": team_id,
+            }
+        )
+        return await self.get(
+            "/api/v2/usergroups", ListUserGroupsResponse, query_params=query_params
+        )
+
+    @telemetry.operation_name("getstream.api.common.create_user_group")
+    async def create_user_group(
+        self,
+        name: str,
+        description: Optional[str] = None,
+        id: Optional[str] = None,
+        team_id: Optional[str] = None,
+        member_ids: Optional[List[str]] = None,
+    ) -> StreamResponse[CreateUserGroupResponse]:
+        json = CreateUserGroupRequest(
+            name=name,
+            description=description,
+            id=id,
+            team_id=team_id,
+            member_ids=member_ids,
+        ).to_dict()
+        return await self.post("/api/v2/usergroups", CreateUserGroupResponse, json=json)
+
+    @telemetry.operation_name("getstream.api.common.search_user_groups")
+    async def search_user_groups(
+        self,
+        query: str,
+        limit: Optional[int] = None,
+        name_gt: Optional[str] = None,
+        id_gt: Optional[str] = None,
+        team_id: Optional[str] = None,
+    ) -> StreamResponse[SearchUserGroupsResponse]:
+        query_params = build_query_param(
+            **{
+                "query": query,
+                "limit": limit,
+                "name_gt": name_gt,
+                "id_gt": id_gt,
+                "team_id": team_id,
+            }
+        )
+        return await self.get(
+            "/api/v2/usergroups/search",
+            SearchUserGroupsResponse,
+            query_params=query_params,
+        )
+
+    @telemetry.operation_name("getstream.api.common.delete_user_group")
+    async def delete_user_group(
+        self, id: str, team_id: Optional[str] = None
+    ) -> StreamResponse[Response]:
+        query_params = build_query_param(**{"team_id": team_id})
+        path_params = {
+            "id": id,
+        }
+        return await self.delete(
+            "/api/v2/usergroups/{id}",
+            Response,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
+    @telemetry.operation_name("getstream.api.common.get_user_group")
+    async def get_user_group(
+        self, id: str, team_id: Optional[str] = None
+    ) -> StreamResponse[GetUserGroupResponse]:
+        query_params = build_query_param(**{"team_id": team_id})
+        path_params = {
+            "id": id,
+        }
+        return await self.get(
+            "/api/v2/usergroups/{id}",
+            GetUserGroupResponse,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
+    @telemetry.operation_name("getstream.api.common.update_user_group")
+    async def update_user_group(
+        self,
+        id: str,
+        description: Optional[str] = None,
+        name: Optional[str] = None,
+        team_id: Optional[str] = None,
+    ) -> StreamResponse[UpdateUserGroupResponse]:
+        path_params = {
+            "id": id,
+        }
+        json = UpdateUserGroupRequest(
+            description=description, name=name, team_id=team_id
+        ).to_dict()
+        return await self.put(
+            "/api/v2/usergroups/{id}",
+            UpdateUserGroupResponse,
+            path_params=path_params,
+            json=json,
+        )
+
+    @telemetry.operation_name("getstream.api.common.remove_user_group_members")
+    async def remove_user_group_members(
+        self, id: str
+    ) -> StreamResponse[RemoveUserGroupMembersResponse]:
+        path_params = {
+            "id": id,
+        }
+        return await self.delete(
+            "/api/v2/usergroups/{id}/members",
+            RemoveUserGroupMembersResponse,
+            path_params=path_params,
+        )
+
+    @telemetry.operation_name("getstream.api.common.add_user_group_members")
+    async def add_user_group_members(
+        self, id: str, member_ids: List[str], team_id: Optional[str] = None
+    ) -> StreamResponse[AddUserGroupMembersResponse]:
+        path_params = {
+            "id": id,
+        }
+        json = AddUserGroupMembersRequest(
+            member_ids=member_ids, team_id=team_id
+        ).to_dict()
+        return await self.post(
+            "/api/v2/usergroups/{id}/members",
+            AddUserGroupMembersResponse,
+            path_params=path_params,
+            json=json,
+        )
 
     @telemetry.operation_name("getstream.api.common.query_users")
     async def query_users(

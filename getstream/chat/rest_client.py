@@ -1233,21 +1233,15 @@ class ChatRestClient(BaseClient):
 
     @telemetry.operation_name("getstream.api.chat.undelete_message")
     def undelete_message(
-        self,
-        id: str,
-        message: MessageRequest,
-        skip_enrich_url: Optional[bool] = None,
-        skip_push: Optional[bool] = None,
-    ) -> StreamResponse[UpdateMessageResponse]:
+        self, id: str, undeleted_by: str
+    ) -> StreamResponse[UndeleteMessageResponse]:
         path_params = {
             "id": id,
         }
-        json = UpdateMessageRequest(
-            message=message, skip_enrich_url=skip_enrich_url, skip_push=skip_push
-        ).to_dict()
+        json = UndeleteMessageRequest(undeleted_by=undeleted_by).to_dict()
         return self.post(
             "/api/v2/chat/messages/{id}/undelete",
-            UpdateMessageResponse,
+            UndeleteMessageResponse,
             path_params=path_params,
             json=json,
         )
@@ -1560,6 +1554,26 @@ class ChatRestClient(BaseClient):
             QuerySegmentTargetsResponse,
             path_params=path_params,
             json=json,
+        )
+
+    @telemetry.operation_name("getstream.api.chat.query_team_usage_stats")
+    def query_team_usage_stats(
+        self,
+        end_date: Optional[str] = None,
+        limit: Optional[int] = None,
+        month: Optional[str] = None,
+        next: Optional[str] = None,
+        start_date: Optional[str] = None,
+    ) -> StreamResponse[QueryTeamUsageStatsResponse]:
+        json = QueryTeamUsageStatsRequest(
+            end_date=end_date,
+            limit=limit,
+            month=month,
+            next=next,
+            start_date=start_date,
+        ).to_dict()
+        return self.post(
+            "/api/v2/chat/stats/team_usage", QueryTeamUsageStatsResponse, json=json
         )
 
     @telemetry.operation_name("getstream.api.chat.query_threads")

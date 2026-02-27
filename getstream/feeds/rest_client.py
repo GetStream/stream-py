@@ -598,10 +598,10 @@ class FeedsRestClient(BaseClient):
 
     @telemetry.operation_name("getstream.api.feeds.read_collections")
     def read_collections(
-        self, collection_refs: List[str], user_id: Optional[str] = None
+        self, user_id: Optional[str] = None, collection_refs: Optional[List[str]] = None
     ) -> StreamResponse[ReadCollectionsResponse]:
         query_params = build_query_param(
-            **{"collection_refs": collection_refs, "user_id": user_id}
+            **{"user_id": user_id, "collection_refs": collection_refs}
         )
         return self.get(
             "/api/v2/feeds/collections",
@@ -1267,6 +1267,19 @@ class FeedsRestClient(BaseClient):
             "/api/v2/feeds/feed_groups/{feed_group_id}/follow_suggestions",
             GetFollowSuggestionsResponse,
             query_params=query_params,
+            path_params=path_params,
+        )
+
+    @telemetry.operation_name("getstream.api.feeds.restore_feed_group")
+    def restore_feed_group(
+        self, feed_group_id: str
+    ) -> StreamResponse[RestoreFeedGroupResponse]:
+        path_params = {
+            "feed_group_id": feed_group_id,
+        }
+        return self.post(
+            "/api/v2/feeds/feed_groups/{feed_group_id}/restore",
+            RestoreFeedGroupResponse,
             path_params=path_params,
         )
 

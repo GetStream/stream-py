@@ -111,6 +111,7 @@ from .models import (
     FeedUpdatedEvent,
     FeedGroupChangedEvent,
     FeedGroupDeletedEvent,
+    FeedGroupRestoredEvent,
     FeedMemberAddedEvent,
     FeedMemberRemovedEvent,
     FeedMemberUpdatedEvent,
@@ -162,6 +163,11 @@ from .models import (
     UserUnmutedEvent,
     UserUnreadReminderEvent,
     UserUpdatedEvent,
+    UserGroupCreatedEvent,
+    UserGroupDeletedEvent,
+    UserGroupMemberAddedEvent,
+    UserGroupMemberRemovedEvent,
+    UserGroupUpdatedEvent,
 )
 
 
@@ -277,6 +283,7 @@ EVENT_TYPE_FEEDS_FEED_DELETED = "feeds.feed.deleted"
 EVENT_TYPE_FEEDS_FEED_UPDATED = "feeds.feed.updated"
 EVENT_TYPE_FEEDS_FEED_GROUP_CHANGED = "feeds.feed_group.changed"
 EVENT_TYPE_FEEDS_FEED_GROUP_DELETED = "feeds.feed_group.deleted"
+EVENT_TYPE_FEEDS_FEED_GROUP_RESTORED = "feeds.feed_group.restored"
 EVENT_TYPE_FEEDS_FEED_MEMBER_ADDED = "feeds.feed_member.added"
 EVENT_TYPE_FEEDS_FEED_MEMBER_REMOVED = "feeds.feed_member.removed"
 EVENT_TYPE_FEEDS_FEED_MEMBER_UPDATED = "feeds.feed_member.updated"
@@ -328,6 +335,11 @@ EVENT_TYPE_USER_UNBANNED = "user.unbanned"
 EVENT_TYPE_USER_UNMUTED = "user.unmuted"
 EVENT_TYPE_USER_UNREAD_MESSAGE_REMINDER = "user.unread_message_reminder"
 EVENT_TYPE_USER_UPDATED = "user.updated"
+EVENT_TYPE_USER_GROUP_CREATED = "user_group.created"
+EVENT_TYPE_USER_GROUP_DELETED = "user_group.deleted"
+EVENT_TYPE_USER_GROUP_MEMBER_ADDED = "user_group.member_added"
+EVENT_TYPE_USER_GROUP_MEMBER_REMOVED = "user_group.member_removed"
+EVENT_TYPE_USER_GROUP_UPDATED = "user_group.updated"
 
 
 def get_event_type(raw_event: Union[bytes, str, Dict[str, Any]]) -> str:
@@ -501,6 +513,7 @@ def _get_event_class(event_type: str):
         "feeds.feed.updated": FeedUpdatedEvent,
         "feeds.feed_group.changed": FeedGroupChangedEvent,
         "feeds.feed_group.deleted": FeedGroupDeletedEvent,
+        "feeds.feed_group.restored": FeedGroupRestoredEvent,
         "feeds.feed_member.added": FeedMemberAddedEvent,
         "feeds.feed_member.removed": FeedMemberRemovedEvent,
         "feeds.feed_member.updated": FeedMemberUpdatedEvent,
@@ -552,6 +565,11 @@ def _get_event_class(event_type: str):
         "user.unmuted": UserUnmutedEvent,
         "user.unread_message_reminder": UserUnreadReminderEvent,
         "user.updated": UserUpdatedEvent,
+        "user_group.created": UserGroupCreatedEvent,
+        "user_group.deleted": UserGroupDeletedEvent,
+        "user_group.member_added": UserGroupMemberAddedEvent,
+        "user_group.member_removed": UserGroupMemberRemovedEvent,
+        "user_group.updated": UserGroupUpdatedEvent,
     }
     return event_map.get(event_type)
 

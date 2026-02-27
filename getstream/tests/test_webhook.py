@@ -735,6 +735,12 @@ class TestParseWebhookEvent:
             event = parse_webhook_event({"type": "feeds.feed_group.deleted"})
         assert type(event).__name__ == "FeedGroupDeletedEvent"
 
+    def test_parse_feeds_feed_group_restored(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            event = parse_webhook_event({"type": "feeds.feed_group.restored"})
+        assert type(event).__name__ == "FeedGroupRestoredEvent"
+
     def test_parse_feeds_feed_member_added(self):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", RuntimeWarning)
@@ -1040,6 +1046,36 @@ class TestParseWebhookEvent:
             warnings.simplefilter("ignore", RuntimeWarning)
             event = parse_webhook_event({"type": "user.updated"})
         assert type(event).__name__ == "UserUpdatedEvent"
+
+    def test_parse_user_group_created(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            event = parse_webhook_event({"type": "user_group.created"})
+        assert type(event).__name__ == "UserGroupCreatedEvent"
+
+    def test_parse_user_group_deleted(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            event = parse_webhook_event({"type": "user_group.deleted"})
+        assert type(event).__name__ == "UserGroupDeletedEvent"
+
+    def test_parse_user_group_member_added(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            event = parse_webhook_event({"type": "user_group.member_added"})
+        assert type(event).__name__ == "UserGroupMemberAddedEvent"
+
+    def test_parse_user_group_member_removed(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            event = parse_webhook_event({"type": "user_group.member_removed"})
+        assert type(event).__name__ == "UserGroupMemberRemovedEvent"
+
+    def test_parse_user_group_updated(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            event = parse_webhook_event({"type": "user_group.updated"})
+        assert type(event).__name__ == "UserGroupUpdatedEvent"
 
     def test_unknown_event_type(self):
         with pytest.raises(ValueError, match="Unknown webhook event type"):
