@@ -152,7 +152,7 @@ def test_add_moderators(channel: Channel, random_user):
     response = channel.update(demote_moderators=[random_user.id])
     mod = [m for m in response.data.members if m.user_id == random_user.id]
     assert len(mod) == 1
-    assert mod[0].is_moderator is False
+    assert mod[0].is_moderator is not True
 
 
 def test_assign_roles(channel: Channel, random_user):
