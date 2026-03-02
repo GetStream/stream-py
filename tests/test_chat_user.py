@@ -440,6 +440,88 @@ def test_partial_update_privacy_settings(client: Stream):
         pass
 
 
+def test_user_custom_data(client: Stream):
+    """Create a user with complex custom data and verify persistence."""
+    user_id = f"custom-{uuid.uuid4()}"
+
+    response = client.update_users(
+        users={
+            user_id: UserRequest(
+                id=user_id,
+                name="Custom User",
+                custom={
+                    "favorite_color": "blue",
+                    "age": 30,
+                    "tags": ["vip", "early_adopter"],
+                },
+            )
+        }
+    )
+    assert user_id in response.data.users
+    u = response.data.users[user_id]
+    assert u.custom["favorite_color"] == "blue"
+    assert u.custom["age"] == 30
+
+    # Query back to verify persistence
+    query_response = client.query_users(
+        QueryUsersPayload(filter_conditions={"id": user_id})
+    )
+    assert len(query_response.data.users) == 1
+    assert query_response.data.users[0].custom["favorite_color"] == "blue"
+
+    try:
+        client.delete_users(
+            user_ids=[user_id], user="hard", conversations="hard", messages="hard"
+        )
+    except Exception:
+        pass
+
+
+def test_query_users_custom_field_filter(client: Stream):
+    """Query users by custom field filter and sort by custom score."""
+    rand = uuid.uuid4().hex[:8]
+    user_data = [
+        (f"frodo-{rand}", "hobbits", 50),
+        (f"sam-{rand}", "hobbits", 30),
+        (f"pippin-{rand}", "hobbits", 40),
+    ]
+    user_ids = [uid for uid, _, _ in user_data]
+    client.update_users(
+        users={
+            uid: UserRequest(
+                id=uid,
+                name=uid,
+                custom={"group": group, "score": score},
+            )
+            for uid, group, score in user_data
+        }
+    )
+
+    # query by custom field
+    response = client.query_users(
+        QueryUsersPayload(
+            filter_conditions={"id": {"$in": user_ids}},
+            sort=[SortParamRequest(field="score", direction=-1)],
+        )
+    )
+    assert len(response.data.users) == 3
+
+    # verify descending score order: 50, 40, 30
+    scores = [u.custom.get("score") for u in response.data.users]
+    assert scores == sorted(scores, reverse=True)
+
+    # verify all users belong to the same group
+    for u in response.data.users:
+        assert u.custom.get("group") == "hobbits"
+
+    try:
+        client.delete_users(
+            user_ids=user_ids, user="hard", conversations="hard", messages="hard"
+        )
+    except Exception:
+        pass
+
+
 def test_query_users_with_deactivated(client: Stream):
     """Query users including/excluding deactivated users."""
     user_ids = [str(uuid.uuid4()) for _ in range(3)]

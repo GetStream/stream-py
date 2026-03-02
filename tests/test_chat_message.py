@@ -171,7 +171,7 @@ def test_pin_unpin_message(client: Stream, channel: Channel, random_user):
 
 
 def test_get_replies(client: Stream, channel: Channel, random_user):
-    """Send replies to a parent message and get them."""
+    """Send replies to a parent message and get them with pagination."""
     parent = channel.send_message(
         message=MessageRequest(text="parent", user_id=random_user.id)
     )
@@ -181,16 +181,26 @@ def test_get_replies(client: Stream, channel: Channel, random_user):
     assert response.data.messages is not None
     assert len(response.data.messages) == 0
 
-    for i in range(3):
-        channel.send_message(
+    reply_ids = []
+    for i in range(5):
+        resp = channel.send_message(
             message=MessageRequest(
                 text=f"reply {i}",
                 user_id=random_user.id,
                 parent_id=parent_id,
             )
         )
+        reply_ids.append(resp.data.message.id)
 
     response = client.chat.get_replies(parent_id=parent_id)
+    assert len(response.data.messages) == 5
+
+    # test limit parameter
+    response = client.chat.get_replies(parent_id=parent_id, limit=2)
+    assert len(response.data.messages) == 2
+
+    # test id_gt cursor-based pagination (replies after the second one)
+    response = client.chat.get_replies(parent_id=parent_id, id_gt=reply_ids[1])
     assert len(response.data.messages) == 3
 
 
@@ -225,7 +235,7 @@ def test_delete_reaction(client: Stream, channel: Channel, random_user):
 
 
 def test_get_reactions(client: Stream, channel: Channel, random_user):
-    """Get reactions on a message."""
+    """Get reactions on a message with offset pagination."""
     msg = channel.send_message(
         message=MessageRequest(text="hi", user_id=random_user.id)
     )
@@ -246,6 +256,10 @@ def test_get_reactions(client: Stream, channel: Channel, random_user):
 
     response = client.chat.get_reactions(id=msg_id)
     assert len(response.data.reactions) == 2
+
+    # test offset pagination
+    response = client.chat.get_reactions(id=msg_id, offset=1)
+    assert len(response.data.reactions) == 1
 
 
 def test_send_event(channel: Channel, random_user):

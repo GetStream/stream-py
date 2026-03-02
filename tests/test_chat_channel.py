@@ -174,13 +174,56 @@ class TestChannelCRUD:
         except StreamAPIException:
             pass
 
+    def test_query_channels_members_in(self, client: Stream, random_users):
+        """Query channels by $in member filter and verify result."""
+        user_id = random_users[0].id
+        other_id = random_users[1].id
+        channel_id = str(uuid.uuid4())
+        ch = client.chat.channel("messaging", channel_id)
+        ch.get_or_create(
+            data=ChannelInput(
+                created_by_id=user_id,
+                members=[
+                    ChannelMemberRequest(user_id=uid) for uid in [user_id, other_id]
+                ],
+            )
+        )
+
+        response = client.chat.query_channels(
+            filter_conditions={"members": {"$in": [user_id]}}
+        )
+        assert len(response.data.channels) >= 1
+        channel_ids = [c.channel.id for c in response.data.channels]
+        assert channel_id in channel_ids
+
+        # verify member count
+        matched = [c for c in response.data.channels if c.channel.id == channel_id]
+        assert len(matched) == 1
+        assert matched[0].channel.member_count >= 2
+
+        try:
+            client.chat.delete_channels(
+                cids=[f"messaging:{channel_id}"], hard_delete=True
+            )
+        except StreamAPIException:
+            pass
+
     def test_filter_tags(self, channel: Channel, random_user):
         """Add and remove filter tags on a channel."""
-        response = channel.update(add_filter_tags=["vip"])
+        # add two tags
+        response = channel.update(add_filter_tags=["vip", "premium"])
         assert response.data.channel is not None
+        assert "vip" in response.data.channel.filter_tags
+        assert "premium" in response.data.channel.filter_tags
 
-        response = channel.update(remove_filter_tags=["vip"])
+        # remove one tag
+        response = channel.update(remove_filter_tags=["premium"])
         assert response.data.channel is not None
+        assert "vip" in response.data.channel.filter_tags
+        assert "premium" not in response.data.channel.filter_tags
+
+        # cleanup remaining tag
+        channel.update(remove_filter_tags=["vip"])
 
 
 class TestChannelMembers:
@@ -254,7 +297,7 @@ class TestChannelMembers:
         assert user_id in member_ids
 
     def test_invites_accept_reject(self, client: Stream, random_users):
-        """Accept and reject channel invites."""
+        """Accept and reject channel invites, and verify non-invited user errors."""
         john = random_users[0].id
         ringo = random_users[1].id
         eric = random_users[2].id
@@ -284,6 +327,12 @@ class TestChannelMembers:
             if m.user_id == eric:
                 assert m.invited is True
                 assert m.invite_rejected_at is not None
+
+        # non-invited user (john) accepting should raise an error
+        import pytest
+
+        with pytest.raises(StreamAPIException):
+            ch.update(accept_invite=True, user_id=john)
 
         try:
             client.chat.delete_channels(cids=[f"team:{channel_id}"], hard_delete=True)
@@ -381,7 +430,7 @@ class TestChannelMembers:
 
 class TestChannelState:
     def test_channel_hide_show(self, client: Stream, channel: Channel, random_users):
-        """Hide and show a channel for a user."""
+        """Hide and show a channel for a user, including hidden filter queries."""
         user_id = random_users[0].id
         channel.update(
             add_members=[
@@ -389,6 +438,7 @@ class TestChannelState:
                 for uid in [u.id for u in random_users]
             ]
         )
+        cid = f"{channel.channel_type}:{channel.channel_id}"
 
         # verify channel is visible
         response = client.chat.query_channels(
@@ -403,12 +453,24 @@ class TestChannelState:
         )
         assert len(response.data.channels) == 0
 
+        # verify hidden channel appears in hidden=True query
+        response = client.chat.query_channels(
+            filter_conditions={"hidden": True, "cid": cid}, user_id=user_id
+        )
+        assert len(response.data.channels) == 1
+
         # show
         channel.show(user_id=user_id)
         response = client.chat.query_channels(
             filter_conditions={"id": channel.channel_id}, user_id=user_id
         )
         assert len(response.data.channels) == 1
+
+        # verify channel no longer appears in hidden query
+        response = client.chat.query_channels(
+            filter_conditions={"hidden": True, "cid": cid}, user_id=user_id
+        )
+        assert len(response.data.channels) == 0
 
     def test_mute_unmute_channel(self, client: Stream, channel: Channel, random_users):
         """Mute and unmute a channel."""
