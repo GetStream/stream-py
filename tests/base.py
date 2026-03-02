@@ -36,7 +36,5 @@ def wait_for_task(client, task_id, timeout_ms=10000, poll_interval_ms=1000):
         if response.data.status in ("completed", "failed"):
             return response
         if (time.time() * 1000) - start_time > timeout_ms:
-            raise TimeoutError(
-                f"Task {task_id} did not complete within {timeout_ms}ms"
-            )
+            raise TimeoutError(f"Task {task_id} did not complete within {timeout_ms}ms")
         time.sleep(poll_interval_ms / 1000.0)
