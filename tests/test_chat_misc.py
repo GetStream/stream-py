@@ -95,7 +95,7 @@ def test_update_channel_type(client: Stream):
     """Update a channel type's configuration."""
     # Get current config to know the required fields
     current = client.chat.get_channel_type(name="team")
-    original_commands = current.data.commands or []
+    original_commands = [c.name for c in (current.data.commands or [])]
 
     try:
         response = client.chat.update_channel_type(
