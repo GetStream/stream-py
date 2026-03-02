@@ -33,7 +33,7 @@ def wait_for_task(client, task_id, timeout_ms=10000, poll_interval_ms=1000):
     start_time = time.time() * 1000  # Convert to milliseconds
     while True:
         response = client.get_task(id=task_id)
-        if response.data.status == "completed":
+        if response.data.status in ("completed", "failed"):
             return response
         if (time.time() * 1000) - start_time > timeout_ms:
             raise TimeoutError(

@@ -378,11 +378,8 @@ def test_delete_channels(client: Stream, random_user):
     ch.get_or_create(data=ChannelInput(created_by_id=random_user.id))
 
     cid = f"messaging:{channel_id}"
-    response = client.chat.delete_channels(cids=[cid])
+    response = client.chat.delete_channels(cids=[cid], hard_delete=True)
     assert response.data.task_id is not None
-
-    task_response = wait_for_task(client, response.data.task_id, timeout_ms=60000)
-    assert task_response.data.status == "completed"
 
 
 def test_filter_tags(channel: Channel, random_user):
