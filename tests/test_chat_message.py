@@ -1,8 +1,10 @@
 import time
 import uuid
 
+import pytest
 
 from getstream import Stream
+from getstream.base import StreamAPIException
 from getstream.chat.channel import Channel
 from getstream.models import (
     ChannelInput,
@@ -46,8 +48,6 @@ def test_send_message_restricted_visibility(channel: Channel, random_users):
     amy = random_users[0].id
     paul = random_users[1].id
     sender = random_users[2].id
-
-    from getstream.models import ChannelMemberRequest
 
     channel.update(
         add_members=[ChannelMemberRequest(user_id=uid) for uid in [amy, paul, sender]]
@@ -619,3 +619,90 @@ def test_enforce_unique_reaction(client: Stream, channel: Channel, random_user):
     response = client.chat.get_reactions(id=msg_id)
     user_reactions = [r for r in response.data.reactions if r.user_id == random_user.id]
     assert len(user_reactions) == 1
+
+
+def test_query_message_history_sort(client: Stream, channel: Channel, random_user):
+    """Query message history with ascending sort by message_updated_at."""
+    msg_id = str(uuid.uuid4())
+    channel.send_message(
+        message=MessageRequest(id=msg_id, text="sort initial", user_id=random_user.id)
+    )
+
+    client.chat.update_message(
+        id=msg_id,
+        message=MessageRequest(text="sort updated 1", user_id=random_user.id),
+    )
+    client.chat.update_message(
+        id=msg_id,
+        message=MessageRequest(text="sort updated 2", user_id=random_user.id),
+    )
+
+    # Query with ascending sort by message_updated_at
+    try:
+        response = client.chat.query_message_history(
+            filter={"message_id": msg_id},
+            sort=[SortParamRequest(field="message_updated_at", direction=1)],
+        )
+    except Exception as e:
+        if "feature flag" in str(e) or "not enabled" in str(e):
+            pytest.skip("QueryMessageHistory feature not enabled for this app")
+        raise
+
+    assert response.data.message_history is not None
+    assert len(response.data.message_history) >= 2
+
+    # Ascending: oldest first
+    assert response.data.message_history[0].text == "sort initial"
+    assert response.data.message_history[0].message_updated_by_id == random_user.id
+
+
+def test_pending_false(client: Stream, channel: Channel, random_user):
+    """Send a message with pending=False and verify it's immediately available."""
+    response = channel.send_message(
+        message=MessageRequest(text="Non-pending message", user_id=random_user.id),
+        pending=False,
+    )
+    assert response.data.message is not None
+
+    # Get the message to verify it's immediately available (no commit needed)
+    get_response = client.chat.get_message(id=response.data.message.id)
+    assert get_response.data.message is not None
+    assert get_response.data.message.text == "Non-pending message"
+
+
+def test_search_query_and_message_filters_error(client: Stream, random_user):
+    """Using both query and message_filter_conditions together should error."""
+    with pytest.raises(StreamAPIException):
+        client.chat.search(
+            payload=SearchPayload(
+                filter_conditions={"members": {"$in": [random_user.id]}},
+                query="test",
+                message_filter_conditions={"text": {"$q": "test"}},
+            )
+        )
+
+
+def test_search_offset_and_sort_error(client: Stream, random_user):
+    """Using offset with sort should error."""
+    with pytest.raises(StreamAPIException):
+        client.chat.search(
+            payload=SearchPayload(
+                filter_conditions={"members": {"$in": [random_user.id]}},
+                query="test",
+                offset=1,
+                sort=[SortParamRequest(field="created_at", direction=-1)],
+            )
+        )
+
+
+def test_search_offset_and_next_error(client: Stream, random_user):
+    """Using offset with next should error."""
+    with pytest.raises(StreamAPIException):
+        client.chat.search(
+            payload=SearchPayload(
+                filter_conditions={"members": {"$in": [random_user.id]}},
+                query="test",
+                offset=1,
+                next="some_next_token",
+            )
+        )
