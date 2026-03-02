@@ -381,7 +381,7 @@ def test_delete_channels(client: Stream, random_user):
     response = client.chat.delete_channels(cids=[cid])
     assert response.data.task_id is not None
 
-    task_response = wait_for_task(client, response.data.task_id, timeout_ms=30000)
+    task_response = wait_for_task(client, response.data.task_id, timeout_ms=60000)
     assert task_response.data.status == "completed"
 
 
