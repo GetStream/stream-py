@@ -93,7 +93,9 @@ def test_query_users_with_filters(client: Stream):
     users = {}
     for name, age in [("alice", 30), ("bob", 25), ("carol", 35)]:
         uid = f"{name}-{uuid.uuid4().hex[:8]}"
-        users[uid] = UserRequest(id=uid, name=name, custom={"age": age, "group": "test"})
+        users[uid] = UserRequest(
+            id=uid, name=name, custom={"age": age, "group": "test"}
+        )
     client.update_users(users=users)
     user_ids = list(users.keys())
 
