@@ -6,6 +6,7 @@ import pytest
 from getstream import Stream
 from getstream.chat.channel import Channel
 from getstream.models import (
+    ChannelMemberRequest,
     DeliveredMessagePayload,
     EventRequest,
     MessageRequest,
@@ -399,11 +400,11 @@ def test_search_message_filters(client: Stream, channel: Channel, random_user):
     assert query in response.data.results[0].message.text
 
 
-@pytest.mark.skip(
-    reason="Backend bug: delete_for_me with server-side auth needs user in body, not query params (CHA-TBD)"
-)
 def test_delete_message_for_me(client: Stream, channel: Channel, random_user):
     """Delete a message for a specific user (delete for me)."""
+    channel.update(
+        add_members=[ChannelMemberRequest(user_id=random_user.id)]
+    )
     msg_id = str(uuid.uuid4())
     channel.send_message(
         message=MessageRequest(id=msg_id, text="helloworld", user_id=random_user.id)
