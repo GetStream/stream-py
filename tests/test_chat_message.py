@@ -1,11 +1,11 @@
 import time
 import uuid
 
-import pytest
 
 from getstream import Stream
 from getstream.chat.channel import Channel
 from getstream.models import (
+    ChannelInput,
     ChannelMemberRequest,
     DeliveredMessagePayload,
     EventRequest,
@@ -402,9 +402,7 @@ def test_search_message_filters(client: Stream, channel: Channel, random_user):
 
 def test_delete_message_for_me(client: Stream, channel: Channel, random_user):
     """Delete a message for a specific user (delete for me)."""
-    channel.update(
-        add_members=[ChannelMemberRequest(user_id=random_user.id)]
-    )
+    channel.update(add_members=[ChannelMemberRequest(user_id=random_user.id)])
     msg_id = str(uuid.uuid4())
     channel.send_message(
         message=MessageRequest(id=msg_id, text="helloworld", user_id=random_user.id)
@@ -425,3 +423,199 @@ def test_mark_delivered(client: Stream, channel: Channel, random_user):
         ],
     )
     assert response is not None
+
+
+def test_silent_message(channel: Channel, random_user):
+    """Send a silent message."""
+    response = channel.send_message(
+        message=MessageRequest(
+            text="This is a silent message", user_id=random_user.id, silent=True
+        ),
+    )
+    assert response.data.message is not None
+    assert response.data.message.silent is True
+
+
+def test_skip_enrich_url(client: Stream, channel: Channel, random_user):
+    """Send a message with a URL but skip enrichment."""
+    response = channel.send_message(
+        message=MessageRequest(
+            text="Check out https://getstream.io for more info",
+            user_id=random_user.id,
+        ),
+        skip_enrich_url=True,
+    )
+    assert response.data.message is not None
+    assert len(response.data.message.attachments) == 0
+
+
+def test_keep_channel_hidden(client: Stream, channel: Channel, random_user):
+    """Send a message keeping the channel hidden."""
+    channel.update(add_members=[ChannelMemberRequest(user_id=random_user.id)])
+
+    # hide the channel
+    channel.hide(user_id=random_user.id)
+
+    # send message with keep_channel_hidden
+    channel.send_message(
+        message=MessageRequest(text="Hidden message", user_id=random_user.id),
+        keep_channel_hidden=True,
+    )
+
+    # channel should still be hidden
+    cid = f"{channel.channel_type}:{channel.channel_id}"
+    q_resp = client.chat.query_channels(
+        filter_conditions={"cid": cid}, user_id=random_user.id
+    )
+    assert len(q_resp.data.channels) == 0
+
+    # show it back for cleanup
+    channel.show(user_id=random_user.id)
+
+
+def test_undelete_message(client: Stream, channel: Channel, random_user):
+    """Soft delete and then undelete a message."""
+    msg_id = str(uuid.uuid4())
+    channel.send_message(
+        message=MessageRequest(
+            id=msg_id, text="Message to undelete", user_id=random_user.id
+        )
+    )
+
+    # soft delete
+    client.chat.delete_message(id=msg_id)
+    get_resp = client.chat.get_message(id=msg_id)
+    assert get_resp.data.message.type == "deleted"
+
+    # undelete
+    undelete_resp = client.chat.undelete_message(id=msg_id, undeleted_by=random_user.id)
+    assert undelete_resp.data.message is not None
+    assert undelete_resp.data.message.type != "deleted"
+    assert undelete_resp.data.message.text == "Message to undelete"
+
+
+def test_pin_expiration(client: Stream, channel: Channel, random_user):
+    """Pin a message with expiration."""
+    msg_id = str(uuid.uuid4())
+    channel.send_message(
+        message=MessageRequest(
+            id=msg_id, text="Message to pin with expiry", user_id=random_user.id
+        )
+    )
+
+    # pin with short expiry
+    from datetime import datetime, timedelta, timezone
+
+    expiry = datetime.now(timezone.utc) + timedelta(seconds=3)
+    response = client.chat.update_message_partial(
+        id=msg_id,
+        set={"pinned": True, "pin_expires": expiry.isoformat()},
+        user_id=random_user.id,
+    )
+    assert response.data.message.pinned is True
+
+    # wait for expiry
+    time.sleep(4)
+
+    get_resp = client.chat.get_message(id=msg_id)
+    assert get_resp.data.message.pinned is False
+
+
+def test_system_message(channel: Channel, random_user):
+    """Send a system message."""
+    response = channel.send_message(
+        message=MessageRequest(
+            text="User joined the channel",
+            user_id=random_user.id,
+            type="system",
+        ),
+    )
+    assert response.data.message is not None
+    assert response.data.message.type == "system"
+
+
+def test_channel_role_in_member(client: Stream, random_users):
+    """Verify channel_role is present in message member."""
+    member_id = random_users[0].id
+    mod_id = random_users[1].id
+
+    channel_id = str(uuid.uuid4())
+    ch = client.chat.channel("messaging", channel_id)
+    ch.get_or_create(
+        data=ChannelInput(
+            created_by_id=member_id,
+            members=[
+                ChannelMemberRequest(user_id=member_id, channel_role="channel_member"),
+                ChannelMemberRequest(user_id=mod_id, channel_role="channel_moderator"),
+            ],
+        )
+    )
+
+    resp_member = ch.send_message(
+        message=MessageRequest(text="message from member", user_id=member_id)
+    )
+    assert resp_member.data.message.member is not None
+    assert resp_member.data.message.member.channel_role == "channel_member"
+
+    resp_mod = ch.send_message(
+        message=MessageRequest(text="message from moderator", user_id=mod_id)
+    )
+    assert resp_mod.data.message.member is not None
+    assert resp_mod.data.message.member.channel_role == "channel_moderator"
+
+    try:
+        client.chat.delete_channels(cids=[f"messaging:{channel_id}"], hard_delete=True)
+    except Exception:
+        pass
+
+
+def test_query_reactions(client: Stream, channel: Channel, random_users):
+    """Query reactions on a message."""
+    msg = channel.send_message(
+        message=MessageRequest(
+            text="Message for query reactions", user_id=random_users[0].id
+        )
+    )
+    msg_id = msg.data.message.id
+
+    client.chat.send_reaction(
+        id=msg_id,
+        reaction=ReactionRequest(type="like", user_id=random_users[0].id),
+    )
+    client.chat.send_reaction(
+        id=msg_id,
+        reaction=ReactionRequest(type="wow", user_id=random_users[1].id),
+    )
+
+    response = client.chat.query_reactions(id=msg_id)
+    assert response.data.reactions is not None
+    assert len(response.data.reactions) >= 2
+
+
+def test_enforce_unique_reaction(client: Stream, channel: Channel, random_user):
+    """Enforce unique reaction per user."""
+    msg = channel.send_message(
+        message=MessageRequest(
+            text="Message for unique reaction", user_id=random_user.id
+        )
+    )
+    msg_id = msg.data.message.id
+
+    # send first reaction
+    client.chat.send_reaction(
+        id=msg_id,
+        reaction=ReactionRequest(type="like", user_id=random_user.id),
+        enforce_unique=True,
+    )
+
+    # send second reaction with enforce_unique — should replace
+    client.chat.send_reaction(
+        id=msg_id,
+        reaction=ReactionRequest(type="love", user_id=random_user.id),
+        enforce_unique=True,
+    )
+
+    # user should only have one reaction
+    response = client.chat.get_reactions(id=msg_id)
+    user_reactions = [r for r in response.data.reactions if r.user_id == random_user.id]
+    assert len(user_reactions) == 1

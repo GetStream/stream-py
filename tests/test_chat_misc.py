@@ -7,8 +7,12 @@ from getstream import Stream
 from getstream.base import StreamAPIException
 from getstream.chat.channel import Channel
 from getstream.models import (
+    ChannelInput,
+    ChannelMemberRequest,
     EventHook,
+    FileUploadConfig,
     MessageRequest,
+    QueryFutureChannelBansPayload,
     SortParamRequest,
 )
 
@@ -292,3 +296,70 @@ def test_imports_end2end(client: Stream):
     list_resp = client.list_imports()
     assert list_resp.data.import_tasks is not None
     assert len(list_resp.data.import_tasks) >= 1
+
+
+def test_file_upload_config(client: Stream):
+    """Set and verify file upload configuration."""
+    # save original config
+    original = client.get_app()
+    original_config = original.data.app.file_upload_config
+
+    try:
+        client.update_app(
+            file_upload_config=FileUploadConfig(
+                size_limit=10 * 1024 * 1024,
+                allowed_file_extensions=[".pdf", ".doc", ".txt"],
+                allowed_mime_types=["application/pdf", "text/plain"],
+            )
+        )
+
+        verify = client.get_app()
+        cfg = verify.data.app.file_upload_config
+        assert cfg.size_limit == 10 * 1024 * 1024
+        assert cfg.allowed_file_extensions == [".pdf", ".doc", ".txt"]
+        assert cfg.allowed_mime_types == ["application/pdf", "text/plain"]
+    finally:
+        # restore original config
+        if original_config is not None:
+            client.update_app(file_upload_config=original_config)
+
+
+def test_query_future_channel_bans(client: Stream, random_users):
+    """Query future channel bans."""
+    creator = random_users[0]
+    target = random_users[1]
+
+    channel_id = str(uuid.uuid4())
+    ch = client.chat.channel("messaging", channel_id)
+    ch.get_or_create(
+        data=ChannelInput(
+            created_by_id=creator.id,
+            members=[
+                ChannelMemberRequest(user_id=creator.id),
+                ChannelMemberRequest(user_id=target.id),
+            ],
+        )
+    )
+    cid = f"messaging:{channel_id}"
+
+    client.moderation.ban(
+        target_user_id=target.id,
+        banned_by_id=creator.id,
+        channel_cid=cid,
+        reason="test future ban query",
+    )
+
+    try:
+        response = client.chat.query_future_channel_bans(
+            payload=QueryFutureChannelBansPayload(user_id=creator.id)
+        )
+        assert response.data.bans is not None
+    finally:
+        client.moderation.unban(
+            target_user_id=target.id,
+            channel_cid=cid,
+        )
+        try:
+            client.chat.delete_channels(cids=[cid], hard_delete=True)
+        except Exception:
+            pass

@@ -73,6 +73,8 @@ jobs:
       STREAM_BASE_URL: ${{ vars.STREAM_BASE_URL }}
       STREAM_API_KEY: ${{ vars.STREAM_API_KEY }}
       STREAM_API_SECRET: ${{ secrets.STREAM_API_SECRET }}
+      STREAM_CHAT_API_KEY: ${{ vars.STREAM_CHAT_API_KEY }}
+      STREAM_CHAT_API_SECRET: ${{ secrets.STREAM_CHAT_API_SECRET }}
     timeout-minutes: 30
     steps:
       - name: Checkout
@@ -85,7 +87,20 @@ jobs:
         run: |
           echo "STREAM_API_KEY is set: ${{ env.STREAM_API_KEY != '' }}"
           echo "STREAM_API_SECRET is set: ${{ env.STREAM_API_SECRET != '' }}"
+          echo "STREAM_CHAT_API_KEY is set: ${{ env.STREAM_CHAT_API_KEY != '' }}"
+          echo "STREAM_CHAT_API_SECRET is set: ${{ env.STREAM_CHAT_API_SECRET != '' }}"
           echo "STREAM_BASE_URL is set: ${{ env.STREAM_BASE_URL != '' }}"
-      - name: Run tests
-        run: uv run pytest -m "${{ inputs.marker }}" tests/ getstream/
+      - name: Run non-video tests
+        env:
+          STREAM_API_KEY: ${{ vars.STREAM_CHAT_API_KEY }}
+          STREAM_API_SECRET: ${{ secrets.STREAM_CHAT_API_SECRET }}
+        run: |
+          uv run pytest -m "${{ inputs.marker }}" tests/ getstream/ \
+            --ignore=tests/test_video_examples.py \
+            --ignore=tests/test_video_integration.py
+      - name: Run video tests
+        run: |
+          uv run pytest -m "${{ inputs.marker }}" \
+            tests/test_video_examples.py \
+            tests/test_video_integration.py
 

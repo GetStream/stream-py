@@ -6,8 +6,11 @@ from getstream.models import (
     ChannelMemberRequest,
     EventRequest,
     MessageRequest,
+    PrivacySettingsResponse,
     QueryUsersPayload,
+    ReadReceiptsResponse,
     SortParamRequest,
+    TypingIndicatorsResponse,
     UpdateUserPartialRequest,
     UserRequest,
 )
@@ -310,3 +313,166 @@ def test_export_users(client: Stream, random_user):
 
     task_response = wait_for_task(client, response.data.task_id, timeout_ms=30000)
     assert task_response.data.status == "completed"
+
+
+def test_query_users_with_offset_limit(client: Stream):
+    """Query users with offset and limit pagination."""
+    user_ids = [str(uuid.uuid4()) for _ in range(3)]
+    client.update_users(users={uid: UserRequest(id=uid, name=uid) for uid in user_ids})
+
+    response = client.query_users(
+        QueryUsersPayload(
+            filter_conditions={"id": {"$in": user_ids}},
+            offset=1,
+            limit=2,
+        )
+    )
+    assert len(response.data.users) == 2
+
+    try:
+        client.delete_users(
+            user_ids=user_ids, user="hard", conversations="hard", messages="hard"
+        )
+    except Exception:
+        pass
+
+
+def test_update_privacy_settings(client: Stream):
+    """Update user privacy settings."""
+    user_id = f"privacy-{uuid.uuid4().hex[:8]}"
+    response = client.update_users(
+        users={user_id: UserRequest(id=user_id, name="Privacy User")}
+    )
+    assert response.data.users[user_id].privacy_settings is None
+
+    # set typing_indicators disabled
+    response = client.update_users(
+        users={
+            user_id: UserRequest(
+                id=user_id,
+                privacy_settings=PrivacySettingsResponse(
+                    typing_indicators=TypingIndicatorsResponse(enabled=False),
+                ),
+            )
+        }
+    )
+    u = response.data.users[user_id]
+    assert u.privacy_settings is not None
+    assert u.privacy_settings.typing_indicators is not None
+    assert u.privacy_settings.typing_indicators.enabled is False
+    assert u.privacy_settings.read_receipts is None
+
+    # set both typing_indicators=True and read_receipts=False
+    response = client.update_users(
+        users={
+            user_id: UserRequest(
+                id=user_id,
+                privacy_settings=PrivacySettingsResponse(
+                    typing_indicators=TypingIndicatorsResponse(enabled=True),
+                    read_receipts=ReadReceiptsResponse(enabled=False),
+                ),
+            )
+        }
+    )
+    u = response.data.users[user_id]
+    assert u.privacy_settings.typing_indicators.enabled is True
+    assert u.privacy_settings.read_receipts is not None
+    assert u.privacy_settings.read_receipts.enabled is False
+
+    try:
+        client.delete_users(
+            user_ids=[user_id], user="hard", conversations="hard", messages="hard"
+        )
+    except Exception:
+        pass
+
+
+def test_partial_update_privacy_settings(client: Stream):
+    """Partial update user privacy settings."""
+    user_id = f"privacy-partial-{uuid.uuid4().hex[:8]}"
+    client.update_users(
+        users={user_id: UserRequest(id=user_id, name="Privacy Partial User")}
+    )
+
+    # partial update: set typing_indicators enabled
+    response = client.update_users_partial(
+        users=[
+            UpdateUserPartialRequest(
+                id=user_id,
+                set={
+                    "privacy_settings": {
+                        "typing_indicators": {"enabled": True},
+                    }
+                },
+            )
+        ]
+    )
+    u = response.data.users[user_id]
+    assert u.privacy_settings is not None
+    assert u.privacy_settings.typing_indicators is not None
+    assert u.privacy_settings.typing_indicators.enabled is True
+    assert u.privacy_settings.read_receipts is None
+
+    # partial update: set read_receipts disabled
+    response = client.update_users_partial(
+        users=[
+            UpdateUserPartialRequest(
+                id=user_id,
+                set={
+                    "privacy_settings": {
+                        "read_receipts": {"enabled": False},
+                    }
+                },
+            )
+        ]
+    )
+    u = response.data.users[user_id]
+    assert u.privacy_settings.typing_indicators is not None
+    assert u.privacy_settings.typing_indicators.enabled is True
+    assert u.privacy_settings.read_receipts is not None
+    assert u.privacy_settings.read_receipts.enabled is False
+
+    try:
+        client.delete_users(
+            user_ids=[user_id], user="hard", conversations="hard", messages="hard"
+        )
+    except Exception:
+        pass
+
+
+def test_query_users_with_deactivated(client: Stream):
+    """Query users including/excluding deactivated users."""
+    user_ids = [str(uuid.uuid4()) for _ in range(3)]
+    client.update_users(users={uid: UserRequest(id=uid, name=uid) for uid in user_ids})
+
+    # deactivate one user
+    client.deactivate_user(user_id=user_ids[2])
+
+    # query without deactivated — should get 2
+    response = client.query_users(
+        QueryUsersPayload(
+            filter_conditions={"id": {"$in": user_ids}},
+        )
+    )
+    assert len(response.data.users) == 2
+
+    # query with deactivated — should get 3
+    response = client.query_users(
+        QueryUsersPayload(
+            filter_conditions={"id": {"$in": user_ids}},
+            include_deactivated_users=True,
+        )
+    )
+    assert len(response.data.users) == 3
+
+    # cleanup
+    try:
+        client.reactivate_user(user_id=user_ids[2])
+    except Exception:
+        pass
+    try:
+        client.delete_users(
+            user_ids=user_ids, user="hard", conversations="hard", messages="hard"
+        )
+    except Exception:
+        pass

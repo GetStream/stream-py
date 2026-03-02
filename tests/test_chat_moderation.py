@@ -1,12 +1,12 @@
 import uuid
 
-import pytest
 
 from getstream import Stream
 from getstream.chat.channel import Channel
 from getstream.models import (
     ChannelMemberRequest,
     MessageRequest,
+    ModerationPayload,
     QueryBannedUsersPayload,
     QueryMessageFlagsPayload,
 )
@@ -234,9 +234,7 @@ def test_query_message_flags(
 
     # Also verify with user_id filter
     response = client.chat.query_message_flags(
-        payload=QueryMessageFlagsPayload(
-            filter_conditions={"user_id": server_user.id}
-        )
+        payload=QueryMessageFlagsPayload(filter_conditions={"user_id": server_user.id})
     )
     assert response.data.flags is not None
 
@@ -258,3 +256,33 @@ def test_block_unblock_user(client: Stream, random_user, server_user):
     response = client.get_blocked_users(user_id=server_user.id)
     assert response.data.blocks is not None
     assert len(response.data.blocks) == 0
+
+
+def test_check_content(client: Stream, random_user):
+    """Check content moderation."""
+    response = client.moderation.check(
+        entity_type="stream:chat:v1:message",
+        entity_id=f"msg-{uuid.uuid4().hex[:8]}",
+        entity_creator_id=random_user.id,
+        moderation_payload=ModerationPayload(
+            texts=["This is some content to moderate"],
+        ),
+    )
+    assert response is not None
+
+
+def test_query_review_queue(client: Stream):
+    """Query the moderation review queue."""
+    response = client.moderation.query_review_queue(
+        filter={"status": "pending"},
+        limit=25,
+    )
+    assert response.data.items is not None
+
+
+def test_upsert_moderation_config(client: Stream):
+    """Upsert a moderation config."""
+    response = client.moderation.upsert_config(
+        key="chat:messaging",
+    )
+    assert response is not None
