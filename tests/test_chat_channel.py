@@ -328,11 +328,15 @@ class TestChannelMembers:
                 assert m.invited is True
                 assert m.invite_rejected_at is not None
 
-        # non-invited user (john) accepting should raise an error
+        # non-member accepting should raise an error
         import pytest
 
+        non_member = "brian-" + str(uuid.uuid4())
+        client.update_users(
+            users={non_member: UserRequest(id=non_member, name=non_member)}
+        )
         with pytest.raises(StreamAPIException):
-            ch.update(accept_invite=True, user_id=john)
+            ch.update(accept_invite=True, user_id=non_member)
 
         try:
             client.chat.delete_channels(cids=[f"team:{channel_id}"], hard_delete=True)

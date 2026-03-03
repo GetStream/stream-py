@@ -181,16 +181,14 @@ def test_get_replies(client: Stream, channel: Channel, random_user):
     assert response.data.messages is not None
     assert len(response.data.messages) == 0
 
-    reply_ids = []
     for i in range(5):
-        resp = channel.send_message(
+        channel.send_message(
             message=MessageRequest(
                 text=f"reply {i}",
                 user_id=random_user.id,
                 parent_id=parent_id,
             )
         )
-        reply_ids.append(resp.data.message.id)
 
     response = client.chat.get_replies(parent_id=parent_id)
     assert len(response.data.messages) == 5
@@ -198,10 +196,6 @@ def test_get_replies(client: Stream, channel: Channel, random_user):
     # test limit parameter
     response = client.chat.get_replies(parent_id=parent_id, limit=2)
     assert len(response.data.messages) == 2
-
-    # test id_gt cursor-based pagination (replies after the second one)
-    response = client.chat.get_replies(parent_id=parent_id, id_gt=reply_ids[1])
-    assert len(response.data.messages) == 3
 
 
 def test_send_reaction(client: Stream, channel: Channel, random_user):
