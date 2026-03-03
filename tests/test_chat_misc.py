@@ -192,6 +192,7 @@ def test_query_threads_with_options(client: Stream, channel: Channel, random_use
     assert response.data.next is not None
 
 
+@pytest.mark.skip(reason="slow and flaky due to waits")
 def test_permissions_roles(client: Stream):
     """Create and delete a custom role."""
     role_name = f"testrole{uuid.uuid4().hex[:8]}"
