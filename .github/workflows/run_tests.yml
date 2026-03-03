@@ -114,5 +114,6 @@ jobs:
             tests/test_video_integration.py \
             tests/test_video_openai.py \
             tests/test_signaling.py \
-            tests/test_audio_stream_track.py
+            tests/test_audio_stream_track.py \
+            getstream/video
 
