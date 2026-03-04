@@ -226,23 +226,18 @@ class ChatRestClient(BaseClient):
 
     @telemetry.operation_name("getstream.api.chat.delete_channel")
     def delete_channel(
-        self,
-        type: str,
-        id: str,
-        hard_delete: Optional[bool] = None,
+        self, type: str, id: str, hard_delete: Optional[bool] = None
     ) -> StreamResponse[DeleteChannelResponse]:
         query_params = build_query_param(**{"hard_delete": hard_delete})
         path_params = {
             "type": type,
             "id": id,
         }
-        json = DeleteChannelRequest().to_dict()
         return self.delete(
             "/api/v2/chat/channels/{type}/{id}",
             DeleteChannelResponse,
             query_params=query_params,
             path_params=path_params,
-            json=json,
         )
 
     @telemetry.operation_name("getstream.api.chat.update_channel_partial")
@@ -337,13 +332,11 @@ class ChatRestClient(BaseClient):
             "type": type,
             "id": id,
         }
-        json = DeleteDraftRequest().to_dict()
         return self.delete(
             "/api/v2/chat/channels/{type}/{id}/draft",
             Response,
             query_params=query_params,
             path_params=path_params,
-            json=json,
         )
 
     @telemetry.operation_name("getstream.api.chat.get_draft")
@@ -384,23 +377,18 @@ class ChatRestClient(BaseClient):
 
     @telemetry.operation_name("getstream.api.chat.delete_channel_file")
     def delete_channel_file(
-        self,
-        type: str,
-        id: str,
-        url: Optional[str] = None,
+        self, type: str, id: str, url: Optional[str] = None
     ) -> StreamResponse[Response]:
         query_params = build_query_param(**{"url": url})
         path_params = {
             "type": type,
             "id": id,
         }
-        json = FileDeleteRequest().to_dict()
         return self.delete(
             "/api/v2/chat/channels/{type}/{id}/file",
             Response,
             query_params=query_params,
             path_params=path_params,
-            json=json,
         )
 
     @telemetry.operation_name("getstream.api.chat.upload_channel_file")
@@ -448,23 +436,18 @@ class ChatRestClient(BaseClient):
 
     @telemetry.operation_name("getstream.api.chat.delete_channel_image")
     def delete_channel_image(
-        self,
-        type: str,
-        id: str,
-        url: Optional[str] = None,
+        self, type: str, id: str, url: Optional[str] = None
     ) -> StreamResponse[Response]:
         query_params = build_query_param(**{"url": url})
         path_params = {
             "type": type,
             "id": id,
         }
-        json = FileDeleteRequest().to_dict()
         return self.delete(
             "/api/v2/chat/channels/{type}/{id}/image",
             Response,
             query_params=query_params,
             path_params=path_params,
-            json=json,
         )
 
     @telemetry.operation_name("getstream.api.chat.upload_channel_image")
@@ -780,19 +763,12 @@ class ChatRestClient(BaseClient):
         )
 
     @telemetry.operation_name("getstream.api.chat.delete_channel_type")
-    def delete_channel_type(
-        self,
-        name: str,
-    ) -> StreamResponse[Response]:
+    def delete_channel_type(self, name: str) -> StreamResponse[Response]:
         path_params = {
             "name": name,
         }
-        json = GetChannelTypeRequest().to_dict()
         return self.delete(
-            "/api/v2/chat/channeltypes/{name}",
-            Response,
-            path_params=path_params,
-            json=json,
+            "/api/v2/chat/channeltypes/{name}", Response, path_params=path_params
         )
 
     @telemetry.operation_name("getstream.api.chat.get_channel_type")
@@ -909,19 +885,14 @@ class ChatRestClient(BaseClient):
         return self.post("/api/v2/chat/commands", CreateCommandResponse, json=json)
 
     @telemetry.operation_name("getstream.api.chat.delete_command")
-    def delete_command(
-        self,
-        name: str,
-    ) -> StreamResponse[DeleteCommandResponse]:
+    def delete_command(self, name: str) -> StreamResponse[DeleteCommandResponse]:
         path_params = {
             "name": name,
         }
-        json = DeleteCommandRequest().to_dict()
         return self.delete(
             "/api/v2/chat/commands/{name}",
             DeleteCommandResponse,
             path_params=path_params,
-            json=json,
         )
 
     @telemetry.operation_name("getstream.api.chat.get_command")
@@ -1037,13 +1008,11 @@ class ChatRestClient(BaseClient):
         path_params = {
             "id": id,
         }
-        json = DeleteMessageRequest().to_dict()
         return self.delete(
             "/api/v2/chat/messages/{id}",
             DeleteMessageResponse,
             query_params=query_params,
             path_params=path_params,
-            json=json,
         )
 
     @telemetry.operation_name("getstream.api.chat.get_message")
@@ -1202,23 +1171,18 @@ class ChatRestClient(BaseClient):
 
     @telemetry.operation_name("getstream.api.chat.delete_reaction")
     def delete_reaction(
-        self,
-        id: str,
-        type: str,
-        user_id: Optional[str] = None,
+        self, id: str, type: str, user_id: Optional[str] = None
     ) -> StreamResponse[DeleteReactionResponse]:
         query_params = build_query_param(**{"user_id": user_id})
         path_params = {
             "id": id,
             "type": type,
         }
-        json = DeleteReactionRequest().to_dict()
         return self.delete(
             "/api/v2/chat/messages/{id}/reaction/{type}",
             DeleteReactionResponse,
             query_params=query_params,
             path_params=path_params,
-            json=json,
         )
 
     @telemetry.operation_name("getstream.api.chat.get_reactions")
@@ -1320,11 +1284,7 @@ class ChatRestClient(BaseClient):
 
     @telemetry.operation_name("getstream.api.chat.delete_poll_vote")
     def delete_poll_vote(
-        self,
-        message_id: str,
-        poll_id: str,
-        vote_id: str,
-        user_id: Optional[str] = None,
+        self, message_id: str, poll_id: str, vote_id: str, user_id: Optional[str] = None
     ) -> StreamResponse[PollVoteResponse]:
         query_params = build_query_param(**{"user_id": user_id})
         path_params = {
@@ -1332,32 +1292,26 @@ class ChatRestClient(BaseClient):
             "poll_id": poll_id,
             "vote_id": vote_id,
         }
-        json = DeletePollVoteRequest().to_dict()
         return self.delete(
             "/api/v2/chat/messages/{message_id}/polls/{poll_id}/vote/{vote_id}",
             PollVoteResponse,
             query_params=query_params,
             path_params=path_params,
-            json=json,
         )
 
     @telemetry.operation_name("getstream.api.chat.delete_reminder")
     def delete_reminder(
-        self,
-        message_id: str,
-        user_id: Optional[str] = None,
+        self, message_id: str, user_id: Optional[str] = None
     ) -> StreamResponse[DeleteReminderResponse]:
         query_params = build_query_param(**{"user_id": user_id})
         path_params = {
             "message_id": message_id,
         }
-        json = DeleteReminderRequest().to_dict()
         return self.delete(
             "/api/v2/chat/messages/{message_id}/reminders",
             DeleteReminderResponse,
             query_params=query_params,
             path_params=path_params,
-            json=json,
         )
 
     @telemetry.operation_name("getstream.api.chat.update_reminder")
@@ -1548,16 +1502,12 @@ class ChatRestClient(BaseClient):
         )
 
     @telemetry.operation_name("getstream.api.chat.delete_segment")
-    def delete_segment(
-        self,
-        id: str,
-    ) -> StreamResponse[Response]:
+    def delete_segment(self, id: str) -> StreamResponse[Response]:
         path_params = {
             "id": id,
         }
-        json = DeleteSegmentRequest().to_dict()
         return self.delete(
-            "/api/v2/chat/segments/{id}", Response, path_params=path_params, json=json
+            "/api/v2/chat/segments/{id}", Response, path_params=path_params
         )
 
     @telemetry.operation_name("getstream.api.chat.get_segment")

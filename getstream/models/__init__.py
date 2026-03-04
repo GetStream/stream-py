@@ -1803,7 +1803,8 @@ class AsyncExportErrorEvent(DataClassJsonMixin):
     task_id: str = dc_field(metadata=dc_config(field_name="task_id"))
     custom: Dict[str, object] = dc_field(metadata=dc_config(field_name="custom"))
     type: str = dc_field(
-        default="export.channels.error", metadata=dc_config(field_name="type")
+        default="export.bulk_image_moderation.error",
+        metadata=dc_config(field_name="type"),
     )
     received_at: Optional[datetime] = dc_field(
         default=None,
@@ -7706,22 +7707,12 @@ class DeleteActivitiesResponse(DataClassJsonMixin):
 
 
 @dataclass
-class DeleteActivityReactionRequest(DataClassJsonMixin):
-    pass
-
-
-@dataclass
 class DeleteActivityReactionResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
     activity: "ActivityResponse" = dc_field(metadata=dc_config(field_name="activity"))
     reaction: "FeedsReactionResponse" = dc_field(
         metadata=dc_config(field_name="reaction")
     )
-
-
-@dataclass
-class DeleteActivityRequest(DataClassJsonMixin):
-    pass
 
 
 @dataclass
@@ -7746,11 +7737,6 @@ class DeleteActivityResponse(DataClassJsonMixin):
 
 
 @dataclass
-class DeleteBlockListRequest(DataClassJsonMixin):
-    pass
-
-
-@dataclass
 class DeleteBookmarkFolderRequest(DataClassJsonMixin):
     user_id: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="user_id")
@@ -7763,11 +7749,6 @@ class DeleteBookmarkFolderRequest(DataClassJsonMixin):
 @dataclass
 class DeleteBookmarkFolderResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
-
-
-@dataclass
-class DeleteBookmarkRequest(DataClassJsonMixin):
-    pass
 
 
 @dataclass
@@ -7788,16 +7769,6 @@ class DeleteCallResponse(DataClassJsonMixin):
     task_id: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="task_id")
     )
-
-
-@dataclass
-class DeleteCallTypeRequest(DataClassJsonMixin):
-    pass
-
-
-@dataclass
-class DeleteChannelRequest(DataClassJsonMixin):
-    pass
 
 
 @dataclass
@@ -7851,19 +7822,9 @@ class DeleteCollectionsResponse(DataClassJsonMixin):
 
 
 @dataclass
-class DeleteCommandRequest(DataClassJsonMixin):
-    pass
-
-
-@dataclass
 class DeleteCommandResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
     name: str = dc_field(metadata=dc_config(field_name="name"))
-
-
-@dataclass
-class DeleteCommentReactionRequest(DataClassJsonMixin):
-    pass
 
 
 @dataclass
@@ -7873,11 +7834,6 @@ class DeleteCommentReactionResponse(DataClassJsonMixin):
     reaction: "FeedsReactionResponse" = dc_field(
         metadata=dc_config(field_name="reaction")
     )
-
-
-@dataclass
-class DeleteCommentRequest(DataClassJsonMixin):
-    pass
 
 
 @dataclass
@@ -7904,43 +7860,13 @@ class DeleteCommentResponse(DataClassJsonMixin):
 
 
 @dataclass
-class DeleteCustomRoleRequest(DataClassJsonMixin):
-    pass
-
-
-@dataclass
-class DeleteDeviceRequest(DataClassJsonMixin):
-    pass
-
-
-@dataclass
-class DeleteDraftRequest(DataClassJsonMixin):
-    pass
-
-
-@dataclass
-class DeleteExternalStorageRequest(DataClassJsonMixin):
-    pass
-
-
-@dataclass
 class DeleteExternalStorageResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
 
 
 @dataclass
-class DeleteFeedGroupRequest(DataClassJsonMixin):
-    pass
-
-
-@dataclass
 class DeleteFeedGroupResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
-
-
-@dataclass
-class DeleteFeedRequest(DataClassJsonMixin):
-    pass
 
 
 @dataclass
@@ -7963,11 +7889,6 @@ class DeleteFeedUserDataResponse(DataClassJsonMixin):
 
 
 @dataclass
-class DeleteFeedViewRequest(DataClassJsonMixin):
-    pass
-
-
-@dataclass
 class DeleteFeedViewResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
 
@@ -7987,23 +7908,8 @@ class DeleteFeedsBatchResponse(DataClassJsonMixin):
 
 
 @dataclass
-class DeleteImportV2TaskRequest(DataClassJsonMixin):
-    pass
-
-
-@dataclass
 class DeleteImportV2TaskResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
-
-
-@dataclass
-class DeleteMembershipLevelRequest(DataClassJsonMixin):
-    pass
-
-
-@dataclass
-class DeleteMessageRequest(DataClassJsonMixin):
-    pass
 
 
 @dataclass
@@ -8029,11 +7935,6 @@ class DeleteMessageResponse(DataClassJsonMixin):
 
 
 @dataclass
-class DeleteModerationConfigRequest(DataClassJsonMixin):
-    pass
-
-
-@dataclass
 class DeleteModerationConfigResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
 
@@ -8051,31 +7952,6 @@ class DeleteModerationTemplateRequest(DataClassJsonMixin):
 @dataclass
 class DeleteModerationTemplateResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
-
-
-@dataclass
-class DeletePollOptionRequest(DataClassJsonMixin):
-    pass
-
-
-@dataclass
-class DeletePollRequest(DataClassJsonMixin):
-    pass
-
-
-@dataclass
-class DeletePollVoteRequest(DataClassJsonMixin):
-    pass
-
-
-@dataclass
-class DeletePushProviderRequest(DataClassJsonMixin):
-    pass
-
-
-@dataclass
-class DeleteReactionRequest(DataClassJsonMixin):
-    pass
 
 
 @dataclass
@@ -8102,18 +7978,8 @@ class DeleteReactionResponse(DataClassJsonMixin):
 
 
 @dataclass
-class DeleteRecordingRequest(DataClassJsonMixin):
-    pass
-
-
-@dataclass
 class DeleteRecordingResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
-
-
-@dataclass
-class DeleteReminderRequest(DataClassJsonMixin):
-    pass
 
 
 @dataclass
@@ -8122,18 +7988,8 @@ class DeleteReminderResponse(DataClassJsonMixin):
 
 
 @dataclass
-class DeleteSIPInboundRoutingRuleRequest(DataClassJsonMixin):
-    pass
-
-
-@dataclass
 class DeleteSIPInboundRoutingRuleResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
-
-
-@dataclass
-class DeleteSIPTrunkRequest(DataClassJsonMixin):
-    pass
 
 
 @dataclass
@@ -8142,28 +7998,13 @@ class DeleteSIPTrunkResponse(DataClassJsonMixin):
 
 
 @dataclass
-class DeleteSegmentRequest(DataClassJsonMixin):
-    pass
-
-
-@dataclass
 class DeleteSegmentTargetsRequest(DataClassJsonMixin):
     target_ids: List[str] = dc_field(metadata=dc_config(field_name="target_ids"))
 
 
 @dataclass
-class DeleteTranscriptionRequest(DataClassJsonMixin):
-    pass
-
-
-@dataclass
 class DeleteTranscriptionResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
-
-
-@dataclass
-class DeleteUserGroupRequest(DataClassJsonMixin):
-    pass
 
 
 @dataclass
@@ -9767,11 +9608,6 @@ class Field(DataClassJsonMixin):
 
 
 @dataclass
-class FileDeleteRequest(DataClassJsonMixin):
-    pass
-
-
-@dataclass
 class FileUploadConfig(DataClassJsonMixin):
     size_limit: int = dc_field(metadata=dc_config(field_name="size_limit"))
     allowed_file_extensions: Optional[List[str]] = dc_field(
@@ -10552,11 +10388,6 @@ class GetCampaignResponse(DataClassJsonMixin):
     users: "Optional[PagerResponse]" = dc_field(
         default=None, metadata=dc_config(field_name="users")
     )
-
-
-@dataclass
-class GetChannelTypeRequest(DataClassJsonMixin):
-    pass
 
 
 @dataclass
@@ -20449,11 +20280,6 @@ class UnfollowBatchResponse(DataClassJsonMixin):
 
 
 @dataclass
-class UnfollowRequest(DataClassJsonMixin):
-    pass
-
-
-@dataclass
 class UnfollowResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
     follow: "FollowResponse" = dc_field(metadata=dc_config(field_name="follow"))
@@ -20492,11 +20318,6 @@ class UnmuteResponse(DataClassJsonMixin):
     non_existing_users: Optional[List[str]] = dc_field(
         default=None, metadata=dc_config(field_name="non_existing_users")
     )
-
-
-@dataclass
-class UnpinActivityRequest(DataClassJsonMixin):
-    pass
 
 
 @dataclass

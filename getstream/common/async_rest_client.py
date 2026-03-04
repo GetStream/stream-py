@@ -174,21 +174,17 @@ class CommonRestClient(AsyncBaseClient):
 
     @telemetry.operation_name("getstream.api.common.delete_block_list")
     async def delete_block_list(
-        self,
-        name: str,
-        team: Optional[str] = None,
+        self, name: str, team: Optional[str] = None
     ) -> StreamResponse[Response]:
         query_params = build_query_param(**{"team": team})
         path_params = {
             "name": name,
         }
-        json = DeleteBlockListRequest().to_dict()
         return await self.delete(
             "/api/v2/blocklists/{name}",
             Response,
             query_params=query_params,
             path_params=path_params,
-            json=json,
         )
 
     @telemetry.operation_name("getstream.api.common.get_block_list")
@@ -358,18 +354,15 @@ class CommonRestClient(AsyncBaseClient):
 
     @telemetry.operation_name("getstream.api.common.delete_external_storage")
     async def delete_external_storage(
-        self,
-        name: str,
+        self, name: str
     ) -> StreamResponse[DeleteExternalStorageResponse]:
         path_params = {
             "name": name,
         }
-        json = DeleteExternalStorageRequest().to_dict()
         return await self.delete(
             "/api/v2/external_storage/{name}",
             DeleteExternalStorageResponse,
             path_params=path_params,
-            json=json,
         )
 
     @telemetry.operation_name("getstream.api.common.update_external_storage")
@@ -613,21 +606,17 @@ class CommonRestClient(AsyncBaseClient):
 
     @telemetry.operation_name("getstream.api.common.delete_poll")
     async def delete_poll(
-        self,
-        poll_id: str,
-        user_id: Optional[str] = None,
+        self, poll_id: str, user_id: Optional[str] = None
     ) -> StreamResponse[Response]:
         query_params = build_query_param(**{"user_id": user_id})
         path_params = {
             "poll_id": poll_id,
         }
-        json = DeletePollRequest().to_dict()
         return await self.delete(
             "/api/v2/polls/{poll_id}",
             Response,
             query_params=query_params,
             path_params=path_params,
-            json=json,
         )
 
     @telemetry.operation_name("getstream.api.common.get_poll")
@@ -711,23 +700,18 @@ class CommonRestClient(AsyncBaseClient):
 
     @telemetry.operation_name("getstream.api.common.delete_poll_option")
     async def delete_poll_option(
-        self,
-        poll_id: str,
-        option_id: str,
-        user_id: Optional[str] = None,
+        self, poll_id: str, option_id: str, user_id: Optional[str] = None
     ) -> StreamResponse[Response]:
         query_params = build_query_param(**{"user_id": user_id})
         path_params = {
             "poll_id": poll_id,
             "option_id": option_id,
         }
-        json = DeletePollOptionRequest().to_dict()
         return await self.delete(
             "/api/v2/polls/{poll_id}/options/{option_id}",
             Response,
             query_params=query_params,
             path_params=path_params,
-            json=json,
         )
 
     @telemetry.operation_name("getstream.api.common.get_poll_option")
@@ -876,16 +860,12 @@ class CommonRestClient(AsyncBaseClient):
         return await self.post("/api/v2/roles", CreateRoleResponse, json=json)
 
     @telemetry.operation_name("getstream.api.common.delete_role")
-    async def delete_role(
-        self,
-        name: str,
-    ) -> StreamResponse[Response]:
+    async def delete_role(self, name: str) -> StreamResponse[Response]:
         path_params = {
             "name": name,
         }
-        json = DeleteCustomRoleRequest().to_dict()
         return await self.delete(
-            "/api/v2/roles/{name}", Response, path_params=path_params, json=json
+            "/api/v2/roles/{name}", Response, path_params=path_params
         )
 
     @telemetry.operation_name("getstream.api.common.get_task")
@@ -898,14 +878,10 @@ class CommonRestClient(AsyncBaseClient):
         )
 
     @telemetry.operation_name("getstream.api.common.delete_file")
-    async def delete_file(
-        self,
-        url: Optional[str] = None,
-    ) -> StreamResponse[Response]:
+    async def delete_file(self, url: Optional[str] = None) -> StreamResponse[Response]:
         query_params = build_query_param(**{"url": url})
-        json = FileDeleteRequest().to_dict()
         return await self.delete(
-            "/api/v2/uploads/file", Response, query_params=query_params, json=json
+            "/api/v2/uploads/file", Response, query_params=query_params
         )
 
     @telemetry.operation_name("getstream.api.common.upload_file")
@@ -916,14 +892,10 @@ class CommonRestClient(AsyncBaseClient):
         return await self.post("/api/v2/uploads/file", FileUploadResponse, json=json)
 
     @telemetry.operation_name("getstream.api.common.delete_image")
-    async def delete_image(
-        self,
-        url: Optional[str] = None,
-    ) -> StreamResponse[Response]:
+    async def delete_image(self, url: Optional[str] = None) -> StreamResponse[Response]:
         query_params = build_query_param(**{"url": url})
-        json = FileDeleteRequest().to_dict()
         return await self.delete(
-            "/api/v2/uploads/image", Response, query_params=query_params, json=json
+            "/api/v2/uploads/image", Response, query_params=query_params
         )
 
     @telemetry.operation_name("getstream.api.common.upload_image")
@@ -1002,21 +974,17 @@ class CommonRestClient(AsyncBaseClient):
 
     @telemetry.operation_name("getstream.api.common.delete_user_group")
     async def delete_user_group(
-        self,
-        id: str,
-        team_id: Optional[str] = None,
+        self, id: str, team_id: Optional[str] = None
     ) -> StreamResponse[Response]:
         query_params = build_query_param(**{"team_id": team_id})
         path_params = {
             "id": id,
         }
-        json = DeleteUserGroupRequest().to_dict()
         return await self.delete(
             "/api/v2/usergroups/{id}",
             Response,
             query_params=query_params,
             path_params=path_params,
-            json=json,
         )
 
     @telemetry.operation_name("getstream.api.common.get_user_group")
