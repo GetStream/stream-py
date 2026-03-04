@@ -1787,7 +1787,8 @@ class AsyncExportErrorEvent(DataClassJsonMixin):
     task_id: str = dc_field(metadata=dc_config(field_name="task_id"))
     custom: Dict[str, object] = dc_field(metadata=dc_config(field_name="custom"))
     type: str = dc_field(
-        default="export.moderation_logs.error", metadata=dc_config(field_name="type")
+        default="export.bulk_image_moderation.error",
+        metadata=dc_config(field_name="type"),
     )
     received_at: Optional[datetime] = dc_field(
         default=None,
@@ -16024,6 +16025,9 @@ class QueryCommentReactionsResponse(DataClassJsonMixin):
 @dataclass
 class QueryCommentsRequest(DataClassJsonMixin):
     filter: Dict[str, object] = dc_field(metadata=dc_config(field_name="filter"))
+    id_around: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="id_around")
+    )
     limit: Optional[int] = dc_field(
         default=None, metadata=dc_config(field_name="limit")
     )

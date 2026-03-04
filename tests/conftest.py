@@ -1,4 +1,5 @@
 import functools
+import uuid
 import pytest
 import os
 from dotenv import load_dotenv
@@ -12,6 +13,9 @@ from tests.fixtures import (
     async_client,
 )
 
+from getstream import Stream
+from getstream.models import UserRequest, ChannelInput
+
 __all__ = [
     "client",
     "call",
@@ -20,7 +24,78 @@ __all__ = [
     "test_feed",
     "get_feed",
     "async_client",
+    "channel",
+    "random_user",
+    "random_users",
+    "server_user",
 ]
+
+
+@pytest.fixture
+def random_user(client: Stream):
+    user_id = str(uuid.uuid4())
+    response = client.update_users(
+        users={user_id: UserRequest(id=user_id, name=user_id)}
+    )
+    assert user_id in response.data.users
+    yield response.data.users[user_id]
+    try:
+        client.delete_users(
+            user_ids=[user_id], user="hard", conversations="hard", messages="hard"
+        )
+    except Exception:
+        pass
+
+
+@pytest.fixture
+def random_users(client: Stream):
+    users = []
+    user_ids = []
+    for _ in range(3):
+        uid = str(uuid.uuid4())
+        user_ids.append(uid)
+        users.append(UserRequest(id=uid, name=uid))
+    response = client.update_users(users={u.id: u for u in users})
+    yield [response.data.users[uid] for uid in user_ids]
+    try:
+        client.delete_users(
+            user_ids=user_ids, user="hard", conversations="hard", messages="hard"
+        )
+    except Exception:
+        pass
+
+
+@pytest.fixture
+def server_user(client: Stream):
+    user_id = str(uuid.uuid4())
+    response = client.update_users(
+        users={user_id: UserRequest(id=user_id, name="server-admin")}
+    )
+    assert user_id in response.data.users
+    yield response.data.users[user_id]
+    try:
+        client.delete_users(
+            user_ids=[user_id], user="hard", conversations="hard", messages="hard"
+        )
+    except Exception:
+        pass
+
+
+@pytest.fixture
+def channel(client: Stream, random_user):
+    channel_id = str(uuid.uuid4())
+    ch = client.chat.channel("messaging", channel_id)
+    ch.get_or_create(
+        data=ChannelInput(
+            created_by_id=random_user.id,
+            custom={"test": True, "language": "python"},
+        )
+    )
+    yield ch
+    try:
+        client.chat.delete_channels(cids=[f"messaging:{channel_id}"], hard_delete=True)
+    except Exception:
+        pass
 
 
 @pytest.fixture(scope="session", autouse=True)

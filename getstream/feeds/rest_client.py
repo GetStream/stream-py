@@ -725,13 +725,19 @@ class FeedsRestClient(BaseClient):
     def query_comments(
         self,
         filter: Dict[str, object],
+        id_around: Optional[str] = None,
         limit: Optional[int] = None,
         next: Optional[str] = None,
         prev: Optional[str] = None,
         sort: Optional[str] = None,
     ) -> StreamResponse[QueryCommentsResponse]:
         json = QueryCommentsRequest(
-            filter=filter, limit=limit, next=next, prev=prev, sort=sort
+            filter=filter,
+            id_around=id_around,
+            limit=limit,
+            next=next,
+            prev=prev,
+            sort=sort,
         ).to_dict()
         return self.post(
             "/api/v2/feeds/comments/query", QueryCommentsResponse, json=json
