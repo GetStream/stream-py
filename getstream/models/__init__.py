@@ -1803,7 +1803,7 @@ class AsyncExportErrorEvent(DataClassJsonMixin):
     task_id: str = dc_field(metadata=dc_config(field_name="task_id"))
     custom: Dict[str, object] = dc_field(metadata=dc_config(field_name="custom"))
     type: str = dc_field(
-        default="export.channels.error", metadata=dc_config(field_name="type"),
+        default="export.channels.error",
         metadata=dc_config(field_name="type"),
     )
     received_at: Optional[datetime] = dc_field(
