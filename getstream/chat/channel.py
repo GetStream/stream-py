@@ -23,10 +23,13 @@ class Channel:
 
     @attach_channel_cid
     def delete(
-        self, hard_delete: Optional[bool] = None
+        self,
+        hard_delete: Optional[bool] = None,
     ) -> StreamResponse[DeleteChannelResponse]:
         response = self.client.delete_channel(
-            type=self.channel_type, id=self.channel_id, hard_delete=hard_delete
+            type=self.channel_type,
+            id=self.channel_id,
+            hard_delete=hard_delete,
         )
         self._sync_from_response(response.data)
         return response
@@ -99,7 +102,9 @@ class Channel:
 
     @attach_channel_cid
     def delete_draft(
-        self, parent_id: Optional[str] = None, user_id: Optional[str] = None
+        self,
+        parent_id: Optional[str] = None,
+        user_id: Optional[str] = None,
     ) -> StreamResponse[Response]:
         response = self.client.delete_draft(
             type=self.channel_type,
@@ -133,10 +138,13 @@ class Channel:
 
     @attach_channel_cid
     def delete_channel_file(
-        self, url: Optional[str] = None
+        self,
+        url: Optional[str] = None,
     ) -> StreamResponse[Response]:
         response = self.client.delete_channel_file(
-            type=self.channel_type, id=self.channel_id, url=url
+            type=self.channel_type,
+            id=self.channel_id,
+            url=url,
         )
         self._sync_from_response(response.data)
         return response
@@ -170,10 +178,13 @@ class Channel:
 
     @attach_channel_cid
     def delete_channel_image(
-        self, url: Optional[str] = None
+        self,
+        url: Optional[str] = None,
     ) -> StreamResponse[Response]:
         response = self.client.delete_channel_image(
-            type=self.channel_type, id=self.channel_id, url=url
+            type=self.channel_type,
+            id=self.channel_id,
+            url=url,
         )
         self._sync_from_response(response.data)
         return response

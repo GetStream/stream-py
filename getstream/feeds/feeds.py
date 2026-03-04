@@ -15,10 +15,13 @@ class Feed:
             self.custom_data = data.feed.custom
 
     def delete(
-        self, hard_delete: Optional[bool] = None
+        self,
+        hard_delete: Optional[bool] = None,
     ) -> StreamResponse[DeleteFeedResponse]:
         response = self.client.delete_feed(
-            feed_group_id=self.feed_group, feed_id=self.id, hard_delete=hard_delete
+            feed_group_id=self.feed_group,
+            feed_id=self.id,
+            hard_delete=hard_delete,
         )
         self._sync_from_response(response.data)
         return response

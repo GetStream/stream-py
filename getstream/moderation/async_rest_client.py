@@ -212,17 +212,21 @@ class ModerationRestClient(AsyncBaseClient):
 
     @telemetry.operation_name("getstream.api.moderation.delete_config")
     async def delete_config(
-        self, key: str, team: Optional[str] = None
+        self,
+        key: str,
+        team: Optional[str] = None,
     ) -> StreamResponse[DeleteModerationConfigResponse]:
         query_params = build_query_param(**{"team": team})
         path_params = {
             "key": key,
         }
+        json = DeleteModerationConfigRequest().to_dict()
         return await self.delete(
             "/api/v2/moderation/config/{key}",
             DeleteModerationConfigResponse,
             query_params=query_params,
             path_params=path_params,
+            json=json,
         )
 
     @telemetry.operation_name("getstream.api.moderation.get_config")
@@ -290,11 +294,13 @@ class ModerationRestClient(AsyncBaseClient):
 
     @telemetry.operation_name("getstream.api.moderation.v2_delete_template")
     async def v2_delete_template(
-        self,
+        self, name: str
     ) -> StreamResponse[DeleteModerationTemplateResponse]:
+        json = DeleteModerationTemplateRequest(name=name).to_dict()
         return await self.delete(
             "/api/v2/moderation/feeds_moderation_template",
             DeleteModerationTemplateResponse,
+            json=json,
         )
 
     @telemetry.operation_name("getstream.api.moderation.v2_query_templates")

@@ -289,11 +289,13 @@ class FeedsRestClient(BaseClient):
             "poll_id": poll_id,
             "vote_id": vote_id,
         }
+        json = DeletePollVoteRequest().to_dict()
         return self.delete(
             "/api/v2/feeds/activities/{activity_id}/polls/{poll_id}/vote/{vote_id}",
             PollVoteResponse,
             query_params=query_params,
             path_params=path_params,
+            json=json,
         )
 
     @telemetry.operation_name("getstream.api.feeds.add_activity_reaction")
@@ -370,11 +372,13 @@ class FeedsRestClient(BaseClient):
             "activity_id": activity_id,
             "type": type,
         }
+        json = DeleteActivityReactionRequest().to_dict()
         return self.delete(
             "/api/v2/feeds/activities/{activity_id}/reactions/{type}",
             DeleteActivityReactionResponse,
             query_params=query_params,
             path_params=path_params,
+            json=json,
         )
 
     @telemetry.operation_name("getstream.api.feeds.delete_activity")
@@ -393,11 +397,13 @@ class FeedsRestClient(BaseClient):
         path_params = {
             "id": id,
         }
+        json = DeleteActivityRequest().to_dict()
         return self.delete(
             "/api/v2/feeds/activities/{id}",
             DeleteActivityResponse,
             query_params=query_params,
             path_params=path_params,
+            json=json,
         )
 
     @telemetry.operation_name("getstream.api.feeds.get_activity")
@@ -536,15 +542,20 @@ class FeedsRestClient(BaseClient):
 
     @telemetry.operation_name("getstream.api.feeds.delete_bookmark_folder")
     def delete_bookmark_folder(
-        self, folder_id: str
+        self,
+        folder_id: str,
+        user_id: Optional[str] = None,
+        user: Optional[UserRequest] = None,
     ) -> StreamResponse[DeleteBookmarkFolderResponse]:
         path_params = {
             "folder_id": folder_id,
         }
+        json = DeleteBookmarkFolderRequest(user_id=user_id, user=user).to_dict()
         return self.delete(
             "/api/v2/feeds/bookmark_folders/{folder_id}",
             DeleteBookmarkFolderResponse,
             path_params=path_params,
+            json=json,
         )
 
     @telemetry.operation_name("getstream.api.feeds.update_bookmark_folder")
@@ -587,13 +598,18 @@ class FeedsRestClient(BaseClient):
 
     @telemetry.operation_name("getstream.api.feeds.delete_collections")
     def delete_collections(
-        self, collection_refs: List[str]
+        self,
+        collection_refs: List[str],
+        user_id: Optional[str] = None,
+        user: Optional[UserRequest] = None,
     ) -> StreamResponse[DeleteCollectionsResponse]:
         query_params = build_query_param(**{"collection_refs": collection_refs})
+        json = DeleteCollectionsRequest(user_id=user_id, user=user).to_dict()
         return self.delete(
             "/api/v2/feeds/collections",
             DeleteCollectionsResponse,
             query_params=query_params,
+            json=json,
         )
 
     @telemetry.operation_name("getstream.api.feeds.read_collections")
@@ -763,11 +779,13 @@ class FeedsRestClient(BaseClient):
         path_params = {
             "id": id,
         }
+        json = DeleteCommentRequest().to_dict()
         return self.delete(
             "/api/v2/feeds/comments/{id}",
             DeleteCommentResponse,
             query_params=query_params,
             path_params=path_params,
+            json=json,
         )
 
     @telemetry.operation_name("getstream.api.feeds.get_comment")
@@ -890,11 +908,13 @@ class FeedsRestClient(BaseClient):
             "id": id,
             "type": type,
         }
+        json = DeleteCommentReactionRequest().to_dict()
         return self.delete(
             "/api/v2/feeds/comments/{id}/reactions/{type}",
             DeleteCommentReactionResponse,
             query_params=query_params,
             path_params=path_params,
+            json=json,
         )
 
     @telemetry.operation_name("getstream.api.feeds.get_comment_replies")
@@ -975,18 +995,23 @@ class FeedsRestClient(BaseClient):
 
     @telemetry.operation_name("getstream.api.feeds.delete_feed")
     def delete_feed(
-        self, feed_group_id: str, feed_id: str, hard_delete: Optional[bool] = None
+        self,
+        feed_group_id: str,
+        feed_id: str,
+        hard_delete: Optional[bool] = None,
     ) -> StreamResponse[DeleteFeedResponse]:
         query_params = build_query_param(**{"hard_delete": hard_delete})
         path_params = {
             "feed_group_id": feed_group_id,
             "feed_id": feed_id,
         }
+        json = DeleteFeedRequest().to_dict()
         return self.delete(
             "/api/v2/feeds/feed_groups/{feed_group_id}/feeds/{feed_id}",
             DeleteFeedResponse,
             query_params=query_params,
             path_params=path_params,
+            json=json,
         )
 
     @telemetry.operation_name("getstream.api.feeds.get_or_create_feed")
@@ -1295,17 +1320,21 @@ class FeedsRestClient(BaseClient):
 
     @telemetry.operation_name("getstream.api.feeds.delete_feed_group")
     def delete_feed_group(
-        self, id: str, hard_delete: Optional[bool] = None
+        self,
+        id: str,
+        hard_delete: Optional[bool] = None,
     ) -> StreamResponse[DeleteFeedGroupResponse]:
         query_params = build_query_param(**{"hard_delete": hard_delete})
         path_params = {
             "id": id,
         }
+        json = DeleteFeedGroupRequest().to_dict()
         return self.delete(
             "/api/v2/feeds/feed_groups/{id}",
             DeleteFeedGroupResponse,
             query_params=query_params,
             path_params=path_params,
+            json=json,
         )
 
     @telemetry.operation_name("getstream.api.feeds.get_feed_group")
@@ -1699,11 +1728,13 @@ class FeedsRestClient(BaseClient):
             "source": source,
             "target": target,
         }
+        json = UnfollowRequest().to_dict()
         return self.delete(
             "/api/v2/feeds/follows/{source}/{target}",
             UnfollowResponse,
             query_params=query_params,
             path_params=path_params,
+            json=json,
         )
 
     @telemetry.operation_name("getstream.api.feeds.create_membership_level")
@@ -1747,12 +1778,19 @@ class FeedsRestClient(BaseClient):
         )
 
     @telemetry.operation_name("getstream.api.feeds.delete_membership_level")
-    def delete_membership_level(self, id: str) -> StreamResponse[Response]:
+    def delete_membership_level(
+        self,
+        id: str,
+    ) -> StreamResponse[Response]:
         path_params = {
             "id": id,
         }
+        json = DeleteMembershipLevelRequest().to_dict()
         return self.delete(
-            "/api/v2/feeds/membership_levels/{id}", Response, path_params=path_params
+            "/api/v2/feeds/membership_levels/{id}",
+            Response,
+            path_params=path_params,
+            json=json,
         )
 
     @telemetry.operation_name("getstream.api.feeds.update_membership_level")
