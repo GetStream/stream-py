@@ -886,6 +886,12 @@ class ActivityResponse(DataClassJsonMixin):
     friend_reaction_count: Optional[int] = dc_field(
         default=None, metadata=dc_config(field_name="friend_reaction_count")
     )
+    is_read: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="is_read")
+    )
+    is_seen: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="is_seen")
+    )
     is_watched: Optional[bool] = dc_field(
         default=None, metadata=dc_config(field_name="is_watched")
     )
@@ -1373,6 +1379,12 @@ class AggregatedActivityResponse(DataClassJsonMixin):
     activities: "List[ActivityResponse]" = dc_field(
         metadata=dc_config(field_name="activities")
     )
+    is_read: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="is_read")
+    )
+    is_seen: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="is_seen")
+    )
     is_watched: Optional[bool] = dc_field(
         default=None, metadata=dc_config(field_name="is_watched")
     )
@@ -1497,6 +1509,10 @@ class AppResponseFields(DataClassJsonMixin):
     )
     before_message_send_hook_url: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="before_message_send_hook_url")
+    )
+    moderation_s3_image_access_role_arn: Optional[str] = dc_field(
+        default=None,
+        metadata=dc_config(field_name="moderation_s3_image_access_role_arn"),
     )
     revoke_tokens_issued_before: Optional[datetime] = dc_field(
         default=None,
@@ -1787,7 +1803,7 @@ class AsyncExportErrorEvent(DataClassJsonMixin):
     task_id: str = dc_field(metadata=dc_config(field_name="task_id"))
     custom: Dict[str, object] = dc_field(metadata=dc_config(field_name="custom"))
     type: str = dc_field(
-        default="export.bulk_image_moderation.error",
+        default="export.channels.error", metadata=dc_config(field_name="type"),
         metadata=dc_config(field_name="type"),
     )
     received_at: Optional[datetime] = dc_field(
@@ -2303,6 +2319,9 @@ class BlockListConfig(DataClassJsonMixin):
     )
     enabled: Optional[bool] = dc_field(
         default=None, metadata=dc_config(field_name="enabled")
+    )
+    match_substring: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="match_substring")
     )
     rules: "Optional[List[BlockListRule]]" = dc_field(
         default=None, metadata=dc_config(field_name="rules")
@@ -4733,6 +4752,14 @@ class ChannelBatchCompletedEvent(DataClassJsonMixin):
 
 
 @dataclass
+class ChannelBatchMemberRequest(DataClassJsonMixin):
+    user_id: str = dc_field(metadata=dc_config(field_name="user_id"))
+    channel_role: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="channel_role")
+    )
+
+
+@dataclass
 class ChannelBatchStartedEvent(DataClassJsonMixin):
     batch_created_at: datetime = dc_field(
         metadata=dc_config(
@@ -4779,6 +4806,26 @@ class ChannelBatchStartedEvent(DataClassJsonMixin):
             decoder=datetime_from_unix_ns,
             mm_field=fields.DateTime(format="iso"),
         ),
+    )
+
+
+@dataclass
+class ChannelBatchUpdateRequest(DataClassJsonMixin):
+    operation: str = dc_field(metadata=dc_config(field_name="operation"))
+    filter: Dict[str, object] = dc_field(metadata=dc_config(field_name="filter"))
+    members: "Optional[List[ChannelBatchMemberRequest]]" = dc_field(
+        default=None, metadata=dc_config(field_name="members")
+    )
+    data: "Optional[ChannelDataUpdate]" = dc_field(
+        default=None, metadata=dc_config(field_name="data")
+    )
+
+
+@dataclass
+class ChannelBatchUpdateResponse(DataClassJsonMixin):
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    task_id: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="task_id")
     )
 
 
@@ -4986,6 +5033,29 @@ class ChannelCreatedEvent(DataClassJsonMixin):
     )
     user: "Optional[UserResponseCommonFields]" = dc_field(
         default=None, metadata=dc_config(field_name="user")
+    )
+
+
+@dataclass
+class ChannelDataUpdate(DataClassJsonMixin):
+    auto_translation_enabled: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="auto_translation_enabled")
+    )
+    auto_translation_language: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="auto_translation_language")
+    )
+    disabled: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="disabled")
+    )
+    frozen: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="frozen")
+    )
+    team: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="team"))
+    config_overrides: "Optional[ChannelConfig]" = dc_field(
+        default=None, metadata=dc_config(field_name="config_overrides")
+    )
+    custom: Optional[Dict[str, object]] = dc_field(
+        default=None, metadata=dc_config(field_name="custom")
     )
 
 
@@ -6129,6 +6199,22 @@ class CheckResponse(DataClassJsonMixin):
     )
     item: "Optional[ReviewQueueItemResponse]" = dc_field(
         default=None, metadata=dc_config(field_name="item")
+    )
+
+
+@dataclass
+class CheckS3AccessRequest(DataClassJsonMixin):
+    s3_url: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="s3_url")
+    )
+
+
+@dataclass
+class CheckS3AccessResponse(DataClassJsonMixin):
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    success: bool = dc_field(metadata=dc_config(field_name="success"))
+    message: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="message")
     )
 
 
@@ -16034,6 +16120,12 @@ class QueryCommentsRequest(DataClassJsonMixin):
     next: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="next"))
     prev: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="prev"))
     sort: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="sort"))
+    user_id: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="user_id")
+    )
+    user: "Optional[UserRequest]" = dc_field(
+        default=None, metadata=dc_config(field_name="user")
+    )
 
 
 @dataclass
@@ -16460,6 +16552,9 @@ class QueryModerationRulesResponse(DataClassJsonMixin):
     )
     default_llm_labels: "Dict[str, str]" = dc_field(
         metadata=dc_config(field_name="default_llm_labels")
+    )
+    keyframe_label_classifications: "Dict[str, List[str]]" = dc_field(
+        metadata=dc_config(field_name="keyframe_label_classifications")
     )
     next: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="next"))
     prev: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="prev"))
@@ -20478,6 +20573,10 @@ class UpdateAppRequest(DataClassJsonMixin):
     )
     moderation_enabled: Optional[bool] = dc_field(
         default=None, metadata=dc_config(field_name="moderation_enabled")
+    )
+    moderation_s3_image_access_role_arn: Optional[str] = dc_field(
+        default=None,
+        metadata=dc_config(field_name="moderation_s3_image_access_role_arn"),
     )
     moderation_webhook_url: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="moderation_webhook_url")

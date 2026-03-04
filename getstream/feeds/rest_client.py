@@ -730,6 +730,8 @@ class FeedsRestClient(BaseClient):
         next: Optional[str] = None,
         prev: Optional[str] = None,
         sort: Optional[str] = None,
+        user_id: Optional[str] = None,
+        user: Optional[UserRequest] = None,
     ) -> StreamResponse[QueryCommentsResponse]:
         json = QueryCommentsRequest(
             filter=filter,
@@ -738,6 +740,8 @@ class FeedsRestClient(BaseClient):
             next=next,
             prev=prev,
             sort=sort,
+            user_id=user_id,
+            user=user,
         ).to_dict()
         return self.post(
             "/api/v2/feeds/comments/query", QueryCommentsResponse, json=json

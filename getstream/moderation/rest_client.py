@@ -149,6 +149,15 @@ class ModerationRestClient(BaseClient):
         ).to_dict()
         return self.post("/api/v2/moderation/check", CheckResponse, json=json)
 
+    @telemetry.operation_name("getstream.api.moderation.check_s3_access")
+    def check_s3_access(
+        self, s3_url: Optional[str] = None
+    ) -> StreamResponse[CheckS3AccessResponse]:
+        json = CheckS3AccessRequest(s3_url=s3_url).to_dict()
+        return self.post(
+            "/api/v2/moderation/check_s3_access", CheckS3AccessResponse, json=json
+        )
+
     @telemetry.operation_name("getstream.api.moderation.upsert_config")
     def upsert_config(
         self,

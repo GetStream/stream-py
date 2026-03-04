@@ -142,6 +142,21 @@ class ChatRestClient(AsyncBaseClient):
             "/api/v2/chat/channels", QueryChannelsResponse, json=json
         )
 
+    @telemetry.operation_name("getstream.api.chat.channel_batch_update")
+    async def channel_batch_update(
+        self,
+        operation: str,
+        filter: Dict[str, object],
+        members: Optional[List[ChannelBatchMemberRequest]] = None,
+        data: Optional[ChannelDataUpdate] = None,
+    ) -> StreamResponse[ChannelBatchUpdateResponse]:
+        json = ChannelBatchUpdateRequest(
+            operation=operation, filter=filter, members=members, data=data
+        ).to_dict()
+        return await self.put(
+            "/api/v2/chat/channels/batch", ChannelBatchUpdateResponse, json=json
+        )
+
     @telemetry.operation_name("getstream.api.chat.delete_channels")
     async def delete_channels(
         self, cids: List[str], hard_delete: Optional[bool] = None
