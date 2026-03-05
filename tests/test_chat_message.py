@@ -16,6 +16,7 @@ from getstream.models import (
     SearchPayload,
     SortParamRequest,
 )
+from tests.base import retry_on_transient_error
 
 
 def test_send_message(channel: Channel, random_user):
@@ -314,6 +315,7 @@ def test_query_message_history(client: Stream, channel: Channel, random_user):
     assert response.data.message_history[0].text == "helloworld-2"
 
 
+@retry_on_transient_error()
 def test_search(client: Stream, channel: Channel, random_user):
     """Search messages across channels."""
     query = f"supercalifragilisticexpialidocious-{uuid.uuid4()}"
@@ -323,7 +325,7 @@ def test_search(client: Stream, channel: Channel, random_user):
             user_id=random_user.id,
         )
     )
-    time.sleep(1)  # wait for indexing
+    time.sleep(2)  # wait for indexing
 
     response = client.chat.search(
         payload=SearchPayload(
@@ -338,6 +340,7 @@ def test_search(client: Stream, channel: Channel, random_user):
     assert query in response.data.results[0].message.text
 
 
+@retry_on_transient_error()
 def test_search_with_sort(client: Stream, channel: Channel, random_user):
     """Search messages with sort and cursor-based pagination."""
     text = f"searchsort-{uuid.uuid4()}"
@@ -348,7 +351,7 @@ def test_search_with_sort(client: Stream, channel: Channel, random_user):
     channel.send_message(
         message=MessageRequest(id=ids[1], text=text, user_id=random_user.id)
     )
-    time.sleep(1)  # wait for indexing
+    time.sleep(3)  # wait for indexing (sort correctness requires both messages indexed)
 
     response = client.chat.search(
         payload=SearchPayload(
@@ -378,6 +381,7 @@ def test_search_with_sort(client: Stream, channel: Channel, random_user):
     assert response2.data.results[0].message.id == ids[0]
 
 
+@retry_on_transient_error()
 def test_search_message_filters(client: Stream, channel: Channel, random_user):
     """Search messages using message_filter_conditions."""
     query = f"supercalifragilisticexpialidocious-{uuid.uuid4()}"
@@ -393,7 +397,7 @@ def test_search_message_filters(client: Stream, channel: Channel, random_user):
             user_id=random_user.id,
         )
     )
-    time.sleep(1)  # wait for indexing
+    time.sleep(2)  # wait for indexing
 
     response = client.chat.search(
         payload=SearchPayload(
@@ -408,6 +412,7 @@ def test_search_message_filters(client: Stream, channel: Channel, random_user):
     assert query in response.data.results[0].message.text
 
 
+@retry_on_transient_error()
 def test_delete_message_for_me(client: Stream, channel: Channel, random_user):
     """Delete a message for a specific user (delete for me)."""
     channel.update(add_members=[ChannelMemberRequest(user_id=random_user.id)])

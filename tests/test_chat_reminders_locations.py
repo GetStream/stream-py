@@ -7,6 +7,7 @@ from getstream.chat.channel import Channel
 from getstream.models import (
     MessageRequest,
 )
+from tests.base import retry_on_transient_error
 
 
 class TestReminders:
@@ -45,6 +46,7 @@ class TestReminders:
         except Exception:
             pass
 
+    @retry_on_transient_error()
     def test_create_reminder_with_remind_at(
         self, client: Stream, channel: Channel, random_user
     ):

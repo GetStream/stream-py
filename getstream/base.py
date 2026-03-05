@@ -55,7 +55,7 @@ class ResponseParserMixin:
             else:
                 data = cast(T, parsed_result)
 
-        except ValueError:
+        except (ValueError, AttributeError):
             raise StreamAPIException(
                 response=response,
             )
@@ -523,12 +523,21 @@ class StreamAPIException(Exception):
     def __str__(self) -> str:
         if self.api_error:
             return f'Stream error code {self.api_error.code}: {self.api_error.message}"'
-        else:
-            return f"Stream error HTTP code: {self.status_code}"
+        body_preview = ""
+        try:
+            text = self.http_response.text[:200] if self.http_response.text else ""
+            if text:
+                body_preview = f" body: {text}"
+        except Exception:
+            pass
+        return f"Stream error HTTP code: {self.status_code}{body_preview}"
 
 
 def parse_duration_from_body(body: bytes) -> Optional[str]:
-    for prefix, event, value in ijson.parse(body):
-        if prefix == "duration" and event == "string":
-            return value
+    try:
+        for prefix, event, value in ijson.parse(body):
+            if prefix == "duration" and event == "string":
+                return value
+    except (ijson.common.IncompleteJSONError, ijson.common.JSONError):
+        pass
     return None
