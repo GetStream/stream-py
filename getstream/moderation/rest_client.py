@@ -285,14 +285,10 @@ class ModerationRestClient(BaseClient):
         )
 
     @telemetry.operation_name("getstream.api.moderation.v2_delete_template")
-    def v2_delete_template(
-        self, name: str
-    ) -> StreamResponse[DeleteModerationTemplateResponse]:
-        json = DeleteModerationTemplateRequest(name=name).to_dict()
+    def v2_delete_template(self) -> StreamResponse[DeleteModerationTemplateResponse]:
         return self.delete(
             "/api/v2/moderation/feeds_moderation_template",
             DeleteModerationTemplateResponse,
-            json=json,
         )
 
     @telemetry.operation_name("getstream.api.moderation.v2_query_templates")

@@ -914,6 +914,9 @@ class ActivityResponse(DataClassJsonMixin):
     location: "Optional[ActivityLocation]" = dc_field(
         default=None, metadata=dc_config(field_name="location")
     )
+    metrics: "Optional[Dict[str, int]]" = dc_field(
+        default=None, metadata=dc_config(field_name="metrics")
+    )
     moderation: "Optional[ModerationV2Response]" = dc_field(
         default=None, metadata=dc_config(field_name="moderation")
     )
@@ -1090,6 +1093,9 @@ class AddActivityRequest(DataClassJsonMixin):
     )
     create_notification_activity: Optional[bool] = dc_field(
         default=None, metadata=dc_config(field_name="create_notification_activity")
+    )
+    enrich_own_fields: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="enrich_own_fields")
     )
     expires_at: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="expires_at")
@@ -1803,8 +1809,7 @@ class AsyncExportErrorEvent(DataClassJsonMixin):
     task_id: str = dc_field(metadata=dc_config(field_name="task_id"))
     custom: Dict[str, object] = dc_field(metadata=dc_config(field_name="custom"))
     type: str = dc_field(
-        default="export.bulk_image_moderation.error",
-        metadata=dc_config(field_name="type"),
+        default="export.channels.error", metadata=dc_config(field_name="type")
     )
     received_at: Optional[datetime] = dc_field(
         default=None,
@@ -7222,6 +7227,9 @@ class CreateFeedViewResponse(DataClassJsonMixin):
 @dataclass
 class CreateFeedsBatchRequest(DataClassJsonMixin):
     feeds: "List[FeedRequest]" = dc_field(metadata=dc_config(field_name="feeds"))
+    enrich_own_fields: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="enrich_own_fields")
+    )
 
 
 @dataclass
@@ -7737,16 +7745,6 @@ class DeleteActivityResponse(DataClassJsonMixin):
 
 
 @dataclass
-class DeleteBookmarkFolderRequest(DataClassJsonMixin):
-    user_id: Optional[str] = dc_field(
-        default=None, metadata=dc_config(field_name="user_id")
-    )
-    user: "Optional[UserRequest]" = dc_field(
-        default=None, metadata=dc_config(field_name="user")
-    )
-
-
-@dataclass
 class DeleteBookmarkFolderResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
 
@@ -7803,16 +7801,6 @@ class DeleteChannelsResultResponse(DataClassJsonMixin):
     status: str = dc_field(metadata=dc_config(field_name="status"))
     error: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="error")
-    )
-
-
-@dataclass
-class DeleteCollectionsRequest(DataClassJsonMixin):
-    user_id: Optional[str] = dc_field(
-        default=None, metadata=dc_config(field_name="user_id")
-    )
-    user: "Optional[UserRequest]" = dc_field(
-        default=None, metadata=dc_config(field_name="user")
     )
 
 
@@ -7942,11 +7930,6 @@ class DeleteModerationConfigResponse(DataClassJsonMixin):
 @dataclass
 class DeleteModerationRuleResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
-
-
-@dataclass
-class DeleteModerationTemplateRequest(DataClassJsonMixin):
-    name: str = dc_field(metadata=dc_config(field_name="name"))
 
 
 @dataclass
@@ -9811,6 +9794,9 @@ class FlagUserOptions(DataClassJsonMixin):
 @dataclass
 class FollowBatchRequest(DataClassJsonMixin):
     follows: "List[FollowRequest]" = dc_field(metadata=dc_config(field_name="follows"))
+    enrich_own_fields: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="enrich_own_fields")
+    )
 
 
 @dataclass
@@ -9895,6 +9881,9 @@ class FollowRequest(DataClassJsonMixin):
     )
     create_notification_activity: Optional[bool] = dc_field(
         default=None, metadata=dc_config(field_name="create_notification_activity")
+    )
+    enrich_own_fields: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="enrich_own_fields")
     )
     push_preference: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="push_preference")
@@ -14793,6 +14782,9 @@ class PermissionRequestEvent(DataClassJsonMixin):
 
 @dataclass
 class PinActivityRequest(DataClassJsonMixin):
+    enrich_own_fields: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="enrich_own_fields")
+    )
     user_id: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="user_id")
     )
@@ -15584,6 +15576,9 @@ class QualityScoreReportResponse(DataClassJsonMixin):
 
 @dataclass
 class QueryActivitiesRequest(DataClassJsonMixin):
+    enrich_own_fields: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="enrich_own_fields")
+    )
     include_expired_activities: Optional[bool] = dc_field(
         default=None, metadata=dc_config(field_name="include_expired_activities")
     )
@@ -15768,6 +15763,9 @@ class QueryBookmarkFoldersResponse(DataClassJsonMixin):
 
 @dataclass
 class QueryBookmarksRequest(DataClassJsonMixin):
+    enrich_own_fields: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="enrich_own_fields")
+    )
     limit: Optional[int] = dc_field(
         default=None, metadata=dc_config(field_name="limit")
     )
@@ -16251,6 +16249,9 @@ class QueryFeedModerationTemplatesResponse(DataClassJsonMixin):
 
 @dataclass
 class QueryFeedsRequest(DataClassJsonMixin):
+    enrich_own_fields: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="enrich_own_fields")
+    )
     limit: Optional[int] = dc_field(
         default=None, metadata=dc_config(field_name="limit")
     )
@@ -16587,6 +16588,9 @@ class QueryModerationRulesResponse(DataClassJsonMixin):
 
 @dataclass
 class QueryPinnedActivitiesRequest(DataClassJsonMixin):
+    enrich_own_fields: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="enrich_own_fields")
+    )
     limit: Optional[int] = dc_field(
         default=None, metadata=dc_config(field_name="limit")
     )
@@ -20067,6 +20071,46 @@ class Time(DataClassJsonMixin):
 
 
 @dataclass
+class TrackActivityMetricsEvent(DataClassJsonMixin):
+    activity_id: str = dc_field(metadata=dc_config(field_name="activity_id"))
+    metric: str = dc_field(metadata=dc_config(field_name="metric"))
+    delta: Optional[int] = dc_field(
+        default=None, metadata=dc_config(field_name="delta")
+    )
+
+
+@dataclass
+class TrackActivityMetricsEventResult(DataClassJsonMixin):
+    activity_id: str = dc_field(metadata=dc_config(field_name="activity_id"))
+    allowed: bool = dc_field(metadata=dc_config(field_name="allowed"))
+    metric: str = dc_field(metadata=dc_config(field_name="metric"))
+    error: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="error")
+    )
+
+
+@dataclass
+class TrackActivityMetricsRequest(DataClassJsonMixin):
+    events: "List[TrackActivityMetricsEvent]" = dc_field(
+        metadata=dc_config(field_name="events")
+    )
+    user_id: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="user_id")
+    )
+    user: "Optional[UserRequest]" = dc_field(
+        default=None, metadata=dc_config(field_name="user")
+    )
+
+
+@dataclass
+class TrackActivityMetricsResponse(DataClassJsonMixin):
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    results: "List[TrackActivityMetricsEventResult]" = dc_field(
+        metadata=dc_config(field_name="results")
+    )
+
+
+@dataclass
 class TrackStatsResponse(DataClassJsonMixin):
     duration_seconds: int = dc_field(metadata=dc_config(field_name="duration_seconds"))
     track_type: str = dc_field(metadata=dc_config(field_name="track_type"))
@@ -20271,6 +20315,9 @@ class UnfollowBatchRequest(DataClassJsonMixin):
     delete_notification_activity: Optional[bool] = dc_field(
         default=None, metadata=dc_config(field_name="delete_notification_activity")
     )
+    enrich_own_fields: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="enrich_own_fields")
+    )
 
 
 @dataclass
@@ -20451,6 +20498,9 @@ class UpdateActivityPartialRequest(DataClassJsonMixin):
     copy_custom_to_notification: Optional[bool] = dc_field(
         default=None, metadata=dc_config(field_name="copy_custom_to_notification")
     )
+    enrich_own_fields: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="enrich_own_fields")
+    )
     handle_mention_notifications: Optional[bool] = dc_field(
         default=None, metadata=dc_config(field_name="handle_mention_notifications")
     )
@@ -20481,6 +20531,9 @@ class UpdateActivityPartialResponse(DataClassJsonMixin):
 class UpdateActivityRequest(DataClassJsonMixin):
     copy_custom_to_notification: Optional[bool] = dc_field(
         default=None, metadata=dc_config(field_name="copy_custom_to_notification")
+    )
+    enrich_own_fields: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="enrich_own_fields")
     )
     expires_at: Optional[datetime] = dc_field(
         default=None,
@@ -21350,6 +21403,9 @@ class UpdateFeedRequest(DataClassJsonMixin):
     description: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="description")
     )
+    enrich_own_fields: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="enrich_own_fields")
+    )
     name: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="name"))
     filter_tags: Optional[List[str]] = dc_field(
         default=None, metadata=dc_config(field_name="filter_tags")
@@ -21408,6 +21464,9 @@ class UpdateFollowRequest(DataClassJsonMixin):
     )
     create_notification_activity: Optional[bool] = dc_field(
         default=None, metadata=dc_config(field_name="create_notification_activity")
+    )
+    enrich_own_fields: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="enrich_own_fields")
     )
     follower_role: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="follower_role")
@@ -21855,6 +21914,9 @@ class UploadChannelResponse(DataClassJsonMixin):
 class UpsertActivitiesRequest(DataClassJsonMixin):
     activities: "List[ActivityRequest]" = dc_field(
         metadata=dc_config(field_name="activities")
+    )
+    enrich_own_fields: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="enrich_own_fields")
     )
 
 

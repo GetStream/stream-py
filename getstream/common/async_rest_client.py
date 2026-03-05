@@ -1023,23 +1023,6 @@ class CommonRestClient(AsyncBaseClient):
             json=json,
         )
 
-    @telemetry.operation_name("getstream.api.common.remove_user_group_members")
-    async def remove_user_group_members(
-        self, id: str, member_ids: List[str], team_id: Optional[str] = None
-    ) -> StreamResponse[RemoveUserGroupMembersResponse]:
-        path_params = {
-            "id": id,
-        }
-        json = RemoveUserGroupMembersRequest(
-            member_ids=member_ids, team_id=team_id
-        ).to_dict()
-        return await self.delete(
-            "/api/v2/usergroups/{id}/members",
-            RemoveUserGroupMembersResponse,
-            path_params=path_params,
-            json=json,
-        )
-
     @telemetry.operation_name("getstream.api.common.add_user_group_members")
     async def add_user_group_members(
         self, id: str, member_ids: List[str], team_id: Optional[str] = None
@@ -1053,6 +1036,23 @@ class CommonRestClient(AsyncBaseClient):
         return await self.post(
             "/api/v2/usergroups/{id}/members",
             AddUserGroupMembersResponse,
+            path_params=path_params,
+            json=json,
+        )
+
+    @telemetry.operation_name("getstream.api.common.remove_user_group_members")
+    async def remove_user_group_members(
+        self, id: str, member_ids: List[str], team_id: Optional[str] = None
+    ) -> StreamResponse[RemoveUserGroupMembersResponse]:
+        path_params = {
+            "id": id,
+        }
+        json = RemoveUserGroupMembersRequest(
+            member_ids=member_ids, team_id=team_id
+        ).to_dict()
+        return await self.post(
+            "/api/v2/usergroups/{id}/members/delete",
+            RemoveUserGroupMembersResponse,
             path_params=path_params,
             json=json,
         )

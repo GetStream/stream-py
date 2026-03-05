@@ -71,6 +71,7 @@ class Feed:
         self,
         created_by_id: Optional[str] = None,
         description: Optional[str] = None,
+        enrich_own_fields: Optional[bool] = None,
         name: Optional[str] = None,
         filter_tags: Optional[List[str]] = None,
         custom: Optional[Dict[str, object]] = None,
@@ -80,6 +81,7 @@ class Feed:
             feed_id=self.id,
             created_by_id=created_by_id,
             description=description,
+            enrich_own_fields=enrich_own_fields,
             name=name,
             filter_tags=filter_tags,
             custom=custom,
@@ -112,12 +114,16 @@ class Feed:
         return response
 
     def unpin_activity(
-        self, activity_id: str, user_id: Optional[str] = None
+        self,
+        activity_id: str,
+        enrich_own_fields: Optional[bool] = None,
+        user_id: Optional[str] = None,
     ) -> StreamResponse[UnpinActivityResponse]:
         response = self.client.unpin_activity(
             feed_group_id=self.feed_group,
             feed_id=self.id,
             activity_id=activity_id,
+            enrich_own_fields=enrich_own_fields,
             user_id=user_id,
         )
         self._sync_from_response(response.data)
@@ -126,6 +132,7 @@ class Feed:
     def pin_activity(
         self,
         activity_id: str,
+        enrich_own_fields: Optional[bool] = None,
         user_id: Optional[str] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[PinActivityResponse]:
@@ -133,6 +140,7 @@ class Feed:
             feed_group_id=self.feed_group,
             feed_id=self.id,
             activity_id=activity_id,
+            enrich_own_fields=enrich_own_fields,
             user_id=user_id,
             user=user,
         )
@@ -199,6 +207,7 @@ class Feed:
 
     def query_pinned_activities(
         self,
+        enrich_own_fields: Optional[bool] = None,
         limit: Optional[int] = None,
         next: Optional[str] = None,
         prev: Optional[str] = None,
@@ -208,6 +217,7 @@ class Feed:
         response = self.client.query_pinned_activities(
             feed_group_id=self.feed_group,
             feed_id=self.id,
+            enrich_own_fields=enrich_own_fields,
             limit=limit,
             next=next,
             prev=prev,

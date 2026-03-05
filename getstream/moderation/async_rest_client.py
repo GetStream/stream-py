@@ -290,13 +290,11 @@ class ModerationRestClient(AsyncBaseClient):
 
     @telemetry.operation_name("getstream.api.moderation.v2_delete_template")
     async def v2_delete_template(
-        self, name: str
+        self,
     ) -> StreamResponse[DeleteModerationTemplateResponse]:
-        json = DeleteModerationTemplateRequest(name=name).to_dict()
         return await self.delete(
             "/api/v2/moderation/feeds_moderation_template",
             DeleteModerationTemplateResponse,
-            json=json,
         )
 
     @telemetry.operation_name("getstream.api.moderation.v2_query_templates")
