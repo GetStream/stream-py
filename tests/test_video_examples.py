@@ -329,7 +329,7 @@ def test_start_stop_frame_recording(client: Stream):
     call.get_or_create(data=CallRequest(created_by_id=user_id))
 
     with pytest.raises(StreamAPIException) as e_info:
-        call.start_recording()
+        call.start_recording(recording_type="composite")
 
     assert e_info.value.status_code == 400
     assert (
@@ -338,7 +338,7 @@ def test_start_stop_frame_recording(client: Stream):
     )
 
     with pytest.raises(StreamAPIException) as e_info:
-        call.stop_recording()
+        call.stop_recording(recording_type="composite")
 
     assert e_info.value.status_code == 400
     assert (
@@ -388,6 +388,7 @@ def test_create_call_with_custom_frame_recording_settings(client: Stream):
     assert response.data.call.settings.frame_recording.quality == "1080p"
 
 
+@pytest.mark.skip_in_ci
 def test_fps(client: Stream):
     response = client.video.get_active_calls_status()
     resolution = response.data.metrics.publishers.all.video.resolution

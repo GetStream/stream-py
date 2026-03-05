@@ -17,6 +17,7 @@ from typing import (
     Literal,
     Optional,
     Union,
+    cast,
 )
 
 import aiortc
@@ -61,7 +62,7 @@ class AudioFormat(str, Enum):
     F32 = "f32"  # 32-bit float
 
     @staticmethod
-    def validate(fmt: str) -> str:
+    def validate(fmt: str) -> "AudioFormatType":
         """
         Validate that a format string is one of the supported audio formats.
 
@@ -87,7 +88,7 @@ class AudioFormat(str, Enum):
             raise ValueError(
                 f"Invalid audio format: {fmt!r}. Must be one of: {', '.join(sorted(valid_formats))}"
             )
-        return fmt
+        return cast("AudioFormatType", fmt)
 
 
 # Type alias for audio format parameters

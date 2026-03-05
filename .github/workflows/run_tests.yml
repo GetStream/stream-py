@@ -69,10 +69,6 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13"]
-    env:
-      STREAM_BASE_URL: ${{ vars.STREAM_BASE_URL }}
-      STREAM_API_KEY: ${{ vars.STREAM_API_KEY }}
-      STREAM_API_SECRET: ${{ secrets.STREAM_API_SECRET }}
     timeout-minutes: 30
     steps:
       - name: Checkout
@@ -81,11 +77,32 @@ jobs:
         uses: ./.github/actions/python-uv-setup
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Debug environment variables
+      - name: Run non-video tests
+        env:
+          STREAM_API_KEY: ${{ vars.STREAM_CHAT_API_KEY }}
+          STREAM_API_SECRET: ${{ secrets.STREAM_CHAT_API_SECRET }}
+          STREAM_BASE_URL: ${{ vars.STREAM_CHAT_BASE_URL }}
         run: |
-          echo "STREAM_API_KEY is set: ${{ env.STREAM_API_KEY != '' }}"
-          echo "STREAM_API_SECRET is set: ${{ env.STREAM_API_SECRET != '' }}"
-          echo "STREAM_BASE_URL is set: ${{ env.STREAM_BASE_URL != '' }}"
-      - name: Run tests
-        run: uv run pytest -m "${{ inputs.marker }}" tests/ getstream/
+          uv run pytest -m "${{ inputs.marker }}" tests/ getstream/ \
+            --ignore=tests/rtc \
+            --ignore=tests/test_video_examples.py \
+            --ignore=tests/test_video_integration.py \
+            --ignore=tests/test_video_openai.py \
+            --ignore=tests/test_signaling.py \
+            --ignore=tests/test_audio_stream_track.py \
+            --ignore=getstream/video
+      - name: Run video tests
+        env:
+          STREAM_API_KEY: ${{ vars.STREAM_API_KEY }}
+          STREAM_API_SECRET: ${{ secrets.STREAM_API_SECRET }}
+          STREAM_BASE_URL: ${{ vars.STREAM_BASE_URL }}
+        run: |
+          uv run pytest -m "${{ inputs.marker }}" \
+            tests/rtc \
+            tests/test_video_examples.py \
+            tests/test_video_integration.py \
+            tests/test_video_openai.py \
+            tests/test_signaling.py \
+            tests/test_audio_stream_track.py \
+            getstream/video
 

@@ -11,7 +11,7 @@ load_dotenv()
 
 
 def _client():
-    return Stream()
+    return Stream(timeout=10.0)
 
 
 def _async_client():
