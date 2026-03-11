@@ -102,3 +102,14 @@ token = client.create_token(user_id="user-1", expiration=3600)
 | `STREAM_API_SECRET` | API secret (auto-loaded) |
 | `STREAM_BASE_URL` | Custom base URL |
 | `STREAM_TIMEOUT` | Request timeout |
+
+## Sub-clients
+
+The new SDK organizes methods into product-specific sub-clients accessed from the main client:
+
+| Sub-client | Access | Description |
+|------------|--------|-------------|
+| Chat | `client.chat` | Channels, messages, reactions |
+| Video | `client.video` | Calls, call types |
+| Moderation | `client.moderation` | Ban, mute, flag |
+| Feeds | `client.feeds` | Activity feeds (sync only) |
