@@ -34,6 +34,10 @@ pip install getstream[webrtc]
 uv add 'getstream[webrtc]'
 ```
 
+## Migrating from stream-chat?
+
+If you are currently using [`stream-chat`](https://github.com/GetStream/stream-chat-python), we have a detailed migration guide with side-by-side code examples for common Chat use cases. See the [Migration Guide](docs/migration-from-stream-chat-python/README.md).
+
 ## Usage
 
 To get started, you need to import the `Stream` class from the library and create a new instance with your API key and secret:
