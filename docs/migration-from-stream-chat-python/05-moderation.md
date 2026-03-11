@@ -132,14 +132,14 @@ from getstream import Stream
 client = Stream(api_key="your-api-key", api_secret="your-api-secret")
 response = client.moderation.unban(
     target_user_id="bad-user",
-    unbanned_by_id="admin",
+    unbanned_by_id="admin",  # optional
 )
 ```
 
 **Key changes:**
 - Called on `client.moderation` sub-client
 - `target_id` renamed to `target_user_id`
-- Requires `unbanned_by_id`
+- `unbanned_by_id` is optional, available when you want to record who performed the unban
 
 ## Shadow Ban
 
@@ -231,7 +231,7 @@ response = client.moderation.unmute(
 | Demote moderators | `channel.demote_moderators([...])` | `channel.update(demote_moderators=[...])` |
 | Ban (app-level) | `client.ban_user(target_id, user_id)` | `client.moderation.ban(target_user_id, banned_by_id)` |
 | Ban (channel) | `channel.ban_user(target_id, user_id)` | `client.moderation.ban(..., channel_cid="type:id")` |
-| Unban | `client.unban_user(target_id)` | `client.moderation.unban(target_user_id, unbanned_by_id)` |
+| Unban | `client.unban_user(target_id)` | `client.moderation.unban(target_user_id)` |
 | Shadow ban | `client.shadow_ban(target_id, user_id)` | `client.moderation.ban(..., shadow=True)` |
 | Mute | `client.mute_user(target_id, user_id)` | `client.moderation.mute(target_ids=[...], user_id)` |
 | Unmute | `client.unmute_user(target_id, user_id)` | `client.moderation.unmute(target_ids=[...], user_id)` |

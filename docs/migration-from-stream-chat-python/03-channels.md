@@ -50,19 +50,20 @@ from getstream import Stream
 from getstream.models import ChannelInput, ChannelMemberRequest
 
 client = Stream(api_key="your-api-key", api_secret="your-api-secret")
-channel = client.chat.channel("messaging")
-response = channel.get_or_create(
+response = client.chat.get_or_create_distinct_channel(
+    type="messaging",
     data=ChannelInput(
         created_by_id="user-1",
         members=[
             ChannelMemberRequest(user_id="user-1"),
             ChannelMemberRequest(user_id="user-2"),
         ],
-    )
+    ),
 )
 ```
 
 **Key changes:**
+- Uses `client.chat.get_or_create_distinct_channel()` instead of `client.channel()` with no ID
 - Members use `ChannelMemberRequest` objects instead of plain strings
 - Member list goes inside `ChannelInput` rather than a data dict
 

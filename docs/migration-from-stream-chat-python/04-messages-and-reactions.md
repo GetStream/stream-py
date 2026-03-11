@@ -251,7 +251,8 @@ response = client.chat.send_reaction(
 - Called on `client.chat` sub-client instead of the channel object
 - Uses `ReactionRequest` instead of a plain dict
 - `count` field renamed to `score`
-- `user_id` is not needed at the server level; use `enforce_unique` to replace existing reactions
+- `user_id` can be passed inside `ReactionRequest(user_id=...)` when needed (e.g. server-side reactions on behalf of a user)
+- `enforce_unique` controls whether a user can add multiple reactions of the same type (when `True`, the new reaction replaces any existing one of the same type by that user)
 
 ## List Reactions
 
