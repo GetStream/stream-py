@@ -52,10 +52,18 @@ def _patch_aiortc_video_bitrates() -> None:
         import aiortc.codecs.h264 as _h264_codec
         import aiortc.codecs.vpx as _vpx_codec
 
+        if not (
+            hasattr(_vpx_codec, "DEFAULT_BITRATE")
+            and hasattr(_vpx_codec, "MIN_BITRATE")
+            and hasattr(_vpx_codec, "MAX_BITRATE")
+            and hasattr(_h264_codec, "DEFAULT_BITRATE")
+            and hasattr(_h264_codec, "MIN_BITRATE")
+        ):
+            raise AttributeError("Missing expected bitrate attributes on codec modules")
+
         _vpx_codec.DEFAULT_BITRATE = 2_500_000  # type: ignore[assignment]  # 2.5 Mbps (was 500 kbps)
         _vpx_codec.MIN_BITRATE = 1_500_000  # type: ignore[assignment]  # 1.5 Mbps (was 250 kbps)
         _vpx_codec.MAX_BITRATE = 3_000_000  # type: ignore[assignment]  # 3 Mbps (was 1.5 Mbps)
-
         _h264_codec.DEFAULT_BITRATE = 2_500_000  # type: ignore[assignment]  # 2.5 Mbps (was 1 Mbps)
         _h264_codec.MIN_BITRATE = 1_500_000  # type: ignore[assignment]  # 1.5 Mbps (was 500 kbps)
     except Exception:
