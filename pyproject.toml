@@ -35,8 +35,8 @@ openai-realtime = [
   "openai[realtime]>=1.93.0",
 ]
 webrtc = [
-    "aiortc-getstream==1.13.0.post1",
-    "av>=14.0.0,<14.3",  # Pin to versions with pre-built wheels
+    "aiortc>=1.14.0, <2",
+    "av>=14.2.0, <17",
     "numpy>=2.2.6,<2.3",
     "soundfile>=0.13.1",
     "scipy>=1.15.3,<1.16",
