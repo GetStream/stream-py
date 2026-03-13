@@ -47,11 +47,11 @@ def _patch_aiortc_video_bitrates() -> None:
     Patch aiortc codec bitrate defaults to enable higher bitrates
     for acceptable video quality in Stream calls.
     """
-    #  Add an env variable and a flag to disable it in that case
-    import aiortc.codecs.h264 as _h264_codec
-    import aiortc.codecs.vpx as _vpx_codec
 
     try:
+        import aiortc.codecs.h264 as _h264_codec
+        import aiortc.codecs.vpx as _vpx_codec
+
         _vpx_codec.DEFAULT_BITRATE = 2_500_000  # type: ignore[assignment]  # 2.5 Mbps (was 500 kbps)
         _vpx_codec.MIN_BITRATE = 1_500_000  # type: ignore[assignment]  # 1.5 Mbps (was 250 kbps)
         _vpx_codec.MAX_BITRATE = 3_000_000  # type: ignore[assignment]  # 3 Mbps (was 1.5 Mbps)
@@ -66,7 +66,7 @@ def _patch_aiortc_video_bitrates() -> None:
         logger.debug("Detailed traceback:", exc_info=True)
 
 
-PATCH_AIORTC_BITRATES = os.getenv("STREAM_PATCH_AIORTC_BITRATES", "")
+PATCH_AIORTC_BITRATES = os.getenv("STREAM_PATCH_AIORTC_BITRATES", "").lower().strip()
 if PATCH_AIORTC_BITRATES not in ("0", "false", "no", "off"):
     # Patch aiortc video codecs bitrates only if it's not disabled via env.
     # `STREAM_PATCH_AIORTC_BITRATES=0|off|no|false` disables it.
