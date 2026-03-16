@@ -1,5 +1,4 @@
 import logging
-import os
 from typing import Optional
 
 from getstream.video.async_call import Call
@@ -40,45 +39,6 @@ except ImportError:
     )
 
 logger.debug(f"loaded aiortc {aiortc.__version__} correctly")
-
-
-def _patch_aiortc_video_bitrates() -> None:
-    """
-    Patch aiortc codec bitrate defaults to enable higher bitrates
-    for acceptable video quality in Stream calls.
-    """
-
-    try:
-        import aiortc.codecs.h264 as _h264_codec
-        import aiortc.codecs.vpx as _vpx_codec
-
-        if not (
-            hasattr(_vpx_codec, "DEFAULT_BITRATE")
-            and hasattr(_vpx_codec, "MIN_BITRATE")
-            and hasattr(_vpx_codec, "MAX_BITRATE")
-            and hasattr(_h264_codec, "DEFAULT_BITRATE")
-            and hasattr(_h264_codec, "MIN_BITRATE")
-        ):
-            raise AttributeError("Missing expected bitrate attributes on codec modules")
-
-        _vpx_codec.DEFAULT_BITRATE = 2_500_000  # type: ignore[assignment]  # 2.5 Mbps (was 500 kbps)
-        _vpx_codec.MIN_BITRATE = 1_500_000  # type: ignore[assignment]  # 1.5 Mbps (was 250 kbps)
-        _vpx_codec.MAX_BITRATE = 3_000_000  # type: ignore[assignment]  # 3 Mbps (was 1.5 Mbps)
-        _h264_codec.DEFAULT_BITRATE = 2_500_000  # type: ignore[assignment]  # 2.5 Mbps (was 1 Mbps)
-        _h264_codec.MIN_BITRATE = 1_500_000  # type: ignore[assignment]  # 1.5 Mbps (was 500 kbps)
-    except Exception:
-        # Log a warning in case the patches failed to apply
-        logger.warning(
-            "Failed to patch aiortc codecs bitrates for vpx and h264, falling back to defaults."
-        )
-        logger.debug("Detailed traceback:", exc_info=True)
-
-
-PATCH_AIORTC_BITRATES = os.getenv("STREAM_PATCH_AIORTC_BITRATES", "").lower().strip()
-if PATCH_AIORTC_BITRATES not in ("0", "false", "no", "off"):
-    # Patch aiortc video codecs bitrates only if it's not disabled via env.
-    # `STREAM_PATCH_AIORTC_BITRATES=0|off|no|false` disables it.
-    _patch_aiortc_video_bitrates()
 
 
 async def discover_location():
