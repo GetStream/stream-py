@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from getstream.video.rtc.signaling import WebSocketClient, SignalingError
 from getstream.video.rtc.pb.stream.video.sfu.event import events_pb2
+from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
 
 
 class TestWebSocketClient:
@@ -127,6 +128,36 @@ class TestWebSocketClient:
             await connect_task
 
         # Clean up
+        client.close()
+
+    @pytest.mark.asyncio
+    async def test_connect_error_preserves_error_code(self, join_request, mock_websocket):
+        """Test that SignalingError preserves the SFU error code."""
+        client = WebSocketClient(
+            "wss://test.url", join_request, asyncio.get_running_loop()
+        )
+
+        # Prepare an SFU FULL error response
+        error_response = events_pb2.SfuEvent()
+        error_response.error.error.code = models_pb2.ERROR_CODE_SFU_FULL
+        error_response.error.error.message = "server is full"
+        error_response_bytes = error_response.SerializeToString()
+
+        connect_task = asyncio.create_task(client.connect())
+        await asyncio.sleep(0.1)
+
+        on_open_callback = mock_websocket.call_args[1]["on_open"]
+        on_open_callback(mock_websocket.return_value)
+
+        on_message_callback = mock_websocket.call_args[1]["on_message"]
+        on_message_callback(mock_websocket.return_value, error_response_bytes)
+
+        with pytest.raises(SignalingError) as exc_info:
+            await connect_task
+
+        assert exc_info.value.error is not None
+        assert exc_info.value.error.code == models_pb2.ERROR_CODE_SFU_FULL
+
         client.close()
 
     @pytest.mark.asyncio
