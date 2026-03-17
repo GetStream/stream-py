@@ -59,7 +59,6 @@ __all__ = [
 ]
 
 
-
 # Public classes and exceptions
 class ConnectionState(Enum):
     """Enumeration of possible connection states."""
