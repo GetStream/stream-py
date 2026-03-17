@@ -58,19 +58,6 @@ __all__ = [
     "connect_websocket",
 ]
 
-# Private constants - internal use only
-_RETRYABLE_ERROR_PATTERNS = [
-    "server is full",
-    "server overloaded",
-    "capacity exceeded",
-    "try again later",
-    "service unavailable",
-    "connection timeout",
-    "network error",
-    "temporary failure",
-    "connection refused",
-    "connection reset",
-]
 
 
 # Public classes and exceptions
@@ -483,29 +470,3 @@ async def connect_websocket(
     except Exception as e:
         logger.error(f"Failed to connect WebSocket to {ws_url}: {e}")
         raise SignalingError(f"WebSocket connection failed: {e}")
-
-
-# Private functions
-def _is_retryable(retry_state: Any) -> bool:
-    """Check if an error should be retried.
-
-    Args:
-        retry_state: The retry state object from tenacity
-
-    Returns:
-        True if the error should be retried, False otherwise
-    """
-    # Extract the actual exception from the retry state
-    if hasattr(retry_state, "outcome") and retry_state.outcome.failed:
-        error = retry_state.outcome.exception()
-    else:
-        return False
-
-    # Import here to avoid circular imports
-    from getstream.video.rtc.signaling import SignalingError
-
-    if not isinstance(error, (SignalingError, SfuConnectionError)):
-        return False
-
-    error_message = str(error).lower()
-    return any(pattern in error_message for pattern in _RETRYABLE_ERROR_PATTERNS)
