@@ -6,6 +6,12 @@ from getstream.video.rtc.connection_utils import SfuJoinError, SfuConnectionErro
 from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
 
 
+async def _instant_backoff(max_retries, base=1.0, factor=2.0, sleep=False):
+    """exp_backoff replacement that never sleeps."""
+    for attempt in range(max_retries):
+        yield base * (factor**attempt)
+
+
 class TestConnectRetry:
     """Tests for connect() retry logic when SFU is full."""
 
@@ -29,6 +35,7 @@ class TestConnectRetry:
             return cm
 
     @pytest.mark.asyncio
+    @patch("getstream.video.rtc.connection_manager.exp_backoff", _instant_backoff)
     async def test_retries_on_sfu_join_error_and_passes_failed_sfus(self):
         """When SFU is full, connect() should retry with migrating_from_list."""
         cm = self._make_connection_manager(max_join_retries=2)
@@ -70,6 +77,7 @@ class TestConnectRetry:
         assert received_migrating_from_list[2] == ["sfu-node-1", "sfu-node-2"]
 
     @pytest.mark.asyncio
+    @patch("getstream.video.rtc.connection_manager.exp_backoff", _instant_backoff)
     async def test_raises_after_all_retries_exhausted(self):
         """When all retries are exhausted, connect() should raise SfuJoinError."""
         cm = self._make_connection_manager(max_join_retries=1)
@@ -112,6 +120,7 @@ class TestConnectRetry:
         assert call_count == 1
 
     @pytest.mark.asyncio
+    @patch("getstream.video.rtc.connection_manager.exp_backoff", _instant_backoff)
     async def test_cleans_up_ws_client_between_retries(self):
         """Partial WS state should be cleaned up before retry."""
         cm = self._make_connection_manager(max_join_retries=1)
