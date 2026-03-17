@@ -468,20 +468,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                 return
             except SfuJoinError as e:
                 last_error = e
-                # Track the failed SFU
-                if self.join_response and self.join_response.credentials:
-                    edge = self.join_response.credentials.server.edge_name
-                    if edge and edge not in failed_sfus:
-                        failed_sfus.append(edge)
-                logger.warning(
-                    f"SFU join failed (attempt {attempt + 1}/{1 + self._max_join_retries}, "
-                    f"code={e.error_code}). Failed SFUs: {failed_sfus}"
-                )
-                # Clean up partial state before retry
-                if self._ws_client:
-                    self._ws_client.close()
-                    self._ws_client = None
-                self.connection_state = ConnectionState.IDLE
+                self._handle_join_failure(e, attempt, failed_sfus)
 
                 if attempt < self._max_join_retries:
                     delay = 0.5 * (2.0**attempt)
@@ -489,6 +476,23 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                     await asyncio.sleep(delay)
 
         raise last_error  # type: ignore[misc]
+
+    def _handle_join_failure(
+        self, error: SfuJoinError, attempt: int, failed_sfus: list[str]
+    ) -> None:
+        """Track a failed SFU and clean up partial connection state."""
+        if self.join_response and self.join_response.credentials:
+            edge = self.join_response.credentials.server.edge_name
+            if edge and edge not in failed_sfus:
+                failed_sfus.append(edge)
+        logger.warning(
+            f"SFU join failed (attempt {attempt + 1}/{1 + self._max_join_retries}, "
+            f"code={error.error_code}). Failed SFUs: {failed_sfus}"
+        )
+        if self._ws_client:
+            self._ws_client.close()
+            self._ws_client = None
+        self.connection_state = ConnectionState.IDLE
 
     async def wait(self):
         """
