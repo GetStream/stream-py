@@ -55,7 +55,9 @@ class TestConnectRetry:
         async def mock_connect_internal(migrating_from_list=None, **kwargs):
             nonlocal call_count
             call_count += 1
-            received_migrating_from_list.append(migrating_from_list)
+            received_migrating_from_list.append(
+                list(migrating_from_list) if migrating_from_list else None
+            )
 
             if call_count <= 2:
                 mock_join_response = MagicMock()
@@ -76,7 +78,7 @@ class TestConnectRetry:
 
         assert call_count == 3
         assert received_migrating_from_list[0] is None
-        assert "sfu-node-1" in received_migrating_from_list[1]
+        assert received_migrating_from_list[1] == ["sfu-node-1"]
         assert received_migrating_from_list[2] == ["sfu-node-1", "sfu-node-2"]
 
     @pytest.mark.asyncio
