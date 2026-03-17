@@ -131,7 +131,9 @@ class TestWebSocketClient:
         client.close()
 
     @pytest.mark.asyncio
-    async def test_connect_error_preserves_error_code(self, join_request, mock_websocket):
+    async def test_connect_error_preserves_error_code(
+        self, join_request, mock_websocket
+    ):
         """Test that SignalingError preserves the SFU error code."""
         client = WebSocketClient(
             "wss://test.url", join_request, asyncio.get_running_loop()
