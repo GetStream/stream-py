@@ -10,19 +10,23 @@ class TestConnectRetry:
 
     def _make_connection_manager(self, max_join_retries=3):
         """Create a ConnectionManager with mocked dependencies."""
-        with patch("getstream.video.rtc.connection_manager.PeerConnectionManager"), \
-             patch("getstream.video.rtc.connection_manager.NetworkMonitor"), \
-             patch("getstream.video.rtc.connection_manager.ReconnectionManager"), \
-             patch("getstream.video.rtc.connection_manager.RecordingManager"), \
-             patch("getstream.video.rtc.connection_manager.SubscriptionManager"), \
-             patch("getstream.video.rtc.connection_manager.ParticipantsState"), \
-             patch("getstream.video.rtc.connection_manager.Tracer"):
+        with (
+            patch("getstream.video.rtc.connection_manager.PeerConnectionManager"),
+            patch("getstream.video.rtc.connection_manager.NetworkMonitor"),
+            patch("getstream.video.rtc.connection_manager.ReconnectionManager"),
+            patch("getstream.video.rtc.connection_manager.RecordingManager"),
+            patch("getstream.video.rtc.connection_manager.SubscriptionManager"),
+            patch("getstream.video.rtc.connection_manager.ParticipantsState"),
+            patch("getstream.video.rtc.connection_manager.Tracer"),
+        ):
             from getstream.video.rtc.connection_manager import ConnectionManager
 
             mock_call = MagicMock()
             mock_call.call_type = "default"
             mock_call.id = "test_call"
-            cm = ConnectionManager(call=mock_call, user_id="user1", max_join_retries=max_join_retries)
+            cm = ConnectionManager(
+                call=mock_call, user_id="user1", max_join_retries=max_join_retries
+            )
             return cm
 
     @pytest.mark.asyncio
@@ -41,7 +45,9 @@ class TestConnectRetry:
             if call_count <= 2:
                 # Simulate SFU assigning an edge_name before failing
                 mock_join_response = MagicMock()
-                mock_join_response.credentials.server.edge_name = f"sfu-node-{call_count}"
+                mock_join_response.credentials.server.edge_name = (
+                    f"sfu-node-{call_count}"
+                )
                 cm.join_response = mock_join_response
                 raise SfuJoinError(
                     "server is full",

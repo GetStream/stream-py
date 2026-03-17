@@ -459,7 +459,11 @@ async def connect_websocket(
         return ws_client, sfu_event
 
     except SignalingError as e:
-        if e.error and hasattr(e.error, "code") and e.error.code in _RETRYABLE_SFU_ERROR_CODES:
+        if (
+            e.error
+            and hasattr(e.error, "code")
+            and e.error.code in _RETRYABLE_SFU_ERROR_CODES
+        ):
             raise SfuJoinError(
                 str(e),
                 error_code=e.error.code,

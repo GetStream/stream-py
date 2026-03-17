@@ -328,7 +328,9 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                     "auto",
                     self.create,
                     self.local_sfu,
-                    migrating_from=migrating_from_list[-1] if migrating_from_list else None,
+                    migrating_from=migrating_from_list[-1]
+                    if migrating_from_list
+                    else None,
                     migrating_from_list=migrating_from_list,
                     **self.kwargs,
                 )
@@ -482,7 +484,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                 self.connection_state = ConnectionState.IDLE
 
                 if attempt < self._max_join_retries:
-                    delay = 0.5 * (2.0 ** attempt)
+                    delay = 0.5 * (2.0**attempt)
                     logger.info(f"Retrying in {delay}s with different SFU...")
                     await asyncio.sleep(delay)
 

@@ -114,7 +114,9 @@ class WebSocketClient(StreamAsyncIOEventEmitter):
         # Check if the first message is an error
         if self.first_message and self.first_message.HasField("error"):
             sfu_error = self.first_message.error.error
-            raise SignalingError(f"Connection failed: {sfu_error.message}", error=sfu_error)
+            raise SignalingError(
+                f"Connection failed: {sfu_error.message}", error=sfu_error
+            )
 
         # Check if we got join_response
         if self.first_message and self.first_message.HasField("join_response"):

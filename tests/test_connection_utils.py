@@ -23,9 +23,13 @@ class TestConnectWebsocket:
             message="server is full",
             should_retry=True,
         )
-        signaling_error = SignalingError("Connection failed: server is full", error=sfu_error)
+        signaling_error = SignalingError(
+            "Connection failed: server is full", error=sfu_error
+        )
 
-        with patch("getstream.video.rtc.connection_utils.WebSocketClient") as mock_ws_cls:
+        with patch(
+            "getstream.video.rtc.connection_utils.WebSocketClient"
+        ) as mock_ws_cls:
             mock_ws = AsyncMock()
             mock_ws.connect = AsyncMock(side_effect=signaling_error)
             mock_ws_cls.return_value = mock_ws
@@ -54,9 +58,13 @@ class TestConnectWebsocket:
             message="permission denied",
             should_retry=False,
         )
-        signaling_error = SignalingError("Connection failed: permission denied", error=sfu_error)
+        signaling_error = SignalingError(
+            "Connection failed: permission denied", error=sfu_error
+        )
 
-        with patch("getstream.video.rtc.connection_utils.WebSocketClient") as mock_ws_cls:
+        with patch(
+            "getstream.video.rtc.connection_utils.WebSocketClient"
+        ) as mock_ws_cls:
             mock_ws = AsyncMock()
             mock_ws.connect = AsyncMock(side_effect=signaling_error)
             mock_ws_cls.return_value = mock_ws
@@ -85,7 +93,9 @@ class TestJoinCallCoordinatorRequest:
 
         captured_body = {}
 
-        with patch("getstream.video.rtc.connection_utils.user_client") as mock_user_client:
+        with patch(
+            "getstream.video.rtc.connection_utils.user_client"
+        ) as mock_user_client:
             mock_client = AsyncMock()
 
             async def capture_post(*args, **kwargs):
@@ -118,7 +128,9 @@ class TestJoinCallCoordinatorRequest:
 
         captured_body = {}
 
-        with patch("getstream.video.rtc.connection_utils.user_client") as mock_user_client:
+        with patch(
+            "getstream.video.rtc.connection_utils.user_client"
+        ) as mock_user_client:
             mock_client = AsyncMock()
 
             async def capture_post(*args, **kwargs):
