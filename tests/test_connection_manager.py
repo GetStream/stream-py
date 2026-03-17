@@ -1,6 +1,7 @@
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 
+from getstream.video.rtc.connection_manager import ConnectionManager
 from getstream.video.rtc.connection_utils import SfuJoinError, SfuConnectionError
 from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
 
@@ -19,8 +20,6 @@ class TestConnectRetry:
             patch("getstream.video.rtc.connection_manager.ParticipantsState"),
             patch("getstream.video.rtc.connection_manager.Tracer"),
         ):
-            from getstream.video.rtc.connection_manager import ConnectionManager
-
             mock_call = MagicMock()
             mock_call.call_type = "default"
             mock_call.id = "test_call"
