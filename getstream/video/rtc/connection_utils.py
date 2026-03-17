@@ -94,6 +94,22 @@ class SfuConnectionError(Exception):
     pass
 
 
+class SfuJoinError(SfuConnectionError):
+    """Raised when SFU join fails with a retryable error code."""
+
+    def __init__(self, message: str, error_code: int = 0, should_retry: bool = False):
+        super().__init__(message)
+        self.error_code = error_code
+        self.should_retry = should_retry
+
+
+_RETRYABLE_SFU_ERROR_CODES = {
+    700,  # ERROR_CODE_SFU_FULL
+    600,  # ERROR_CODE_SFU_SHUTTING_DOWN
+    301,  # ERROR_CODE_CALL_PARTICIPANT_LIMIT_REACHED
+}
+
+
 @dataclass
 class ConnectionOptions:
     """Options for the connection process."""
@@ -450,6 +466,14 @@ async def connect_websocket(
         logger.debug("WebSocket connection established")
         return ws_client, sfu_event
 
+    except SignalingError as e:
+        if e.error and hasattr(e.error, "code") and e.error.code in _RETRYABLE_SFU_ERROR_CODES:
+            raise SfuJoinError(
+                str(e),
+                error_code=e.error.code,
+                should_retry=True,
+            ) from e
+        raise
     except Exception as e:
         logger.error(f"Failed to connect WebSocket to {ws_url}: {e}")
         raise SignalingError(f"WebSocket connection failed: {e}")
