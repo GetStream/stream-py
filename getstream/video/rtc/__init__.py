@@ -2,29 +2,29 @@ import logging
 from typing import Optional
 
 from getstream.video.async_call import Call
-from getstream.video.rtc.location_discovery import (
-    HTTPHintLocationDiscovery,
-    HEADER_CLOUDFRONT_POP,
-    FALLBACK_LOCATION_NAME,
-    STREAM_PROD_URL,
-)
-from getstream.video.rtc.models import (
-    JoinCallRequest,
-    JoinCallResponse,
-    ServerCredentials,
-    Credentials,
-)
-from getstream.video.rtc.connection_utils import join_call_coordinator_request
-from getstream.video.rtc.connection_manager import ConnectionManager
 from getstream.video.rtc.audio_track import AudioStreamTrack
-from getstream.video.rtc.track_util import (
-    PcmData,
-    Resampler,
-    AudioFormat,
-)
+from getstream.video.rtc.connection_manager import ConnectionManager
+from getstream.video.rtc.connection_utils import join_call_coordinator_request
 from getstream.video.rtc.g711 import (
     G711Encoding,
     G711Mapping,
+)
+from getstream.video.rtc.location_discovery import (
+    FALLBACK_LOCATION_NAME,
+    HEADER_CLOUDFRONT_POP,
+    STREAM_PROD_URL,
+    HTTPHintLocationDiscovery,
+)
+from getstream.video.rtc.models import (
+    Credentials,
+    JoinCallRequest,
+    JoinCallResponse,
+    ServerCredentials,
+)
+from getstream.video.rtc.track_util import (
+    AudioFormat,
+    PcmData,
+    Resampler,
 )
 
 logger = logging.getLogger(__name__)
