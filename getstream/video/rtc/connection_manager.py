@@ -25,6 +25,7 @@ from getstream.video.rtc.connection_utils import (
     join_call,
     watch_call,
 )
+from getstream.video.rtc.coordinator.backoff import exp_backoff
 from getstream.video.rtc.track_util import (
     fix_sdp_msid_semantic,
     fix_sdp_rtcp_fb,
@@ -460,7 +461,21 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         failed_sfus: list[str] = []
         last_error: Optional[SfuJoinError] = None
 
-        for attempt in range(1 + self._max_join_retries):
+        # First attempt without delay
+        attempt = 0
+        try:
+            await self._connect_internal()
+            return
+        except SfuJoinError as e:
+            last_error = e
+            self._handle_join_failure(e, attempt, failed_sfus)
+
+        # Retries with exponential backoff, requesting a different SFU
+        async for delay in exp_backoff(
+            max_retries=self._max_join_retries, base=0.5, sleep=True
+        ):
+            attempt += 1
+            logger.info(f"Retrying with different SFU (waited {delay}s)...")
             try:
                 await self._connect_internal(
                     migrating_from_list=failed_sfus if failed_sfus else None,
@@ -469,11 +484,6 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             except SfuJoinError as e:
                 last_error = e
                 self._handle_join_failure(e, attempt, failed_sfus)
-
-                if attempt < self._max_join_retries:
-                    delay = 0.5 * (2.0**attempt)
-                    logger.info(f"Retrying in {delay}s with different SFU...")
-                    await asyncio.sleep(delay)
 
         raise last_error  # type: ignore[misc]
 

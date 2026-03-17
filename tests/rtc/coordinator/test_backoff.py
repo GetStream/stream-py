@@ -3,6 +3,7 @@ Tests for exponential backoff utilities.
 """
 
 import pytest
+from unittest.mock import patch, AsyncMock
 from getstream.video.rtc.coordinator.backoff import exp_backoff
 
 
@@ -84,3 +85,35 @@ async def test_exp_backoff_fractional_factor():
     assert actual_delays == expected_delays, (
         f"Expected delays {expected_delays}, but got {actual_delays}"
     )
+
+
+@pytest.mark.asyncio
+async def test_exp_backoff_sleep():
+    """Test that sleep=True calls asyncio.sleep with each delay."""
+    expected_delays = [0.5, 1.0, 2.0]
+
+    with patch(
+        "getstream.video.rtc.coordinator.backoff.asyncio.sleep",
+        new_callable=AsyncMock,
+    ) as mock_sleep:
+        actual_delays = []
+        async for delay in exp_backoff(max_retries=3, base=0.5, sleep=True):
+            actual_delays.append(delay)
+
+    assert actual_delays == expected_delays
+    assert mock_sleep.await_count == 3
+    for expected, call in zip(expected_delays, mock_sleep.await_args_list):
+        assert call.args[0] == expected
+
+
+@pytest.mark.asyncio
+async def test_exp_backoff_no_sleep_by_default():
+    """Test that sleep=False (default) does not call asyncio.sleep."""
+    with patch(
+        "getstream.video.rtc.coordinator.backoff.asyncio.sleep",
+        new_callable=AsyncMock,
+    ) as mock_sleep:
+        async for _ in exp_backoff(max_retries=3):
+            pass
+
+    mock_sleep.assert_not_awaited()

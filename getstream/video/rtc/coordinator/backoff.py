@@ -5,6 +5,7 @@ This module provides utilities for implementing exponential backoff strategies
 when reconnecting to failed WebSocket connections.
 """
 
+import asyncio
 import logging
 from typing import AsyncIterator
 
@@ -12,7 +13,10 @@ logger = logging.getLogger(__name__)
 
 
 async def exp_backoff(
-    max_retries: int, base: float = 1.0, factor: float = 2.0
+    max_retries: int,
+    base: float = 1.0,
+    factor: float = 2.0,
+    sleep: bool = False,
 ) -> AsyncIterator[float]:
     """
     Generate exponential backoff delays for retry attempts.
@@ -21,6 +25,7 @@ async def exp_backoff(
         max_retries: Maximum number of retry attempts
         base: Base delay in seconds for the first retry
         factor: Multiplicative factor for each subsequent retry
+        sleep: If True, sleep for the delay before yielding
 
     Yields:
         float: Delay in seconds for each retry attempt
@@ -39,4 +44,6 @@ async def exp_backoff(
     for attempt in range(max_retries):
         delay = base * (factor**attempt)
         logger.debug(f"Backoff attempt {attempt + 1}/{max_retries}: {delay}s delay")
+        if sleep:
+            await asyncio.sleep(delay)
         yield delay
