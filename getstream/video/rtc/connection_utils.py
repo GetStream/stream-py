@@ -191,6 +191,8 @@ async def join_call_coordinator_request(
     notify: Optional[bool] = None,
     video: Optional[bool] = None,
     location: Optional[str] = None,
+    migrating_from: Optional[str] = None,
+    migrating_from_list: Optional[list] = None,
 ) -> StreamResponse[JoinCallResponse]:
     """Make a request to join a call via the coordinator.
 
@@ -224,6 +226,10 @@ async def join_call_coordinator_request(
         video=video,
         data=data,
     )
+    if migrating_from:
+        json_body["migrating_from"] = migrating_from
+    if migrating_from_list:
+        json_body["migrating_from_list"] = migrating_from_list
 
     # Make the POST request to join the call
     return await client.post(

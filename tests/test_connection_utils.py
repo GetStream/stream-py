@@ -5,6 +5,7 @@ from getstream.video.rtc.connection_utils import (
     connect_websocket,
     ConnectionOptions,
     SfuConnectionError,
+    join_call_coordinator_request,
 )
 from getstream.video.rtc.signaling import SignalingError
 from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
@@ -69,3 +70,69 @@ class TestConnectWebsocket:
                 )
 
             assert not isinstance(exc_info.value, SfuJoinError)
+
+
+class TestJoinCallCoordinatorRequest:
+    @pytest.mark.asyncio
+    async def test_includes_migrating_from_in_body(self):
+        """migrating_from and migrating_from_list should be included in the request body."""
+        mock_call = AsyncMock()
+        mock_call.call_type = "default"
+        mock_call.id = "test_call"
+        mock_call.client.stream.api_key = "key"
+        mock_call.client.stream.api_secret = "secret"
+        mock_call.client.stream.base_url = "https://test.url"
+
+        captured_body = {}
+
+        with patch("getstream.video.rtc.connection_utils.user_client") as mock_user_client:
+            mock_client = AsyncMock()
+
+            async def capture_post(*args, **kwargs):
+                captured_body.update(kwargs.get("json", {}))
+                return AsyncMock()
+
+            mock_client.post = capture_post
+            mock_user_client.return_value = mock_client
+
+            await join_call_coordinator_request(
+                call=mock_call,
+                user_id="user1",
+                location="auto",
+                migrating_from="sfu-london-1",
+                migrating_from_list=["sfu-london-1", "sfu-paris-2"],
+            )
+
+        assert captured_body["migrating_from"] == "sfu-london-1"
+        assert captured_body["migrating_from_list"] == ["sfu-london-1", "sfu-paris-2"]
+
+    @pytest.mark.asyncio
+    async def test_omits_migrating_from_when_not_provided(self):
+        """migrating_from should not appear in body when not provided."""
+        mock_call = AsyncMock()
+        mock_call.call_type = "default"
+        mock_call.id = "test_call"
+        mock_call.client.stream.api_key = "key"
+        mock_call.client.stream.api_secret = "secret"
+        mock_call.client.stream.base_url = "https://test.url"
+
+        captured_body = {}
+
+        with patch("getstream.video.rtc.connection_utils.user_client") as mock_user_client:
+            mock_client = AsyncMock()
+
+            async def capture_post(*args, **kwargs):
+                captured_body.update(kwargs.get("json", {}))
+                return AsyncMock()
+
+            mock_client.post = capture_post
+            mock_user_client.return_value = mock_client
+
+            await join_call_coordinator_request(
+                call=mock_call,
+                user_id="user1",
+                location="auto",
+            )
+
+        assert "migrating_from" not in captured_body
+        assert "migrating_from_list" not in captured_body
