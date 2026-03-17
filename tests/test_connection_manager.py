@@ -127,11 +127,13 @@ class TestConnectRetry:
         cm = connection_manager
         call_count = 0
 
+        first_ws_client = MagicMock()
+
         async def mock_connect_internal(migrating_from_list=None, **kwargs):
             nonlocal call_count
             call_count += 1
             if call_count == 1:
-                cm._ws_client = MagicMock()
+                cm._ws_client = first_ws_client
                 mock_join_response = MagicMock()
                 mock_join_response.credentials.server.edge_name = "sfu-node-1"
                 cm.join_response = mock_join_response
@@ -147,3 +149,5 @@ class TestConnectRetry:
         await cm.connect()
 
         assert call_count == 2
+        first_ws_client.close.assert_called_once()
+        assert cm._ws_client is None
