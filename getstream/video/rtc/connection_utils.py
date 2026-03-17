@@ -431,6 +431,8 @@ async def connect_websocket(
     """
     logger.info(f"Connecting to WebSocket at {ws_url}")
 
+    ws_client = None
+    success = False
     try:
         # Create JoinRequest for WebSocket connection
         join_request = await create_join_request(token, session_id)
@@ -456,6 +458,7 @@ async def connect_websocket(
         sfu_event = await ws_client.connect()
 
         logger.debug("WebSocket connection established")
+        success = True
         return ws_client, sfu_event
 
     except SignalingError as e:
@@ -473,3 +476,6 @@ async def connect_websocket(
     except Exception as e:
         logger.error(f"Failed to connect WebSocket to {ws_url}: {e}")
         raise SignalingError(f"WebSocket connection failed: {e}")
+    finally:
+        if ws_client and not success:
+            ws_client.close()
