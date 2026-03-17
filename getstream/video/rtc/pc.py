@@ -4,13 +4,17 @@ from typing import Any, Optional
 
 import aiortc
 from aiortc.contrib.media import MediaRelay
+from aiortc.mediastreams import MediaStreamTrack
+from aiortc.rtcrtpparameters import RTCRtpCodecCapability
+from aiortc.rtcrtpsender import RTCRtpSender
+from pyee.asyncio import AsyncIOEventEmitter
 
 from getstream.common import telemetry
+from getstream.video.rtc.encoders_patches import (
+    BITRATE_PATCH_DISABLED,
+    patch_sender_encoder,
+)
 from getstream.video.rtc.track_util import AudioTrackHandler
-from pyee.asyncio import AsyncIOEventEmitter
-from aiortc.rtcrtpsender import RTCRtpSender
-from aiortc.rtcrtpparameters import RTCRtpCodecCapability
-
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +75,12 @@ class PublisherPeerConnection(aiortc.RTCPeerConnection):
             logger.info(f"Publisher connection state changed to {self.connectionState}")
             if self.connectionState == "connected":
                 self._connected_event.set()
+
+    def addTrack(self, track: MediaStreamTrack) -> RTCRtpSender:
+        sender = super().addTrack(track)
+        if track.kind == "video" and not BITRATE_PATCH_DISABLED:
+            patch_sender_encoder(sender)
+        return sender
 
     async def handle_answer(self, response):
         """Handles the SDP answer received from the SFU for the publisher connection."""
