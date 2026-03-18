@@ -6,12 +6,6 @@ from getstream.video.rtc.connection_utils import SfuJoinError, SfuConnectionErro
 from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
 
 
-async def _instant_backoff(max_retries, base=1.0, factor=2.0):
-    """exp_backoff replacement that yields without delay."""
-    for attempt in range(max_retries):
-        yield base * (factor**attempt)
-
-
 @pytest.fixture
 def connection_manager(request):
     """Create a ConnectionManager with mocked heavy dependencies.
@@ -27,7 +21,6 @@ def connection_manager(request):
         patch("getstream.video.rtc.connection_manager.SubscriptionManager"),
         patch("getstream.video.rtc.connection_manager.ParticipantsState"),
         patch("getstream.video.rtc.connection_manager.Tracer"),
-        patch("getstream.video.rtc.connection_manager.exp_backoff", _instant_backoff),
         patch(
             "getstream.video.rtc.connection_manager.asyncio.sleep",
             new_callable=AsyncMock,
