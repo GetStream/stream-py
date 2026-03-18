@@ -458,6 +458,10 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
 
             self._coordinator_task.add_done_callback(_on_coordinator_task_done)
 
+        await self._connect_with_sfu_reassignment()
+
+    async def _connect_with_sfu_reassignment(self) -> None:
+        """Try connecting to SFU, reassigning to a different one on failure."""
         failed_sfus: list[str] = []
         last_error: Optional[SfuJoinError] = None
 
