@@ -32,7 +32,7 @@ class ChatClient(ChatRestClient):
         self,
         type: str,
         id: str,
-        file: Optional[str] = None,
+        file: str,
         user: Optional[OnlyUserID] = None,
     ) -> StreamResponse[UploadChannelFileResponse]:
         form_fields = []
@@ -51,7 +51,7 @@ class ChatClient(ChatRestClient):
         self,
         type: str,
         id: str,
-        file: Optional[str] = None,
+        file: str,
         upload_sizes: Optional[List[ImageSize]] = None,
         user: Optional[OnlyUserID] = None,
     ) -> StreamResponse[UploadChannelResponse]:

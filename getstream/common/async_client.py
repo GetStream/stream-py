@@ -24,7 +24,7 @@ class CommonClient(CommonRestClient):
 
     @telemetry.operation_name("getstream.api.common.upload_file")
     async def upload_file(
-        self, file: Optional[str] = None, user: Optional[OnlyUserID] = None
+        self, file: str, user: Optional[OnlyUserID] = None
     ) -> StreamResponse[FileUploadResponse]:
         form_fields = []
         if user is not None:
@@ -39,7 +39,7 @@ class CommonClient(CommonRestClient):
     @telemetry.operation_name("getstream.api.common.upload_image")
     async def upload_image(
         self,
-        file: Optional[str] = None,
+        file: str,
         upload_sizes: Optional[List[ImageSize]] = None,
         user: Optional[OnlyUserID] = None,
     ) -> StreamResponse[ImageUploadResponse]:
