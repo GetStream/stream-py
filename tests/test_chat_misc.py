@@ -13,6 +13,7 @@ from getstream.models import (
     EventHook,
     FileUploadConfig,
     MessageRequest,
+    OnlyUserID,
     QueryFutureChannelBansPayload,
     SortParamRequest,
 )
@@ -600,3 +601,35 @@ def test_event_hooks_sqs_sns(client: Stream):
     finally:
         # Restore original hooks
         client.update_app(event_hooks=original_hooks or [])
+
+
+def test_upload_and_delete_file(client: Stream, random_user, tmp_path):
+    """Upload and delete a file via the common upload endpoint."""
+    file_path = tmp_path / "common-test-upload.txt"
+    file_path.write_text("hello world test file content")
+
+    upload_resp = client.upload_file(
+        file=str(file_path),
+        user=OnlyUserID(id=random_user.id),
+    )
+    assert upload_resp.data.file is not None
+    file_url = upload_resp.data.file
+    assert "http" in file_url
+
+    client.delete_file(url=file_url)
+
+
+def test_upload_and_delete_image(client: Stream, random_user, tmp_path):
+    """Upload and delete an image via the common upload endpoint."""
+    file_path = tmp_path / "common-test-upload.jpg"
+    file_path.write_bytes(b"fake-jpg-image-data-for-testing")
+
+    upload_resp = client.upload_image(
+        file=str(file_path),
+        user=OnlyUserID(id=random_user.id),
+    )
+    assert upload_resp.data.file is not None
+    image_url = upload_resp.data.file
+    assert "http" in image_url
+
+    client.delete_image(url=image_url)

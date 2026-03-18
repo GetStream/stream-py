@@ -955,7 +955,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "aiohttp", marker = "extra == 'webrtc'", specifier = ">=3.13.2,<4" },
-    { name = "aiortc", marker = "extra == 'webrtc'", specifier = ">=1.14.0,<2" },
+    { name = "aiortc", marker = "extra == 'webrtc'", specifier = ">=1.14.0,<1.15.0" },
     { name = "av", marker = "extra == 'webrtc'", specifier = ">=14.2.0,<17" },
     { name = "dataclasses-json", specifier = ">=0.6.0,<0.7" },
     { name = "httpx", specifier = ">=0.28.1" },
