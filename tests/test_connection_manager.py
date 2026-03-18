@@ -83,8 +83,11 @@ class TestConnectRetry:
     async def test_raises_after_all_retries_exhausted(self, connection_manager):
         """When all retries are exhausted, connect() should raise SfuJoinError."""
         cm = connection_manager
+        call_count = 0
 
         async def always_fail(migrating_from_list=None, **kwargs):
+            nonlocal call_count
+            call_count += 1
             mock_join_response = MagicMock()
             mock_join_response.credentials.server.edge_name = "sfu-node-1"
             cm.join_response = mock_join_response
@@ -98,6 +101,8 @@ class TestConnectRetry:
 
         with pytest.raises(SfuJoinError):
             await cm.connect()
+
+        assert call_count == 2  # 1 initial + 1 retry
 
     @pytest.mark.asyncio
     async def test_non_retryable_error_propagates_immediately(self, connection_manager):
