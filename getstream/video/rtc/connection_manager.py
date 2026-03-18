@@ -471,11 +471,10 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             self._handle_join_failure(e, attempt, failed_sfus)
 
         # Retries with exponential backoff, requesting a different SFU
-        async for delay in exp_backoff(
-            max_retries=self._max_join_retries, base=0.5, sleep=True
-        ):
+        async for delay in exp_backoff(max_retries=self._max_join_retries, base=0.5):
             attempt += 1
-            logger.info(f"Retrying with different SFU (waited {delay}s)...")
+            logger.info(f"Retrying in {delay}s with different SFU...")
+            await asyncio.sleep(delay)
             try:
                 await self._connect_internal(
                     migrating_from_list=failed_sfus if failed_sfus else None,
