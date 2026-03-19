@@ -323,15 +323,14 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             if not (ws_url or token):
                 if self.user_id is None:
                     raise ValueError("user_id is required for joining a call")
+                last_failed = migrating_from_list[-1] if migrating_from_list else None
                 join_response = await join_call(
                     self.call,
                     self.user_id,
                     "auto",
                     self.create,
                     self.local_sfu,
-                    migrating_from=migrating_from_list[-1]
-                    if migrating_from_list
-                    else None,
+                    migrating_from=last_failed,
                     migrating_from_list=migrating_from_list,
                     **self.kwargs,
                 )
