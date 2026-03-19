@@ -1,3 +1,5 @@
+import contextlib
+
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 
@@ -6,13 +8,9 @@ from getstream.video.rtc.connection_utils import SfuJoinError, SfuConnectionErro
 from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
 
 
-@pytest.fixture
-def connection_manager(request):
-    """Create a ConnectionManager with mocked heavy dependencies.
-
-    Accepts max_join_retries via indirect parametrize, defaults to 3.
-    """
-    max_join_retries = getattr(request, "param", 3)
+@contextlib.contextmanager
+def patched_dependencies():
+    """Patch heavy ConnectionManager dependencies for unit testing."""
     with (
         patch("getstream.video.rtc.connection_manager.PeerConnectionManager"),
         patch("getstream.video.rtc.connection_manager.NetworkMonitor"),
@@ -26,6 +24,17 @@ def connection_manager(request):
             new_callable=AsyncMock,
         ),
     ):
+        yield
+
+
+@pytest.fixture
+def connection_manager(request):
+    """Create a ConnectionManager with mocked heavy dependencies.
+
+    Accepts max_join_retries via indirect parametrize, defaults to 3.
+    """
+    max_join_retries = getattr(request, "param", 3)
+    with patched_dependencies():
         mock_call = MagicMock()
         mock_call.call_type = "default"
         mock_call.id = "test_call"
@@ -153,3 +162,11 @@ class TestConnectRetry:
         assert call_count == 2
         first_ws_client.close.assert_called_once()
         assert cm._ws_client is None
+
+    def test_rejects_negative_max_join_retries(self):
+        """max_join_retries must be >= 0."""
+        with (
+            patched_dependencies(),
+            pytest.raises(ValueError, match="max_join_retries must be >= 0"),
+        ):
+            ConnectionManager(call=MagicMock(), user_id="user1", max_join_retries=-1)

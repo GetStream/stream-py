@@ -71,6 +71,8 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         self.session_id: str = str(uuid.uuid4())
         self.join_response: Optional[JoinCallResponse] = None
         self.local_sfu: bool = False  # Local SFU flag for development
+        if max_join_retries < 0:
+            raise ValueError("max_join_retries must be >= 0")
         self._max_join_retries: int = max_join_retries
 
         # Private attributes
