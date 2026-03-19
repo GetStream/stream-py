@@ -203,6 +203,26 @@ The general renaming rules:
 | `MembershipLevel` | `MembershipLevelResponse` | |
 | `ThreadedComment` | `ThreadedCommentResponse` | |
 
+## JSON Serialization of Optional Fields
+
+Optional fields in request objects are now omitted from the JSON body when not set, instead of being sent as explicit `null`. Previously, every unset field was serialized as `null`, which caused the backend to zero out existing values on partial updates.
+
+**Before:**
+```python
+client.update_app(enforce_unique_usernames="no")
+# Wire: {"enforce_unique_usernames":"no","webhook_url":null,"multi_tenant_enabled":null,...}
+# Backend: sets enforce_unique_usernames="no", but ALSO resets webhook_url="", multi_tenant_enabled=false, etc.
+```
+
+**After:**
+```python
+client.update_app(enforce_unique_usernames="no")
+# Wire: {"enforce_unique_usernames":"no"}
+# Backend: sets enforce_unique_usernames="no", all other fields preserved
+```
+
+List and dict fields are still serialized when set (including as empty `[]`/`{}`), so you can continue to send an empty list to clear a list field. Unset collection fields (`None`) are now also omitted.
+
 ## Getting Help
 
 - [Stream documentation](https://getstream.io/docs/)

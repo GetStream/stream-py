@@ -25,6 +25,16 @@ from getstream.common.telemetry import (
 import ijson
 
 
+def _strip_none(obj):
+    """Recursively remove None values from dicts so unset optional fields
+    are omitted from the JSON body instead of being sent as null."""
+    if isinstance(obj, dict):
+        return {k: _strip_none(v) for k, v in obj.items() if v is not None}
+    if isinstance(obj, list):
+        return [_strip_none(item) for item in obj]
+    return obj
+
+
 def build_path(path: str, path_params: Optional[Dict[str, Any]]) -> str:
     if path_params is None:
         return path
@@ -169,6 +179,8 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
         data_type: Optional[Type[T]] = None,
     ):
         kwargs = kwargs or {}
+        if "json" in kwargs and kwargs["json"] is not None:
+            kwargs["json"] = _strip_none(kwargs["json"])
         url_path, url_full, endpoint, attrs = self._prepare_request(
             method, path, query_params, kwargs
         )
@@ -348,6 +360,8 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
         data_type: Optional[Type[T]] = None,
     ):
         kwargs = kwargs or {}
+        if "json" in kwargs and kwargs["json"] is not None:
+            kwargs["json"] = _strip_none(kwargs["json"])
         query_params = query_params or {}
         url_path, url_full, endpoint, attrs = self._prepare_request(
             method, path, query_params, kwargs
