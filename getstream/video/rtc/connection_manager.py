@@ -462,7 +462,6 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
     async def _connect_with_sfu_reassignment(self) -> None:
         """Try connecting to SFU, reassigning to a different one on failure."""
         failed_sfus: list[str] = []
-        last_error: Optional[SfuJoinError] = None
 
         # First attempt without delay
         attempt = 0
@@ -470,8 +469,9 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             await self._connect_internal()
             return
         except SfuJoinError as e:
-            last_error = e
             self._handle_join_failure(e, attempt, failed_sfus)
+            if self._max_join_retries == 0:
+                raise
 
         # Retries with exponential backoff, requesting a different SFU
         async for delay in exp_backoff(max_retries=self._max_join_retries, base=0.5):
@@ -484,10 +484,9 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                 )
                 return
             except SfuJoinError as e:
-                last_error = e
                 self._handle_join_failure(e, attempt, failed_sfus)
-
-        raise last_error  # type: ignore[misc]
+                if attempt >= self._max_join_retries:
+                    raise
 
     def _handle_join_failure(
         self, error: SfuJoinError, attempt: int, failed_sfus: list[str]
