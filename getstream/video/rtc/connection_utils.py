@@ -58,20 +58,6 @@ __all__ = [
     "connect_websocket",
 ]
 
-# Private constants - internal use only
-_RETRYABLE_ERROR_PATTERNS = [
-    "server is full",
-    "server overloaded",
-    "capacity exceeded",
-    "try again later",
-    "service unavailable",
-    "connection timeout",
-    "network error",
-    "temporary failure",
-    "connection refused",
-    "connection reset",
-]
-
 
 # Public classes and exceptions
 class ConnectionState(Enum):
@@ -92,6 +78,22 @@ class SfuConnectionError(Exception):
     """Exception raised when SFU connection fails."""
 
     pass
+
+
+class SfuJoinError(SfuConnectionError):
+    """Raised when SFU join fails with a retryable error code."""
+
+    def __init__(self, message: str, error_code: int = 0, should_retry: bool = False):
+        super().__init__(message)
+        self.error_code = error_code
+        self.should_retry = should_retry
+
+
+_RETRYABLE_SFU_ERROR_CODES = {
+    700,  # ERROR_CODE_SFU_FULL
+    600,  # ERROR_CODE_SFU_SHUTTING_DOWN
+    301,  # ERROR_CODE_CALL_PARTICIPANT_LIMIT_REACHED
+}
 
 
 @dataclass
@@ -175,6 +177,8 @@ async def join_call_coordinator_request(
     notify: Optional[bool] = None,
     video: Optional[bool] = None,
     location: Optional[str] = None,
+    migrating_from: Optional[str] = None,
+    migrating_from_list: Optional[list] = None,
 ) -> StreamResponse[JoinCallResponse]:
     """Make a request to join a call via the coordinator.
 
@@ -208,6 +212,10 @@ async def join_call_coordinator_request(
         video=video,
         data=data,
     )
+    if migrating_from:
+        json_body["migrating_from"] = migrating_from
+    if migrating_from_list:
+        json_body["migrating_from_list"] = migrating_from_list
 
     # Make the POST request to join the call
     return await client.post(
@@ -423,6 +431,8 @@ async def connect_websocket(
     """
     logger.info(f"Connecting to WebSocket at {ws_url}")
 
+    ws_client = None
+    success = False
     try:
         # Create JoinRequest for WebSocket connection
         join_request = await create_join_request(token, session_id)
@@ -448,34 +458,24 @@ async def connect_websocket(
         sfu_event = await ws_client.connect()
 
         logger.debug("WebSocket connection established")
+        success = True
         return ws_client, sfu_event
 
+    except SignalingError as e:
+        if (
+            e.error
+            and hasattr(e.error, "code")
+            and e.error.code in _RETRYABLE_SFU_ERROR_CODES
+        ):
+            raise SfuJoinError(
+                str(e),
+                error_code=e.error.code,
+                should_retry=True,
+            ) from e
+        raise
     except Exception as e:
         logger.error(f"Failed to connect WebSocket to {ws_url}: {e}")
         raise SignalingError(f"WebSocket connection failed: {e}")
-
-
-# Private functions
-def _is_retryable(retry_state: Any) -> bool:
-    """Check if an error should be retried.
-
-    Args:
-        retry_state: The retry state object from tenacity
-
-    Returns:
-        True if the error should be retried, False otherwise
-    """
-    # Extract the actual exception from the retry state
-    if hasattr(retry_state, "outcome") and retry_state.outcome.failed:
-        error = retry_state.outcome.exception()
-    else:
-        return False
-
-    # Import here to avoid circular imports
-    from getstream.video.rtc.signaling import SignalingError
-
-    if not isinstance(error, (SignalingError, SfuConnectionError)):
-        return False
-
-    error_message = str(error).lower()
-    return any(pattern in error_message for pattern in _RETRYABLE_ERROR_PATTERNS)
+    finally:
+        if ws_client and not success:
+            ws_client.close()
