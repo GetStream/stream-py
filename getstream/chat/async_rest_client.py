@@ -726,6 +726,7 @@ class ChatRestClient(AsyncBaseClient):
         blocklists: Optional[List[BlockListOptions]] = None,
         commands: Optional[List[str]] = None,
         permissions: Optional[List[PolicyRequest]] = None,
+        chat_preferences: Optional[ChatPreferences] = None,
         grants: Optional[Dict[str, List[str]]] = None,
     ) -> StreamResponse[CreateChannelTypeResponse]:
         json = CreateChannelTypeRequest(
@@ -760,6 +761,7 @@ class ChatRestClient(AsyncBaseClient):
             blocklists=blocklists,
             commands=commands,
             permissions=permissions,
+            chat_preferences=chat_preferences,
             grants=grants,
         ).to_dict()
         return await self.post(
@@ -825,6 +827,7 @@ class ChatRestClient(AsyncBaseClient):
         commands: Optional[List[str]] = None,
         permissions: Optional[List[PolicyRequest]] = None,
         automod_thresholds: Optional[Thresholds] = None,
+        chat_preferences: Optional[ChatPreferences] = None,
         grants: Optional[Dict[str, List[str]]] = None,
     ) -> StreamResponse[UpdateChannelTypeResponse]:
         path_params = {
@@ -864,6 +867,7 @@ class ChatRestClient(AsyncBaseClient):
             commands=commands,
             permissions=permissions,
             automod_thresholds=automod_thresholds,
+            chat_preferences=chat_preferences,
             grants=grants,
         ).to_dict()
         return await self.put(
@@ -1484,6 +1488,45 @@ class ChatRestClient(AsyncBaseClient):
         ).to_dict()
         return await self.post(
             "/api/v2/chat/reminders/query", QueryRemindersResponse, json=json
+        )
+
+    @telemetry.operation_name("getstream.api.chat.get_retention_policy")
+    async def get_retention_policy(self) -> StreamResponse[GetRetentionPolicyResponse]:
+        return await self.get(
+            "/api/v2/chat/retention_policy", GetRetentionPolicyResponse
+        )
+
+    @telemetry.operation_name("getstream.api.chat.set_retention_policy")
+    async def set_retention_policy(
+        self, max_age_hours: Optional[int] = None, policy: Optional[str] = None
+    ) -> StreamResponse[SetRetentionPolicyResponse]:
+        json = SetRetentionPolicyRequest(
+            max_age_hours=max_age_hours, policy=policy
+        ).to_dict()
+        return await self.post(
+            "/api/v2/chat/retention_policy", SetRetentionPolicyResponse, json=json
+        )
+
+    @telemetry.operation_name("getstream.api.chat.delete_retention_policy")
+    async def delete_retention_policy(
+        self, policy: Optional[str] = None
+    ) -> StreamResponse[DeleteRetentionPolicyResponse]:
+        json = DeleteRetentionPolicyRequest(policy=policy).to_dict()
+        return await self.post(
+            "/api/v2/chat/retention_policy/delete",
+            DeleteRetentionPolicyResponse,
+            json=json,
+        )
+
+    @telemetry.operation_name("getstream.api.chat.get_retention_policy_runs")
+    async def get_retention_policy_runs(
+        self, limit: Optional[int] = None, offset: Optional[int] = None
+    ) -> StreamResponse[GetRetentionPolicyRunsResponse]:
+        query_params = build_query_param(**{"limit": limit, "offset": offset})
+        return await self.get(
+            "/api/v2/chat/retention_policy/runs",
+            GetRetentionPolicyRunsResponse,
+            query_params=query_params,
         )
 
     @telemetry.operation_name("getstream.api.chat.search")

@@ -686,6 +686,30 @@ class FeedsRestClient(BaseClient):
             "/api/v2/feeds/collections", UpsertCollectionsResponse, json=json
         )
 
+    @telemetry.operation_name("getstream.api.feeds.query_collections")
+    def query_collections(
+        self,
+        limit: Optional[int] = None,
+        next: Optional[str] = None,
+        prev: Optional[str] = None,
+        user_id: Optional[str] = None,
+        sort: Optional[List[SortParamRequest]] = None,
+        filter: Optional[Dict[str, object]] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[QueryCollectionsResponse]:
+        json = QueryCollectionsRequest(
+            limit=limit,
+            next=next,
+            prev=prev,
+            user_id=user_id,
+            sort=sort,
+            filter=filter,
+            user=user,
+        ).to_dict()
+        return self.post(
+            "/api/v2/feeds/collections/query", QueryCollectionsResponse, json=json
+        )
+
     @telemetry.operation_name("getstream.api.feeds.get_comments")
     def get_comments(
         self,
