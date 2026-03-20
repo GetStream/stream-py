@@ -24,10 +24,8 @@ jobs:
         uses: actions/checkout@v5
       - name: Install dependencies
         uses: ./.github/actions/python-uv-setup
-      - name: Run Ruff linter
-        run: uv run ruff check .
-      - name: Run Ruff formatter
-        run: uv run ruff format --check .
+      - name: Run linter
+        run: make lint
 
   typecheck:
     name: Type Check (ty)
@@ -37,33 +35,12 @@ jobs:
         uses: actions/checkout@v5
       - name: Install dependencies
         uses: ./.github/actions/python-uv-setup
-      - name: Run ty type checker
-        run: |
-          uvx ty check getstream/ \
-            --exclude "getstream/models/" \
-            --exclude "getstream/video/rtc/pb/" \
-            --exclude "**/rest_client.py" \
-            --exclude "**/async_rest_client.py" \
-            --exclude "getstream/chat/channel.py" \
-            --exclude "getstream/chat/async_channel.py" \
-            --exclude "getstream/chat/client.py" \
-            --exclude "getstream/chat/async_client.py" \
-            --exclude "getstream/common/client.py" \
-            --exclude "getstream/common/async_client.py" \
-            --exclude "getstream/moderation/client.py" \
-            --exclude "getstream/moderation/async_client.py" \
-            --exclude "getstream/video/client.py" \
-            --exclude "getstream/video/async_client.py" \
-            --exclude "getstream/video/call.py" \
-            --exclude "getstream/video/async_call.py" \
-            --exclude "getstream/feeds/client.py" \
-            --exclude "getstream/feeds/feeds.py" \
-            --exclude "getstream/stream.py"
+      - name: Run type checker
+        run: make typecheck
 
   # ── Non-video tests (chat, feeds, etc.) ────────────────────────────
   # Uses STREAM_CHAT_* credentials which do NOT have video enabled.
-  # If you add a new video-related test file, add it to the ignore
-  # list below AND to the test-video job.
+  # Video paths and manual test paths are defined in the Makefile.
   test-non-video:
     name: Non-video tests (${{ matrix.python-version }})
     environment:
@@ -86,19 +63,7 @@ jobs:
           STREAM_API_KEY: ${{ vars.STREAM_CHAT_API_KEY }}
           STREAM_API_SECRET: ${{ secrets.STREAM_CHAT_API_SECRET }}
           STREAM_BASE_URL: ${{ vars.STREAM_CHAT_BASE_URL }}
-        run: |
-          uv run pytest -m "${{ inputs.marker }}" tests/ getstream/ \
-            --ignore=getstream/video \
-            --ignore=tests/rtc \
-            --ignore=tests/test_audio_stream_track.py \
-            --ignore=tests/test_connection_manager.py \
-            --ignore=tests/test_connection_utils.py \
-            --ignore=tests/test_signaling.py \
-            --ignore=tests/test_tracing_jaeger_manual.py \
-            --ignore=tests/test_video_examples.py \
-            --ignore=tests/test_video_integration.py \
-            --ignore=tests/test_video_openai.py \
-            --ignore=tests/test_webrtc_generation.py
+        run: make test MARKER="${{ inputs.marker }}"
 
   # ── Video tests (video-enabled credentials) ─────────────────────
   # Uses STREAM_* credentials which have video enabled.
@@ -124,16 +89,4 @@ jobs:
           STREAM_API_KEY: ${{ vars.STREAM_API_KEY }}
           STREAM_API_SECRET: ${{ secrets.STREAM_API_SECRET }}
           STREAM_BASE_URL: ${{ vars.STREAM_BASE_URL }}
-        run: |
-          uv run pytest -m "${{ inputs.marker }}" \
-            getstream/video \
-            tests/rtc \
-            tests/test_audio_stream_track.py \
-            tests/test_connection_manager.py \
-            tests/test_connection_utils.py \
-            tests/test_signaling.py \
-            tests/test_video_examples.py \
-            tests/test_video_integration.py \
-            tests/test_video_openai.py \
-            tests/test_webrtc_generation.py
-
+        run: make test-video MARKER="${{ inputs.marker }}"
