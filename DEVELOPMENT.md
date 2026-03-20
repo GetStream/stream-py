@@ -1,58 +1,70 @@
 # Getstream Python SDK
 
-### Running tests
+### Setup
 
-Clone the repo and sync
+Clone the repo and install dependencies:
 
 ```
 git clone git@github.com:GetStream/stream-py.git
 uv sync --no-sources --all-packages --all-extras --dev
+cp .env.example .env   # fill in your Stream credentials
+pre-commit install      # optional: enable commit hooks
 ```
 
-Env setup
+### Running tests
+
+Run `make help` to see all available targets. The most common ones:
 
 ```
-cp .env.example .env
+make test          # non-video tests (chat, feeds, moderation, etc.)
+make test-video    # video/WebRTC tests only
+make test-all      # both of the above
 ```
 
-Run tests
+Non-video and video tests are split because they require different Stream credentials.
+The `MARKER` variable defaults to `"not integration"`. Override it for integration tests:
 
 ```
-uv run pytest -m "not integration" tests/ getstream/
+make test-integration              # runs both groups with -m "integration"
+make test MARKER="integration"     # or target a single group
 ```
 
-### Commit hook
+Two manual tests exist for local telemetry inspection (excluded from CI):
 
 ```
-pre-commit install
+make test-jaeger       # requires local Jaeger (docker run ... jaegertracing/all-in-one)
+make test-prometheus   # requires getstream[telemetry] deps
 ```
 
-### Check
-
-Shortcut to ruff, ty (type checker) and non integration tests:
+### Linting and type checking
 
 ```
-uv run python dev.py
+make lint        # ruff check + format check
+make typecheck   # ty type checker (excludes generated code)
 ```
 
-### Formatting
+To auto-fix lint issues and format:
 
 ```
-uv run ruff check --fix
+make format
 ```
 
-### Type checking (ty)
-
-Type checking is run via the `ty` type checker, excluding generated code:
+Run lint, typecheck, and non-video tests in one go:
 
 ```
-uv run python dev.py ty
+make check
 ```
 
-Or manually (note: requires exclude flags for generated code - see dev.py for the full list):
+### Code generation
+
 ```
-uvx ty check getstream/ --exclude "getstream/models/" --exclude "getstream/video/rtc/pb/" ...
+make regen    # regenerate OpenAPI + WebRTC protobuf code
 ```
+
+### Legacy: dev.py
+
+`dev.py` is an older CLI tool that predates the Makefile. It still works but does not
+handle the video/non-video test split or manual test exclusions. Prefer `make` targets.
 
 ## Release
 
