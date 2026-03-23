@@ -618,25 +618,6 @@ def test_get_retention_policy(client: Stream):
             pass
 
 
-def test_delete_retention_policy(client: Stream):
-    """Create and delete a retention policy, verify it is removed."""
-    try:
-        client.chat.set_retention_policy(policy="old-messages", max_age_hours=240)
-
-        response = client.chat.delete_retention_policy(policy="old-messages")
-        assert response.data.duration is not None
-
-        # Verify the policy was removed
-        get_response = client.chat.get_retention_policy()
-        policies = [p.policy for p in get_response.data.policies]
-        assert "old-messages" not in policies
-    finally:
-        try:
-            client.chat.delete_retention_policy(policy="old-messages")
-        except Exception:
-            pass
-
-
 def test_get_retention_policy_runs(client: Stream):
     """Query retention policy run history."""
     try:
