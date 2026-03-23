@@ -602,22 +602,6 @@ def test_event_hooks_sqs_sns(client: Stream):
         client.update_app(event_hooks=original_hooks or [])
 
 
-def test_set_retention_policy(client: Stream):
-    """Set a retention policy and verify it is returned."""
-    try:
-        response = client.chat.set_retention_policy(
-            policy="old-messages", max_age_hours=720
-        )
-        assert response.data.policy is not None
-        assert response.data.policy.policy == "old-messages"
-        assert response.data.policy.config.max_age_hours == 720
-    finally:
-        try:
-            client.chat.delete_retention_policy(policy="old-messages")
-        except Exception:
-            pass
-
-
 def test_get_retention_policy(client: Stream):
     """Create a retention policy, then list all policies."""
     try:
