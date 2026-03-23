@@ -23537,3 +23537,121 @@ class XiaomiConfigFields(DataClassJsonMixin):
     secret: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="secret")
     )
+
+
+@dataclass
+class RetentionPolicyConfig(DataClassJsonMixin):
+    max_age_hours: int = dc_field(metadata=dc_config(field_name="max_age_hours"))
+
+
+@dataclass
+class RetentionPolicy(DataClassJsonMixin):
+    app_pk: int = dc_field(metadata=dc_config(field_name="app_pk"))
+    policy: str = dc_field(metadata=dc_config(field_name="policy"))
+    config: RetentionPolicyConfig = dc_field(
+        metadata=dc_config(field_name="config")
+    )
+    enabled_at: Optional[datetime] = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="enabled_at",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+        ),
+    )
+
+
+@dataclass
+class RetentionCleanupRunStats(DataClassJsonMixin):
+    channels_deleted: Optional[int] = dc_field(
+        default=None, metadata=dc_config(field_name="channels_deleted")
+    )
+    messages_deleted: Optional[int] = dc_field(
+        default=None, metadata=dc_config(field_name="messages_deleted")
+    )
+
+
+@dataclass
+class RetentionCleanupRun(DataClassJsonMixin):
+    app_pk: int = dc_field(metadata=dc_config(field_name="app_pk"))
+    policy: str = dc_field(metadata=dc_config(field_name="policy"))
+    status: str = dc_field(metadata=dc_config(field_name="status"))
+    stats: RetentionCleanupRunStats = dc_field(
+        metadata=dc_config(field_name="stats")
+    )
+    date: Optional[datetime] = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="date",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+        ),
+    )
+    started_at: Optional[datetime] = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="started_at",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+        ),
+    )
+    finished_at: Optional[datetime] = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="finished_at",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+        ),
+    )
+    cursor_ts: Optional[datetime] = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="cursor_ts",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+        ),
+    )
+    cursor_id: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="cursor_id")
+    )
+    error: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="error")
+    )
+
+
+@dataclass
+class SetRetentionPolicyRequest(DataClassJsonMixin):
+    policy: str = dc_field(metadata=dc_config(field_name="policy"))
+    max_age_hours: int = dc_field(metadata=dc_config(field_name="max_age_hours"))
+
+
+@dataclass
+class SetRetentionPolicyResponse(DataClassJsonMixin):
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    policy: RetentionPolicy = dc_field(metadata=dc_config(field_name="policy"))
+
+
+@dataclass
+class DeleteRetentionPolicyRequest(DataClassJsonMixin):
+    policy: str = dc_field(metadata=dc_config(field_name="policy"))
+
+
+@dataclass
+class DeleteRetentionPolicyResponse(DataClassJsonMixin):
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
+
+
+@dataclass
+class GetRetentionPolicyResponse(DataClassJsonMixin):
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    policies: "List[RetentionPolicy]" = dc_field(
+        metadata=dc_config(field_name="policies")
+    )
+
+
+@dataclass
+class GetRetentionPolicyRunsResponse(DataClassJsonMixin):
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    runs: "List[RetentionCleanupRun]" = dc_field(
+        metadata=dc_config(field_name="runs")
+    )

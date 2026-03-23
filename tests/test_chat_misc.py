@@ -600,3 +600,69 @@ def test_event_hooks_sqs_sns(client: Stream):
     finally:
         # Restore original hooks
         client.update_app(event_hooks=original_hooks or [])
+
+
+def test_set_retention_policy(client: Stream):
+    """Set a retention policy and verify it is returned."""
+    try:
+        response = client.chat.set_retention_policy(
+            policy="old-messages", max_age_hours=720
+        )
+        assert response.data.policy is not None
+        assert response.data.policy.policy == "old-messages"
+        assert response.data.policy.config.max_age_hours == 720
+    finally:
+        try:
+            client.chat.delete_retention_policy(policy="old-messages")
+        except Exception:
+            pass
+
+
+def test_get_retention_policy(client: Stream):
+    """Create a retention policy, then list all policies."""
+    try:
+        client.chat.set_retention_policy(policy="old-messages", max_age_hours=480)
+
+        response = client.chat.get_retention_policy()
+        assert response.data.policies is not None
+        policies = [p.policy for p in response.data.policies]
+        assert "old-messages" in policies
+    finally:
+        try:
+            client.chat.delete_retention_policy(policy="old-messages")
+        except Exception:
+            pass
+
+
+def test_delete_retention_policy(client: Stream):
+    """Create and delete a retention policy, verify it is removed."""
+    try:
+        client.chat.set_retention_policy(policy="old-messages", max_age_hours=240)
+
+        response = client.chat.delete_retention_policy(policy="old-messages")
+        assert response.data.duration is not None
+
+        # Verify the policy was removed
+        get_response = client.chat.get_retention_policy()
+        policies = [p.policy for p in get_response.data.policies]
+        assert "old-messages" not in policies
+    finally:
+        try:
+            client.chat.delete_retention_policy(policy="old-messages")
+        except Exception:
+            pass
+
+
+def test_get_retention_policy_runs(client: Stream):
+    """Query retention policy run history."""
+    try:
+        # Ensure at least one policy exists so the endpoint works
+        client.chat.set_retention_policy(policy="old-messages", max_age_hours=720)
+
+        response = client.chat.get_retention_policy_runs(limit=10, offset=0)
+        assert response.data.runs is not None
+    finally:
+        try:
+            client.chat.delete_retention_policy(policy="old-messages")
+        except Exception:
+            pass
