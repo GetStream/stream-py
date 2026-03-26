@@ -360,6 +360,12 @@ class TestAudioStreamTrack:
         assert track._buffer is buffer_ref, (
             "overflow trim should modify buffer in-place, not create a new one"
         )
+        max_buffer_seconds = 100 / 1000
+        bytes_per_sample = 2
+        expected_max_bytes = int(max_buffer_seconds * 48000) * bytes_per_sample
+        assert len(track._buffer) == expected_max_bytes, (
+            "buffer should be trimmed to configured max size"
+        )
 
     @pytest.mark.asyncio
     async def test_media_stream_error(self):
