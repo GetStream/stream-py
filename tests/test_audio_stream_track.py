@@ -323,8 +323,12 @@ class TestAudioStreamTrack:
         # Receive a frame (consumes 20ms from buffer)
         await track.recv()
 
-        assert id(track._buffer) == buffer_id, "recv should modify buffer in-place, not create a new one"
-        assert len(track._buffer) == 960 * 2, "should have 20ms of data remaining (960 samples * 2 bytes)"
+        assert id(track._buffer) == buffer_id, (
+            "recv should modify buffer in-place, not create a new one"
+        )
+        assert len(track._buffer) == 960 * 2, (
+            "should have 20ms of data remaining (960 samples * 2 bytes)"
+        )
 
     @pytest.mark.asyncio
     async def test_buffer_overflow_does_not_reallocate(self):
@@ -354,7 +358,9 @@ class TestAudioStreamTrack:
         )
         await track.write(pcm_large)
 
-        assert id(track._buffer) == buffer_id, "overflow trim should modify buffer in-place, not create a new one"
+        assert id(track._buffer) == buffer_id, (
+            "overflow trim should modify buffer in-place, not create a new one"
+        )
 
     @pytest.mark.asyncio
     async def test_media_stream_error(self):
