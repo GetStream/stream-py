@@ -317,13 +317,12 @@ class TestAudioStreamTrack:
         )
         await track.write(pcm)
 
-        # Store reference to the buffer object
-        buffer_id = id(track._buffer)
+        buffer_ref = track._buffer  # save reference before recv
 
         # Receive a frame (consumes 20ms from buffer)
         await track.recv()
 
-        assert id(track._buffer) == buffer_id, (
+        assert track._buffer is buffer_ref, (
             "recv should modify buffer in-place, not create a new one"
         )
         assert len(track._buffer) == 960 * 2, (
@@ -346,7 +345,7 @@ class TestAudioStreamTrack:
             channels=1,
         )
         await track.write(pcm)
-        buffer_id = id(track._buffer)
+        buffer_ref = track._buffer  # save reference before overflow
 
         # Write 200ms of data (exceeds 100ms limit, triggers overflow trim)
         samples_200ms = np.zeros(9600, dtype=np.int16)
@@ -358,7 +357,7 @@ class TestAudioStreamTrack:
         )
         await track.write(pcm_large)
 
-        assert id(track._buffer) == buffer_id, (
+        assert track._buffer is buffer_ref, (
             "overflow trim should modify buffer in-place, not create a new one"
         )
 
