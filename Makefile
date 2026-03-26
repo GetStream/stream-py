@@ -92,7 +92,7 @@ format:
 
 ## Run ty type checker
 typecheck:
-	uvx ty check getstream/ $(TY_EXCLUDES)
+	uvx ty@0.0.24 check getstream/ $(TY_EXCLUDES)
 
 ## Run full check: lint + typecheck + non-video tests
 check: lint typecheck test
