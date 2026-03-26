@@ -130,7 +130,7 @@ class AudioStreamTrack(aiortc.mediastreams.MediaStreamTrack):
                 )
 
                 # Drop from the beginning of the buffer to keep latest data
-                self._buffer = self._buffer[bytes_to_drop:]
+                del self._buffer[:bytes_to_drop]
 
             buffer_duration_ms = (
                 len(self._buffer)
@@ -192,7 +192,7 @@ class AudioStreamTrack(aiortc.mediastreams.MediaStreamTrack):
             if len(self._buffer) >= self._bytes_per_frame:
                 # We have enough data
                 audio_bytes = bytes(self._buffer[: self._bytes_per_frame])
-                self._buffer = self._buffer[self._bytes_per_frame :]
+                del self._buffer[: self._bytes_per_frame]
             elif len(self._buffer) > 0:
                 # We have some data but not enough - pad with silence
                 audio_bytes = bytes(self._buffer)
