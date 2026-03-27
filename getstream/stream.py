@@ -207,6 +207,14 @@ class AsyncStream(BaseStream, AsyncCommonClient):
             user_agent=self.user_agent,
         )
 
+    async def aclose(self):
+        """Close all child clients and the main HTTPX client."""
+        for attr in ("video", "chat", "moderation"):
+            child = self.__dict__.get(attr)
+            if child is not None and hasattr(child, "client"):
+                await child.client.aclose()
+        await super().aclose()
+
     @cached_property
     def feeds(self):
         raise NotImplementedError("Feeds not supported for async client")
