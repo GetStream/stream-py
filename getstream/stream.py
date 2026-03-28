@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import AsyncExitStack
 from functools import cached_property
 import time
 from typing import List, Optional
@@ -206,6 +207,20 @@ class AsyncStream(BaseStream, AsyncCommonClient):
             stream=self,
             user_agent=self.user_agent,
         )
+
+    async def aclose(self):
+        """Close all child clients and the main HTTPX client."""
+        # AsyncExitStack ensures all clients are closed even if one fails.
+        # video/chat/moderation are @cached_property - only close if accessed.
+        async with AsyncExitStack() as stack:
+            cached = self.__dict__
+            if "video" in cached:
+                stack.push_async_callback(self.video.aclose)
+            if "chat" in cached:
+                stack.push_async_callback(self.chat.aclose)
+            if "moderation" in cached:
+                stack.push_async_callback(self.moderation.aclose)
+            stack.push_async_callback(super().aclose)
 
     @cached_property
     def feeds(self):
