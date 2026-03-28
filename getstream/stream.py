@@ -209,11 +209,13 @@ class AsyncStream(BaseStream, AsyncCommonClient):
 
     async def aclose(self):
         """Close all child clients and the main HTTPX client."""
-        for attr in ("video", "chat", "moderation"):
-            child = self.__dict__.get(attr)
-            if child is not None and hasattr(child, "client"):
-                await child.client.aclose()
-        await super().aclose()
+        try:
+            for attr in ("video", "chat", "moderation"):
+                child = self.__dict__.get(attr)
+                if child is not None and hasattr(child, "aclose"):
+                    await child.aclose()
+        finally:
+            await super().aclose()
 
     @cached_property
     def feeds(self):

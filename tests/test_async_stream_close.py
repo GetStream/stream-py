@@ -28,6 +28,14 @@ class TestAsyncStreamClose:
         await client.aclose()
         assert client.chat.client.is_closed is True
 
+    async def test_aclose_closes_moderation_client(self):
+        client = AsyncStream(api_key="fake", api_secret="fake")
+        _ = client.moderation
+
+        assert client.moderation.client.is_closed is False
+        await client.aclose()
+        assert client.moderation.client.is_closed is True
+
     async def test_aclose_without_child_clients(self):
         """aclose() should work even if video/chat were never accessed."""
         client = AsyncStream(api_key="fake", api_secret="fake")
