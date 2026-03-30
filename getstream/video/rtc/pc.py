@@ -190,7 +190,9 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
                 blackhole = MediaBlackhole()
                 blackhole.addTrack(drain_proxy)
                 self._video_blackholes[track.id] = blackhole
-                self._video_drain_tasks[track.id] = asyncio.create_task(blackhole.start())
+                self._video_drain_tasks[track.id] = asyncio.create_task(
+                    blackhole.start()
+                )
 
             self.emit("track_added", proxy, user)
 
