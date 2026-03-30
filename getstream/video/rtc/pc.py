@@ -3,7 +3,7 @@ import logging
 from typing import Any, Optional
 
 import aiortc
-from aiortc.contrib.media import MediaRelay
+from aiortc.contrib.media import MediaBlackhole, MediaRelay
 from aiortc.mediastreams import MediaStreamTrack
 from aiortc.rtcrtpparameters import RTCRtpCodecCapability
 from aiortc.rtcrtpsender import RTCRtpSender
@@ -142,6 +142,7 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
 
         self.track_map = {}  # track_id -> (MediaRelay, original_track)
         self.video_frame_trackers = {}  # track_id -> VideoFrameTracker
+        self._video_blackhole: Optional[MediaBlackhole] = None
 
         @self.on("track")
         async def on_track(track: aiortc.mediastreams.MediaStreamTrack):
@@ -180,7 +181,17 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
                 asyncio.create_task(handler.start())
 
             buffered = self._video_buffered if track.kind == "video" else True
-            self.emit("track_added", relay.subscribe(tracked_track, buffered=buffered), user)
+            proxy = relay.subscribe(tracked_track, buffered=buffered)
+
+            # Drain unconsumed video frames to prevent unbounded queue growth
+            # in RTCRtpReceiver (aiortc issue #554)
+            if track.kind == "video" and not self._video_buffered:
+                blackhole = MediaBlackhole()
+                blackhole.addTrack(proxy)
+                asyncio.create_task(blackhole.start())
+                self._video_blackhole = blackhole
+
+            self.emit("track_added", proxy, user)
 
         @self.on("icegatheringstatechange")
         def on_icegatheringstatechange():
