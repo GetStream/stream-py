@@ -58,6 +58,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         create: bool = True,
         subscription_config: Optional[SubscriptionConfig] = None,
         max_join_retries: int = 3,
+        video_buffered: bool = True,
         **kwargs: Any,
     ):
         super().__init__()
@@ -90,7 +91,9 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         self._subscription_manager: SubscriptionManager = SubscriptionManager(
             self, subscription_config
         )
-        self._peer_manager: PeerConnectionManager = PeerConnectionManager(self)
+        self._peer_manager: PeerConnectionManager = PeerConnectionManager(
+            self, video_buffered=video_buffered
+        )
 
         self.recording_manager = self._recording_manager
         self.participants_state = self._participants_state

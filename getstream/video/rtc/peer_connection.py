@@ -28,8 +28,9 @@ logger = logging.getLogger(__name__)
 class PeerConnectionManager:
     """Manages WebRTC peer connections for publishing and subscribing."""
 
-    def __init__(self, connection_manager):
+    def __init__(self, connection_manager, video_buffered: bool = True):
         self.connection_manager = connection_manager
+        self._video_buffered = video_buffered
         self.publisher_pc: Optional[PublisherPeerConnection] = None
         self.subscriber_pc: Optional[SubscriberPeerConnection] = None
         self.publisher_negotiation_lock = asyncio.Lock()
@@ -47,6 +48,7 @@ class PeerConnectionManager:
             self.subscriber_pc = SubscriberPeerConnection(
                 connection=self.connection_manager,
                 configuration=self._build_rtc_configuration(),
+                video_buffered=self._video_buffered,
             )
 
             # Trace create event

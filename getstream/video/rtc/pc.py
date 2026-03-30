@@ -131,12 +131,14 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
         self,
         connection,
         configuration: aiortc.RTCConfiguration,
+        video_buffered: bool = True,
     ) -> None:
         logger.info(
             f"creating subscriber peer connection with configuration: {configuration}"
         )
         super().__init__(configuration)
         self.connection = connection
+        self._video_buffered = video_buffered
 
         self.track_map = {}  # track_id -> (MediaRelay, original_track)
         self.video_frame_trackers = {}  # track_id -> VideoFrameTracker
@@ -177,7 +179,8 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
                 handler = AudioTrackHandler(relay.subscribe(tracked_track), _emit_pcm)
                 asyncio.create_task(handler.start())
 
-            self.emit("track_added", relay.subscribe(tracked_track), user)
+            buffered = self._video_buffered if track.kind == "video" else True
+            self.emit("track_added", relay.subscribe(tracked_track, buffered=buffered), user)
 
         @self.on("icegatheringstatechange")
         def on_icegatheringstatechange():
