@@ -180,8 +180,7 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
                 handler = AudioTrackHandler(relay.subscribe(tracked_track), _emit_pcm)
                 asyncio.create_task(handler.start())
 
-            buffered = self._video_buffered if track.kind == "video" else True
-            proxy = relay.subscribe(tracked_track, buffered=buffered)
+            proxy = relay.subscribe(tracked_track)
 
             # Drain unconsumed video frames to prevent unbounded queue growth
             # in RTCRtpReceiver (aiortc issue #554)
