@@ -131,14 +131,14 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
         self,
         connection,
         configuration: aiortc.RTCConfiguration,
-        video_buffered: bool = True,
+        drain_video_frames: bool = False,
     ) -> None:
         logger.info(
             f"creating subscriber peer connection with configuration: {configuration}"
         )
         super().__init__(configuration)
         self.connection = connection
-        self._video_buffered = video_buffered
+        self._drain_video_frames = drain_video_frames
 
         self.track_map = {}  # track_id -> (MediaRelay, original_track)
         self.video_frame_trackers = {}  # track_id -> VideoFrameTracker
@@ -184,7 +184,7 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
 
             # Drain unconsumed video frames to prevent unbounded queue growth
             # in RTCRtpReceiver (aiortc issue #554)
-            if track.kind == "video" and not self._video_buffered:
+            if track.kind == "video" and self._drain_video_frames:
                 blackhole = MediaBlackhole()
                 blackhole.addTrack(proxy)
                 asyncio.create_task(blackhole.start())
