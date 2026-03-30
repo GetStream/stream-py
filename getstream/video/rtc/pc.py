@@ -3,7 +3,7 @@ import logging
 from typing import Any, Optional
 
 import aiortc
-from aiortc.contrib.media import MediaRelay
+from aiortc.contrib.media import MediaBlackhole, MediaRelay
 from aiortc.mediastreams import MediaStreamTrack
 from aiortc.rtcrtpparameters import RTCRtpCodecCapability
 from aiortc.rtcrtpsender import RTCRtpSender
@@ -131,15 +131,19 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
         self,
         connection,
         configuration: aiortc.RTCConfiguration,
+        drain_video_frames: bool = False,
     ) -> None:
         logger.info(
             f"creating subscriber peer connection with configuration: {configuration}"
         )
         super().__init__(configuration)
         self.connection = connection
+        self._drain_video_frames = drain_video_frames
 
         self.track_map = {}  # track_id -> (MediaRelay, original_track)
         self.video_frame_trackers = {}  # track_id -> VideoFrameTracker
+        self._video_blackholes: dict[str, MediaBlackhole] = {}
+        self._video_drain_tasks: dict[str, asyncio.Task] = {}
 
         @self.on("track")
         async def on_track(track: aiortc.mediastreams.MediaStreamTrack):
@@ -177,7 +181,20 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
                 handler = AudioTrackHandler(relay.subscribe(tracked_track), _emit_pcm)
                 asyncio.create_task(handler.start())
 
-            self.emit("track_added", relay.subscribe(tracked_track), user)
+            proxy = relay.subscribe(tracked_track)
+
+            # Drain unconsumed video frames to prevent unbounded queue growth
+            # in RTCRtpReceiver (aiortc issue #554)
+            if track.kind == "video" and self._drain_video_frames:
+                drain_proxy = relay.subscribe(tracked_track)
+                blackhole = MediaBlackhole()
+                blackhole.addTrack(drain_proxy)
+                self._video_blackholes[track.id] = blackhole
+                self._video_drain_tasks[track.id] = asyncio.create_task(
+                    blackhole.start()
+                )
+
+            self.emit("track_added", proxy, user)
 
         @self.on("icegatheringstatechange")
         def on_icegatheringstatechange():
