@@ -2,6 +2,7 @@
 
 import hmac
 import hashlib
+import json
 
 import warnings
 
@@ -23,36 +24,20 @@ class TestVerifyWebhookSignature:
         ).hexdigest()
 
     def test_valid_signature(self):
-        assert (
-            verify_webhook_signature(self.body, self.valid_signature, self.secret)
-            is True
-        )
+        assert verify_webhook_signature(self.body, self.valid_signature, self.secret) is True
 
     def test_wrong_signature(self):
-        assert (
-            verify_webhook_signature(self.body, "invalidsignature", self.secret)
-            is False
-        )
+        assert verify_webhook_signature(self.body, "invalidsignature", self.secret) is False
 
     def test_tampered_body(self):
-        assert (
-            verify_webhook_signature(
-                b'{"type":"tampered"}', self.valid_signature, self.secret
-            )
-            is False
-        )
+        assert verify_webhook_signature(b'{"type":"tampered"}', self.valid_signature, self.secret) is False
 
     def test_wrong_secret(self):
-        assert (
-            verify_webhook_signature(self.body, self.valid_signature, "wrong-secret")
-            is False
-        )
+        assert verify_webhook_signature(self.body, self.valid_signature, "wrong-secret") is False
 
     def test_string_body(self):
         body_str = '{"type":"test.event"}'
-        sig = hmac.new(
-            self.secret.encode("utf-8"), body_str.encode("utf-8"), hashlib.sha256
-        ).hexdigest()
+        sig = hmac.new(self.secret.encode("utf-8"), body_str.encode("utf-8"), hashlib.sha256).hexdigest()
         assert verify_webhook_signature(body_str, sig, self.secret) is True
 
 
@@ -344,9 +329,7 @@ class TestParseWebhookEvent:
     def test_parse_call_session_participant_count_updated(self):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", RuntimeWarning)
-            event = parse_webhook_event(
-                {"type": "call.session_participant_count_updated"}
-            )
+            event = parse_webhook_event({"type": "call.session_participant_count_updated"})
         assert type(event).__name__ == "CallSessionParticipantCountsUpdatedEvent"
 
     def test_parse_call_session_participant_joined(self):
@@ -526,9 +509,7 @@ class TestParseWebhookEvent:
     def test_parse_export_bulk_image_moderation_success(self):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", RuntimeWarning)
-            event = parse_webhook_event(
-                {"type": "export.bulk_image_moderation.success"}
-            )
+            event = parse_webhook_event({"type": "export.bulk_image_moderation.success"})
         assert type(event).__name__ == "AsyncBulkImageModerationEvent"
 
     def test_parse_export_channels_error(self):
@@ -698,6 +679,12 @@ class TestParseWebhookEvent:
             warnings.simplefilter("ignore", RuntimeWarning)
             event = parse_webhook_event({"type": "feeds.comment.reaction.updated"})
         assert type(event).__name__ == "CommentReactionUpdatedEvent"
+
+    def test_parse_feeds_comment_restored(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            event = parse_webhook_event({"type": "feeds.comment.restored"})
+        assert type(event).__name__ == "CommentRestoredEvent"
 
     def test_parse_feeds_comment_updated(self):
         with warnings.catch_warnings():

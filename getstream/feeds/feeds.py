@@ -4,6 +4,7 @@ from getstream.stream_response import StreamResponse
 
 
 class Feed:
+
     def __init__(self, client, feed_group: str, feed_id: str, custom_data: Dict = None):
         self.id = feed_id
         self.feed_group = feed_group
@@ -11,221 +12,66 @@ class Feed:
         self.custom_data = custom_data or {}
 
     def _sync_from_response(self, data):
-        if hasattr(data, "feed") and isinstance(data.feed, FeedResponse):
+        if hasattr(data, 'feed') and isinstance(data.feed, FeedResponse):
             self.custom_data = data.feed.custom
 
-    def delete(
-        self, hard_delete: Optional[bool] = None
-    ) -> StreamResponse[DeleteFeedResponse]:
-        response = self.client.delete_feed(
-            feed_group_id=self.feed_group, feed_id=self.id, hard_delete=hard_delete
-        )
+
+    def delete(self, hard_delete: Optional[bool] = None) -> StreamResponse[DeleteFeedResponse]:
+        response = self.client.delete_feed(feed_group_id=self.feed_group, feed_id=self.id, hard_delete=hard_delete)
         self._sync_from_response(response.data)
         return response
 
-    def get_or_create(
-        self,
-        id_around: Optional[str] = None,
-        limit: Optional[int] = None,
-        next: Optional[str] = None,
-        prev: Optional[str] = None,
-        user_id: Optional[str] = None,
-        view: Optional[str] = None,
-        watch: Optional[bool] = None,
-        data: Optional[FeedInput] = None,
-        enrichment_options: Optional[EnrichmentOptions] = None,
-        external_ranking: Optional[Dict[str, object]] = None,
-        filter: Optional[Dict[str, object]] = None,
-        followers_pagination: Optional[PagerRequest] = None,
-        following_pagination: Optional[PagerRequest] = None,
-        friend_reactions_options: Optional[FriendReactionsOptions] = None,
-        interest_weights: Optional[Dict[str, float]] = None,
-        member_pagination: Optional[PagerRequest] = None,
-        user: Optional[UserRequest] = None,
-    ) -> StreamResponse[GetOrCreateFeedResponse]:
-        response = self.client.get_or_create_feed(
-            feed_group_id=self.feed_group,
-            feed_id=self.id,
-            id_around=id_around,
-            limit=limit,
-            next=next,
-            prev=prev,
-            user_id=user_id,
-            view=view,
-            watch=watch,
-            data=data,
-            enrichment_options=enrichment_options,
-            external_ranking=external_ranking,
-            filter=filter,
-            followers_pagination=followers_pagination,
-            following_pagination=following_pagination,
-            friend_reactions_options=friend_reactions_options,
-            interest_weights=interest_weights,
-            member_pagination=member_pagination,
-            user=user,
-        )
+    def get_or_create(self, id_around: Optional[str] = None, limit: Optional[int] = None, next: Optional[str] = None, prev: Optional[str] = None, user_id: Optional[str] = None, view: Optional[str] = None, watch: Optional[bool] = None, data: Optional[FeedInput] = None, enrichment_options: Optional[EnrichmentOptions] = None, external_ranking: Optional[Dict[str, object]] = None, filter: Optional[Dict[str, object]] = None, followers_pagination: Optional[PagerRequest] = None, following_pagination: Optional[PagerRequest] = None, friend_reactions_options: Optional[FriendReactionsOptions] = None, interest_weights: Optional[Dict[str, float]] = None, member_pagination: Optional[PagerRequest] = None, user: Optional[UserRequest] = None) -> StreamResponse[GetOrCreateFeedResponse]:
+        response = self.client.get_or_create_feed(feed_group_id=self.feed_group, feed_id=self.id, id_around=id_around, limit=limit, next=next, prev=prev, user_id=user_id, view=view, watch=watch, data=data, enrichment_options=enrichment_options, external_ranking=external_ranking, filter=filter, followers_pagination=followers_pagination, following_pagination=following_pagination, friend_reactions_options=friend_reactions_options, interest_weights=interest_weights, member_pagination=member_pagination, user=user)
         self._sync_from_response(response.data)
         return response
 
-    def update(
-        self,
-        created_by_id: Optional[str] = None,
-        description: Optional[str] = None,
-        enrich_own_fields: Optional[bool] = None,
-        name: Optional[str] = None,
-        filter_tags: Optional[List[str]] = None,
-        custom: Optional[Dict[str, object]] = None,
-    ) -> StreamResponse[UpdateFeedResponse]:
-        response = self.client.update_feed(
-            feed_group_id=self.feed_group,
-            feed_id=self.id,
-            created_by_id=created_by_id,
-            description=description,
-            enrich_own_fields=enrich_own_fields,
-            name=name,
-            filter_tags=filter_tags,
-            custom=custom,
-        )
+    def update(self, created_by_id: Optional[str] = None, description: Optional[str] = None, enrich_own_fields: Optional[bool] = None, name: Optional[str] = None, filter_tags: Optional[List[str]] = None, custom: Optional[Dict[str, object]] = None) -> StreamResponse[UpdateFeedResponse]:
+        response = self.client.update_feed(feed_group_id=self.feed_group, feed_id=self.id, created_by_id=created_by_id, description=description, enrich_own_fields=enrich_own_fields, name=name, filter_tags=filter_tags, custom=custom)
         self._sync_from_response(response.data)
         return response
 
-    def mark_activity(
-        self,
-        mark_all_read: Optional[bool] = None,
-        mark_all_seen: Optional[bool] = None,
-        user_id: Optional[str] = None,
-        mark_read: Optional[List[str]] = None,
-        mark_seen: Optional[List[str]] = None,
-        mark_watched: Optional[List[str]] = None,
-        user: Optional[UserRequest] = None,
-    ) -> StreamResponse[Response]:
-        response = self.client.mark_activity(
-            feed_group_id=self.feed_group,
-            feed_id=self.id,
-            mark_all_read=mark_all_read,
-            mark_all_seen=mark_all_seen,
-            user_id=user_id,
-            mark_read=mark_read,
-            mark_seen=mark_seen,
-            mark_watched=mark_watched,
-            user=user,
-        )
+    def mark_activity(self, mark_all_read: Optional[bool] = None, mark_all_seen: Optional[bool] = None, user_id: Optional[str] = None, mark_read: Optional[List[str]] = None, mark_seen: Optional[List[str]] = None, mark_watched: Optional[List[str]] = None, user: Optional[UserRequest] = None) -> StreamResponse[Response]:
+        response = self.client.mark_activity(feed_group_id=self.feed_group, feed_id=self.id, mark_all_read=mark_all_read, mark_all_seen=mark_all_seen, user_id=user_id, mark_read=mark_read, mark_seen=mark_seen, mark_watched=mark_watched, user=user)
         self._sync_from_response(response.data)
         return response
 
-    def unpin_activity(
-        self,
-        activity_id: str,
-        enrich_own_fields: Optional[bool] = None,
-        user_id: Optional[str] = None,
-    ) -> StreamResponse[UnpinActivityResponse]:
-        response = self.client.unpin_activity(
-            feed_group_id=self.feed_group,
-            feed_id=self.id,
-            activity_id=activity_id,
-            enrich_own_fields=enrich_own_fields,
-            user_id=user_id,
-        )
+    def unpin_activity(self, activity_id: str, enrich_own_fields: Optional[bool] = None, user_id: Optional[str] = None) -> StreamResponse[UnpinActivityResponse]:
+        response = self.client.unpin_activity(feed_group_id=self.feed_group, feed_id=self.id, activity_id=activity_id, enrich_own_fields=enrich_own_fields, user_id=user_id)
         self._sync_from_response(response.data)
         return response
 
-    def pin_activity(
-        self,
-        activity_id: str,
-        enrich_own_fields: Optional[bool] = None,
-        user_id: Optional[str] = None,
-        user: Optional[UserRequest] = None,
-    ) -> StreamResponse[PinActivityResponse]:
-        response = self.client.pin_activity(
-            feed_group_id=self.feed_group,
-            feed_id=self.id,
-            activity_id=activity_id,
-            enrich_own_fields=enrich_own_fields,
-            user_id=user_id,
-            user=user,
-        )
+    def pin_activity(self, activity_id: str, enrich_own_fields: Optional[bool] = None, user_id: Optional[str] = None, user: Optional[UserRequest] = None) -> StreamResponse[PinActivityResponse]:
+        response = self.client.pin_activity(feed_group_id=self.feed_group, feed_id=self.id, activity_id=activity_id, enrich_own_fields=enrich_own_fields, user_id=user_id, user=user)
         self._sync_from_response(response.data)
         return response
 
-    def update_feed_members(
-        self,
-        operation: str,
-        limit: Optional[int] = None,
-        next: Optional[str] = None,
-        prev: Optional[str] = None,
-        members: Optional[List[FeedMemberRequest]] = None,
-    ) -> StreamResponse[UpdateFeedMembersResponse]:
-        response = self.client.update_feed_members(
-            feed_group_id=self.feed_group,
-            feed_id=self.id,
-            operation=operation,
-            limit=limit,
-            next=next,
-            prev=prev,
-            members=members,
-        )
+    def update_feed_members(self, operation: str, limit: Optional[int] = None, next: Optional[str] = None, prev: Optional[str] = None, members: Optional[List[FeedMemberRequest]] = None) -> StreamResponse[UpdateFeedMembersResponse]:
+        response = self.client.update_feed_members(feed_group_id=self.feed_group, feed_id=self.id, operation=operation, limit=limit, next=next, prev=prev, members=members)
         self._sync_from_response(response.data)
         return response
 
-    def accept_feed_member_invite(
-        self, user_id: Optional[str] = None, user: Optional[UserRequest] = None
-    ) -> StreamResponse[AcceptFeedMemberInviteResponse]:
-        response = self.client.accept_feed_member_invite(
-            feed_group_id=self.feed_group, feed_id=self.id, user_id=user_id, user=user
-        )
+    def accept_feed_member_invite(self, user_id: Optional[str] = None, user: Optional[UserRequest] = None) -> StreamResponse[AcceptFeedMemberInviteResponse]:
+        response = self.client.accept_feed_member_invite(feed_group_id=self.feed_group, feed_id=self.id, user_id=user_id, user=user)
         self._sync_from_response(response.data)
         return response
 
-    def query_feed_members(
-        self,
-        limit: Optional[int] = None,
-        next: Optional[str] = None,
-        prev: Optional[str] = None,
-        sort: Optional[List[SortParamRequest]] = None,
-        filter: Optional[Dict[str, object]] = None,
-    ) -> StreamResponse[QueryFeedMembersResponse]:
-        response = self.client.query_feed_members(
-            feed_group_id=self.feed_group,
-            feed_id=self.id,
-            limit=limit,
-            next=next,
-            prev=prev,
-            sort=sort,
-            filter=filter,
-        )
+    def query_feed_members(self, limit: Optional[int] = None, next: Optional[str] = None, prev: Optional[str] = None, sort: Optional[List[SortParamRequest]] = None, filter: Optional[Dict[str, object]] = None) -> StreamResponse[QueryFeedMembersResponse]:
+        response = self.client.query_feed_members(feed_group_id=self.feed_group, feed_id=self.id, limit=limit, next=next, prev=prev, sort=sort, filter=filter)
         self._sync_from_response(response.data)
         return response
 
-    def reject_feed_member_invite(
-        self, user_id: Optional[str] = None, user: Optional[UserRequest] = None
-    ) -> StreamResponse[RejectFeedMemberInviteResponse]:
-        response = self.client.reject_feed_member_invite(
-            feed_group_id=self.feed_group, feed_id=self.id, user_id=user_id, user=user
-        )
+    def reject_feed_member_invite(self, user_id: Optional[str] = None, user: Optional[UserRequest] = None) -> StreamResponse[RejectFeedMemberInviteResponse]:
+        response = self.client.reject_feed_member_invite(feed_group_id=self.feed_group, feed_id=self.id, user_id=user_id, user=user)
         self._sync_from_response(response.data)
         return response
 
-    def query_pinned_activities(
-        self,
-        enrich_own_fields: Optional[bool] = None,
-        limit: Optional[int] = None,
-        next: Optional[str] = None,
-        prev: Optional[str] = None,
-        sort: Optional[List[SortParamRequest]] = None,
-        filter: Optional[Dict[str, object]] = None,
-    ) -> StreamResponse[QueryPinnedActivitiesResponse]:
-        response = self.client.query_pinned_activities(
-            feed_group_id=self.feed_group,
-            feed_id=self.id,
-            enrich_own_fields=enrich_own_fields,
-            limit=limit,
-            next=next,
-            prev=prev,
-            sort=sort,
-            filter=filter,
-        )
+    def query_pinned_activities(self, enrich_own_fields: Optional[bool] = None, limit: Optional[int] = None, next: Optional[str] = None, prev: Optional[str] = None, sort: Optional[List[SortParamRequest]] = None, filter: Optional[Dict[str, object]] = None) -> StreamResponse[QueryPinnedActivitiesResponse]:
+        response = self.client.query_pinned_activities(feed_group_id=self.feed_group, feed_id=self.id, enrich_own_fields=enrich_own_fields, limit=limit, next=next, prev=prev, sort=sort, filter=filter)
         self._sync_from_response(response.data)
         return response
+
+
 
     def get_feed_identifier(self):
         return self.feed_group + ":" + self.id

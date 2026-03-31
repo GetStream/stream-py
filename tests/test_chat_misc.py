@@ -602,31 +602,10 @@ def test_event_hooks_sqs_sns(client: Stream):
         client.update_app(event_hooks=original_hooks or [])
 
 
-def test_get_retention_policy(client: Stream):
-    """Create a retention policy, then list all policies."""
-    try:
-        client.chat.set_retention_policy(policy="old-messages", max_age_hours=480)
-    except Exception as e:
-        if "404" in str(e) or "not found" in str(e).lower():
-            pytest.skip("Retention policy endpoints not available on this environment")
-        raise
-
-    try:
-        response = client.chat.get_retention_policy()
-        assert response.data.policies is not None
-        policies = [p.policy for p in response.data.policies]
-        assert "old-messages" in policies
-    finally:
-        try:
-            client.chat.delete_retention_policy(policy="old-messages")
-        except Exception:
-            pass
-
-
 def test_get_retention_policy_runs(client: Stream):
     """Query retention policy run history."""
     try:
-        response = client.chat.get_retention_policy_runs(limit=10, offset=0)
+        response = client.chat.get_retention_policy_runs(limit=10)
     except Exception as e:
         if "404" in str(e) or "not found" in str(e).lower():
             pytest.skip("Retention policy endpoints not available on this environment")
