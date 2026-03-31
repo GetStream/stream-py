@@ -76,6 +76,7 @@ class CommonRestClient(AsyncBaseClient):
         image_moderation_labels: Optional[List[str]] = None,
         user_search_disallowed_roles: Optional[List[str]] = None,
         webhook_events: Optional[List[str]] = None,
+        activity_metrics_config: Optional[Dict[str, int]] = None,
         apn_config: Optional[APNConfig] = None,
         async_moderation_config: Optional[AsyncModerationConfiguration] = None,
         datadog_info: Optional[DataDogInfo] = None,
@@ -129,6 +130,7 @@ class CommonRestClient(AsyncBaseClient):
             image_moderation_labels=image_moderation_labels,
             user_search_disallowed_roles=user_search_disallowed_roles,
             webhook_events=webhook_events,
+            activity_metrics_config=activity_metrics_config,
             apn_config=apn_config,
             async_moderation_config=async_moderation_config,
             datadog_info=datadog_info,
@@ -458,6 +460,42 @@ class CommonRestClient(AsyncBaseClient):
         ).to_dict()
         return await self.post(
             "/api/v2/imports/v2", CreateImportV2TaskResponse, json=json
+        )
+
+    @telemetry.operation_name("getstream.api.common.delete_importer_external_storage")
+    async def delete_importer_external_storage(
+        self,
+    ) -> StreamResponse[DeleteExternalStorageResponse]:
+        return await self.delete(
+            "/api/v2/imports/v2/external-storage", DeleteExternalStorageResponse
+        )
+
+    @telemetry.operation_name("getstream.api.common.get_importer_external_storage")
+    async def get_importer_external_storage(
+        self,
+    ) -> StreamResponse[GetExternalStorageResponse]:
+        return await self.get(
+            "/api/v2/imports/v2/external-storage", GetExternalStorageResponse
+        )
+
+    @telemetry.operation_name("getstream.api.common.upsert_importer_external_storage")
+    async def upsert_importer_external_storage(
+        self, type: str, aws_s3: Optional[UpsertExternalStorageAWSS3Request] = None
+    ) -> StreamResponse[UpsertExternalStorageResponse]:
+        json = UpsertExternalStorageRequest(type=type, aws_s3=aws_s3).to_dict()
+        return await self.put(
+            "/api/v2/imports/v2/external-storage",
+            UpsertExternalStorageResponse,
+            json=json,
+        )
+
+    @telemetry.operation_name("getstream.api.common.validate_importer_external_storage")
+    async def validate_importer_external_storage(
+        self,
+    ) -> StreamResponse[ValidateExternalStorageResponse]:
+        return await self.post(
+            "/api/v2/imports/v2/external-storage/validate",
+            ValidateExternalStorageResponse,
         )
 
     @telemetry.operation_name("getstream.api.common.delete_import_v2_task")
@@ -1025,13 +1063,17 @@ class CommonRestClient(AsyncBaseClient):
 
     @telemetry.operation_name("getstream.api.common.add_user_group_members")
     async def add_user_group_members(
-        self, id: str, member_ids: List[str], team_id: Optional[str] = None
+        self,
+        id: str,
+        member_ids: List[str],
+        as_admin: Optional[bool] = None,
+        team_id: Optional[str] = None,
     ) -> StreamResponse[AddUserGroupMembersResponse]:
         path_params = {
             "id": id,
         }
         json = AddUserGroupMembersRequest(
-            member_ids=member_ids, team_id=team_id
+            member_ids=member_ids, as_admin=as_admin, team_id=team_id
         ).to_dict()
         return await self.post(
             "/api/v2/usergroups/{id}/members",

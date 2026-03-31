@@ -31,6 +31,28 @@ class ModerationRestClient(BaseClient):
             user_agent=user_agent,
         )
 
+    @telemetry.operation_name("getstream.api.moderation.insert_action_log")
+    def insert_action_log(
+        self,
+        action_type: str,
+        entity_creator_id: str,
+        entity_id: str,
+        entity_type: str,
+        reason: Optional[str] = None,
+        custom: Optional[Dict[str, object]] = None,
+    ) -> StreamResponse[InsertActionLogResponse]:
+        json = InsertActionLogRequest(
+            action_type=action_type,
+            entity_creator_id=entity_creator_id,
+            entity_id=entity_id,
+            entity_type=entity_type,
+            reason=reason,
+            custom=custom,
+        ).to_dict()
+        return self.post(
+            "/api/v2/moderation/action_logs", InsertActionLogResponse, json=json
+        )
+
     @telemetry.operation_name("getstream.api.moderation.appeal")
     def appeal(
         self,
@@ -127,6 +149,7 @@ class ModerationRestClient(BaseClient):
         entity_type: str,
         config_key: Optional[str] = None,
         config_team: Optional[str] = None,
+        content_published_at: Optional[datetime] = None,
         test_mode: Optional[bool] = None,
         user_id: Optional[str] = None,
         config: Optional[ModerationConfig] = None,
@@ -140,6 +163,7 @@ class ModerationRestClient(BaseClient):
             entity_type=entity_type,
             config_key=config_key,
             config_team=config_team,
+            content_published_at=content_published_at,
             test_mode=test_mode,
             user_id=user_id,
             config=config,
@@ -335,6 +359,17 @@ class ModerationRestClient(BaseClient):
         ).to_dict()
         return self.post("/api/v2/moderation/flag", FlagResponse, json=json)
 
+    @telemetry.operation_name("getstream.api.moderation.get_flag_count")
+    def get_flag_count(
+        self, entity_creator_id: str, entity_type: Optional[str] = None
+    ) -> StreamResponse[GetFlagCountResponse]:
+        json = GetFlagCountRequest(
+            entity_creator_id=entity_creator_id, entity_type=entity_type
+        ).to_dict()
+        return self.post(
+            "/api/v2/moderation/flag_count", GetFlagCountResponse, json=json
+        )
+
     @telemetry.operation_name("getstream.api.moderation.query_moderation_flags")
     def query_moderation_flags(
         self,
@@ -522,6 +557,7 @@ class ModerationRestClient(BaseClient):
         delete_message: Optional[DeleteMessageRequestPayload] = None,
         delete_reaction: Optional[DeleteReactionRequestPayload] = None,
         delete_user: Optional[DeleteUserRequestPayload] = None,
+        escalate: Optional[EscalatePayload] = None,
         flag: Optional[FlagRequest] = None,
         mark_reviewed: Optional[MarkReviewedRequestPayload] = None,
         reject_appeal: Optional[RejectAppealRequestPayload] = None,
@@ -544,6 +580,7 @@ class ModerationRestClient(BaseClient):
             delete_message=delete_message,
             delete_reaction=delete_reaction,
             delete_user=delete_user,
+            escalate=escalate,
             flag=flag,
             mark_reviewed=mark_reviewed,
             reject_appeal=reject_appeal,

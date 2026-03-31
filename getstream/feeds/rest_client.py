@@ -686,6 +686,30 @@ class FeedsRestClient(BaseClient):
             "/api/v2/feeds/collections", UpsertCollectionsResponse, json=json
         )
 
+    @telemetry.operation_name("getstream.api.feeds.query_collections")
+    def query_collections(
+        self,
+        limit: Optional[int] = None,
+        next: Optional[str] = None,
+        prev: Optional[str] = None,
+        user_id: Optional[str] = None,
+        sort: Optional[List[SortParamRequest]] = None,
+        filter: Optional[Dict[str, object]] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[QueryCollectionsResponse]:
+        json = QueryCollectionsRequest(
+            limit=limit,
+            next=next,
+            prev=prev,
+            user_id=user_id,
+            sort=sort,
+            filter=filter,
+            user=user,
+        ).to_dict()
+        return self.post(
+            "/api/v2/feeds/collections/query", QueryCollectionsResponse, json=json
+        )
+
     @telemetry.operation_name("getstream.api.feeds.get_comments")
     def get_comments(
         self,
@@ -694,6 +718,7 @@ class FeedsRestClient(BaseClient):
         depth: Optional[int] = None,
         sort: Optional[str] = None,
         replies_limit: Optional[int] = None,
+        id_around: Optional[str] = None,
         user_id: Optional[str] = None,
         limit: Optional[int] = None,
         prev: Optional[str] = None,
@@ -706,6 +731,7 @@ class FeedsRestClient(BaseClient):
                 "depth": depth,
                 "sort": sort,
                 "replies_limit": replies_limit,
+                "id_around": id_around,
                 "user_id": user_id,
                 "limit": limit,
                 "prev": prev,
@@ -856,6 +882,39 @@ class FeedsRestClient(BaseClient):
             json=json,
         )
 
+    @telemetry.operation_name("getstream.api.feeds.update_comment_partial")
+    def update_comment_partial(
+        self,
+        id: str,
+        copy_custom_to_notification: Optional[bool] = None,
+        handle_mention_notifications: Optional[bool] = None,
+        skip_enrich_url: Optional[bool] = None,
+        skip_push: Optional[bool] = None,
+        user_id: Optional[str] = None,
+        unset: Optional[List[str]] = None,
+        set: Optional[Dict[str, object]] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[UpdateCommentPartialResponse]:
+        path_params = {
+            "id": id,
+        }
+        json = UpdateCommentPartialRequest(
+            copy_custom_to_notification=copy_custom_to_notification,
+            handle_mention_notifications=handle_mention_notifications,
+            skip_enrich_url=skip_enrich_url,
+            skip_push=skip_push,
+            user_id=user_id,
+            unset=unset,
+            set=set,
+            user=user,
+        ).to_dict()
+        return self.post(
+            "/api/v2/feeds/comments/{id}/partial",
+            UpdateCommentPartialResponse,
+            path_params=path_params,
+            json=json,
+        )
+
     @telemetry.operation_name("getstream.api.feeds.add_comment_reaction")
     def add_comment_reaction(
         self,
@@ -944,6 +1003,7 @@ class FeedsRestClient(BaseClient):
         depth: Optional[int] = None,
         sort: Optional[str] = None,
         replies_limit: Optional[int] = None,
+        id_around: Optional[str] = None,
         user_id: Optional[str] = None,
         limit: Optional[int] = None,
         prev: Optional[str] = None,
@@ -954,6 +1014,7 @@ class FeedsRestClient(BaseClient):
                 "depth": depth,
                 "sort": sort,
                 "replies_limit": replies_limit,
+                "id_around": id_around,
                 "user_id": user_id,
                 "limit": limit,
                 "prev": prev,
@@ -968,6 +1029,21 @@ class FeedsRestClient(BaseClient):
             GetCommentRepliesResponse,
             query_params=query_params,
             path_params=path_params,
+        )
+
+    @telemetry.operation_name("getstream.api.feeds.restore_comment")
+    def restore_comment(
+        self, id: str, user_id: Optional[str] = None, user: Optional[UserRequest] = None
+    ) -> StreamResponse[RestoreCommentResponse]:
+        path_params = {
+            "id": id,
+        }
+        json = RestoreCommentRequest(user_id=user_id, user=user).to_dict()
+        return self.post(
+            "/api/v2/feeds/comments/{id}/restore",
+            RestoreCommentResponse,
+            path_params=path_params,
+            json=json,
         )
 
     @telemetry.operation_name("getstream.api.feeds.list_feed_groups")
@@ -1762,11 +1838,13 @@ class FeedsRestClient(BaseClient):
         source: str,
         target: str,
         delete_notification_activity: Optional[bool] = None,
+        keep_history: Optional[bool] = None,
         enrich_own_fields: Optional[bool] = None,
     ) -> StreamResponse[UnfollowResponse]:
         query_params = build_query_param(
             **{
                 "delete_notification_activity": delete_notification_activity,
+                "keep_history": keep_history,
                 "enrich_own_fields": enrich_own_fields,
             }
         )
@@ -1869,7 +1947,7 @@ class FeedsRestClient(BaseClient):
     @telemetry.operation_name("getstream.api.feeds.unfollow_batch")
     def unfollow_batch(
         self,
-        follows: List[FollowPair],
+        follows: List[UnfollowPair],
         delete_notification_activity: Optional[bool] = None,
         enrich_own_fields: Optional[bool] = None,
     ) -> StreamResponse[UnfollowBatchResponse]:
@@ -1885,7 +1963,7 @@ class FeedsRestClient(BaseClient):
     @telemetry.operation_name("getstream.api.feeds.get_or_create_unfollows")
     def get_or_create_unfollows(
         self,
-        follows: List[FollowPair],
+        follows: List[UnfollowPair],
         delete_notification_activity: Optional[bool] = None,
         enrich_own_fields: Optional[bool] = None,
     ) -> StreamResponse[UnfollowBatchResponse]:

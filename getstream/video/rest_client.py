@@ -1183,6 +1183,22 @@ class VideoRestClient(BaseClient):
     def get_edges(self) -> StreamResponse[GetEdgesResponse]:
         return self.get("/api/v2/video/edges", GetEdgesResponse)
 
+    @telemetry.operation_name("getstream.api.video.resolve_sip_auth")
+    def resolve_sip_auth(
+        self,
+        sip_caller_number: str,
+        sip_trunk_number: str,
+        from_host: Optional[str] = None,
+        source_ip: Optional[str] = None,
+    ) -> StreamResponse[ResolveSipAuthResponse]:
+        json = ResolveSipAuthRequest(
+            sip_caller_number=sip_caller_number,
+            sip_trunk_number=sip_trunk_number,
+            from_host=from_host,
+            source_ip=source_ip,
+        ).to_dict()
+        return self.post("/api/v2/video/sip/auth", ResolveSipAuthResponse, json=json)
+
     @telemetry.operation_name("getstream.api.video.list_sip_inbound_routing_rule")
     def list_sip_inbound_routing_rule(
         self,
@@ -1239,9 +1255,9 @@ class VideoRestClient(BaseClient):
         self,
         id: str,
         name: str,
-        called_numbers: List[str],
         trunk_ids: List[str],
         caller_configs: SIPCallerConfigsRequest,
+        called_numbers: Optional[List[str]] = None,
         caller_numbers: Optional[List[str]] = None,
         call_configs: Optional[SIPCallConfigsRequest] = None,
         direct_routing_configs: Optional[SIPDirectRoutingRuleCallConfigsRequest] = None,
@@ -1253,9 +1269,9 @@ class VideoRestClient(BaseClient):
         }
         json = UpdateSIPInboundRoutingRuleRequest(
             name=name,
-            called_numbers=called_numbers,
             trunk_ids=trunk_ids,
             caller_configs=caller_configs,
+            called_numbers=called_numbers,
             caller_numbers=caller_numbers,
             call_configs=call_configs,
             direct_routing_configs=direct_routing_configs,
@@ -1275,9 +1291,15 @@ class VideoRestClient(BaseClient):
 
     @telemetry.operation_name("getstream.api.video.create_sip_trunk")
     def create_sip_trunk(
-        self, name: str, numbers: List[str]
+        self,
+        name: str,
+        numbers: List[str],
+        password: Optional[str] = None,
+        allowed_ips: Optional[List[str]] = None,
     ) -> StreamResponse[CreateSIPTrunkResponse]:
-        json = CreateSIPTrunkRequest(name=name, numbers=numbers).to_dict()
+        json = CreateSIPTrunkRequest(
+            name=name, numbers=numbers, password=password, allowed_ips=allowed_ips
+        ).to_dict()
         return self.post(
             "/api/v2/video/sip/inbound_trunks", CreateSIPTrunkResponse, json=json
         )
@@ -1295,12 +1317,19 @@ class VideoRestClient(BaseClient):
 
     @telemetry.operation_name("getstream.api.video.update_sip_trunk")
     def update_sip_trunk(
-        self, id: str, name: str, numbers: List[str]
+        self,
+        id: str,
+        name: str,
+        numbers: List[str],
+        password: Optional[str] = None,
+        allowed_ips: Optional[List[str]] = None,
     ) -> StreamResponse[UpdateSIPTrunkResponse]:
         path_params = {
             "id": id,
         }
-        json = UpdateSIPTrunkRequest(name=name, numbers=numbers).to_dict()
+        json = UpdateSIPTrunkRequest(
+            name=name, numbers=numbers, password=password, allowed_ips=allowed_ips
+        ).to_dict()
         return self.put(
             "/api/v2/video/sip/inbound_trunks/{id}",
             UpdateSIPTrunkResponse,
@@ -1313,15 +1342,17 @@ class VideoRestClient(BaseClient):
         self,
         sip_caller_number: str,
         sip_trunk_number: str,
-        challenge: SIPChallengeRequest,
         routing_number: Optional[str] = None,
+        trunk_id: Optional[str] = None,
+        challenge: Optional[SIPChallengeRequest] = None,
         sip_headers: Optional[Dict[str, str]] = None,
     ) -> StreamResponse[ResolveSipInboundResponse]:
         json = ResolveSipInboundRequest(
             sip_caller_number=sip_caller_number,
             sip_trunk_number=sip_trunk_number,
-            challenge=challenge,
             routing_number=routing_number,
+            trunk_id=trunk_id,
+            challenge=challenge,
             sip_headers=sip_headers,
         ).to_dict()
         return self.post(

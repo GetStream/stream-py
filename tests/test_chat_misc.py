@@ -600,3 +600,15 @@ def test_event_hooks_sqs_sns(client: Stream):
     finally:
         # Restore original hooks
         client.update_app(event_hooks=original_hooks or [])
+
+
+def test_get_retention_policy_runs(client: Stream):
+    """Query retention policy run history."""
+    try:
+        response = client.chat.get_retention_policy_runs(limit=10)
+    except Exception as e:
+        if "404" in str(e) or "not found" in str(e).lower():
+            pytest.skip("Retention policy endpoints not available on this environment")
+        raise
+
+    assert response.data.runs is not None
