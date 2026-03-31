@@ -62,7 +62,9 @@ class ChatClient(ChatRestClient):
         if kwargs:
             raise TypeError(f"Unexpected keyword arguments: {', '.join(kwargs.keys())}")
         if channel_type is None:
-            raise TypeError("upload_channel_image() missing required argument: 'channel_type'")
+            raise TypeError(
+                "upload_channel_image() missing required argument: 'channel_type'"
+            )
         if id is None:
             raise TypeError("upload_channel_image() missing required argument: 'id'")
         if file is None:
