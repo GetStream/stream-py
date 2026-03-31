@@ -78,11 +78,8 @@ from .models import (
     ChannelBatchCompletedEvent,
     ChannelBatchStartedEvent,
     CustomVideoEvent,
-    AsyncExportErrorEvent,
     AsyncBulkImageModerationEvent,
-    AsyncExportErrorEvent,
     AsyncExportChannelsEvent,
-    AsyncExportErrorEvent,
     AsyncExportModerationLogsEvent,
     AsyncExportErrorEvent,
     AsyncExportUsersEvent,
@@ -220,7 +217,9 @@ EVENT_TYPE_CALL_RTMP_BROADCAST_FAILED = "call.rtmp_broadcast_failed"
 EVENT_TYPE_CALL_RTMP_BROADCAST_STARTED = "call.rtmp_broadcast_started"
 EVENT_TYPE_CALL_RTMP_BROADCAST_STOPPED = "call.rtmp_broadcast_stopped"
 EVENT_TYPE_CALL_SESSION_ENDED = "call.session_ended"
-EVENT_TYPE_CALL_SESSION_PARTICIPANT_COUNT_UPDATED = "call.session_participant_count_updated"
+EVENT_TYPE_CALL_SESSION_PARTICIPANT_COUNT_UPDATED = (
+    "call.session_participant_count_updated"
+)
 EVENT_TYPE_CALL_SESSION_PARTICIPANT_JOINED = "call.session_participant_joined"
 EVENT_TYPE_CALL_SESSION_PARTICIPANT_LEFT = "call.session_participant_left"
 EVENT_TYPE_CALL_SESSION_STARTED = "call.session_started"
@@ -348,35 +347,35 @@ EVENT_TYPE_USER_GROUP_UPDATED = "user_group.updated"
 def get_event_type(raw_event: Union[bytes, str, Dict[str, Any]]) -> str:
     """
     Extract the event type from a raw webhook payload.
-    
+
     Args:
         raw_event: The raw webhook payload
-        
+
     Returns:
         The event type string (e.g., "message.new"), or empty string if parsing fails
     """
     if isinstance(raw_event, dict):
-        return raw_event.get('type', '')
-    
+        return raw_event.get("type", "")
+
     try:
         if isinstance(raw_event, bytes):
-            raw_event = raw_event.decode('utf-8')
+            raw_event = raw_event.decode("utf-8")
         data = json.loads(raw_event)
-        return data.get('type', '')
+        return data.get("type", "")
     except (json.JSONDecodeError, UnicodeDecodeError, AttributeError):
-        return ''
+        return ""
 
 
 def parse_webhook_event(raw_event: Union[bytes, str, Dict[str, Any]]) -> Any:
     """
     Deserialize a raw webhook payload into a typed event object.
-    
+
     Args:
         raw_event: The raw webhook payload
-        
+
     Returns:
         A typed event object corresponding to the event type
-        
+
     Raises:
         ValueError: If the event type is unknown or deserialization fails
     """
@@ -384,20 +383,20 @@ def parse_webhook_event(raw_event: Union[bytes, str, Dict[str, Any]]) -> Any:
         if isinstance(raw_event, dict):
             data = raw_event
         elif isinstance(raw_event, bytes):
-            data = json.loads(raw_event.decode('utf-8'))
+            data = json.loads(raw_event.decode("utf-8"))
         else:
             data = json.loads(raw_event)
     except (json.JSONDecodeError, UnicodeDecodeError) as e:
         raise ValueError(f"Failed to parse webhook payload: {e}")
-    
-    event_type = data.get('type')
+
+    event_type = data.get("type")
     if not event_type:
         raise ValueError("Webhook payload missing 'type' field")
-    
+
     event_class = _get_event_class(event_type)
     if event_class is None:
         raise ValueError(f"Unknown webhook event type: {event_type}")
-    
+
     try:
         return event_class.from_dict(data, infer_missing=True)
     except Exception as e:
@@ -578,21 +577,23 @@ def _get_event_class(event_type: str):
     return event_map.get(event_type)
 
 
-def verify_webhook_signature(body: Union[bytes, str], signature: str, secret: str) -> bool:
+def verify_webhook_signature(
+    body: Union[bytes, str], signature: str, secret: str
+) -> bool:
     """
     Verify the HMAC-SHA256 signature of a webhook payload.
-    
+
     Args:
         body: The raw request body (bytes or UTF-8 string)
         signature: The signature from the X-Signature header
         secret: Your webhook secret (found in the Stream Dashboard)
-        
+
     Returns:
         True if the signature is valid, False otherwise
     """
     if isinstance(body, str):
-        body = body.encode('utf-8')
-    
-    h = hmac.new(secret.encode('utf-8'), body, hashlib.sha256)
+        body = body.encode("utf-8")
+
+    h = hmac.new(secret.encode("utf-8"), body, hashlib.sha256)
     expected = h.hexdigest()
     return hmac.compare_digest(signature, expected)
