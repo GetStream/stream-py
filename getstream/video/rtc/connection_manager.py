@@ -19,11 +19,13 @@ from getstream.video.async_call import Call
 from getstream.video.rtc.connection_utils import (
     ConnectionState,
     SfuConnectionError,
+    SfuJoinError,
     ConnectionOptions,
     connect_websocket,
     join_call,
     watch_call,
 )
+from getstream.video.rtc.coordinator.backoff import exp_backoff
 from getstream.video.rtc.track_util import (
     fix_sdp_msid_semantic,
     fix_sdp_rtcp_fb,
@@ -55,6 +57,8 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         user_id: Optional[str] = None,
         create: bool = True,
         subscription_config: Optional[SubscriptionConfig] = None,
+        max_join_retries: int = 3,
+        drain_video_frames: bool = False,
         **kwargs: Any,
     ):
         super().__init__()
@@ -68,6 +72,9 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         self.session_id: str = str(uuid.uuid4())
         self.join_response: Optional[JoinCallResponse] = None
         self.local_sfu: bool = False  # Local SFU flag for development
+        if max_join_retries < 0:
+            raise ValueError("max_join_retries must be >= 0")
+        self._max_join_retries: int = max_join_retries
 
         # Private attributes
         self._connection_state: ConnectionState = ConnectionState.IDLE
@@ -84,7 +91,9 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         self._subscription_manager: SubscriptionManager = SubscriptionManager(
             self, subscription_config
         )
-        self._peer_manager: PeerConnectionManager = PeerConnectionManager(self)
+        self._peer_manager: PeerConnectionManager = PeerConnectionManager(
+            self, drain_video_frames=drain_video_frames
+        )
 
         self.recording_manager = self._recording_manager
         self.participants_state = self._participants_state
@@ -282,6 +291,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         ws_url: Optional[str] = None,
         token: Optional[str] = None,
         session_id: Optional[str] = None,
+        migrating_from_list: Optional[list] = None,
     ) -> None:
         """
         Internal connection method that handles the core connection logic.
@@ -318,12 +328,15 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             if not (ws_url or token):
                 if self.user_id is None:
                     raise ValueError("user_id is required for joining a call")
+                last_failed = migrating_from_list[-1] if migrating_from_list else None
                 join_response = await join_call(
                     self.call,
                     self.user_id,
                     "auto",
                     self.create,
                     self.local_sfu,
+                    migrating_from=last_failed,
+                    migrating_from_list=migrating_from_list,
                     **self.kwargs,
                 )
                 ws_url = join_response.data.credentials.server.ws_endpoint
@@ -395,6 +408,8 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                 logger.exception(f"No join response from WebSocket: {sfu_event}")
 
             logger.debug(f"WebSocket connected successfully to {ws_url}")
+        except SfuJoinError:
+            raise
         except Exception as e:
             logger.exception(f"Failed to connect WebSocket to {ws_url}: {e}")
             raise SfuConnectionError(f"WebSocket connection failed: {e}") from e
@@ -427,7 +442,8 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         Connect to SFU.
 
         This method automatically handles retry logic for transient errors
-        like "server is full" and network issues.
+        like "server is full" by requesting a different SFU from the
+        coordinator.
         """
         logger.info("Connecting to SFU")
         # Fire-and-forget the coordinator WS connection so we don't block here
@@ -445,7 +461,54 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                     logger.exception("Coordinator WS task failed")
 
             self._coordinator_task.add_done_callback(_on_coordinator_task_done)
-        await self._connect_internal()
+
+        await self._connect_with_sfu_reassignment()
+
+    async def _connect_with_sfu_reassignment(self) -> None:
+        """Try connecting to SFU, reassigning to a different one on failure."""
+        failed_sfus: list[str] = []
+
+        # First attempt without delay
+        attempt = 0
+        try:
+            await self._connect_internal()
+            return
+        except SfuJoinError as e:
+            self._handle_join_failure(e, attempt, failed_sfus)
+            if self._max_join_retries == 0:
+                raise
+
+        # Retries with exponential backoff, requesting a different SFU
+        async for delay in exp_backoff(max_retries=self._max_join_retries, base=0.5):
+            attempt += 1
+            logger.info(f"Retrying in {delay}s with different SFU...")
+            await asyncio.sleep(delay)
+            try:
+                await self._connect_internal(
+                    migrating_from_list=failed_sfus if failed_sfus else None,
+                )
+                return
+            except SfuJoinError as e:
+                self._handle_join_failure(e, attempt, failed_sfus)
+                if attempt >= self._max_join_retries:
+                    raise
+
+    def _handle_join_failure(
+        self, error: SfuJoinError, attempt: int, failed_sfus: list[str]
+    ) -> None:
+        """Track a failed SFU and clean up partial connection state."""
+        if self.join_response and self.join_response.credentials:
+            edge = self.join_response.credentials.server.edge_name
+            if edge and edge not in failed_sfus:
+                failed_sfus.append(edge)
+        logger.warning(
+            f"SFU join failed (attempt {attempt + 1}/{1 + self._max_join_retries}, "
+            f"code={error.error_code}). Failed SFUs: {failed_sfus}"
+        )
+        if self._ws_client:
+            self._ws_client.close()
+            self._ws_client = None
+        self.connection_state = ConnectionState.IDLE
 
     async def wait(self):
         """

@@ -49,12 +49,24 @@ class ChatClient(ChatRestClient):
     @telemetry.operation_name("getstream.api.chat.upload_channel_image")
     async def upload_channel_image(
         self,
-        type: str,
-        id: str,
-        file: str,
+        channel_type: Optional[str] = None,
+        id: Optional[str] = None,
+        file: Optional[str] = None,
         upload_sizes: Optional[List[ImageSize]] = None,
         user: Optional[OnlyUserID] = None,
+        **kwargs,
     ) -> StreamResponse[UploadChannelResponse]:
+        # Backward compatibility for generated wrappers passing `type=...`.
+        if channel_type is None:
+            channel_type = kwargs.pop("type", None)
+        if kwargs:
+            raise TypeError(f"Unexpected keyword arguments: {', '.join(kwargs.keys())}")
+        if channel_type is None:
+            raise TypeError("upload_channel_image() missing required argument: 'channel_type'")
+        if id is None:
+            raise TypeError("upload_channel_image() missing required argument: 'id'")
+        if file is None:
+            raise TypeError("upload_channel_image() missing required argument: 'file'")
         form_fields = []
         if user is not None:
             form_fields.append(("user", json.dumps(user.to_dict())))
@@ -66,6 +78,6 @@ class ChatClient(ChatRestClient):
             "/api/v2/chat/channels/{type}/{id}/image",
             UploadChannelResponse,
             file,
-            path_params={"type": type, "id": id},
+            path_params={"type": channel_type, "id": id},
             form_fields=form_fields,
         )

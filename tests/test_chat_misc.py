@@ -633,3 +633,15 @@ def test_upload_and_delete_image(client: Stream, random_user, tmp_path):
     assert "http" in image_url
 
     client.delete_image(url=image_url)
+
+
+def test_get_retention_policy_runs(client: Stream):
+    """Query retention policy run history."""
+    try:
+        response = client.chat.get_retention_policy_runs(limit=10)
+    except Exception as e:
+        if "404" in str(e) or "not found" in str(e).lower():
+            pytest.skip("Retention policy endpoints not available on this environment")
+        raise
+
+    assert response.data.runs is not None

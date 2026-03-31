@@ -26,7 +26,9 @@ SFU_EVENTS_TO_TRACE: Set[str] = {
 class SignalingError(Exception):
     """Exception raised for errors in the signaling process."""
 
-    pass
+    def __init__(self, message: str, error=None):
+        super().__init__(message)
+        self.error = error
 
 
 class WebSocketClient(StreamAsyncIOEventEmitter):
@@ -111,8 +113,10 @@ class WebSocketClient(StreamAsyncIOEventEmitter):
 
         # Check if the first message is an error
         if self.first_message and self.first_message.HasField("error"):
-            error_msg = self.first_message.error.error.message
-            raise SignalingError(f"Connection failed: {error_msg}")
+            sfu_error = self.first_message.error.error
+            raise SignalingError(
+                f"Connection failed: {sfu_error.message}", error=sfu_error
+            )
 
         # Check if we got join_response
         if self.first_message and self.first_message.HasField("join_response"):

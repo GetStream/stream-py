@@ -7,6 +7,7 @@ import os
 import pytest
 
 from getstream.models import GetCallResponse, OwnCapability, OwnCapabilityType
+from getstream.base import _strip_none
 from getstream.utils import (
     datetime_from_unix_ns,
     encode_datetime,
@@ -335,6 +336,31 @@ def test_call_session_response_from_dict_with_none():
 
     # Check ended_at
     assert call_session.ended_at is None
+
+
+def test_strip_none_flat_dict():
+    assert _strip_none({"a": 1, "b": None, "c": "x"}) == {"a": 1, "c": "x"}
+
+
+def test_strip_none_nested_dict():
+    payload = {"a": 1, "b": None, "nested": {"c": None, "d": 2}}
+    assert _strip_none(payload) == {"a": 1, "nested": {"d": 2}}
+
+
+def test_strip_none_preserves_empty_collections():
+    payload = {"tags": [], "meta": {}, "name": None}
+    assert _strip_none(payload) == {"tags": [], "meta": {}}
+
+
+def test_strip_none_preserves_list_elements():
+    payload = {"ids": [1, None, 3], "data": [{"a": None, "b": 2}]}
+    assert _strip_none(payload) == {"ids": [1, None, 3], "data": [{"b": 2}]}
+
+
+def test_strip_none_passthrough_scalars():
+    assert _strip_none(42) == 42
+    assert _strip_none("hello") == "hello"
+    assert _strip_none(True) is True
 
 
 @pytest.mark.skip("fixture is not longer valid, skip for now")

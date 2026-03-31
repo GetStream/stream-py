@@ -699,6 +699,12 @@ class TestParseWebhookEvent:
             event = parse_webhook_event({"type": "feeds.comment.reaction.updated"})
         assert type(event).__name__ == "CommentReactionUpdatedEvent"
 
+    def test_parse_feeds_comment_restored(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            event = parse_webhook_event({"type": "feeds.comment.restored"})
+        assert type(event).__name__ == "CommentRestoredEvent"
+
     def test_parse_feeds_comment_updated(self):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", RuntimeWarning)

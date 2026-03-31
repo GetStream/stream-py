@@ -105,6 +105,7 @@ from .models import (
     CommentReactionAddedEvent,
     CommentReactionDeletedEvent,
     CommentReactionUpdatedEvent,
+    CommentRestoredEvent,
     CommentUpdatedEvent,
     FeedCreatedEvent,
     FeedDeletedEvent,
@@ -277,6 +278,7 @@ EVENT_TYPE_FEEDS_COMMENT_DELETED = "feeds.comment.deleted"
 EVENT_TYPE_FEEDS_COMMENT_REACTION_ADDED = "feeds.comment.reaction.added"
 EVENT_TYPE_FEEDS_COMMENT_REACTION_DELETED = "feeds.comment.reaction.deleted"
 EVENT_TYPE_FEEDS_COMMENT_REACTION_UPDATED = "feeds.comment.reaction.updated"
+EVENT_TYPE_FEEDS_COMMENT_RESTORED = "feeds.comment.restored"
 EVENT_TYPE_FEEDS_COMMENT_UPDATED = "feeds.comment.updated"
 EVENT_TYPE_FEEDS_FEED_CREATED = "feeds.feed.created"
 EVENT_TYPE_FEEDS_FEED_DELETED = "feeds.feed.deleted"
@@ -507,6 +509,7 @@ def _get_event_class(event_type: str):
         "feeds.comment.reaction.added": CommentReactionAddedEvent,
         "feeds.comment.reaction.deleted": CommentReactionDeletedEvent,
         "feeds.comment.reaction.updated": CommentReactionUpdatedEvent,
+        "feeds.comment.restored": CommentRestoredEvent,
         "feeds.comment.updated": CommentUpdatedEvent,
         "feeds.feed.created": FeedCreatedEvent,
         "feeds.feed.deleted": FeedDeletedEvent,

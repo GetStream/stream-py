@@ -303,6 +303,71 @@ class TestAudioStreamTrack:
             assert frame.samples == 960
 
     @pytest.mark.asyncio
+    async def test_recv_does_not_reallocate_buffer(self):
+        """Test that recv consumes data in-place without creating a new buffer object."""
+        track = AudioStreamTrack(sample_rate=48000, channels=1, format="s16")
+
+        # Write 40ms of data (enough for 2 frames)
+        samples = np.zeros(1920, dtype=np.int16)
+        pcm = PcmData(
+            samples=samples,
+            sample_rate=48000,
+            format=AudioFormat.S16,
+            channels=1,
+        )
+        await track.write(pcm)
+
+        buffer_ref = track._buffer  # save reference before recv
+
+        # Receive a frame (consumes 20ms from buffer)
+        await track.recv()
+
+        assert track._buffer is buffer_ref, (
+            "recv should modify buffer in-place, not create a new one"
+        )
+        assert len(track._buffer) == 960 * 2, (
+            "should have 20ms of data remaining (960 samples * 2 bytes)"
+        )
+
+    @pytest.mark.asyncio
+    async def test_buffer_overflow_does_not_reallocate(self):
+        """Test that buffer overflow trims in-place without creating a new buffer object."""
+        track = AudioStreamTrack(
+            sample_rate=48000, channels=1, format="s16", audio_buffer_size_ms=100
+        )
+
+        # Write 50ms of data first to get a buffer reference
+        samples_50ms = np.zeros(2400, dtype=np.int16)
+        pcm = PcmData(
+            samples=samples_50ms,
+            sample_rate=48000,
+            format=AudioFormat.S16,
+            channels=1,
+        )
+        await track.write(pcm)
+        buffer_ref = track._buffer  # save reference before overflow
+
+        # Write 200ms of data (exceeds 100ms limit, triggers overflow trim)
+        samples_200ms = np.zeros(9600, dtype=np.int16)
+        pcm_large = PcmData(
+            samples=samples_200ms,
+            sample_rate=48000,
+            format=AudioFormat.S16,
+            channels=1,
+        )
+        await track.write(pcm_large)
+
+        assert track._buffer is buffer_ref, (
+            "overflow trim should modify buffer in-place, not create a new one"
+        )
+        max_buffer_seconds = 100 / 1000
+        bytes_per_sample = 2
+        expected_max_bytes = int(max_buffer_seconds * 48000) * bytes_per_sample
+        assert len(track._buffer) == expected_max_bytes, (
+            "buffer should be trimmed to configured max size"
+        )
+
+    @pytest.mark.asyncio
     async def test_media_stream_error(self):
         """Test that MediaStreamError is raised when track is not live."""
         track = AudioStreamTrack(sample_rate=48000, channels=1, format="s16")

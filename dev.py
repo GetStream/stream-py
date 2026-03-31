@@ -2,6 +2,11 @@
 """
 Development CLI tool for getstream SDK.
 Essential dev commands for testing, linting, and type checking.
+
+NOTE: Prefer using the Makefile instead (run `make help` for available targets).
+The Makefile is a superset of this script.
+
+This script is kept for backwards compatibility.
 """
 
 import os
