@@ -131,7 +131,7 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
         self,
         connection,
         configuration: aiortc.RTCConfiguration,
-        drain_video_frames: bool = False,
+        drain_video_frames: bool = True,
     ) -> None:
         logger.info(
             f"creating subscriber peer connection with configuration: {configuration}"
@@ -207,6 +207,12 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
     ) -> Optional[aiortc.mediastreams.MediaStreamTrack]:
         """Add a new subscriber to an existing track's MediaRelay."""
         track_data = self.track_map.get(track_id)
+
+        self._video_drain_tasks.pop(track_id, None)
+        blackhole = self._video_blackholes.pop(track_id, None)
+
+        if blackhole:
+            asyncio.ensure_future(blackhole.stop())
 
         if track_data:
             relay, original_track = track_data
