@@ -18,12 +18,14 @@ def subscriber_pc():
     pc.video_frame_trackers = {}
     pc._video_blackholes = {}
     pc._video_drain_tasks = {}
+    pc._background_tasks = set()
     pc._listeners = {}
     return pc
 
 
 class TestAddTrackSubscriberStopsDrain:
-    def test_blackhole_stopped_when_subscriber_added(self, subscriber_pc):
+    @pytest.mark.asyncio
+    async def test_blackhole_stopped_when_subscriber_added(self, subscriber_pc):
         track_id = "user123:video:0"
         relay = MediaRelay()
         original_track = Mock()
