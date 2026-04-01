@@ -58,7 +58,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         create: bool = True,
         subscription_config: Optional[SubscriptionConfig] = None,
         max_join_retries: int = 3,
-        drain_video_frames: bool = False,
+        drain_video_frames: bool = True,
         **kwargs: Any,
     ):
         super().__init__()
