@@ -1,8 +1,10 @@
 import json
+import mimetypes
+import os
 import time
 import uuid
 import asyncio
-from typing import Any, Dict, Optional, Type, cast, get_origin
+from typing import Any, Dict, List, Optional, Tuple, Type, cast, get_origin
 
 from getstream.models import APIError
 from getstream.rate_limit import extract_rate_limit
@@ -23,6 +25,11 @@ from getstream.common.telemetry import (
     get_current_channel_cid,
 )
 import ijson
+
+
+def _read_file_bytes(file_path: str) -> bytes:
+    with open(file_path, "rb") as f:
+        return f.read()
 
 
 def _strip_none(obj):
@@ -305,6 +312,39 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
             data_type=data_type,
         )
 
+    def _upload_multipart(
+        self,
+        path: str,
+        data_type: Type[T],
+        file_path: str,
+        *,
+        path_params: Optional[Dict[str, str]] = None,
+        query_params: Optional[Dict[str, str]] = None,
+        form_fields: Optional[List[Tuple[str, str]]] = None,
+    ) -> StreamResponse[T]:
+        """Send a multipart/form-data upload request, matching Go/PHP SDK behavior."""
+        file_name = os.path.basename(file_path)
+        content_type = mimetypes.guess_type(file_path)[0] or "application/octet-stream"
+        with open(file_path, "rb") as f:
+            file_content = f.read()
+
+        files = {"file": (file_name, file_content, content_type)}
+        data: Dict[str, str] = {}
+        for field_name, field_value in form_fields or []:
+            data[field_name] = field_value
+
+        kwargs: Dict[str, Any] = {"files": files}
+        if data:
+            kwargs["data"] = data
+
+        return self._request_sync(
+            "POST",
+            path,
+            query_params=query_params,
+            kwargs=kwargs | {"path_params": path_params},
+            data_type=data_type,
+        )
+
     def close(self):
         """
         Close HTTPX client.
@@ -344,6 +384,39 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
     async def aclose(self):
         """Close HTTPX async client (closes pools/keep-alives)."""
         await self.client.aclose()
+
+    async def _upload_multipart(
+        self,
+        path: str,
+        data_type: Type[T],
+        file_path: str,
+        *,
+        path_params: Optional[Dict[str, str]] = None,
+        query_params: Optional[Dict[str, str]] = None,
+        form_fields: Optional[List[Tuple[str, str]]] = None,
+    ) -> StreamResponse[T]:
+        """Send a multipart/form-data upload request, matching Go/PHP SDK behavior."""
+        file_name = os.path.basename(file_path)
+        content_type = mimetypes.guess_type(file_path)[0] or "application/octet-stream"
+
+        file_content = await asyncio.to_thread(_read_file_bytes, file_path)
+
+        files = {"file": (file_name, file_content, content_type)}
+        data: Dict[str, str] = {}
+        for field_name, field_value in form_fields or []:
+            data[field_name] = field_value
+
+        kwargs: Dict[str, Any] = {"files": files}
+        if data:
+            kwargs["data"] = data
+
+        return await self._request_async(
+            "POST",
+            path,
+            query_params=query_params,
+            kwargs=kwargs | {"path_params": path_params},
+            data_type=data_type,
+        )
 
     def _endpoint_name(self, path: str) -> str:
         op = getattr(self, "_operation_name", None)
