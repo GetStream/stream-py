@@ -133,15 +133,6 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
         configuration: aiortc.RTCConfiguration,
         drain_video_frames: bool = True,
     ) -> None:
-        """
-        Args:
-            drain_video_frames: When True, attaches a MediaBlackhole to each
-                incoming video track so unconsumed frames are drained
-                automatically. This prevents unbounded queue growth in
-                RTCRtpReceiver when no subscriber is consuming the track.
-                The drain is stopped once a real subscriber is added via
-                add_track_subscriber.
-        """
         logger.info(
             f"creating subscriber peer connection with configuration: {configuration}"
         )
