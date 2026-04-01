@@ -703,44 +703,32 @@ class TestChannelExportAndBan:
 
 
 class TestChannelFileUpload:
-    def test_upload_and_delete_file(self, channel: Channel, random_user):
-        """Upload and delete a file."""
-        file_path = str(ASSETS_DIR / "test_upload.txt")
+    def test_upload_and_delete_file(self, channel: Channel, random_user, tmp_path):
+        """Upload and delete a file via multipart/form-data."""
+        file_path = tmp_path / "chat-test-upload.txt"
+        file_path.write_text("hello world test file content")
 
-        try:
-            upload_resp = channel.upload_channel_file(
-                file=file_path,
-                user=OnlyUserID(id=random_user.id),
-            )
-            assert upload_resp.data.file is not None
-            file_url = upload_resp.data.file
-            assert "http" in file_url
+        upload_resp = channel.upload_channel_file(
+            file=str(file_path),
+            user=OnlyUserID(id=random_user.id),
+        )
+        assert upload_resp.data.file is not None
+        file_url = upload_resp.data.file
+        assert "http" in file_url
 
-            channel.delete_channel_file(url=file_url)
-        except Exception as e:
-            if "multipart" in str(e).lower():
-                import pytest
+        channel.delete_channel_file(url=file_url)
 
-                pytest.skip("File upload requires multipart/form-data support")
-            raise
+    def test_upload_and_delete_image(self, channel: Channel, random_user, tmp_path):
+        """Upload and delete an image via multipart/form-data."""
+        file_path = tmp_path / "chat-test-upload.jpg"
+        file_path.write_bytes(b"fake-jpg-image-data-for-testing")
 
-    def test_upload_and_delete_image(self, channel: Channel, random_user):
-        """Upload and delete an image."""
-        file_path = str(ASSETS_DIR / "test_upload.jpg")
+        upload_resp = channel.upload_channel_image(
+            file=str(file_path),
+            user=OnlyUserID(id=random_user.id),
+        )
+        assert upload_resp.data.file is not None
+        image_url = upload_resp.data.file
+        assert "http" in image_url
 
-        try:
-            upload_resp = channel.upload_channel_image(
-                file=file_path,
-                user=OnlyUserID(id=random_user.id),
-            )
-            assert upload_resp.data.file is not None
-            image_url = upload_resp.data.file
-            assert "http" in image_url
-
-            channel.delete_channel_image(url=image_url)
-        except Exception as e:
-            if "multipart" in str(e).lower():
-                import pytest
-
-                pytest.skip("Image upload requires multipart/form-data support")
-            raise
+        channel.delete_channel_image(url=image_url)
