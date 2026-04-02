@@ -142,8 +142,7 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
 
         self.track_map = {}  # track_id -> (MediaRelay, original_track)
         self.video_frame_trackers = {}  # track_id -> VideoFrameTracker
-        self._video_blackholes: dict[str, MediaBlackhole] = {}
-        self._video_drain_tasks: dict[str, asyncio.Task] = {}
+        self._video_blackholes: dict[str, tuple[MediaBlackhole, asyncio.Task]] = {}
         self._background_tasks: set[asyncio.Task] = set()
 
         @self.on("track")
@@ -190,11 +189,8 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
                 drain_proxy = relay.subscribe(tracked_track)
                 blackhole = MediaBlackhole()
                 blackhole.addTrack(drain_proxy)
-                self._video_blackholes[track.id] = blackhole
-                self._video_drain_tasks[track.id] = asyncio.create_task(
-                    blackhole.start()
-                )
-
+                drain_task = asyncio.create_task(blackhole.start())
+                self._video_blackholes[track.id] = (blackhole, drain_task)
             self.emit("track_added", proxy, user)
 
         @self.on("icegatheringstatechange")
@@ -209,8 +205,7 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
         """Add a new subscriber to an existing track's MediaRelay."""
         track_data = self.track_map.get(track_id)
 
-        self._video_drain_tasks.pop(track_id, None)
-        blackhole = self._video_blackholes.pop(track_id, None)
+        blackhole, _ = self._video_blackholes.pop(track_id, (None, None))
 
         if blackhole:
             task = asyncio.create_task(blackhole.stop())

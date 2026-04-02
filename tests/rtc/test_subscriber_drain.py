@@ -17,7 +17,6 @@ def subscriber_pc():
     pc.track_map = {}
     pc.video_frame_trackers = {}
     pc._video_blackholes = {}
-    pc._video_drain_tasks = {}
     pc._background_tasks = set()
     pc._listeners = {}
     return pc
@@ -33,14 +32,12 @@ class TestAddTrackSubscriberStopsDrain:
 
         blackhole = Mock()
         blackhole.stop = AsyncMock()
-        subscriber_pc._video_blackholes[track_id] = blackhole
-        subscriber_pc._video_drain_tasks[track_id] = Mock()
+        subscriber_pc._video_blackholes[track_id] = (blackhole, Mock())
 
         subscriber_pc.add_track_subscriber(track_id)
 
         blackhole.stop.assert_called_once()
         assert track_id not in subscriber_pc._video_blackholes
-        assert track_id not in subscriber_pc._video_drain_tasks
 
     def test_no_error_when_no_drain_exists(self, subscriber_pc):
         track_id = "user123:video:0"
