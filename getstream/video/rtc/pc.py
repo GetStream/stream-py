@@ -205,10 +205,11 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
         """Add a new subscriber to an existing track's MediaRelay."""
         track_data = self.track_map.get(track_id)
 
-        blackhole, _ = self._video_blackholes.pop(track_id, (None, None))
+        blackhole, drain_task = self._video_blackholes.pop(track_id, (None, None))
 
-        if blackhole:
+        if blackhole and drain_task:
             task = asyncio.create_task(blackhole.stop())
+            drain_task.cancel()  # safety net if start() becomes long-lived in future aiortc
             self._background_tasks.add(task)
             task.add_done_callback(self._background_tasks.discard)
 
