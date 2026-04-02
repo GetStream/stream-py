@@ -131,7 +131,7 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
         self,
         connection,
         configuration: aiortc.RTCConfiguration,
-        drain_video_frames: bool = False,
+        drain_video_frames: bool = True,
     ) -> None:
         logger.info(
             f"creating subscriber peer connection with configuration: {configuration}"
@@ -142,8 +142,8 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
 
         self.track_map = {}  # track_id -> (MediaRelay, original_track)
         self.video_frame_trackers = {}  # track_id -> VideoFrameTracker
-        self._video_blackholes: dict[str, MediaBlackhole] = {}
-        self._video_drain_tasks: dict[str, asyncio.Task] = {}
+        self._video_blackholes: dict[str, tuple[MediaBlackhole, asyncio.Task]] = {}
+        self._background_tasks: set[asyncio.Task] = set()
 
         @self.on("track")
         async def on_track(track: aiortc.mediastreams.MediaStreamTrack):
@@ -189,11 +189,8 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
                 drain_proxy = relay.subscribe(tracked_track)
                 blackhole = MediaBlackhole()
                 blackhole.addTrack(drain_proxy)
-                self._video_blackholes[track.id] = blackhole
-                self._video_drain_tasks[track.id] = asyncio.create_task(
-                    blackhole.start()
-                )
-
+                drain_task = asyncio.create_task(blackhole.start())
+                self._video_blackholes[track.id] = (blackhole, drain_task)
             self.emit("track_added", proxy, user)
 
         @self.on("icegatheringstatechange")
@@ -207,6 +204,14 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
     ) -> Optional[aiortc.mediastreams.MediaStreamTrack]:
         """Add a new subscriber to an existing track's MediaRelay."""
         track_data = self.track_map.get(track_id)
+
+        blackhole, drain_task = self._video_blackholes.pop(track_id, (None, None))
+
+        if blackhole and drain_task:
+            task = asyncio.create_task(blackhole.stop())
+            drain_task.cancel()  # safety net if start() becomes long-lived in future aiortc
+            self._background_tasks.add(task)
+            task.add_done_callback(self._background_tasks.discard)
 
         if track_data:
             relay, original_track = track_data

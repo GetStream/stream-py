@@ -58,9 +58,18 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         create: bool = True,
         subscription_config: Optional[SubscriptionConfig] = None,
         max_join_retries: int = 3,
-        drain_video_frames: bool = False,
+        drain_video_frames: bool = True,
         **kwargs: Any,
     ):
+        """
+        Args:
+            drain_video_frames: When True, attaches a MediaBlackhole to each
+                incoming video track so unconsumed frames are drained
+                automatically. This prevents unbounded queue growth in
+                RTCRtpReceiver when no subscriber is consuming the track.
+                The drain is stopped once a real subscriber is added via
+                add_track_subscriber.
+        """
         super().__init__()
 
         # Public attributes

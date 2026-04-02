@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 class PeerConnectionManager:
     """Manages WebRTC peer connections for publishing and subscribing."""
 
-    def __init__(self, connection_manager, drain_video_frames: bool = False):
+    def __init__(self, connection_manager, drain_video_frames: bool = True):
         self.connection_manager = connection_manager
         self._drain_video_frames = drain_video_frames
         self.publisher_pc: Optional[PublisherPeerConnection] = None
