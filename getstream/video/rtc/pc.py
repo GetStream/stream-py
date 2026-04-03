@@ -231,6 +231,7 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
             del self.track_map[track.id]
         if track.id in self.video_frame_trackers:
             del self.video_frame_trackers[track.id]
+        self._video_drains.pop(track.id, None)
 
     def get_video_frame_tracker(self) -> Optional[Any]:
         """Get a video frame tracker for stats collection.
