@@ -13,6 +13,7 @@ def subscriber_pc():
     """Create a SubscriberPeerConnection bypassing heavy parent inits."""
     pc = SubscriberPeerConnection.__new__(SubscriberPeerConnection)
     pc.connection = Mock()
+    pc._closed = False
     pc._drain_video_frames = True
     pc.track_map = {}
     pc.video_frame_trackers = {}

@@ -50,6 +50,7 @@ class PublisherPeerConnection(aiortc.RTCPeerConnection):
         )
         super().__init__(configuration)
         self.manager = manager
+        self._closed = False
         self._connected_event = asyncio.Event()
 
         for transceiver in self.getTransceivers():
@@ -113,6 +114,14 @@ class PublisherPeerConnection(aiortc.RTCPeerConnection):
             logger.error(f"Publisher connection timed out after {timeout}s")
             raise TimeoutError(f"Connection timed out after {timeout} seconds")
 
+    async def close(self):
+        # Using self._closed guard here
+        # to avoid closing RTCPeerConnectionTwice by accident (it freezes on second time)
+        if self._closed:
+            return
+        self._closed = True
+        await super().close()
+
     async def restartIce(self):
         """Restart ICE connection for reconnection scenarios."""
         logger.info("Restarting ICE connection for publisher")
@@ -138,6 +147,7 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
         )
         super().__init__(configuration)
         self.connection = connection
+        self._closed = False
         self._drain_video_frames = drain_video_frames
 
         self.track_map = {}  # track_id -> (MediaRelay, original_track)
@@ -244,6 +254,31 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
         if self.video_frame_trackers:
             return next(iter(self.video_frame_trackers.values()))
         return None
+
+    async def close(self):
+        # Using self._closed guard here
+        # to avoid closing RTCPeerConnectionTwice by accident (it freezes on second time)
+        if self._closed:
+            return
+
+        # Clean up video drains
+        for blackhole, drain_task, drain_proxy in list(self._video_drains.values()):
+            drain_task.cancel()
+            drain_proxy.stop()
+            await blackhole.stop()
+        self._video_drains.clear()
+
+        # Cancel background tasks
+        for task in list(self._background_tasks):
+            task.cancel()
+        self._background_tasks.clear()
+
+        # Clear track maps
+        self.track_map.clear()
+        self.video_frame_trackers.clear()
+
+        self._closed = True
+        await super().close()
 
     async def restartIce(self):
         """Restart ICE connection for reconnection scenarios."""

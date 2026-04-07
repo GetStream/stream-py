@@ -284,6 +284,10 @@ class ReconnectionManager:
         current_publisher = self.connection_manager.publisher_pc
         current_subscriber = self.connection_manager.subscriber_pc
 
+        # Clear old references so _connect_internal creates fresh PCs
+        self.connection_manager.publisher_pc = None
+        self.connection_manager.subscriber_pc = None
+
         self.connection_manager.connection_state = ConnectionState.MIGRATING
 
         if current_publisher and hasattr(current_publisher, "removeListener"):
