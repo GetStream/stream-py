@@ -119,8 +119,8 @@ class PublisherPeerConnection(aiortc.RTCPeerConnection):
         # to avoid closing RTCPeerConnectionTwice by accident (it freezes on second time)
         if self._closed:
             return
-        await super().close()
         self._closed = True
+        await super().close()
 
     async def restartIce(self):
         """Restart ICE connection for reconnection scenarios."""
@@ -277,8 +277,8 @@ class SubscriberPeerConnection(aiortc.RTCPeerConnection, AsyncIOEventEmitter):
         self.track_map.clear()
         self.video_frame_trackers.clear()
 
-        await super().close()
         self._closed = True
+        await super().close()
 
     async def restartIce(self):
         """Restart ICE connection for reconnection scenarios."""
