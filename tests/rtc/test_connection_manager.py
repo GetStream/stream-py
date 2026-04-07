@@ -1,11 +1,22 @@
+import asyncio
 import contextlib
+import uuid
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+from dotenv import load_dotenv
 
+from getstream import AsyncStream
+from getstream.video import rtc
 from getstream.video.rtc.connection_manager import ConnectionManager
-from getstream.video.rtc.connection_utils import SfuJoinError, SfuConnectionError
+from getstream.video.rtc.connection_utils import (
+    ConnectionState,
+    SfuConnectionError,
+    SfuJoinError,
+)
 from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
+
+load_dotenv()
 
 
 @contextlib.contextmanager
@@ -45,8 +56,30 @@ def connection_manager(request):
         yield cm
 
 
-class TestConnectRetry:
-    """Tests for connect() retry logic when SFU is full."""
+@pytest.fixture
+def client():
+    return AsyncStream(timeout=10.0)
+
+
+class TestConnectionManager:
+    @pytest.mark.asyncio
+    @pytest.mark.integration
+    async def test_leave_twice_does_not_hang(self, client: AsyncStream):
+        """Integration test: join a real call and leave twice without hanging."""
+        call_id = str(uuid.uuid4())
+        call = client.video.call("default", call_id)
+
+        async with await rtc.join(call, "test-user") as connection:
+            assert connection.connection_state == ConnectionState.JOINED
+
+            await asyncio.sleep(2)
+
+            await asyncio.wait_for(connection.leave(), timeout=10.0)
+            assert connection.connection_state == ConnectionState.LEFT
+
+            # Second leave must not hang
+            await asyncio.wait_for(connection.leave(), timeout=10.0)
+            assert connection.connection_state == ConnectionState.LEFT
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("connection_manager", [2], indirect=True)
