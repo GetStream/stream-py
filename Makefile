@@ -12,7 +12,6 @@ VIDEO_PATHS := \
 	getstream/video \
 	tests/rtc \
 	tests/test_audio_stream_track.py \
-	tests/test_connection_manager.py \
 	tests/test_connection_utils.py \
 	tests/test_signaling.py \
 	tests/test_video_examples.py \
