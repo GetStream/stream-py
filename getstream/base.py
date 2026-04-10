@@ -173,16 +173,22 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
             self.client = http_client
             self._owns_http_client = False
         else:
-            client_kwargs = dict(
-                base_url=self.base_url or "",
-                headers=self.headers,
-                params=self.params,
-                timeout=httpx.Timeout(self.timeout),
-            )
             transport = getattr(self, "_transport", None)
             if transport is not None:
-                client_kwargs["transport"] = transport
-            self.client = httpx.Client(**client_kwargs)
+                self.client = httpx.Client(
+                    base_url=self.base_url or "",
+                    headers=self.headers,
+                    params=self.params,
+                    timeout=httpx.Timeout(self.timeout),
+                    transport=transport,
+                )
+            else:
+                self.client = httpx.Client(
+                    base_url=self.base_url or "",
+                    headers=self.headers,
+                    params=self.params,
+                    timeout=httpx.Timeout(self.timeout),
+                )
             self._owns_http_client = True
 
     def __enter__(self):
@@ -408,16 +414,22 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
             self.client = http_client
             self._owns_http_client = False
         else:
-            client_kwargs = dict(
-                base_url=self.base_url or "",
-                headers=self.headers,
-                params=self.params,
-                timeout=httpx.Timeout(self.timeout),
-            )
             transport = getattr(self, "_transport", None)
             if transport is not None:
-                client_kwargs["transport"] = transport
-            self.client = httpx.AsyncClient(**client_kwargs)
+                self.client = httpx.AsyncClient(
+                    base_url=self.base_url or "",
+                    headers=self.headers,
+                    params=self.params,
+                    timeout=httpx.Timeout(self.timeout),
+                    transport=transport,
+                )
+            else:
+                self.client = httpx.AsyncClient(
+                    base_url=self.base_url or "",
+                    headers=self.headers,
+                    params=self.params,
+                    timeout=httpx.Timeout(self.timeout),
+                )
             self._owns_http_client = True
 
     async def __aenter__(self):
