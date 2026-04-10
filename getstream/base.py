@@ -158,7 +158,7 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
             timeout=timeout,
             user_agent=user_agent,
         )
-        http_client = self._resolve_http_client()
+        http_client = getattr(self, "_http_client", None)
         if http_client is not None:
             if not isinstance(http_client, httpx.Client):
                 raise TypeError(
@@ -184,18 +184,6 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
                 client_kwargs["transport"] = transport
             self.client = httpx.Client(**client_kwargs)
             self._owns_http_client = True
-
-    def _resolve_http_client(self):
-        """Return a pre-built httpx client if one was provided, checking both
-        the instance attribute (set by BaseStream) and the parent stream
-        back-reference (set by sub-clients like VideoClient)."""
-        client = getattr(self, "_http_client", None)
-        if client is not None:
-            return client
-        stream = getattr(self, "stream", None)
-        if stream is not None:
-            return getattr(stream, "_shared_client", None)
-        return None
 
     def __enter__(self):
         return self
@@ -405,7 +393,7 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
             timeout=timeout,
             user_agent=user_agent,
         )
-        http_client = self._resolve_http_client()
+        http_client = getattr(self, "_http_client", None)
         if http_client is not None:
             if not isinstance(http_client, httpx.AsyncClient):
                 raise TypeError(
@@ -431,15 +419,6 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
                 client_kwargs["transport"] = transport
             self.client = httpx.AsyncClient(**client_kwargs)
             self._owns_http_client = True
-
-    def _resolve_http_client(self):
-        client = getattr(self, "_http_client", None)
-        if client is not None:
-            return client
-        stream = getattr(self, "stream", None)
-        if stream is not None:
-            return getattr(stream, "_shared_client", None)
-        return None
 
     async def __aenter__(self):
         return self

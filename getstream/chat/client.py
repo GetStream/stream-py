@@ -15,7 +15,6 @@ from getstream.stream_response import StreamResponse
 
 class ChatClient(ChatRestClient):
     def __init__(self, api_key: str, base_url, token, timeout, stream, user_agent=None):
-        self.stream = stream
         super().__init__(
             api_key=api_key,
             base_url=base_url,
@@ -23,6 +22,7 @@ class ChatClient(ChatRestClient):
             timeout=timeout,
             user_agent=user_agent,
         )
+        self.stream = stream
 
     def channel(self, call_type: str, id: str) -> Channel:
         return Channel(self, call_type, id)

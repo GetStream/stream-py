@@ -6,6 +6,7 @@ import time
 from typing import List, Optional
 from uuid import uuid4
 
+import httpx
 import jwt
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -86,6 +87,16 @@ class BaseStream:
             self._shared_client = self.client
         else:
             self._shared_client = None
+
+    def _apply_shared_client(self, sub_client):
+        """Replace a sub-client's auto-created httpx client with the shared
+        one built from user-provided transport/http_client config."""
+        if self._shared_client is not None:
+            if isinstance(sub_client.client, httpx.Client):
+                sub_client.client.close()
+            sub_client.client = self._shared_client
+            sub_client._owns_http_client = False
+        return sub_client
 
     def create_token(
         self,
@@ -183,13 +194,15 @@ class AsyncStream(BaseStream, AsyncCommonClient):
         Video stream client.
 
         """
-        return AsyncVideoClient(
-            api_key=self.api_key,
-            base_url=self.base_url,
-            token=self.token,
-            timeout=self.timeout,
-            stream=self,
-            user_agent=self.user_agent,
+        return self._apply_shared_client(
+            AsyncVideoClient(
+                api_key=self.api_key,
+                base_url=self.base_url,
+                token=self.token,
+                timeout=self.timeout,
+                stream=self,
+                user_agent=self.user_agent,
+            )
         )
 
     @cached_property
@@ -198,13 +211,15 @@ class AsyncStream(BaseStream, AsyncCommonClient):
         Chat stream client.
 
         """
-        return AsyncChatClient(
-            api_key=self.api_key,
-            base_url=self.base_url,
-            token=self.token,
-            timeout=self.timeout,
-            stream=self,
-            user_agent=self.user_agent,
+        return self._apply_shared_client(
+            AsyncChatClient(
+                api_key=self.api_key,
+                base_url=self.base_url,
+                token=self.token,
+                timeout=self.timeout,
+                stream=self,
+                user_agent=self.user_agent,
+            )
         )
 
     @cached_property
@@ -213,13 +228,15 @@ class AsyncStream(BaseStream, AsyncCommonClient):
         Moderation stream client.
 
         """
-        return AsyncModerationClient(
-            api_key=self.api_key,
-            base_url=self.base_url,
-            token=self.token,
-            timeout=self.timeout,
-            stream=self,
-            user_agent=self.user_agent,
+        return self._apply_shared_client(
+            AsyncModerationClient(
+                api_key=self.api_key,
+                base_url=self.base_url,
+                token=self.token,
+                timeout=self.timeout,
+                stream=self,
+                user_agent=self.user_agent,
+            )
         )
 
     async def aclose(self):
@@ -305,13 +322,15 @@ class Stream(BaseStream, CommonClient):
         Video stream client.
 
         """
-        return VideoClient(
-            api_key=self.api_key,
-            base_url=self.base_url,
-            token=self.token,
-            timeout=self.timeout,
-            stream=self,
-            user_agent=self.user_agent,
+        return self._apply_shared_client(
+            VideoClient(
+                api_key=self.api_key,
+                base_url=self.base_url,
+                token=self.token,
+                timeout=self.timeout,
+                stream=self,
+                user_agent=self.user_agent,
+            )
         )
 
     @cached_property
@@ -320,13 +339,15 @@ class Stream(BaseStream, CommonClient):
         Chat stream client.
 
         """
-        return ChatClient(
-            api_key=self.api_key,
-            base_url=self.base_url,
-            token=self.token,
-            timeout=self.timeout,
-            stream=self,
-            user_agent=self.user_agent,
+        return self._apply_shared_client(
+            ChatClient(
+                api_key=self.api_key,
+                base_url=self.base_url,
+                token=self.token,
+                timeout=self.timeout,
+                stream=self,
+                user_agent=self.user_agent,
+            )
         )
 
     @cached_property
@@ -335,13 +356,15 @@ class Stream(BaseStream, CommonClient):
         Moderation stream client.
 
         """
-        return ModerationClient(
-            api_key=self.api_key,
-            base_url=self.base_url,
-            token=self.token,
-            timeout=self.timeout,
-            stream=self,
-            user_agent=self.user_agent,
+        return self._apply_shared_client(
+            ModerationClient(
+                api_key=self.api_key,
+                base_url=self.base_url,
+                token=self.token,
+                timeout=self.timeout,
+                stream=self,
+                user_agent=self.user_agent,
+            )
         )
 
     @cached_property
@@ -350,13 +373,15 @@ class Stream(BaseStream, CommonClient):
         Feeds stream client.
 
         """
-        return FeedsClient(
-            api_key=self.api_key,
-            base_url=self.base_url,
-            token=self.token,
-            timeout=self.timeout,
-            stream=self,
-            user_agent=self.user_agent,
+        return self._apply_shared_client(
+            FeedsClient(
+                api_key=self.api_key,
+                base_url=self.base_url,
+                token=self.token,
+                timeout=self.timeout,
+                stream=self,
+                user_agent=self.user_agent,
+            )
         )
 
     @telemetry.operation_name("getstream.api.common.create_user")

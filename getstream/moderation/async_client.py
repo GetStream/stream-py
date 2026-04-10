@@ -3,7 +3,6 @@ from getstream.moderation.async_rest_client import ModerationRestClient
 
 class ModerationClient(ModerationRestClient):
     def __init__(self, api_key: str, base_url, token, timeout, stream, user_agent=None):
-        self.stream = stream
         super().__init__(
             api_key=api_key,
             base_url=base_url,
@@ -11,3 +10,4 @@ class ModerationClient(ModerationRestClient):
             timeout=timeout,
             user_agent=user_agent,
         )
+        self.stream = stream

@@ -12,7 +12,6 @@ class VideoClient(VideoRestClient):
         :param timeout: A number representing the time limit for a request
         :param user_agent: Optional custom user agent string
         """
-        self.stream = stream
         super().__init__(
             api_key=api_key,
             base_url=base_url,
@@ -20,6 +19,7 @@ class VideoClient(VideoRestClient):
             timeout=timeout,
             user_agent=user_agent,
         )
+        self.stream = stream
 
     def call(self, call_type: str, id: str) -> Call:
         return Call(self, call_type, id)
