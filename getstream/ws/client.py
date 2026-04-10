@@ -94,6 +94,16 @@ class StreamWS(StreamAsyncIOEventEmitter):
     def ws_id(self) -> int:
         return self._ws_id
 
+    async def _close_websocket(
+        self, code: int = 1000, reason: str = ""
+    ) -> None:
+        if self._websocket:
+            try:
+                await self._websocket.close(code=code, reason=reason)
+            except Exception:
+                logger.debug("Error closing WebSocket", exc_info=True)
+            self._websocket = None
+
     def _ensure_token(self) -> str:
         if self._token:
             return self._token
@@ -131,11 +141,7 @@ class StreamWS(StreamAsyncIOEventEmitter):
                     response=message,
                 )
         except Exception:
-            try:
-                await self._websocket.close()
-            except Exception:
-                pass
-            self._websocket = None
+            await self._close_websocket()
             raise
 
         self._connection_id = message.get("connection_id")
@@ -146,12 +152,7 @@ class StreamWS(StreamAsyncIOEventEmitter):
         # Clean up any prior state (stale tasks from a previous connection
         # may still be running even if _connected is already false)
         await self._cancel_all_tasks()
-        if self._websocket:
-            try:
-                await self._websocket.close()
-            except Exception:
-                pass
-            self._websocket = None
+        await self._close_websocket()
         self._connection_id = None
 
         message = await self._open_connection()
@@ -220,12 +221,7 @@ class StreamWS(StreamAsyncIOEventEmitter):
 
         try:
             await self._cancel_background_tasks()
-            if self._websocket:
-                try:
-                    await self._websocket.close()
-                except Exception:
-                    pass
-                self._websocket = None
+            await self._close_websocket()
 
             for attempt in range(1, self._max_retries + 1):
                 if not self._connected:
@@ -295,10 +291,4 @@ class StreamWS(StreamAsyncIOEventEmitter):
         self._connected = False
         self._connection_id = None
         await self._cancel_all_tasks()
-        if self._websocket:
-            try:
-                await self._websocket.close(code=1000, reason="client disconnect")
-            except Exception:
-                pass
-            finally:
-                self._websocket = None
+        await self._close_websocket(code=1000, reason="client disconnect")
