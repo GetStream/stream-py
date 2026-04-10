@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import time
@@ -44,6 +45,7 @@ class StreamWS(StreamAsyncIOEventEmitter):
         self._websocket: Optional[ClientConnection] = None
         self._connected = False
         self._connection_id: Optional[str] = None
+        self._reader_task: Optional[asyncio.Task] = None
 
     @property
     def ws_url(self) -> str:
@@ -105,11 +107,32 @@ class StreamWS(StreamAsyncIOEventEmitter):
 
         self._connection_id = message.get("connection_id")
         self._connected = True
+        self._reader_task = asyncio.create_task(self._reader_loop())
         return message
+
+    async def _reader_loop(self) -> None:
+        while self._connected and self._websocket:
+            try:
+                raw = await self._websocket.recv()
+                message = json.loads(raw)
+                event_type = message.get("type", "unknown")
+                self.emit(event_type, message)
+            except websockets.exceptions.ConnectionClosed:
+                logger.debug("WebSocket connection closed in reader")
+                break
+            except json.JSONDecodeError:
+                logger.warning("Failed to parse WebSocket message as JSON")
 
     async def disconnect(self) -> None:
         self._connected = False
         self._connection_id = None
+        if self._reader_task:
+            self._reader_task.cancel()
+            try:
+                await self._reader_task
+            except asyncio.CancelledError:
+                pass
+            self._reader_task = None
         if self._websocket:
             try:
                 await self._websocket.close(code=1000, reason="client disconnect")

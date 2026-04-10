@@ -1,3 +1,4 @@
+import asyncio
 import json
 
 import pytest
@@ -43,14 +44,16 @@ def test_ws_url_construction_http():
 
 
 @pytest_asyncio.fixture()
-async def mock_ws_server():
-    """Start a local WebSocket server that echoes connection.ok on auth."""
-    received = []
+async def mock_server():
+    """WS server that handles auth and keeps connections open."""
+    auth_payloads = []
+    connections = []
 
     async def handler(ws):
+        connections.append(ws)
         raw = await ws.recv()
         msg = json.loads(raw)
-        received.append(msg)
+        auth_payloads.append(msg)
         await ws.send(
             json.dumps(
                 {
@@ -60,7 +63,6 @@ async def mock_ws_server():
                 }
             )
         )
-        # Keep connection open until client disconnects
         try:
             async for _ in ws:
                 pass
@@ -69,16 +71,20 @@ async def mock_ws_server():
 
     async with websockets.serve(handler, "127.0.0.1", 0) as server:
         port = server.sockets[0].getsockname()[1]
-        yield {"port": port, "received": received}
+        yield {
+            "port": port,
+            "auth_payloads": auth_payloads,
+            "connections": connections,
+        }
 
 
 @pytest.mark.asyncio
-async def test_connect_and_authenticate(mock_ws_server):
+async def test_connect_and_authenticate(mock_server):
     ws = StreamWS(
         api_key="test-key",
         api_secret="test-secret",
         user_id="alice",
-        base_url=f"http://127.0.0.1:{mock_ws_server['port']}",
+        base_url=f"http://127.0.0.1:{mock_server['port']}",
     )
     result = await ws.connect()
 
@@ -86,9 +92,34 @@ async def test_connect_and_authenticate(mock_ws_server):
     assert ws.connection_id == "conn-123"
     assert result["type"] == "connection.ok"
 
-    # Verify the auth payload sent to server
-    auth = mock_ws_server["received"][0]
+    auth = mock_server["auth_payloads"][0]
     assert "token" in auth
     assert auth["user_details"]["id"] == "alice"
+
+    await ws.disconnect()
+
+
+@pytest.mark.asyncio
+async def test_event_dispatched_to_listener(mock_server):
+    ws = StreamWS(
+        api_key="k",
+        api_secret="s" * 32,
+        user_id="alice",
+        base_url=f"http://127.0.0.1:{mock_server['port']}",
+    )
+    await ws.connect()
+
+    received_events = []
+
+    @ws.on("message.new")
+    def on_message(event):
+        received_events.append(event)
+
+    server_ws = mock_server["connections"][0]
+    await server_ws.send(json.dumps({"type": "message.new", "text": "hello"}))
+    await asyncio.sleep(0.1)
+
+    assert len(received_events) == 1
+    assert received_events[0]["text"] == "hello"
 
     await ws.disconnect()
