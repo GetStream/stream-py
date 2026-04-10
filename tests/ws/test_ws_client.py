@@ -5,7 +5,7 @@ import pytest
 import pytest_asyncio
 import websockets
 
-from getstream.ws import StreamWS
+from getstream.ws import StreamWS, StreamWSAuthError
 
 
 def test_stream_ws_instantiation():
@@ -151,6 +151,37 @@ async def test_heartbeat_sent(mock_server):
     assert heartbeats[0][0]["client_id"] == "conn-123"
 
     await ws.disconnect()
+
+
+@pytest_asyncio.fixture()
+async def unexpected_response_server():
+    """Server that sends an unexpected response type instead of connection.ok."""
+
+    async def handler(ws):
+        await ws.recv()
+        await ws.send(json.dumps({"type": "something.unexpected", "data": "foo"}))
+        try:
+            async for _ in ws:
+                pass
+        except websockets.exceptions.ConnectionClosed:
+            pass
+
+    async with websockets.serve(handler, "127.0.0.1", 0) as server:
+        port = server.sockets[0].getsockname()[1]
+        yield {"port": port}
+
+
+@pytest.mark.asyncio
+async def test_reject_unexpected_auth_response(unexpected_response_server):
+    ws = StreamWS(
+        api_key="k",
+        api_secret="s" * 32,
+        user_id="alice",
+        base_url=f"http://127.0.0.1:{unexpected_response_server['port']}",
+    )
+    with pytest.raises(StreamWSAuthError, match="Expected connection.ok"):
+        await ws.connect()
+    assert not ws.connected
 
 
 @pytest.mark.asyncio

@@ -117,10 +117,13 @@ class StreamWS(StreamAsyncIOEventEmitter):
         raw = await self._websocket.recv()
         message = json.loads(raw)
 
-        if message.get("type") in ("error", "connection.error"):
+        msg_type = message.get("type")
+        if msg_type != "connection.ok":
             await self._websocket.close()
             self._websocket = None
-            raise StreamWSAuthError(f"Authentication failed: {message}", response=message)
+            raise StreamWSAuthError(
+                f"Expected connection.ok, got {msg_type}: {message}", response=message
+            )
 
         self._connection_id = message.get("connection_id")
         self._last_received = time.monotonic()
