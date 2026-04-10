@@ -5,6 +5,7 @@ from typing import Optional, Dict
 
 class FeedsClient(FeedsRestClient):
     def __init__(self, api_key: str, base_url, token, timeout, stream, user_agent=None):
+        self.stream = stream
         super().__init__(
             api_key=api_key,
             base_url=base_url,
@@ -12,7 +13,6 @@ class FeedsClient(FeedsRestClient):
             timeout=timeout,
             user_agent=user_agent,
         )
-        self.stream = stream
 
     def feed(
         self, feed_type: str, feed_id: str, custom_data: Optional[Dict] = None

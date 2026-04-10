@@ -47,7 +47,12 @@ class BaseStream:
         timeout: Optional[float] = 6.0,
         base_url: Optional[str] = BASE_URL,
         user_agent: Optional[str] = None,
+        transport=None,
+        http_client=None,
     ):
+        if transport is not None and http_client is not None:
+            raise ValueError("Cannot specify both 'transport' and 'http_client'")
+
         if None in (api_key, api_secret, timeout, base_url):
             s = Settings()  # loads from env and optional .env
             api_key = api_key or s.api_key
@@ -68,10 +73,19 @@ class BaseStream:
 
         self.base_url = validate_and_clean_url(base_url)
         self.user_agent = user_agent
+        self._transport = transport
+        self._http_client = http_client
         self.token = self._create_token()
         super().__init__(
             self.api_key, self.base_url, self.token, self.timeout, self.user_agent
         )
+        # After super().__init__(), self.client is fully built and configured.
+        # When the user provided custom HTTP config, sub-clients share this
+        # client instead of each building their own.
+        if transport is not None or http_client is not None:
+            self._shared_client = self.client
+        else:
+            self._shared_client = None
 
     def create_token(
         self,
