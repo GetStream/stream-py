@@ -304,3 +304,27 @@ async def test_token_refresh_on_expired(token_expiry_server):
     assert len(token_expiry_server["auth_payloads"]) == 3
 
     await ws.disconnect()
+
+
+@pytest.mark.asyncio
+async def test_static_token_not_refreshed(token_expiry_server):
+    """When a user provides a static token, code 40 should NOT refresh it."""
+    ws = StreamWS(
+        api_key="k",
+        api_secret="s" * 32,
+        user_id="alice",
+        token="my-static-token",
+        base_url=f"http://127.0.0.1:{token_expiry_server['port']}",
+        healthcheck_interval=100,
+        max_retries=5,
+        backoff_base=0.05,
+        backoff_max=0.1,
+    )
+    await ws.connect()
+
+    await ws._websocket.close(code=1001, reason="going away")
+    await asyncio.sleep(0.5)
+
+    # With a static token, code 40 should be treated as fatal auth error
+    # (can't refresh), so client should give up
+    assert not ws.connected

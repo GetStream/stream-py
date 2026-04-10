@@ -52,6 +52,7 @@ class StreamWS(StreamAsyncIOEventEmitter):
         self._user_agent = user_agent or f"stream-python-client-{VERSION}"
         self._user_details = user_details or {"id": user_id}
         self._token = token
+        self._static_token = token is not None
         self._healthcheck_interval = healthcheck_interval
         self._healthcheck_timeout = healthcheck_timeout
         self._max_retries = max_retries
@@ -232,7 +233,7 @@ class StreamWS(StreamAsyncIOEventEmitter):
                     return
                 except StreamWSAuthError as e:
                     error_code = e.response.get("error", {}).get("code")
-                    if error_code == TOKEN_EXPIRED_CODE:
+                    if error_code == TOKEN_EXPIRED_CODE and not self._static_token:
                         logger.info("Token expired (code 40), refreshing")
                         self._token = None
                         continue
