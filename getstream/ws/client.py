@@ -18,8 +18,13 @@ logger = logging.getLogger(__name__)
 DEFAULT_BASE_URL = "https://chat.stream-io-api.com"
 
 
+TOKEN_EXPIRED_CODE = 40
+
+
 class StreamWSAuthError(Exception):
-    pass
+    def __init__(self, message: str, response: dict | None = None):
+        super().__init__(message)
+        self.response = response or {}
 
 
 class StreamWS(StreamAsyncIOEventEmitter):
@@ -115,7 +120,7 @@ class StreamWS(StreamAsyncIOEventEmitter):
         if message.get("type") in ("error", "connection.error"):
             await self._websocket.close()
             self._websocket = None
-            raise StreamWSAuthError(f"Authentication failed: {message}")
+            raise StreamWSAuthError(f"Authentication failed: {message}", response=message)
 
         self._connection_id = message.get("connection_id")
         self._last_received = time.monotonic()
@@ -208,7 +213,12 @@ class StreamWS(StreamAsyncIOEventEmitter):
                     self._start_tasks()
                     logger.info("Reconnected after %d attempt(s)", attempt)
                     return
-                except StreamWSAuthError:
+                except StreamWSAuthError as e:
+                    error_code = e.response.get("error", {}).get("code")
+                    if error_code == TOKEN_EXPIRED_CODE:
+                        logger.info("Token expired (code 40), refreshing")
+                        self._token = None
+                        continue
                     logger.error("Auth failed during reconnect")
                     self._connected = False
                     raise

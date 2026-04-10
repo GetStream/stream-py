@@ -178,3 +178,75 @@ async def test_reconnect_on_server_close(mock_server):
     assert len(mock_server["auth_payloads"]) == 2
 
     await ws.disconnect()
+
+
+@pytest_asyncio.fixture()
+async def token_expiry_server():
+    """Server that rejects the 2nd connection with code 40, then accepts the 3rd."""
+    auth_payloads = []
+    connect_count = 0
+
+    async def handler(ws):
+        nonlocal connect_count
+        connect_count += 1
+        raw = await ws.recv()
+        msg = json.loads(raw)
+        auth_payloads.append(msg)
+
+        if connect_count == 2:
+            # Reject with token expired
+            await ws.send(
+                json.dumps(
+                    {
+                        "type": "connection.error",
+                        "error": {"code": 40, "message": "token expired"},
+                    }
+                )
+            )
+            return
+
+        await ws.send(
+            json.dumps(
+                {
+                    "type": "connection.ok",
+                    "connection_id": f"conn-{connect_count}",
+                    "me": {"id": msg["user_details"]["id"]},
+                }
+            )
+        )
+        try:
+            async for _ in ws:
+                pass
+        except websockets.exceptions.ConnectionClosed:
+            pass
+
+    async with websockets.serve(handler, "127.0.0.1", 0) as server:
+        port = server.sockets[0].getsockname()[1]
+        yield {"port": port, "auth_payloads": auth_payloads}
+
+
+@pytest.mark.asyncio
+async def test_token_refresh_on_expired(token_expiry_server):
+    ws = StreamWS(
+        api_key="k",
+        api_secret="s" * 32,
+        user_id="alice",
+        base_url=f"http://127.0.0.1:{token_expiry_server['port']}",
+        healthcheck_interval=100,
+        max_retries=3,
+    )
+    await ws.connect()
+    first_token = token_expiry_server["auth_payloads"][0]["token"]
+
+    # Server closes -> reconnect hits code 40 -> should refresh token and retry
+    await ws._websocket.close()
+    await asyncio.sleep(1.0)
+
+    assert ws.connected
+    # 3 auth attempts: initial, rejected (code 40), successful retry
+    assert len(token_expiry_server["auth_payloads"]) == 3
+    # Token should have been refreshed (different from first)
+    third_token = token_expiry_server["auth_payloads"][2]["token"]
+    assert third_token != first_token
+
+    await ws.disconnect()
