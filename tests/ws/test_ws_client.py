@@ -144,7 +144,8 @@ async def test_heartbeat_sent(mock_server):
 
     # Health checks are sent as arrays per the Stream protocol: [{type, client_id}]
     heartbeats = [
-        m for m in mock_server["client_messages"]
+        m
+        for m in mock_server["client_messages"]
         if isinstance(m, list) and m and m[0].get("type") == "health.check"
     ]
     assert len(heartbeats) >= 2

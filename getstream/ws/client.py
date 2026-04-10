@@ -220,7 +220,12 @@ class StreamWS(StreamAsyncIOEventEmitter):
                     self._backoff_max,
                 )
                 delay *= 1 + random.random()
-                logger.debug("Reconnect attempt %d/%d in %.2fs", attempt, self._max_retries, delay)
+                logger.debug(
+                    "Reconnect attempt %d/%d in %.2fs",
+                    attempt,
+                    self._max_retries,
+                    delay,
+                )
                 await asyncio.sleep(delay)
 
                 if not self._connected:
