@@ -216,14 +216,17 @@ class AsyncStream(BaseStream, AsyncCommonClient):
     ):
         from getstream.ws import StreamWS
 
+        defaults = {
+            "base_url": self.base_url,
+            "user_agent": self.user_agent,
+        }
+        defaults.update(kwargs)
         ws = StreamWS(
             api_key=self.api_key,
             api_secret=self.api_secret,
             user_id=user_id,
             user_details=user_details or {"id": user_id},
-            base_url=self.base_url,
-            user_agent=self.user_agent,
-            **kwargs,
+            **defaults,
         )
         await ws.connect()
         self._ws_connections.append(ws)
