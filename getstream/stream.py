@@ -208,6 +208,31 @@ class AsyncStream(BaseStream, AsyncCommonClient):
             user_agent=self.user_agent,
         )
 
+    async def connect_ws(
+        self,
+        user_id: str,
+        user_details: Optional[dict] = None,
+        **kwargs,
+    ):
+        from getstream.ws import StreamWS
+
+        ws = StreamWS(
+            api_key=self.api_key,
+            api_secret=self.api_secret,
+            user_id=user_id,
+            user_details=user_details or {"id": user_id},
+            base_url=self.base_url,
+            user_agent=self.user_agent,
+            **kwargs,
+        )
+        await ws.connect()
+        self._ws_connections.append(ws)
+        return ws
+
+    @cached_property
+    def _ws_connections(self) -> list:
+        return []
+
     async def aclose(self):
         """Close all child clients and the main HTTPX client."""
         # AsyncExitStack ensures all clients are closed even if one fails.
@@ -220,6 +245,10 @@ class AsyncStream(BaseStream, AsyncCommonClient):
                 stack.push_async_callback(self.chat.aclose)
             if "moderation" in cached:
                 stack.push_async_callback(self.moderation.aclose)
+            if "_ws_connections" in cached:
+                for ws in self._ws_connections:
+                    stack.push_async_callback(ws.disconnect)
+                self._ws_connections.clear()
             stack.push_async_callback(super().aclose)
 
     @cached_property

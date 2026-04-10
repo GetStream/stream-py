@@ -231,7 +231,7 @@ class StreamWS(StreamAsyncIOEventEmitter):
             self._reconnecting = False
 
     async def _cancel_tasks(self) -> None:
-        for task in (self._reader_task, self._heartbeat_task):
+        for task in (self._reader_task, self._heartbeat_task, self._reconnect_task):
             if task:
                 task.cancel()
                 try:
@@ -240,6 +240,7 @@ class StreamWS(StreamAsyncIOEventEmitter):
                     pass
         self._reader_task = None
         self._heartbeat_task = None
+        self._reconnect_task = None
 
     async def disconnect(self) -> None:
         self._connected = False
