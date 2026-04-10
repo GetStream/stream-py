@@ -197,6 +197,7 @@ async def test_reconnect_on_server_close(mock_server):
     await ws.connect()
     assert ws.connected
     assert len(mock_server["connections"]) == 1
+    ws_id_before = ws.ws_id
 
     # Server closes with non-1000 code (abnormal) -- should trigger reconnect
     await mock_server["connections"][0].close(code=1001, reason="going away")
@@ -208,6 +209,8 @@ async def test_reconnect_on_server_close(mock_server):
     # A second connection was made (the reconnect)
     assert len(mock_server["connections"]) == 2
     assert len(mock_server["auth_payloads"]) == 2
+    # ws_id should have incremented to guard against stale messages
+    assert ws.ws_id > ws_id_before
 
     await ws.disconnect()
 

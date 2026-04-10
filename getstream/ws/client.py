@@ -61,6 +61,7 @@ class StreamWS(StreamAsyncIOEventEmitter):
         self._websocket: Optional[ClientConnection] = None
         self._connected = False
         self._connection_id: Optional[str] = None
+        self._ws_id: int = 0
         self._reader_task: Optional[asyncio.Task] = None
         self._heartbeat_task: Optional[asyncio.Task] = None
         self._last_received: float = 0.0
@@ -89,6 +90,10 @@ class StreamWS(StreamAsyncIOEventEmitter):
     def connection_id(self) -> Optional[str]:
         return self._connection_id
 
+    @property
+    def ws_id(self) -> int:
+        return self._ws_id
+
     def _ensure_token(self) -> str:
         if self._token:
             return self._token
@@ -101,6 +106,7 @@ class StreamWS(StreamAsyncIOEventEmitter):
         return self._token
 
     async def _open_connection(self) -> dict:
+        self._ws_id += 1
         self._websocket = await websockets.connect(
             self.ws_url,
             ping_interval=None,
@@ -147,9 +153,12 @@ class StreamWS(StreamAsyncIOEventEmitter):
             self._reconnect_task = asyncio.create_task(self._reconnect(reason))
 
     async def _reader_loop(self) -> None:
-        while self._connected and self._websocket:
+        my_ws_id = self._ws_id
+        while self._connected and self._websocket and self._ws_id == my_ws_id:
             try:
                 raw = await self._websocket.recv()
+                if self._ws_id != my_ws_id:
+                    break
                 self._last_received = time.monotonic()
                 message = json.loads(raw)
                 event_type = message.get("type", "unknown")
