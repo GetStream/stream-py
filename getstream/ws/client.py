@@ -115,22 +115,29 @@ class StreamWS(StreamAsyncIOEventEmitter):
             close_timeout=1.0,
         )
 
-        auth_payload = {
-            "token": self._ensure_token(),
-            "user_details": self._user_details,
-        }
-        await self._websocket.send(json.dumps(auth_payload))
+        try:
+            auth_payload = {
+                "token": self._ensure_token(),
+                "user_details": self._user_details,
+            }
+            await self._websocket.send(json.dumps(auth_payload))
 
-        raw = await self._websocket.recv()
-        message = json.loads(raw)
+            raw = await self._websocket.recv()
+            message = json.loads(raw)
 
-        msg_type = message.get("type")
-        if msg_type != "connection.ok":
-            await self._websocket.close()
+            msg_type = message.get("type")
+            if msg_type != "connection.ok":
+                raise StreamWSAuthError(
+                    f"Expected connection.ok, got {msg_type}: {message}",
+                    response=message,
+                )
+        except Exception:
+            try:
+                await self._websocket.close()
+            except Exception:
+                pass
             self._websocket = None
-            raise StreamWSAuthError(
-                f"Expected connection.ok, got {msg_type}: {message}", response=message
-            )
+            raise
 
         self._connection_id = message.get("connection_id")
         self._last_received = time.monotonic()
@@ -159,6 +166,7 @@ class StreamWS(StreamAsyncIOEventEmitter):
 
     def _trigger_reconnect(self, reason: str) -> None:
         if self._connected and not self._reconnecting:
+            self._reconnecting = True
             self._reconnect_task = asyncio.create_task(self._reconnect(reason))
 
     async def _reader_loop(self) -> None:
@@ -209,9 +217,6 @@ class StreamWS(StreamAsyncIOEventEmitter):
                 break
 
     async def _reconnect(self, reason: str) -> None:
-        if self._reconnecting:
-            return
-        self._reconnecting = True
         logger.info("Reconnecting: %s", reason)
 
         try:
