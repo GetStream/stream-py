@@ -31,6 +31,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+ws = [
+    "websockets>=15.0.1,<16",
+]
 openai-realtime = [
   "openai[realtime]>=1.93.0",
 ]
