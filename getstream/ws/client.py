@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import random
 import time
 from typing import Optional
 from urllib.parse import urlencode
@@ -34,6 +35,9 @@ class StreamWS(StreamAsyncIOEventEmitter):
         token: Optional[str] = None,
         healthcheck_interval: float = 25.0,
         healthcheck_timeout: float = 35.0,
+        max_retries: int = 5,
+        backoff_base: float = 0.25,
+        backoff_max: float = 5.0,
     ):
         super().__init__()
         self.api_key = api_key
@@ -45,6 +49,9 @@ class StreamWS(StreamAsyncIOEventEmitter):
         self._token = token
         self._healthcheck_interval = healthcheck_interval
         self._healthcheck_timeout = healthcheck_timeout
+        self._max_retries = max_retries
+        self._backoff_base = backoff_base
+        self._backoff_max = backoff_max
 
         self._websocket: Optional[ClientConnection] = None
         self._connected = False
@@ -52,6 +59,8 @@ class StreamWS(StreamAsyncIOEventEmitter):
         self._reader_task: Optional[asyncio.Task] = None
         self._heartbeat_task: Optional[asyncio.Task] = None
         self._last_received: float = 0.0
+        self._reconnecting = False
+        self._reconnect_task: Optional[asyncio.Task] = None
 
     @property
     def ws_url(self) -> str:
@@ -86,10 +95,7 @@ class StreamWS(StreamAsyncIOEventEmitter):
         )
         return self._token
 
-    async def connect(self) -> dict:
-        if self._connected:
-            await self.disconnect()
-
+    async def _open_connection(self) -> dict:
         self._websocket = await websockets.connect(
             self.ws_url,
             ping_interval=None,
@@ -112,11 +118,25 @@ class StreamWS(StreamAsyncIOEventEmitter):
             raise StreamWSAuthError(f"Authentication failed: {message}")
 
         self._connection_id = message.get("connection_id")
-        self._connected = True
         self._last_received = time.monotonic()
+        return message
+
+    async def connect(self) -> dict:
+        if self._connected:
+            await self.disconnect()
+
+        message = await self._open_connection()
+        self._connected = True
+        self._start_tasks()
+        return message
+
+    def _start_tasks(self) -> None:
         self._reader_task = asyncio.create_task(self._reader_loop())
         self._heartbeat_task = asyncio.create_task(self._heartbeat_loop())
-        return message
+
+    def _trigger_reconnect(self, reason: str) -> None:
+        if self._connected and not self._reconnecting:
+            self._reconnect_task = asyncio.create_task(self._reconnect(reason))
 
     async def _reader_loop(self) -> None:
         while self._connected and self._websocket:
@@ -128,6 +148,7 @@ class StreamWS(StreamAsyncIOEventEmitter):
                 self.emit(event_type, message)
             except websockets.exceptions.ConnectionClosed:
                 logger.debug("WebSocket connection closed in reader")
+                self._trigger_reconnect("connection closed")
                 break
             except json.JSONDecodeError:
                 logger.warning("Failed to parse WebSocket message as JSON")
@@ -137,13 +158,67 @@ class StreamWS(StreamAsyncIOEventEmitter):
             await asyncio.sleep(self._healthcheck_interval)
             if not self._connected or not self._websocket:
                 break
+
+            elapsed = time.monotonic() - self._last_received
+            if elapsed > self._healthcheck_timeout:
+                logger.warning("Healthcheck timeout (%.1fs)", elapsed)
+                self._trigger_reconnect("healthcheck timeout")
+                break
+
             try:
                 msg = {"type": "health.check", "client_id": self._connection_id}
                 await self._websocket.send(json.dumps(msg))
                 logger.debug("Sent heartbeat")
             except websockets.exceptions.ConnectionClosed:
                 logger.debug("WebSocket closed while sending heartbeat")
+                self._trigger_reconnect("connection closed")
                 break
+
+    async def _reconnect(self, reason: str) -> None:
+        if self._reconnecting:
+            return
+        self._reconnecting = True
+        logger.info("Reconnecting: %s", reason)
+
+        try:
+            await self._cancel_tasks()
+            if self._websocket:
+                try:
+                    await self._websocket.close()
+                except Exception:
+                    pass
+                self._websocket = None
+
+            for attempt in range(1, self._max_retries + 1):
+                if not self._connected:
+                    return
+                delay = min(
+                    self._backoff_base * (2 ** (attempt - 1)),
+                    self._backoff_max,
+                )
+                delay *= 1 + random.random()
+                logger.debug("Reconnect attempt %d/%d in %.2fs", attempt, self._max_retries, delay)
+                await asyncio.sleep(delay)
+
+                if not self._connected:
+                    return
+
+                try:
+                    await self._open_connection()
+                    self._start_tasks()
+                    logger.info("Reconnected after %d attempt(s)", attempt)
+                    return
+                except StreamWSAuthError:
+                    logger.error("Auth failed during reconnect")
+                    self._connected = False
+                    raise
+                except Exception as e:
+                    logger.warning("Reconnect attempt %d failed: %s", attempt, e)
+
+            logger.error("All %d reconnect attempts failed", self._max_retries)
+            self._connected = False
+        finally:
+            self._reconnecting = False
 
     async def _cancel_tasks(self) -> None:
         for task in (self._reader_task, self._heartbeat_task):

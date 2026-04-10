@@ -150,3 +150,31 @@ async def test_heartbeat_sent(mock_server):
     assert heartbeats[0]["client_id"] == "conn-123"
 
     await ws.disconnect()
+
+
+@pytest.mark.asyncio
+async def test_reconnect_on_server_close(mock_server):
+    ws = StreamWS(
+        api_key="k",
+        api_secret="s" * 32,
+        user_id="alice",
+        base_url=f"http://127.0.0.1:{mock_server['port']}",
+        healthcheck_interval=100,
+        max_retries=3,
+    )
+    await ws.connect()
+    assert ws.connected
+    assert len(mock_server["connections"]) == 1
+
+    # Server forcibly closes the connection
+    await mock_server["connections"][0].close()
+
+    # Wait for reconnect
+    await asyncio.sleep(0.5)
+
+    assert ws.connected
+    # A second connection was made (the reconnect)
+    assert len(mock_server["connections"]) == 2
+    assert len(mock_server["auth_payloads"]) == 2
+
+    await ws.disconnect()
