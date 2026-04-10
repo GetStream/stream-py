@@ -10,12 +10,11 @@ import jwt
 import websockets
 from websockets import ClientConnection
 
+from getstream.stream import BASE_URL
 from getstream.utils.event_emitter import StreamAsyncIOEventEmitter
 from getstream.version import VERSION
 
 logger = logging.getLogger(__name__)
-
-DEFAULT_BASE_URL = "https://chat.stream-io-api.com"
 
 
 TOKEN_EXPIRED_CODE = 40
@@ -34,7 +33,7 @@ class StreamWS(StreamAsyncIOEventEmitter):
         api_secret: str,
         user_id: str,
         *,
-        base_url: str = DEFAULT_BASE_URL,
+        base_url: str = BASE_URL,
         user_agent: str | None = None,
         user_details: Optional[dict] = None,
         token: Optional[str] = None,
