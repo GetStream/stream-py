@@ -242,9 +242,9 @@ class StreamWS(StreamAsyncIOEventEmitter):
                         logger.info("Token expired (code 40), refreshing")
                         self._token = None
                         continue
-                    logger.error("Auth failed during reconnect")
+                    logger.error("Auth failed during reconnect (code %s)", error_code)
                     self._connected = False
-                    raise
+                    return
                 except Exception as e:
                     logger.warning("Reconnect attempt %d failed: %s", attempt, e)
 
@@ -259,7 +259,7 @@ class StreamWS(StreamAsyncIOEventEmitter):
                 task.cancel()
                 try:
                     await task
-                except asyncio.CancelledError:
+                except (asyncio.CancelledError, Exception):
                     pass
         self._reader_task = None
         self._heartbeat_task = None
