@@ -1,3 +1,3 @@
-from .client import StreamWS
+from .client import StreamWS, StreamWSAuthError
 
-__all__ = ["StreamWS"]
+__all__ = ["StreamWS", "StreamWSAuthError"]
