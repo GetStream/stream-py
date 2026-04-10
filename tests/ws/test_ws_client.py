@@ -49,6 +49,8 @@ async def mock_server():
     auth_payloads = []
     connections = []
 
+    client_messages = []
+
     async def handler(ws):
         connections.append(ws)
         raw = await ws.recv()
@@ -64,8 +66,8 @@ async def mock_server():
             )
         )
         try:
-            async for _ in ws:
-                pass
+            async for raw_msg in ws:
+                client_messages.append(json.loads(raw_msg))
         except websockets.exceptions.ConnectionClosed:
             pass
 
@@ -75,6 +77,7 @@ async def mock_server():
             "port": port,
             "auth_payloads": auth_payloads,
             "connections": connections,
+            "client_messages": client_messages,
         }
 
 
@@ -121,5 +124,29 @@ async def test_event_dispatched_to_listener(mock_server):
 
     assert len(received_events) == 1
     assert received_events[0]["text"] == "hello"
+
+    await ws.disconnect()
+
+
+@pytest.mark.asyncio
+async def test_heartbeat_sent(mock_server):
+    ws = StreamWS(
+        api_key="k",
+        api_secret="s" * 32,
+        user_id="alice",
+        base_url=f"http://127.0.0.1:{mock_server['port']}",
+        healthcheck_interval=0.1,
+    )
+    await ws.connect()
+
+    # Wait long enough for at least 2 heartbeats
+    await asyncio.sleep(0.35)
+
+    heartbeats = [
+        m for m in mock_server["client_messages"]
+        if m.get("type") == "health.check"
+    ]
+    assert len(heartbeats) >= 2
+    assert heartbeats[0]["client_id"] == "conn-123"
 
     await ws.disconnect()

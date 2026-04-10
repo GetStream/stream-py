@@ -32,6 +32,8 @@ class StreamWS(StreamAsyncIOEventEmitter):
         user_agent: str | None = None,
         user_details: Optional[dict] = None,
         token: Optional[str] = None,
+        healthcheck_interval: float = 25.0,
+        healthcheck_timeout: float = 35.0,
     ):
         super().__init__()
         self.api_key = api_key
@@ -41,11 +43,15 @@ class StreamWS(StreamAsyncIOEventEmitter):
         self._user_agent = user_agent or f"stream-python-client-{VERSION}"
         self._user_details = user_details or {"id": user_id}
         self._token = token
+        self._healthcheck_interval = healthcheck_interval
+        self._healthcheck_timeout = healthcheck_timeout
 
         self._websocket: Optional[ClientConnection] = None
         self._connected = False
         self._connection_id: Optional[str] = None
         self._reader_task: Optional[asyncio.Task] = None
+        self._heartbeat_task: Optional[asyncio.Task] = None
+        self._last_received: float = 0.0
 
     @property
     def ws_url(self) -> str:
@@ -107,13 +113,16 @@ class StreamWS(StreamAsyncIOEventEmitter):
 
         self._connection_id = message.get("connection_id")
         self._connected = True
+        self._last_received = time.monotonic()
         self._reader_task = asyncio.create_task(self._reader_loop())
+        self._heartbeat_task = asyncio.create_task(self._heartbeat_loop())
         return message
 
     async def _reader_loop(self) -> None:
         while self._connected and self._websocket:
             try:
                 raw = await self._websocket.recv()
+                self._last_received = time.monotonic()
                 message = json.loads(raw)
                 event_type = message.get("type", "unknown")
                 self.emit(event_type, message)
@@ -123,16 +132,34 @@ class StreamWS(StreamAsyncIOEventEmitter):
             except json.JSONDecodeError:
                 logger.warning("Failed to parse WebSocket message as JSON")
 
+    async def _heartbeat_loop(self) -> None:
+        while self._connected:
+            await asyncio.sleep(self._healthcheck_interval)
+            if not self._connected or not self._websocket:
+                break
+            try:
+                msg = {"type": "health.check", "client_id": self._connection_id}
+                await self._websocket.send(json.dumps(msg))
+                logger.debug("Sent heartbeat")
+            except websockets.exceptions.ConnectionClosed:
+                logger.debug("WebSocket closed while sending heartbeat")
+                break
+
+    async def _cancel_tasks(self) -> None:
+        for task in (self._reader_task, self._heartbeat_task):
+            if task:
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+        self._reader_task = None
+        self._heartbeat_task = None
+
     async def disconnect(self) -> None:
         self._connected = False
         self._connection_id = None
-        if self._reader_task:
-            self._reader_task.cancel()
-            try:
-                await self._reader_task
-            except asyncio.CancelledError:
-                pass
-            self._reader_task = None
+        await self._cancel_tasks()
         if self._websocket:
             try:
                 await self._websocket.close(code=1000, reason="client disconnect")
