@@ -137,8 +137,16 @@ class StreamWS(StreamAsyncIOEventEmitter):
         return message
 
     async def connect(self) -> dict:
-        if self._connected:
-            await self.disconnect()
+        # Clean up any prior state (stale tasks from a previous connection
+        # may still be running even if _connected is already false)
+        await self._cancel_all_tasks()
+        if self._websocket:
+            try:
+                await self._websocket.close()
+            except Exception:
+                pass
+            self._websocket = None
+        self._connection_id = None
 
         message = await self._open_connection()
         self._connected = True
@@ -163,7 +171,10 @@ class StreamWS(StreamAsyncIOEventEmitter):
                 self._last_received = time.monotonic()
                 message = json.loads(raw)
                 event_type = message.get("type", "unknown")
-                self.emit(event_type, message)
+                try:
+                    self.emit(event_type, message)
+                except Exception:
+                    logger.exception("Error in event listener for %s", event_type)
             except websockets.exceptions.ConnectionClosed as e:
                 close_code = getattr(e.rcvd, "code", None) if e.rcvd else None
                 logger.debug("WebSocket closed (code=%s) in reader", close_code)
