@@ -198,8 +198,8 @@ async def test_reconnect_on_server_close(mock_server):
     assert ws.connected
     assert len(mock_server["connections"]) == 1
 
-    # Server forcibly closes the connection
-    await mock_server["connections"][0].close()
+    # Server closes with non-1000 code (abnormal) -- should trigger reconnect
+    await mock_server["connections"][0].close(code=1001, reason="going away")
 
     # Wait for reconnect
     await asyncio.sleep(0.5)
@@ -210,6 +210,27 @@ async def test_reconnect_on_server_close(mock_server):
     assert len(mock_server["auth_payloads"]) == 2
 
     await ws.disconnect()
+
+
+@pytest.mark.asyncio
+async def test_no_reconnect_on_intentional_close(mock_server):
+    ws = StreamWS(
+        api_key="k",
+        api_secret="s" * 32,
+        user_id="alice",
+        base_url=f"http://127.0.0.1:{mock_server['port']}",
+        healthcheck_interval=100,
+        max_retries=3,
+    )
+    await ws.connect()
+    assert ws.connected
+
+    # Server closes with code 1000 (intentional) -- should NOT reconnect
+    await mock_server["connections"][0].close(code=1000, reason="normal closure")
+    await asyncio.sleep(0.5)
+
+    assert not ws.connected
+    assert len(mock_server["connections"]) == 1
 
 
 @pytest_asyncio.fixture()
@@ -271,8 +292,8 @@ async def test_token_refresh_on_expired(token_expiry_server):
     )
     await ws.connect()
 
-    # Server closes -> reconnect hits code 40 -> should refresh token and retry
-    await ws._websocket.close()
+    # Simulate abnormal close -> reconnect hits code 40 -> should refresh token and retry
+    await ws._websocket.close(code=1001, reason="going away")
     await asyncio.sleep(0.5)
 
     assert ws.connected

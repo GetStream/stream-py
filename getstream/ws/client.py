@@ -154,9 +154,14 @@ class StreamWS(StreamAsyncIOEventEmitter):
                 message = json.loads(raw)
                 event_type = message.get("type", "unknown")
                 self.emit(event_type, message)
-            except websockets.exceptions.ConnectionClosed:
-                logger.debug("WebSocket connection closed in reader")
-                self._trigger_reconnect("connection closed")
+            except websockets.exceptions.ConnectionClosed as e:
+                close_code = getattr(e.rcvd, "code", None) if e.rcvd else None
+                logger.debug("WebSocket closed (code=%s) in reader", close_code)
+                if close_code == 1000:
+                    logger.info("Server closed connection normally, not reconnecting")
+                    self._connected = False
+                else:
+                    self._trigger_reconnect("connection closed")
                 break
             except json.JSONDecodeError:
                 logger.warning("Failed to parse WebSocket message as JSON")
