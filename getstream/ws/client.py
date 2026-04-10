@@ -171,7 +171,7 @@ class StreamWS(StreamAsyncIOEventEmitter):
                 break
 
             try:
-                msg = {"type": "health.check", "client_id": self._connection_id}
+                msg = [{"type": "health.check", "client_id": self._connection_id}]
                 await self._websocket.send(json.dumps(msg))
                 logger.debug("Sent heartbeat")
             except websockets.exceptions.ConnectionClosed:

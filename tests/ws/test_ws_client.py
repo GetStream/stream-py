@@ -142,12 +142,13 @@ async def test_heartbeat_sent(mock_server):
     # Wait long enough for at least 2 heartbeats
     await asyncio.sleep(0.35)
 
+    # Health checks are sent as arrays per the Stream protocol: [{type, client_id}]
     heartbeats = [
         m for m in mock_server["client_messages"]
-        if m.get("type") == "health.check"
+        if isinstance(m, list) and m and m[0].get("type") == "health.check"
     ]
     assert len(heartbeats) >= 2
-    assert heartbeats[0]["client_id"] == "conn-123"
+    assert heartbeats[0][0]["client_id"] == "conn-123"
 
     await ws.disconnect()
 
