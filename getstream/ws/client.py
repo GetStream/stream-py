@@ -81,7 +81,7 @@ class StreamWS(StreamAsyncIOEventEmitter):
                 "X-Stream-Client": self._user_agent,
             }
         )
-        return f"{scheme}/connect?{params}"
+        return f"{scheme}/api/v2/connect?{params}"
 
     @property
     def connected(self) -> bool:

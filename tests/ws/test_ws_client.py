@@ -27,7 +27,7 @@ def test_ws_url_construction():
         base_url="https://chat.stream-io-api.com",
     )
     url = ws.ws_url
-    assert url.startswith("wss://chat.stream-io-api.com/connect?")
+    assert url.startswith("wss://chat.stream-io-api.com/api/v2/connect?")
     assert "api_key=my-key" in url
     assert "stream-auth-type=jwt" in url
 
@@ -40,7 +40,7 @@ def test_ws_url_construction_http():
         base_url="http://localhost:3030",
     )
     url = ws.ws_url
-    assert url.startswith("ws://localhost:3030/connect?")
+    assert url.startswith("ws://localhost:3030/api/v2/connect?")
 
 
 @pytest_asyncio.fixture()
