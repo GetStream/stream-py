@@ -204,7 +204,7 @@ class StreamWS(StreamAsyncIOEventEmitter):
         logger.info("Reconnecting: %s", reason)
 
         try:
-            await self._cancel_tasks()
+            await self._cancel_background_tasks()
             if self._websocket:
                 try:
                     await self._websocket.close()
@@ -253,8 +253,9 @@ class StreamWS(StreamAsyncIOEventEmitter):
         finally:
             self._reconnecting = False
 
-    async def _cancel_tasks(self) -> None:
-        for task in (self._reader_task, self._heartbeat_task, self._reconnect_task):
+    async def _cancel_background_tasks(self) -> None:
+        """Cancel reader and heartbeat tasks (safe to call from _reconnect)."""
+        for task in (self._reader_task, self._heartbeat_task):
             if task:
                 task.cancel()
                 try:
@@ -263,12 +264,22 @@ class StreamWS(StreamAsyncIOEventEmitter):
                     pass
         self._reader_task = None
         self._heartbeat_task = None
-        self._reconnect_task = None
+
+    async def _cancel_all_tasks(self) -> None:
+        """Cancel all tasks including reconnect (used by disconnect)."""
+        await self._cancel_background_tasks()
+        if self._reconnect_task:
+            self._reconnect_task.cancel()
+            try:
+                await self._reconnect_task
+            except (asyncio.CancelledError, Exception):
+                pass
+            self._reconnect_task = None
 
     async def disconnect(self) -> None:
         self._connected = False
         self._connection_id = None
-        await self._cancel_tasks()
+        await self._cancel_all_tasks()
         if self._websocket:
             try:
                 await self._websocket.close(code=1000, reason="client disconnect")
