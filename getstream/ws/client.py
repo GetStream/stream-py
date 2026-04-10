@@ -4,7 +4,7 @@ import logging
 import random
 import time
 from typing import Optional
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse, urlunparse
 
 import jwt
 import websockets
@@ -70,17 +70,21 @@ class StreamWS(StreamAsyncIOEventEmitter):
 
     @property
     def ws_url(self) -> str:
-        scheme = self._base_url.replace("https://", "wss://").replace(
-            "http://", "ws://"
-        )
-        params = urlencode(
+        parsed = urlparse(self._base_url)
+        ws_scheme = "wss" if parsed.scheme == "https" else "ws"
+        query = urlencode(
             {
                 "api_key": self.api_key,
                 "stream-auth-type": "jwt",
                 "X-Stream-Client": self._user_agent,
             }
         )
-        return f"{scheme}/api/v2/connect?{params}"
+        ws_parsed = parsed._replace(
+            scheme=ws_scheme,
+            path="/api/v2/connect",
+            query=query,
+        )
+        return urlunparse(ws_parsed)
 
     @property
     def connected(self) -> bool:
