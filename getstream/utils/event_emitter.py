@@ -94,6 +94,7 @@ class StreamAsyncIOEventEmitter(AsyncIOEventEmitter):
             def handler(event_type, event):
                 ...
         """
+
         def _register(fn):
             if pattern not in self._wildcard_listeners:
                 self._wildcard_listeners[pattern] = []
