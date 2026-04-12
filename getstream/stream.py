@@ -228,7 +228,13 @@ class AsyncStream(BaseStream, AsyncCommonClient):
             user_details=user_details or {"id": user_id},
             **defaults,
         )
-        await ws.connect()
+        try:
+            await ws.connect()
+        except Exception:
+            await ws.disconnect()
+            raise
+        # Remove any previously disconnected WS instances to prevent unbounded growth
+        self._ws_connections[:] = [w for w in self._ws_connections if w.connected]
         self._ws_connections.append(ws)
         return ws
 
