@@ -930,9 +930,6 @@ webrtc = [
     { name = "websocket-client" },
     { name = "websockets" },
 ]
-ws = [
-    { name = "websockets" },
-]
 
 [package.dev-dependencies]
 dev = [
@@ -989,9 +986,8 @@ requires-dist = [
     { name = "websocket-client", marker = "extra == 'webrtc'", specifier = ">=1.8.0" },
     { name = "websockets", marker = "extra == 'webrtc'", specifier = ">=15.0.1" },
     { name = "websockets", marker = "extra == 'webrtc'", specifier = ">=15.0.1,<16" },
-    { name = "websockets", marker = "extra == 'ws'", specifier = ">=15.0.1,<16" },
 ]
-provides-extras = ["openai-realtime", "telemetry", "webrtc", "ws"]
+provides-extras = ["openai-realtime", "telemetry", "webrtc"]
 
 [package.metadata.requires-dev]
 dev = [
