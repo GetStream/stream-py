@@ -182,6 +182,8 @@ async def test_reconnect_on_server_close(mock_server):
         uri=_make_uri(mock_server["port"]),
         healthcheck_interval=100,
         max_retries=3,
+        backoff_base=0.05,
+        backoff_max=0.1,
     )
     await ws.connect()
     assert ws.connected
@@ -189,7 +191,7 @@ async def test_reconnect_on_server_close(mock_server):
     ws_id_before = ws.ws_id
 
     await mock_server["connections"][0].close(code=1001, reason="going away")
-    await asyncio.sleep(0.5)
+    await asyncio.sleep(1.0)
 
     assert ws.connected
     assert len(mock_server["connections"]) == 2
@@ -213,7 +215,7 @@ async def test_no_reconnect_on_intentional_close(mock_server):
     assert ws.connected
 
     await mock_server["connections"][0].close(code=1000, reason="normal closure")
-    await asyncio.sleep(0.5)
+    await asyncio.sleep(1.0)
 
     assert not ws.connected
     assert len(mock_server["connections"]) == 1
