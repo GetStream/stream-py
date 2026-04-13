@@ -24,6 +24,7 @@ from getstream.video.rtc.connection_utils import (
     connect_websocket,
     join_call,
     watch_call,
+    watch_channels,
 )
 from getstream.video.rtc.coordinator.backoff import exp_backoff
 from getstream.video.rtc.track_util import (
@@ -293,6 +294,17 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                 await watch_call(
                     self.call, self.user_id, self._coordinator_ws_client._client_id
                 )
+
+            with telemetry.start_as_current_span(
+                "watch-channels",
+            ):
+                if self.call.id is not None:
+                    await watch_channels(
+                        self.call,
+                        self.user_id,
+                        self._coordinator_ws_client._client_id,
+                        [("messaging", self.call.id)],
+                    )
 
     async def _connect_internal(
         self,
@@ -619,6 +631,10 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
     @ws_client.setter
     def ws_client(self, value):
         self._ws_client = value
+
+    @property
+    def coordinator_ws(self):
+        return self._coordinator_ws_client
 
     # Publisher / Subscriber peer-connection shortcuts
     @property
