@@ -208,12 +208,17 @@ class AsyncStream(BaseStream, AsyncCommonClient):
             user_agent=self.user_agent,
         )
 
-    async def connect_ws(
+    def connect_ws(
         self,
         user_id: str,
         user_details: Optional[dict] = None,
         **kwargs,
     ):
+        """Create a StreamWS instance. Use as an async context manager:
+
+            async with client.connect_ws(user_id="alice") as ws:
+                ws.on("custom", handler)
+        """
         from getstream.ws import StreamWS
 
         defaults = {
@@ -228,13 +233,6 @@ class AsyncStream(BaseStream, AsyncCommonClient):
             user_details=user_details or {"id": user_id},
             **defaults,
         )
-        try:
-            await ws.connect()
-        except Exception:
-            await ws.disconnect()
-            raise
-        # Remove any previously disconnected WS instances to prevent unbounded growth
-        self._ws_connections[:] = [w for w in self._ws_connections if w.connected]
         self._ws_connections.append(ws)
         return ws
 

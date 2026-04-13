@@ -37,19 +37,18 @@ async def mock_server():
 
 
 @pytest.mark.asyncio
-async def test_connect_ws(mock_server):
+async def test_connect_ws_context_manager(mock_server):
     client = AsyncStream(
         api_key="k" * 32,
         api_secret="s" * 32,
         base_url=f"http://127.0.0.1:{mock_server['port']}",
     )
-    ws = await client.connect_ws(user_id="alice")
+    async with client.connect_ws(user_id="alice") as ws:
+        assert ws.connected
+        assert ws.connection_id == "conn-int"
+        assert ws.user_id == "alice"
 
-    assert ws.connected
-    assert ws.connection_id == "conn-int"
-    assert ws.user_id == "alice"
-
-    await ws.disconnect()
+    assert not ws.connected
     await client.aclose()
 
 
@@ -60,8 +59,24 @@ async def test_aclose_disconnects_ws(mock_server):
         api_secret="s" * 32,
         base_url=f"http://127.0.0.1:{mock_server['port']}",
     )
-    ws = await client.connect_ws(user_id="bob")
-    assert ws.connected
+    async with client.connect_ws(user_id="bob") as ws:
+        assert ws.connected
 
     await client.aclose()
+    assert not ws.connected
+
+
+@pytest.mark.asyncio
+async def test_standalone_context_manager(mock_server):
+    from getstream.ws import StreamWS
+
+    async with StreamWS(
+        api_key="k" * 32,
+        api_secret="s" * 32,
+        user_id="alice",
+        base_url=f"http://127.0.0.1:{mock_server['port']}",
+    ) as ws:
+        assert ws.connected
+        assert ws.connection_id == "conn-int"
+
     assert not ws.connected

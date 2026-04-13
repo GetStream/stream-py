@@ -152,6 +152,14 @@ class StreamWS(StreamAsyncIOEventEmitter):
         self._last_received = time.monotonic()
         return message
 
+    async def __aenter__(self):
+        await self.connect()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.disconnect()
+        return False
+
     async def connect(self) -> dict:
         # Clean up any prior state (stale tasks from a previous connection
         # may still be running even if _connected is already false)
