@@ -98,9 +98,7 @@ class StreamWS(StreamAsyncIOEventEmitter):
     def ws_id(self) -> int:
         return self._ws_id
 
-    async def _close_websocket(
-        self, code: int = 1000, reason: str = ""
-    ) -> None:
+    async def _close_websocket(self, code: int = 1000, reason: str = "") -> None:
         if self._websocket:
             try:
                 await self._websocket.close(code=code, reason=reason)

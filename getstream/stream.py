@@ -215,8 +215,8 @@ class AsyncStream(BaseStream, AsyncCommonClient):
     ):
         """Create a StreamWS instance. Use as an async context manager:
 
-            async with client.connect_ws(user_id="alice") as ws:
-                ws.on("custom", handler)
+        async with client.connect_ws(user_id="alice") as ws:
+            ws.on("custom", handler)
         """
         defaults = {
             "base_url": self.base_url,
