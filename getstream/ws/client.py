@@ -3,7 +3,7 @@ import json
 import logging
 import random
 import time
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 from urllib.parse import urlencode, urlparse, urlunparse
 
 import httpx
@@ -44,6 +44,7 @@ class StreamWS(StreamAsyncIOEventEmitter):
         backoff_base: float = 0.25,
         backoff_max: float = 5.0,
         watch_call: Optional[Tuple[str, str]] = None,
+        watch_channels: Optional[List[Tuple[str, str]]] = None,
     ):
         super().__init__()
         self.api_key = api_key
@@ -60,6 +61,7 @@ class StreamWS(StreamAsyncIOEventEmitter):
         self._backoff_base = backoff_base
         self._backoff_max = backoff_max
         self._watch_call = watch_call
+        self._watch_channels = watch_channels
 
         self._websocket: Optional[ClientConnection] = None
         self._connected = False
@@ -159,6 +161,8 @@ class StreamWS(StreamAsyncIOEventEmitter):
         if self._watch_call:
             call_type, call_id = self._watch_call
             await self._subscribe_to_call(call_type, call_id)
+        if self._watch_channels:
+            await self._subscribe_to_channels(self._watch_channels)
         return self
 
     async def _subscribe_to_call(self, call_type: str, call_id: str) -> None:
@@ -181,6 +185,36 @@ class StreamWS(StreamAsyncIOEventEmitter):
             "Watching call %s/%s (connection_id=%s)",
             call_type,
             call_id,
+            self._connection_id,
+        )
+
+    async def _subscribe_to_channels(self, channels: List[Tuple[str, str]]) -> None:
+        """Subscribe to chat channel events by querying channels with watch=true.
+
+        Uses the user token (not admin token) because the coordinator only
+        registers subscriptions for client-side requests.
+        """
+        token = self._ensure_token()
+        parsed = urlparse(self._base_url)
+        url = urlunparse(parsed._replace(path="/api/v2/chat/channels"))
+        cids = [f"{ch_type}:{ch_id}" for ch_type, ch_id in channels]
+        payload = {
+            "filter_conditions": {"cid": {"$in": cids}},
+            "watch": True,
+            "connection_id": self._connection_id,
+        }
+        headers = {"authorization": token, **self._stream_headers}
+        async with httpx.AsyncClient() as http:
+            response = await http.post(
+                url,
+                params={"api_key": self.api_key},
+                headers=headers,
+                json=payload,
+            )
+            response.raise_for_status()
+        logger.info(
+            "Watching %d channel(s) (connection_id=%s)",
+            len(channels),
             self._connection_id,
         )
 
