@@ -18,13 +18,12 @@ from getstream.feeds.client import FeedsClient
 from getstream.models import FullUserResponse, UserRequest
 from getstream.moderation.client import ModerationClient
 from getstream.moderation.async_client import ModerationClient as AsyncModerationClient
+from getstream.config import BASE_URL
 from getstream.utils import validate_and_clean_url
 from getstream.video.client import VideoClient
 from getstream.video.async_client import VideoClient as AsyncVideoClient
+from getstream.ws import StreamWS
 from typing_extensions import deprecated
-
-
-BASE_URL = "https://chat.stream-io-api.com/"
 
 
 class Settings(BaseSettings):
@@ -219,8 +218,6 @@ class AsyncStream(BaseStream, AsyncCommonClient):
             async with client.connect_ws(user_id="alice") as ws:
                 ws.on("custom", handler)
         """
-        from getstream.ws import StreamWS
-
         defaults = {
             "base_url": self.base_url,
             "user_agent": self.user_agent,

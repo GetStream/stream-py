@@ -1,5 +1,7 @@
 from getstream.version import VERSION
 
+BASE_URL = "https://chat.stream-io-api.com/"
+
 
 class BaseConfig:
     def __init__(

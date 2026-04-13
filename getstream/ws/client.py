@@ -10,7 +10,7 @@ import jwt
 import websockets
 from websockets import ClientConnection
 
-from getstream.stream import BASE_URL
+from getstream.config import BASE_URL
 from getstream.utils.event_emitter import StreamAsyncIOEventEmitter
 from getstream.version import VERSION
 
