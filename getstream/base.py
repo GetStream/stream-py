@@ -158,12 +158,38 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
             timeout=timeout,
             user_agent=user_agent,
         )
-        self.client = httpx.Client(
-            base_url=self.base_url or "",
-            headers=self.headers,
-            params=self.params,
-            timeout=httpx.Timeout(self.timeout),
-        )
+        http_client = getattr(self, "_http_client", None)
+        if http_client is not None:
+            if not isinstance(http_client, httpx.Client):
+                raise TypeError(
+                    f"http_client must be an httpx.Client instance, "
+                    f"got {type(http_client).__name__}"
+                )
+            http_client.headers.update(self.headers)
+            http_client.params = http_client.params.merge(self.params)
+            http_client.base_url = self.base_url or ""
+            if self.timeout is not None:
+                http_client.timeout = httpx.Timeout(self.timeout)
+            self.client = http_client
+            self._owns_http_client = False
+        else:
+            transport = getattr(self, "_transport", None)
+            if transport is not None:
+                self.client = httpx.Client(
+                    base_url=self.base_url or "",
+                    headers=self.headers,
+                    params=self.params,
+                    timeout=httpx.Timeout(self.timeout),
+                    transport=transport,
+                )
+            else:
+                self.client = httpx.Client(
+                    base_url=self.base_url or "",
+                    headers=self.headers,
+                    params=self.params,
+                    timeout=httpx.Timeout(self.timeout),
+                )
+            self._owns_http_client = True
 
     def __enter__(self):
         return self
@@ -348,8 +374,13 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
     def close(self):
         """
         Close HTTPX client.
+
+        If the client was provided externally via ``http_client``, this is a
+        no-op — the caller that created the client is responsible for closing
+        it.
         """
-        self.client.close()
+        if getattr(self, "_owns_http_client", True):
+            self.client.close()
 
 
 class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
@@ -368,12 +399,38 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
             timeout=timeout,
             user_agent=user_agent,
         )
-        self.client = httpx.AsyncClient(
-            base_url=self.base_url or "",
-            headers=self.headers,
-            params=self.params,
-            timeout=httpx.Timeout(self.timeout),
-        )
+        http_client = getattr(self, "_http_client", None)
+        if http_client is not None:
+            if not isinstance(http_client, httpx.AsyncClient):
+                raise TypeError(
+                    f"http_client must be an httpx.AsyncClient instance, "
+                    f"got {type(http_client).__name__}"
+                )
+            http_client.headers.update(self.headers)
+            http_client.params = http_client.params.merge(self.params)
+            http_client.base_url = self.base_url or ""
+            if self.timeout is not None:
+                http_client.timeout = httpx.Timeout(self.timeout)
+            self.client = http_client
+            self._owns_http_client = False
+        else:
+            transport = getattr(self, "_transport", None)
+            if transport is not None:
+                self.client = httpx.AsyncClient(
+                    base_url=self.base_url or "",
+                    headers=self.headers,
+                    params=self.params,
+                    timeout=httpx.Timeout(self.timeout),
+                    transport=transport,
+                )
+            else:
+                self.client = httpx.AsyncClient(
+                    base_url=self.base_url or "",
+                    headers=self.headers,
+                    params=self.params,
+                    timeout=httpx.Timeout(self.timeout),
+                )
+            self._owns_http_client = True
 
     async def __aenter__(self):
         return self
@@ -382,8 +439,14 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
         await self.aclose()
 
     async def aclose(self):
-        """Close HTTPX async client (closes pools/keep-alives)."""
-        await self.client.aclose()
+        """Close HTTPX async client (closes pools/keep-alives).
+
+        If the client was provided externally via ``http_client``, this is a
+        no-op — the caller that created the client is responsible for closing
+        it.
+        """
+        if getattr(self, "_owns_http_client", True):
+            await self.client.aclose()
 
     async def _upload_multipart(
         self,
