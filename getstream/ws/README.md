@@ -26,9 +26,9 @@ async def main():
     async def on_message(event):
         print(f"New message in {event['cid']}: {event['message']['text']}")
 
-    @ws.on_wildcard("call.**")
     async def on_call_event(event_type, event):
         print(f"{event_type}: {event}")
+    ws.on_wildcard("call.**", on_call_event)
 
     # keep running until interrupted
     try:
@@ -131,26 +131,21 @@ Strategy:
 `StreamWS` extends `StreamAsyncIOEventEmitter` (pyee-based). Two ways to listen:
 
 ```python
-# Exact event type
+# Exact event type (supports decorator syntax via pyee)
 @ws.on("message.new")
 def handler(event):
     ...
 
-# Wildcard patterns (decorator or direct call)
-@ws.on_wildcard("message.*")     # single level: message.new, message.updated
-def handler(event_type, event):
-    ...
+# Wildcard patterns (direct call)
+ws.on_wildcard("message.*", handler)     # single level: message.new, message.updated
+ws.on_wildcard("call.**", handler)       # multi level: call.created, call.member.added
+ws.on_wildcard("*", handler)             # all events
 
-@ws.on_wildcard("call.**")      # multi level: call.created, call.member.added
-def handler(event_type, event):
-    ...
-
-@ws.on_wildcard("*")            # all events
 def handler(event_type, event):
     ...
 ```
 
-Both sync and async handlers are supported. `on_wildcard` works both as a decorator (`@ws.on_wildcard("*")`) and as a direct call (`ws.on_wildcard("*", handler)`).
+Both sync and async handlers are supported.
 
 ## Configuration
 
