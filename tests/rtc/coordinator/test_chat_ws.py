@@ -183,7 +183,6 @@ async def test_reconnect_on_server_close(mock_server):
         healthcheck_interval=100,
         max_retries=3,
         backoff_base=0.05,
-        backoff_max=0.1,
     )
     await ws.connect()
     assert ws.connected
@@ -275,7 +274,6 @@ async def test_token_refresh_on_expired(token_expiry_server):
         healthcheck_interval=100,
         max_retries=5,
         backoff_base=0.05,
-        backoff_max=0.1,
     )
     await ws.connect()
 
@@ -300,7 +298,6 @@ async def test_static_token_not_refreshed(token_expiry_server):
         healthcheck_interval=100,
         max_retries=5,
         backoff_base=0.05,
-        backoff_max=0.1,
     )
     await ws.connect()
 

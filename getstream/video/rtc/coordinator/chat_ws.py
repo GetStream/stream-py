@@ -8,7 +8,6 @@ client for consuming real-time chat and call events from Stream's Coordinator.
 import asyncio
 import json
 import logging
-import random
 import time
 from typing import List, Optional, Tuple
 from urllib.parse import urlparse, urlunparse
@@ -20,6 +19,7 @@ from websockets import ClientConnection
 
 from getstream.utils.event_emitter import StreamAsyncIOEventEmitter
 
+from .backoff import exp_backoff
 from .errors import (
     StreamWSAuthError,
     StreamWSConnectionError,
@@ -51,9 +51,8 @@ class StreamChatWS(StreamAsyncIOEventEmitter):
         healthcheck_interval: float = 25.0,
         healthcheck_timeout: float = 35.0,
         max_retries: int = 5,
-        backoff_base: float = 0.25,
+        backoff_base: float = 1.0,
         backoff_factor: float = 2.0,
-        backoff_max: float = 5.0,
         logger: Optional[logging.Logger] = None,
         user_token: Optional[str] = None,
         watch_call: Optional[Tuple[str, str]] = None,
@@ -72,7 +71,6 @@ class StreamChatWS(StreamAsyncIOEventEmitter):
         self.max_retries = max_retries
         self.backoff_base = backoff_base
         self.backoff_factor = backoff_factor
-        self.backoff_max = backoff_max
         self._watch_call = watch_call
         self._watch_channels = watch_channels
 
@@ -394,82 +392,96 @@ class StreamChatWS(StreamAsyncIOEventEmitter):
         finally:
             self._logger.debug("Heartbeat task ended")
 
+    def _try_refresh_token(self, error: StreamWSAuthError) -> bool:
+        """Try to refresh the token if the error is TOKEN_EXPIRED and token is not static.
+
+        Returns True if the token was refreshed and reconnect should retry.
+        """
+        error_code = getattr(error, "response", {}).get("error", {}).get("code")
+        if error_code == TOKEN_EXPIRED_CODE and not self._static_token:
+            self._logger.info("Token expired (code 40), refreshing")
+            self.user_token = None
+            return True
+        return False
+
     def _trigger_reconnect(self, reason: str) -> None:
         if self._connected and not self._reconnect_in_progress:
             self._reconnect_in_progress = True
             self._reconnect_task = asyncio.create_task(self._reconnect(reason))
 
     async def _reconnect(self, reason: str = "") -> None:
+        """
+        Attempt to reconnect using exponential backoff strategy.
+
+        Raises:
+            StreamWSMaxRetriesExceeded: If all retry attempts fail
+        """
         self._logger.info("Starting reconnection process: %s", reason)
+
         self._initial_connection = False
 
-        try:
-            await self._cancel_background_tasks()
+        await self._cancel_background_tasks()
 
-            if self._websocket:
-                try:
-                    await self._websocket.close()
-                except Exception:
-                    pass
-                self._websocket = None
+        if self._websocket:
+            try:
+                await self._websocket.close()
+            except Exception:
+                pass
+            self._websocket = None
 
-            attempt = 0
-            for attempt in range(1, self.max_retries + 1):
-                if not self._connected:
-                    return
+        attempt = 0
+        async for delay in exp_backoff(
+            max_retries=self.max_retries,
+            base=self.backoff_base,
+            factor=self.backoff_factor,
+        ):
+            attempt += 1
+            self._logger.info(
+                "Reconnection attempt",
+                extra={
+                    "attempt": attempt,
+                    "max_retries": self.max_retries,
+                    "delay": delay,
+                },
+            )
 
-                delay = min(
-                    self.backoff_base * (self.backoff_factor ** (attempt - 1)),
-                    self.backoff_max,
+            await asyncio.sleep(delay)
+
+            if not self._connected:
+                self._logger.debug(
+                    "Connection was closed during backoff, aborting reconnection"
                 )
-                delay *= 1 + random.random()
+                return
 
-                self._logger.info(
-                    "Reconnection attempt",
-                    extra={
-                        "attempt": attempt,
-                        "max_retries": self.max_retries,
-                        "delay": delay,
-                    },
+            try:
+                await self._open_socket()
+
+                await self._start_background_tasks()
+
+                self._logger.info("Reconnection successful")
+                return
+
+            except StreamWSAuthError as e:
+                if self._try_refresh_token(e):
+                    continue
+                self._logger.error(
+                    "Authentication failed during reconnection", exc_info=e
                 )
-                await asyncio.sleep(delay)
+                self._connected = False
+                return
+            except (OSError, websockets.exceptions.WebSocketException) as e:
+                self._logger.warning(
+                    "Reconnection attempt failed",
+                    extra={"attempt": attempt, "error": str(e)},
+                )
+                continue
+            except Exception as e:
+                self._logger.error("Unexpected error during reconnection", exc_info=e)
+                continue
 
-                if not self._connected:
-                    return
-
-                try:
-                    await self._open_socket()
-                    await self._start_background_tasks()
-                    self._logger.info("Reconnection successful")
-                    return
-
-                except StreamWSAuthError as e:
-                    error_code = getattr(e, "response", {}).get("error", {}).get("code")
-                    if error_code == TOKEN_EXPIRED_CODE and not self._static_token:
-                        self._logger.info("Token expired (code 40), refreshing")
-                        self.user_token = None
-                        continue
-                    self._logger.error(
-                        "Auth failed during reconnect (code %s)", error_code
-                    )
-                    self._connected = False
-                    return
-                except (OSError, websockets.exceptions.WebSocketException) as e:
-                    self._logger.warning(
-                        "Reconnection attempt failed",
-                        extra={"attempt": attempt, "error": str(e)},
-                    )
-                    continue
-                except Exception as e:
-                    self._logger.error(
-                        "Unexpected error during reconnection", exc_info=e
-                    )
-                    continue
-
-            self._logger.error("All reconnection attempts failed")
-            self._connected = False
-        finally:
-            self._reconnect_in_progress = False
+        self._logger.error("All reconnection attempts failed")
+        self._connected = False
+        self._reconnect_in_progress = False
 
     async def _start_background_tasks(self) -> None:
         self._logger.debug("Starting background tasks")
