@@ -84,27 +84,12 @@ class StreamAsyncIOEventEmitter(AsyncIOEventEmitter):
 
         return result
 
-    def on_wildcard(self, pattern, listener=None):
-        """Register a wildcard event listener.
-
-        Can be used directly or as a decorator:
-            ws.on_wildcard("*", handler)
-
-            @ws.on_wildcard("*")
-            def handler(event_type, event):
-                ...
-        """
-
-        def _register(fn):
-            if pattern not in self._wildcard_listeners:
-                self._wildcard_listeners[pattern] = []
-            self._wildcard_listeners[pattern].append(fn)
-            return fn
-
-        if listener is not None:
-            _register(listener)
-            return self
-        return _register
+    def on_wildcard(self, pattern, listener):
+        """Register a wildcard event listener"""
+        if pattern not in self._wildcard_listeners:
+            self._wildcard_listeners[pattern] = []
+        self._wildcard_listeners[pattern].append(listener)
+        return self
 
     def remove_wildcard_listener(self, pattern, listener):
         """Remove a specific wildcard listener"""
