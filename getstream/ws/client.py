@@ -161,11 +161,8 @@ class StreamWS(StreamAsyncIOEventEmitter):
         return False
 
     async def connect(self) -> dict:
-        # Clean up any prior state (stale tasks from a previous connection
-        # may still be running even if _connected is already false)
-        await self._cancel_all_tasks()
-        await self._close_websocket()
-        self._connection_id = None
+        if self._connected:
+            raise RuntimeError("Already connected. Call disconnect() first.")
 
         message = await self._open_connection()
         self._connected = True
