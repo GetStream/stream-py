@@ -30,7 +30,9 @@ class StreamWSAuthError(StreamWSException):
     does not trigger retry logic.
     """
 
-    pass
+    def __init__(self, message: str, response: dict | None = None):
+        super().__init__(message)
+        self.response = response or {}
 
 
 class StreamWSConnectionError(StreamWSException):

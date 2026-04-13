@@ -5,11 +5,16 @@ import pytest
 import pytest_asyncio
 import websockets
 
-from getstream.ws import StreamWS, StreamWSAuthError
+from getstream.video.rtc.coordinator.chat_ws import StreamChatWS
+from getstream.video.rtc.coordinator.errors import StreamWSAuthError
+
+
+def _make_uri(port):
+    return f"ws://127.0.0.1:{port}/api/v2/connect"
 
 
 def test_stream_ws_instantiation():
-    ws = StreamWS(
+    ws = StreamChatWS(
         api_key="test-key",
         api_secret="test-secret",
         user_id="alice",
@@ -19,28 +24,14 @@ def test_stream_ws_instantiation():
     assert not ws.connected
 
 
-def test_ws_url_construction():
-    ws = StreamWS(
+def test_uri_contains_api_key():
+    ws = StreamChatWS(
         api_key="my-key",
         api_secret="my-secret",
         user_id="alice",
-        base_url="https://chat.stream-io-api.com",
     )
-    url = ws.ws_url
-    assert url.startswith("wss://chat.stream-io-api.com/api/v2/connect?")
-    assert "api_key=my-key" in url
-    assert "stream-auth-type=jwt" in url
-
-
-def test_ws_url_construction_http():
-    ws = StreamWS(
-        api_key="k",
-        api_secret="s",
-        user_id="bob",
-        base_url="http://localhost:3030",
-    )
-    url = ws.ws_url
-    assert url.startswith("ws://localhost:3030/api/v2/connect?")
+    assert "api_key=my-key" in ws.uri
+    assert "stream-auth-type=jwt" in ws.uri
 
 
 @pytest_asyncio.fixture()
@@ -48,7 +39,6 @@ async def mock_server():
     """WS server that handles auth and keeps connections open."""
     auth_payloads = []
     connections = []
-
     client_messages = []
 
     async def handler(ws):
@@ -83,11 +73,11 @@ async def mock_server():
 
 @pytest.mark.asyncio
 async def test_connect_and_authenticate(mock_server):
-    ws = StreamWS(
+    ws = StreamChatWS(
         api_key="test-key",
         api_secret="test-secret",
         user_id="alice",
-        base_url=f"http://127.0.0.1:{mock_server['port']}",
+        uri=_make_uri(mock_server["port"]),
     )
     result = await ws.connect()
 
@@ -104,11 +94,11 @@ async def test_connect_and_authenticate(mock_server):
 
 @pytest.mark.asyncio
 async def test_event_dispatched_to_listener(mock_server):
-    ws = StreamWS(
+    ws = StreamChatWS(
         api_key="k",
         api_secret="s" * 32,
         user_id="alice",
-        base_url=f"http://127.0.0.1:{mock_server['port']}",
+        uri=_make_uri(mock_server["port"]),
     )
     await ws.connect()
 
@@ -130,19 +120,17 @@ async def test_event_dispatched_to_listener(mock_server):
 
 @pytest.mark.asyncio
 async def test_heartbeat_sent(mock_server):
-    ws = StreamWS(
+    ws = StreamChatWS(
         api_key="k",
         api_secret="s" * 32,
         user_id="alice",
-        base_url=f"http://127.0.0.1:{mock_server['port']}",
+        uri=_make_uri(mock_server["port"]),
         healthcheck_interval=0.1,
     )
     await ws.connect()
 
-    # Wait long enough for at least 2 heartbeats
     await asyncio.sleep(0.35)
 
-    # Health checks are sent as arrays per the Stream protocol: [{type, client_id}]
     heartbeats = [
         m
         for m in mock_server["client_messages"]
@@ -174,11 +162,11 @@ async def unexpected_response_server():
 
 @pytest.mark.asyncio
 async def test_reject_unexpected_auth_response(unexpected_response_server):
-    ws = StreamWS(
+    ws = StreamChatWS(
         api_key="k",
         api_secret="s" * 32,
         user_id="alice",
-        base_url=f"http://127.0.0.1:{unexpected_response_server['port']}",
+        uri=_make_uri(unexpected_response_server["port"]),
     )
     with pytest.raises(StreamWSAuthError, match="Expected connection.ok"):
         await ws.connect()
@@ -187,11 +175,11 @@ async def test_reject_unexpected_auth_response(unexpected_response_server):
 
 @pytest.mark.asyncio
 async def test_reconnect_on_server_close(mock_server):
-    ws = StreamWS(
+    ws = StreamChatWS(
         api_key="k",
         api_secret="s" * 32,
         user_id="alice",
-        base_url=f"http://127.0.0.1:{mock_server['port']}",
+        uri=_make_uri(mock_server["port"]),
         healthcheck_interval=100,
         max_retries=3,
     )
@@ -200,17 +188,12 @@ async def test_reconnect_on_server_close(mock_server):
     assert len(mock_server["connections"]) == 1
     ws_id_before = ws.ws_id
 
-    # Server closes with non-1000 code (abnormal) -- should trigger reconnect
     await mock_server["connections"][0].close(code=1001, reason="going away")
-
-    # Wait for reconnect
     await asyncio.sleep(0.5)
 
     assert ws.connected
-    # A second connection was made (the reconnect)
     assert len(mock_server["connections"]) == 2
     assert len(mock_server["auth_payloads"]) == 2
-    # ws_id should have incremented to guard against stale messages
     assert ws.ws_id > ws_id_before
 
     await ws.disconnect()
@@ -218,18 +201,17 @@ async def test_reconnect_on_server_close(mock_server):
 
 @pytest.mark.asyncio
 async def test_no_reconnect_on_intentional_close(mock_server):
-    ws = StreamWS(
+    ws = StreamChatWS(
         api_key="k",
         api_secret="s" * 32,
         user_id="alice",
-        base_url=f"http://127.0.0.1:{mock_server['port']}",
+        uri=_make_uri(mock_server["port"]),
         healthcheck_interval=100,
         max_retries=3,
     )
     await ws.connect()
     assert ws.connected
 
-    # Server closes with code 1000 (intentional) -- should NOT reconnect
     await mock_server["connections"][0].close(code=1000, reason="normal closure")
     await asyncio.sleep(0.5)
 
@@ -251,7 +233,6 @@ async def token_expiry_server():
         auth_payloads.append(msg)
 
         if connect_count == 2:
-            # Reject with token expired
             await ws.send(
                 json.dumps(
                     {
@@ -284,11 +265,11 @@ async def token_expiry_server():
 
 @pytest.mark.asyncio
 async def test_token_refresh_on_expired(token_expiry_server):
-    ws = StreamWS(
+    ws = StreamChatWS(
         api_key="k",
         api_secret="s" * 32,
         user_id="alice",
-        base_url=f"http://127.0.0.1:{token_expiry_server['port']}",
+        uri=_make_uri(token_expiry_server["port"]),
         healthcheck_interval=100,
         max_retries=5,
         backoff_base=0.05,
@@ -296,12 +277,10 @@ async def test_token_refresh_on_expired(token_expiry_server):
     )
     await ws.connect()
 
-    # Simulate abnormal close -> reconnect hits code 40 -> should refresh token and retry
     await ws._websocket.close(code=1001, reason="going away")
     await asyncio.sleep(0.5)
 
     assert ws.connected
-    # 3 auth attempts: initial, rejected (code 40), successful retry
     assert len(token_expiry_server["auth_payloads"]) == 3
 
     await ws.disconnect()
@@ -310,12 +289,12 @@ async def test_token_refresh_on_expired(token_expiry_server):
 @pytest.mark.asyncio
 async def test_static_token_not_refreshed(token_expiry_server):
     """When a user provides a static token, code 40 should NOT refresh it."""
-    ws = StreamWS(
+    ws = StreamChatWS(
         api_key="k",
         api_secret="s" * 32,
         user_id="alice",
-        token="my-static-token",
-        base_url=f"http://127.0.0.1:{token_expiry_server['port']}",
+        user_token="my-static-token",
+        uri=_make_uri(token_expiry_server["port"]),
         healthcheck_interval=100,
         max_retries=5,
         backoff_base=0.05,
@@ -326,6 +305,4 @@ async def test_static_token_not_refreshed(token_expiry_server):
     await ws._websocket.close(code=1001, reason="going away")
     await asyncio.sleep(0.5)
 
-    # With a static token, code 40 should be treated as fatal auth error
-    # (can't refresh), so client should give up
     assert not ws.connected

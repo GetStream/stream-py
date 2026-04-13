@@ -9,6 +9,7 @@ import aiortc
 
 from getstream.common import telemetry
 from getstream.utils import StreamAsyncIOEventEmitter
+from getstream.video.rtc.coordinator.chat_ws import StreamChatWS
 from getstream.video.rtc.coordinator.ws import StreamAPIWS
 from getstream.video.rtc.pb.stream.video.sfu.event import events_pb2
 from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
@@ -91,6 +92,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         self._connection_options: ConnectionOptions = ConnectionOptions()
         self._ws_client = None
         self._coordinator_ws_client = None
+        self._chat_ws_client: Optional[StreamChatWS] = None
 
         # Initialize private managers
         self._participants_state: ParticipantsState = ParticipantsState()
@@ -111,6 +113,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         self.twirp_signaling_client = None
         self.twirp_context: Optional[Context] = None
         self._coordinator_task: Optional[asyncio.Task] = None
+        self._chat_ws_task: Optional[asyncio.Task] = None
 
         # Stats tracing: generation counter (increments on reconnect), tracer, and reporter
         self._sfu_client_tag: int = 0  # Generation counter, never resets during session
@@ -294,6 +297,35 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                     self.call, self.user_id, self._coordinator_ws_client._client_id
                 )
 
+    async def _connect_chat_ws(self):
+        """
+        Connects to the chat coordinator websocket and subscribes to channel events.
+        """
+        if self.call.id is None:
+            return
+
+        if self.user_id is None:
+            raise ValueError("user_id is required for chat WS")
+
+        with telemetry.start_as_current_span("chat-ws-setup"):
+            with telemetry.start_as_current_span("chat-ws-connect"):
+                self._chat_ws_client = StreamChatWS(
+                    api_key=str(self.call.client.api_key),
+                    api_secret=self.call.client.stream.api_secret,
+                    user_id=self.user_id,
+                    user_details={"id": self.user_id},
+                    watch_channels=[("messaging", self.call.id)],
+                )
+                self._chat_ws_client.on_wildcard("*", _log_event)
+                await self._chat_ws_client.connect()
+
+            with telemetry.start_as_current_span("chat-ws-subscribe"):
+                if self._chat_ws_client._client_id is None:
+                    raise ValueError("chat ws client_id is not set")
+                await self._chat_ws_client._subscribe_to_channels(
+                    [("messaging", self.call.id)]
+                )
+
     async def _connect_internal(
         self,
         region: Optional[str] = None,
@@ -471,6 +503,21 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
 
             self._coordinator_task.add_done_callback(_on_coordinator_task_done)
 
+        if self._chat_ws_task is None or self._chat_ws_task.done():
+            self._chat_ws_task = asyncio.create_task(
+                self._connect_chat_ws(), name="chat-ws-connect"
+            )
+
+            def _on_chat_ws_task_done(task: asyncio.Task):
+                try:
+                    task.result()
+                except asyncio.CancelledError:
+                    pass
+                except Exception:
+                    logger.exception("Chat WS task failed")
+
+            self._chat_ws_task.add_done_callback(_on_chat_ws_task_done)
+
         await self._connect_with_sfu_reassignment()
 
     async def _connect_with_sfu_reassignment(self) -> None:
@@ -563,6 +610,19 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             await self._coordinator_ws_client.disconnect()
             self._coordinator_ws_client = None
 
+        if self._chat_ws_task and not self._chat_ws_task.done():
+            self._chat_ws_task.cancel()
+            try:
+                await self._chat_ws_task
+            except asyncio.CancelledError:
+                pass
+            finally:
+                self._chat_ws_task = None
+
+        if self._chat_ws_client:
+            await self._chat_ws_client.disconnect()
+            self._chat_ws_client = None
+
         self.connection_state = ConnectionState.LEFT
 
         logger.info("Call left and connections closed")
@@ -619,6 +679,10 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
     @ws_client.setter
     def ws_client(self, value):
         self._ws_client = value
+
+    @property
+    def chat_ws(self) -> Optional[StreamChatWS]:
+        return self._chat_ws_client
 
     # Publisher / Subscriber peer-connection shortcuts
     @property

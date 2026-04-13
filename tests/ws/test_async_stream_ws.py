@@ -4,7 +4,7 @@ import pytest
 import pytest_asyncio
 import websockets
 
-from getstream import AsyncStream
+from getstream.video.rtc.coordinator.chat_ws import StreamChatWS
 
 
 @pytest_asyncio.fixture()
@@ -37,46 +37,18 @@ async def mock_server():
 
 
 @pytest.mark.asyncio
-async def test_connect_ws_context_manager(mock_server):
-    client = AsyncStream(
-        api_key="k" * 32,
-        api_secret="s" * 32,
-        base_url=f"http://127.0.0.1:{mock_server['port']}",
-    )
-    async with client.connect_ws(user_id="alice") as ws:
-        assert ws.connected
-        assert ws.connection_id == "conn-int"
-        assert ws.user_id == "alice"
-
-    assert not ws.connected
-    await client.aclose()
-
-
-@pytest.mark.asyncio
-async def test_aclose_disconnects_ws(mock_server):
-    client = AsyncStream(
-        api_key="k" * 32,
-        api_secret="s" * 32,
-        base_url=f"http://127.0.0.1:{mock_server['port']}",
-    )
-    async with client.connect_ws(user_id="bob") as ws:
-        assert ws.connected
-
-    await client.aclose()
-    assert not ws.connected
-
-
-@pytest.mark.asyncio
-async def test_standalone_context_manager(mock_server):
-    from getstream.ws import StreamWS
-
-    async with StreamWS(
+async def test_connect_and_disconnect(mock_server):
+    uri = f"ws://127.0.0.1:{mock_server['port']}/api/v2/connect"
+    ws = StreamChatWS(
         api_key="k" * 32,
         api_secret="s" * 32,
         user_id="alice",
-        base_url=f"http://127.0.0.1:{mock_server['port']}",
-    ) as ws:
-        assert ws.connected
-        assert ws.connection_id == "conn-int"
+        uri=uri,
+    )
+    await ws.connect()
+    assert ws.connected
+    assert ws.connection_id == "conn-int"
+    assert ws.user_id == "alice"
 
+    await ws.disconnect()
     assert not ws.connected
