@@ -3,9 +3,10 @@ import json
 import logging
 import random
 import time
-from typing import Optional
+from typing import Optional, Tuple
 from urllib.parse import urlencode, urlparse, urlunparse
 
+import httpx
 import jwt
 import websockets
 from websockets import ClientConnection
@@ -42,6 +43,7 @@ class StreamWS(StreamAsyncIOEventEmitter):
         max_retries: int = 5,
         backoff_base: float = 0.25,
         backoff_max: float = 5.0,
+        watch_call: Optional[Tuple[str, str]] = None,
     ):
         super().__init__()
         self.api_key = api_key
@@ -57,6 +59,7 @@ class StreamWS(StreamAsyncIOEventEmitter):
         self._max_retries = max_retries
         self._backoff_base = backoff_base
         self._backoff_max = backoff_max
+        self._watch_call = watch_call
 
         self._websocket: Optional[ClientConnection] = None
         self._connected = False
@@ -69,16 +72,17 @@ class StreamWS(StreamAsyncIOEventEmitter):
         self._reconnect_task: Optional[asyncio.Task] = None
 
     @property
+    def _stream_headers(self) -> dict:
+        return {
+            "stream-auth-type": "jwt",
+            "X-Stream-Client": self._user_agent,
+        }
+
+    @property
     def ws_url(self) -> str:
         parsed = urlparse(self._base_url)
         ws_scheme = "wss" if parsed.scheme == "https" else "ws"
-        query = urlencode(
-            {
-                "api_key": self.api_key,
-                "stream-auth-type": "jwt",
-                "X-Stream-Client": self._user_agent,
-            }
-        )
+        query = urlencode({"api_key": self.api_key, **self._stream_headers})
         ws_parsed = parsed._replace(
             scheme=ws_scheme,
             path="/api/v2/connect",
@@ -152,7 +156,33 @@ class StreamWS(StreamAsyncIOEventEmitter):
 
     async def __aenter__(self):
         await self.connect()
+        if self._watch_call:
+            call_type, call_id = self._watch_call
+            await self._subscribe_to_call(call_type, call_id)
         return self
+
+    async def _subscribe_to_call(self, call_type: str, call_id: str) -> None:
+        """Subscribe to call events by 'watching' the call with our connection_id.
+
+        Uses the user token (not admin token) because the coordinator only
+        registers subscriptions for client-side requests.
+        """
+        token = self._ensure_token()
+        parsed = urlparse(self._base_url)
+        url = urlunparse(
+            parsed._replace(path=f"/api/v2/video/call/{call_type}/{call_id}")
+        )
+        params = {"api_key": self.api_key, "connection_id": self._connection_id}
+        headers = {"authorization": token, **self._stream_headers}
+        async with httpx.AsyncClient() as http:
+            response = await http.get(url, params=params, headers=headers)
+            response.raise_for_status()
+        logger.info(
+            "Watching call %s/%s (connection_id=%s)",
+            call_type,
+            call_id,
+            self._connection_id,
+        )
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.disconnect()
