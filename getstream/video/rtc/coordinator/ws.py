@@ -117,7 +117,7 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
             )
         payload = {
             "token": self.user_token,
-            "products": ["video", "chat"],
+            "products": ["video"],
         }
 
         # Include user_details if available (both for initial connection and reconnections)

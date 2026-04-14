@@ -136,20 +136,6 @@ async def watch_call(call: Call, user_id: str, connection_id: str):
     )
 
 
-async def watch_channels(call: Call, user_id: str, connection_id: str, channels):
-    """Subscribe to chat channel events via the coordinator WS connection."""
-    client = user_client(call, user_id)
-    cids = [f"{ch_type}:{ch_id}" for ch_type, ch_id in channels]
-    return await client.post(
-        "/api/v2/chat/channels",
-        json={
-            "filter_conditions": {"cid": {"$in": cids}},
-            "watch": True,
-            "connection_id": connection_id,
-        },
-    )
-
-
 async def join_call(
     call: Call,
     user_id: str,
