@@ -622,30 +622,12 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
 
     @property
     def coordinator_ws(self):
-        """The coordinator WebSocket client for real-time event pub/sub.
+        """The coordinator WebSocket receiving call-scoped events.
 
-        After joining a call, the coordinator WS receives call-scoped events
-        via the ``watch_call`` subscription that happens automatically on connect.
+        Available after connecting. Use ``ws.on()`` or ``ws.on_wildcard()``
+        to subscribe to events. Send custom events via ``call.send_call_event()``.
 
-        **Receiving events** -- use ``ws.on(event_type, handler)`` for specific
-        event types, or ``ws.on_wildcard(pattern, handler)`` for pattern matching::
-
-            ws = connection_manager.coordinator_ws
-
-            @ws.on("custom")
-            def on_custom(event):
-                print(event["custom"])
-
-        **Sending custom events** -- use ``call.send_call_event()`` to broadcast
-        custom events to all participants watching the call::
-
-            await call.send_call_event(
-                user_id="agent",
-                custom={"type": "status_update", "status": "processing"},
-            )
-
-        Returns:
-            StreamAPIWS instance, or None if not connected.
+        Returns None if not connected.
         """
         return self._coordinator_ws_client
 
