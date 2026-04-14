@@ -621,7 +621,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         self._ws_client = value
 
     @property
-    def coordinator_ws(self):
+    def coordinator_ws(self) -> Optional[StreamAPIWS]:
         """The coordinator WebSocket receiving call-scoped events.
 
         Available after connecting. Use ``ws.on()`` or ``ws.on_wildcard()``
@@ -629,7 +629,9 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
 
         Returns None if not connected.
         """
-        return self._coordinator_ws_client
+        if self._coordinator_ws_client and self._coordinator_ws_client._connected:
+            return self._coordinator_ws_client
+        return None
 
     # Publisher / Subscriber peer-connection shortcuts
     @property
