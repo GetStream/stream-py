@@ -8,6 +8,7 @@ Requires Stream API credentials (STREAM_API_KEY, STREAM_API_SECRET).
 """
 
 import asyncio
+import logging
 import uuid
 
 import pytest
@@ -18,6 +19,8 @@ from getstream.models import CallRequest, UserRequest
 from getstream.video import rtc
 from getstream.video.rtc.connection_utils import ConnectionState
 from tests.conftest import skip_on_rate_limit
+
+logger = logging.getLogger(__name__)
 
 
 @pytest_asyncio.fixture()
@@ -30,7 +33,7 @@ async def test_user(async_client: AsyncStream):
             user_ids=[user_id], user="hard", conversations="hard", messages="hard"
         )
     except Exception:
-        pass
+        logger.warning("Failed to clean up test user %s", user_id, exc_info=True)
 
 
 @pytest.mark.asyncio
