@@ -24,27 +24,29 @@ logger = logging.getLogger(__name__)
 
 
 @pytest_asyncio.fixture()
-async def test_user(async_client: AsyncStream):
-    user_id = f"test-user-{uuid.uuid4()}"
-    await async_client.upsert_users(UserRequest(id=user_id))
-    yield user_id
+async def test_users(async_client: AsyncStream):
+    user_ids = [f"test-user-{uuid.uuid4()}" for _ in range(2)]
+    await async_client.upsert_users(*[UserRequest(id=uid) for uid in user_ids])
+    yield user_ids
     try:
         await async_client.delete_users(
-            user_ids=[user_id], user="hard", conversations="hard", messages="hard"
+            user_ids=user_ids, user="hard", conversations="hard", messages="hard"
         )
     except Exception:
-        logger.warning("Failed to clean up test user %s", user_id, exc_info=True)
+        logger.warning("Failed to clean up test users %s", user_ids, exc_info=True)
 
 
 @pytest.mark.asyncio
 @pytest.mark.integration
 @skip_on_rate_limit
-async def test_custom_event_round_trip(async_client: AsyncStream, test_user: str):
+async def test_custom_event_round_trip(async_client: AsyncStream, test_users: list):
     """Send a custom event via REST and verify it arrives on coordinator_ws."""
-    call = async_client.video.call("default", str(uuid.uuid4()))
-    await call.get_or_create(data=CallRequest(created_by_id=test_user))
+    sender, receiver = test_users
 
-    async with await rtc.join(call, test_user) as connection:
+    call = async_client.video.call("default", str(uuid.uuid4()))
+    await call.get_or_create(data=CallRequest(created_by_id=sender))
+
+    async with await rtc.join(call, receiver) as connection:
         assert connection.connection_state == ConnectionState.JOINED
 
         ws = connection.coordinator_ws
@@ -60,8 +62,8 @@ async def test_custom_event_round_trip(async_client: AsyncStream, test_user: str
             event_received.set()
 
         await call.send_call_event(
-            user_id=test_user,
-            custom={"type": "test_event", "payload": "hello from test"},
+            user_id=sender,
+            custom={"type": "test_event", "payload": "hello from sender"},
         )
 
         await asyncio.wait_for(event_received.wait(), timeout=10.0)
@@ -69,4 +71,5 @@ async def test_custom_event_round_trip(async_client: AsyncStream, test_user: str
         assert received_event is not None
         custom_data = received_event.get("custom", {})
         assert custom_data.get("type") == "test_event"
-        assert custom_data.get("payload") == "hello from test"
+        assert custom_data.get("payload") == "hello from sender"
+        assert received_event.get("user", {}).get("id") == sender
