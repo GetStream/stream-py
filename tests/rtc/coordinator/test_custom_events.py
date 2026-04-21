@@ -2,7 +2,7 @@
 Integration tests for custom event pub/sub via coordinator WebSocket.
 
 Tests the full round-trip: send a custom event via REST, receive it on the
-coordinator WS through ConnectionManager.coordinator_ws property.
+ConnectionManager via its re-emitted "custom" event.
 
 Requires Stream API credentials (STREAM_API_KEY, STREAM_API_SECRET).
 """
@@ -40,7 +40,7 @@ async def test_users(async_client: AsyncStream):
 @pytest.mark.integration
 @skip_on_rate_limit
 async def test_custom_event_round_trip(async_client: AsyncStream, test_users: list):
-    """Send a custom event via REST and verify it arrives on coordinator_ws."""
+    """Send a custom event via REST and verify it arrives on ConnectionManager."""
     sender, receiver = test_users
 
     call = async_client.video.call("default", str(uuid.uuid4()))
