@@ -49,13 +49,10 @@ async def test_custom_event_round_trip(async_client: AsyncStream, test_users: li
     async with await rtc.join(call, receiver) as connection:
         assert connection.connection_state == ConnectionState.JOINED
 
-        ws = connection.coordinator_ws
-        assert ws is not None
-
         received_event = None
         event_received = asyncio.Event()
 
-        @ws.on("custom")
+        @connection.on("custom")
         def on_custom(event):
             nonlocal received_event
             received_event = event
