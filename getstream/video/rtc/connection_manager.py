@@ -2,6 +2,7 @@ import json
 import asyncio
 import logging
 import uuid
+import functools
 from typing import Optional, Dict, Any
 
 import aioice
@@ -281,7 +282,9 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                     user_details={"id": self.user_id},
                 )
                 self._coordinator_ws_client.on_wildcard("*", _log_event)
-                self._coordinator_ws_client.on_wildcard("*", self.emit)
+                self._coordinator_ws_client.on(
+                    "custom", functools.partial(self.emit, "custom")
+                )
                 await self._coordinator_ws_client.connect()
 
             with telemetry.start_as_current_span(
