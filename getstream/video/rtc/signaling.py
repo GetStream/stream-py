@@ -1,12 +1,14 @@
 import asyncio
-import threading
-import websocket
 import logging
+import threading
 import time
-from typing import TYPE_CHECKING, Any, Callable, Awaitable, Optional, Set
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Optional, Set
+
+import websocket
 
 from getstream.common import telemetry
 from getstream.utils import StreamAsyncIOEventEmitter
+
 from .pb.stream.video.sfu.event import events_pb2
 
 if TYPE_CHECKING:
@@ -196,7 +198,16 @@ class WebSocketClient(StreamAsyncIOEventEmitter):
 
     def _on_error(self, ws, error):
         """Handle WebSocket error."""
-        logger.error(f"WebSocket error: {str(error)}")
+        if (
+            isinstance(error, websocket.ABNF)
+            and error.opcode == websocket.ABNF.OPCODE_CLOSE
+        ):
+            # For some reason, websockets lib propagates closing frame as an error.
+            # Simply log a debug here if that happens.
+            logger.debug(f"WebSocket closed by server: {error}")
+        else:
+            logger.error(f"WebSocket error: {error}")
+
         if not self.first_message_event.is_set():
             # Create an error event
             error_event = events_pb2.SfuEvent()
