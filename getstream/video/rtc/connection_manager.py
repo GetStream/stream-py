@@ -198,6 +198,17 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
     async def _on_subscriber_offer(self, event: events_pb2.SubscriberOffer):
         logger.info("Subscriber offer received")
 
+        # Offers can arrive after the subscriber peer connection has been
+        # torn down (slow asyncio loop under load, SFU sending a late
+        # renegotiation). `setRemoteDescription` would raise
+        # `InvalidStateError: Cannot handle offer in signaling state "closed"`
+        # and the exception propagates through the pyee error path, killing
+        # the session. Drop the offer instead — there is nothing to
+        # negotiate with a closed connection.
+        if self.subscriber_pc is None or self.subscriber_pc.signalingState == "closed":
+            logger.debug("Subscriber offer arrived after PC closed; dropping")
+            return
+
         with telemetry.start_as_current_span("rtc.on_subscriber_offer") as span:
             await self.subscriber_negotiation_lock.acquire()
 
