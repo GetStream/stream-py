@@ -5,6 +5,7 @@ import gzip
 import hmac
 import hashlib
 import json
+import zlib
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, Optional, Union
@@ -645,8 +646,14 @@ def gunzip_payload(body: bytes) -> bytes:
     Magic-byte detection (0x1F 0x8B) is reliable for Stream payloads because
     Stream webhook bodies are always JSON, and JSON cannot start with 0x1F.
 
-    Raises InvalidWebhookError if body has the gzip magic prefix but isn't a valid
-    gzip stream.
+    Raises InvalidWebhookError if body has the gzip magic prefix but isn't a
+    valid gzip stream. gzip.decompress can fail with at least three different
+    exception types depending on where decoding breaks:
+      * gzip.BadGzipFile (subclass of OSError) - malformed header.
+      * zlib.error                              - corrupt compressed stream.
+      * EOFError                                - stream truncated mid-block.
+    The first is OSError-derived; the latter two are not. Catch all three so
+    every "looks like gzip but isn't" failure mode surfaces as InvalidWebhookError.
     """
     if not isinstance(body, (bytes, bytearray)):
         raise InvalidWebhookError("body must be bytes")
@@ -654,7 +661,7 @@ def gunzip_payload(body: bytes) -> bytes:
         return bytes(body)
     try:
         return gzip.decompress(bytes(body))
-    except OSError as e:
+    except (OSError, zlib.error, EOFError) as e:
         raise InvalidWebhookError(f"gzip decompression failed: {e}") from e
 
 
@@ -761,7 +768,7 @@ def verify_and_parse_webhook(body: bytes, signature: str, secret: str) -> Any:
     return parse_event(payload)
 
 
-def parse_sqs_payload(message_body: str) -> Any:
+def parse_sqs(message_body: str) -> Any:
     """SQS composite: base64-decode -> gunzip (if gzip-prefixed) -> parse.
 
     Backend does not emit an HMAC signature for SQS messages today; this helper
@@ -772,10 +779,10 @@ def parse_sqs_payload(message_body: str) -> Any:
     return parse_event(payload)
 
 
-def parse_sns_payload(notification_body: str) -> Any:
+def parse_sns(notification_body: str) -> Any:
     """SNS composite: parse SNS envelope -> base64-decode -> gunzip -> parse.
 
-    Same no-signature posture as parse_sqs_payload.
+    Same no-signature posture as parse_sqs.
     """
     payload = decode_sns_payload(notification_body)
     return parse_event(payload)

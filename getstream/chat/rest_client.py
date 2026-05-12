@@ -120,12 +120,6 @@ class ChatRestClient(BaseClient):
         )
 
     @telemetry.operation_name("getstream.api.chat.update_campaign")
-    # CHA-2961: temporary workaround — codegen template emits `id` for both the
-    # path param and the body field, producing `SyntaxError: duplicate argument
-    # 'id'`. Renamed the body kwarg to `id_` here so the file compiles. A proper
-    # fix in chat/'s Python client template (disambiguate body-vs-path collisions)
-    # is tracked separately; this comment will be removed by the next regen
-    # after that lands.
     def update_campaign(
         self,
         id: str,

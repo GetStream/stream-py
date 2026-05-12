@@ -16,8 +16,8 @@ from getstream.webhook import (
     verify_signature,
     parse_event,
     verify_and_parse_webhook,
-    parse_sqs_payload,
-    parse_sns_payload,
+    parse_sqs,
+    parse_sns,
     UnknownEvent,
     InvalidWebhookError,
 )
@@ -1165,15 +1165,15 @@ class TestWebhookConformanceHappy:
 
     def test_parse_sqs_compressed(self, fixture_dir):
         msg = _read_str(fixture_dir / "sqs_body.txt")
-        parse_sqs_payload(msg)
+        parse_sqs(msg)
 
     def test_parse_sqs_uncompressed(self, fixture_dir):
         msg = _read_str(fixture_dir / "sqs_body_uncompressed.txt")
-        parse_sqs_payload(msg)
+        parse_sqs(msg)
 
     def test_parse_sns(self, fixture_dir):
         notif = _read_str(fixture_dir / "sns_notification.txt")
-        parse_sns_payload(notif)
+        parse_sns(notif)
 
 
 class TestWebhookConformanceNegative:
@@ -1225,9 +1225,9 @@ class TestWebhookConformanceNegative:
     def test_bad_base64(self):
         msg = _read_str(self._neg("bad_base64") / "sqs_body.txt")
         with pytest.raises(InvalidWebhookError, match="base64"):
-            parse_sqs_payload(msg)
+            parse_sqs(msg)
 
     def test_bad_sns_envelope(self):
         notif = _read_str(self._neg("bad_sns_envelope") / "sns_notification.txt")
         with pytest.raises(InvalidWebhookError, match="SNS envelope"):
-            parse_sns_payload(notif)
+            parse_sns(notif)
