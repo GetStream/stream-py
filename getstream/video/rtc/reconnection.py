@@ -209,10 +209,13 @@ class ReconnectionManager:
                 self.connection_manager._connection_options.fast_reconnect = True
                 previous_ws_client = self.connection_manager.ws_client
 
-                # Use _connect_internal with existing connection info
+                # Use _connect_internal with existing connection info.
+                # `self.join_response` is already the unwrapped data payload
+                # (see ConnectionManager._connect_internal: it stores
+                # `join_response.data`), so credentials live at the top level.
                 await self.connection_manager._connect_internal(
                     region=self.connection_manager._connection_options.region,
-                    token=self.connection_manager.join_response.data.credentials.token
+                    token=self.connection_manager.join_response.credentials.token
                     if self.connection_manager.join_response
                     else None,
                     session_id=self.connection_manager.session_id,
