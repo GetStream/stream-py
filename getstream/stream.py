@@ -283,6 +283,33 @@ class AsyncStream(BaseStream, AsyncCommonClient):
         users_map = {u.id: u for u in users}
         return await self.update_users(users_map)
 
+    def verify_signature(self, body, signature):
+        """Verify a webhook signature using this client's API secret.
+
+        Convenience wrapper around getstream.webhook.verify_signature that
+        supplies the secret automatically. The module-level function remains
+        available for callers who want explicit control.
+        """
+        from .webhook import verify_signature as _verify_signature
+
+        return _verify_signature(body, signature, self.api_secret)
+
+    def verify_and_parse_webhook(self, body, signature):
+        """Verify and parse a webhook payload in one call, using this client's
+        API secret.
+
+        Handles gzip-compressed bodies transparently via magic-byte detection.
+        Raises getstream.webhook.InvalidWebhookError on signature mismatch or
+        parse failures.
+
+        Note: this is intentionally a synchronous ``def`` rather than ``async
+        def`` because it performs no I/O — it's CPU-bound (HMAC + gzip + JSON
+        parsing).
+        """
+        from .webhook import verify_and_parse_webhook as _verify_and_parse_webhook
+
+        return _verify_and_parse_webhook(body, signature, self.api_secret)
+
 
 class Stream(BaseStream, CommonClient):
     """
@@ -409,3 +436,26 @@ class Stream(BaseStream, CommonClient):
         """
         users_map = {u.id: u for u in users}
         return self.update_users(users_map)
+
+    def verify_signature(self, body, signature):
+        """Verify a webhook signature using this client's API secret.
+
+        Convenience wrapper around getstream.webhook.verify_signature that
+        supplies the secret automatically. The module-level function remains
+        available for callers who want explicit control.
+        """
+        from .webhook import verify_signature as _verify_signature
+
+        return _verify_signature(body, signature, self.api_secret)
+
+    def verify_and_parse_webhook(self, body, signature):
+        """Verify and parse a webhook payload in one call, using this client's
+        API secret.
+
+        Handles gzip-compressed bodies transparently via magic-byte detection.
+        Raises getstream.webhook.InvalidWebhookError on signature mismatch or
+        parse failures.
+        """
+        from .webhook import verify_and_parse_webhook as _verify_and_parse_webhook
+
+        return _verify_and_parse_webhook(body, signature, self.api_secret)
