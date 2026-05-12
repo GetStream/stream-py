@@ -1218,9 +1218,18 @@ class FeedsRestClient(BaseClient):
 
     @telemetry.operation_name("getstream.api.feeds.delete_feed")
     def delete_feed(
-        self, feed_group_id: str, feed_id: str, hard_delete: Optional[bool] = None
+        self,
+        feed_group_id: str,
+        feed_id: str,
+        hard_delete: Optional[bool] = None,
+        purge_user_activities: Optional[bool] = None,
     ) -> StreamResponse[DeleteFeedResponse]:
-        query_params = build_query_param(**{"hard_delete": hard_delete})
+        query_params = build_query_param(
+            **{
+                "hard_delete": hard_delete,
+                "purge_user_activities": purge_user_activities,
+            }
+        )
         path_params = {
             "feed_group_id": feed_group_id,
             "feed_id": feed_id,
@@ -1815,9 +1824,16 @@ class FeedsRestClient(BaseClient):
 
     @telemetry.operation_name("getstream.api.feeds.delete_feeds_batch")
     def delete_feeds_batch(
-        self, feeds: List[str], hard_delete: Optional[bool] = None
+        self,
+        feeds: List[str],
+        hard_delete: Optional[bool] = None,
+        purge_user_activities: Optional[bool] = None,
     ) -> StreamResponse[DeleteFeedsBatchResponse]:
-        json = DeleteFeedsBatchRequest(feeds=feeds, hard_delete=hard_delete).to_dict()
+        json = DeleteFeedsBatchRequest(
+            feeds=feeds,
+            hard_delete=hard_delete,
+            purge_user_activities=purge_user_activities,
+        ).to_dict()
         return self.post(
             "/api/v2/feeds/feeds/delete", DeleteFeedsBatchResponse, json=json
         )

@@ -310,6 +310,27 @@ class AsyncStream(BaseStream, AsyncCommonClient):
 
         return _verify_and_parse_webhook(body, signature, self.api_secret)
 
+    def parse_sqs(self, message_body):
+        """Decode + parse a Stream-delivered SQS message body.
+
+        Convenience wrapper around getstream.webhook.parse_sqs. No signature is
+        required; SQS deliveries are authenticated via AWS IAM.
+        """
+        from .webhook import parse_sqs as _parse_sqs
+
+        return _parse_sqs(message_body)
+
+    def parse_sns(self, notification_body):
+        """Decode + parse a Stream-delivered SNS notification body.
+
+        Accepts either the raw SNS HTTP envelope JSON or the pre-extracted Message
+        string. Convenience wrapper around getstream.webhook.parse_sns. No signature
+        is required; SNS deliveries are authenticated via AWS IAM.
+        """
+        from .webhook import parse_sns as _parse_sns
+
+        return _parse_sns(notification_body)
+
 
 class Stream(BaseStream, CommonClient):
     """
@@ -459,3 +480,24 @@ class Stream(BaseStream, CommonClient):
         from .webhook import verify_and_parse_webhook as _verify_and_parse_webhook
 
         return _verify_and_parse_webhook(body, signature, self.api_secret)
+
+    def parse_sqs(self, message_body):
+        """Decode + parse a Stream-delivered SQS message body.
+
+        Convenience wrapper around getstream.webhook.parse_sqs. No signature is
+        required; SQS deliveries are authenticated via AWS IAM.
+        """
+        from .webhook import parse_sqs as _parse_sqs
+
+        return _parse_sqs(message_body)
+
+    def parse_sns(self, notification_body):
+        """Decode + parse a Stream-delivered SNS notification body.
+
+        Accepts either the raw SNS HTTP envelope JSON or the pre-extracted Message
+        string. Convenience wrapper around getstream.webhook.parse_sns. No signature
+        is required; SNS deliveries are authenticated via AWS IAM.
+        """
+        from .webhook import parse_sns as _parse_sns
+
+        return _parse_sns(notification_body)

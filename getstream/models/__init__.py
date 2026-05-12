@@ -2103,7 +2103,8 @@ class AsyncExportErrorEvent(DataClassJsonMixin):
     task_id: str = dc_field(metadata=dc_config(field_name="task_id"))
     custom: Dict[str, object] = dc_field(metadata=dc_config(field_name="custom"))
     type: str = dc_field(
-        default="export.channels.error", metadata=dc_config(field_name="type")
+        default="export.bulk_image_moderation.error",
+        metadata=dc_config(field_name="type"),
     )
     received_at: Optional[datetime] = dc_field(
         default=None,
@@ -9584,6 +9585,10 @@ class DeleteFeedsBatchRequest(DataClassJsonMixin):
     # Whether to permanently delete the feeds instead of soft delete
     hard_delete: Optional[bool] = dc_field(
         default=None, metadata=dc_config(field_name="hard_delete")
+    )
+    # When hard-deleting, also fully delete activities authored by each feed's owner from every other feed those activities were fanned out to. Default false preserves existing fan-out. Requires 'hard_delete' to be true; the request is rejected otherwise. Feeds with no recorded owner (created_by_id is empty) are silently skipped for the purge step — owner-matching against an empty string is a safety guard, not a wildcard.
+    purge_user_activities: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="purge_user_activities")
     )
 
 

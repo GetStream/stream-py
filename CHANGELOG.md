@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in favor of the client's stored secret. Dual API: the module-level functions
   in `getstream.webhook` remain available for callers who want explicit
   secret control.
+- New instance methods on `Stream` / `AsyncStream`: `parse_sqs(message_body)`,
+  `parse_sns(notification_body)` (no signature; AWS IAM).
 - `InvalidWebhookError` exception type covering both signature mismatches and
   malformed payloads. Distinguish failure modes via the exception message or
   `__cause__` chain.
