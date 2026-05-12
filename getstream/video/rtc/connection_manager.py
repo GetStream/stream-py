@@ -36,7 +36,7 @@ from getstream.video.rtc.network_monitor import NetworkMonitor
 from getstream.video.rtc.recording import RecordingManager
 from getstream.video.rtc.participants import ParticipantsState
 from getstream.video.rtc.tracks import SubscriptionConfig, SubscriptionManager
-from getstream.video.rtc.reconnection import ReconnectionManager
+from getstream.video.rtc.reconnection import ReconnectionManager, ReconnectionStrategy
 from getstream.video.rtc.peer_connection import PeerConnectionManager
 from getstream.video.rtc.models import JoinCallResponse
 from getstream.video.rtc.tracer import Tracer
@@ -277,6 +277,25 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             finally:
                 self.subscriber_negotiation_lock.release()
 
+    async def _on_signaling_connection_lost(self, reason: str) -> None:
+        """Reconnect when the signaling WebSocket drops unexpectedly.
+
+        The WebSocketClient itself only logs the error and stops; it has
+        no reconnect of its own. This handler bridges that gap by routing
+        the loss into the existing `ReconnectionManager`, so a transient
+        TCP reset or a missed health check no longer means a dead session.
+        """
+        if not self.running:
+            return
+        logger.warning(f"Signaling WS lost; triggering reconnect: {reason}")
+        try:
+            await self._reconnector.reconnect(
+                strategy=ReconnectionStrategy.FAST,
+                reason=f"signaling ws lost: {reason}",
+            )
+        except Exception:
+            logger.exception("Reconnect after signaling WS loss failed")
+
     async def _connect_coordinator_ws(self):
         """
         Connects to the coordinator websocket and subscribes to events.
@@ -413,6 +432,15 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
 
             # Connect subscriber offer event to handle SDP negotiation
             self._ws_client.on_event("subscriber_offer", self._on_subscriber_offer)
+
+            # Drive reconnection when the signaling WS drops outside of an
+            # SFU-level error event (raw socket close, health-check timeout,
+            # transport-level exceptions). Without this handler the
+            # WebSocketClient just logs and stops; the session sits hanging
+            # until the frontend times out and tears it down.
+            self._ws_client.on_event(
+                "connection_lost", self._on_signaling_connection_lost
+            )
 
             # Re-emit the events so they can be subscribed to on the ConnectionManager
             self._ws_client.on_wildcard("*", self.emit)

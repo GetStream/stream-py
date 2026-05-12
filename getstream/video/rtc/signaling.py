@@ -67,6 +67,7 @@ class WebSocketClient(StreamAsyncIOEventEmitter):
         self.thread = None
         self.running = False
         self.closed = False
+        self._connection_lost_sent = False
 
         # For ping/health check mechanism
         self.ping_thread = None
@@ -214,11 +215,48 @@ class WebSocketClient(StreamAsyncIOEventEmitter):
             error_event.error.error.message = str(error)
             self.first_message = error_event
             self.first_message_event.set()
+        elif not self.closed:
+            self._notify_connection_lost(f"error: {error}")
 
     def _on_close(self, ws, close_status_code, close_msg):
         """Handle WebSocket close event."""
         logger.debug(f"WebSocket connection closed: {close_status_code} {close_msg}")
+        was_unexpected = not self.closed
         self.running = False
+        if was_unexpected:
+            self._notify_connection_lost(
+                f"closed by remote (code={close_status_code} msg={close_msg})"
+            )
+
+    def _notify_connection_lost(self, reason: str) -> None:
+        """Schedule a ``connection_lost`` emit on the main loop.
+
+        Idempotent per ``WebSocketClient`` instance — only the first call
+        per disconnect actually emits. Callers run on the WS worker thread
+        or ``_ping_loop`` thread; pyee schedules async listeners via
+        ``loop.create_task``, which is not thread-safe, hence the hop.
+        Same pattern as ``_on_message`` for SFU events.
+        """
+        if not self._claim_connection_lost():
+            return
+        try:
+            asyncio.run_coroutine_threadsafe(
+                self._emit_connection_lost(reason),
+                self.main_loop,
+            )
+        except Exception:
+            logger.exception("Failed to schedule connection_lost emit")
+
+    def _claim_connection_lost(self) -> bool:
+        """Return True iff this is the first connection-lost notification."""
+        if self._connection_lost_sent:
+            return False
+        self._connection_lost_sent = True
+        return True
+
+    async def _emit_connection_lost(self, reason: str) -> None:
+        with telemetry.attach_span(self.parent_span):
+            self.emit("connection_lost", reason)
 
     def _start_ping_handler(self):
         """Start the ping mechanism in a background thread."""
@@ -242,6 +280,10 @@ class WebSocketClient(StreamAsyncIOEventEmitter):
             current_time = time.time()
             if current_time - self.last_health_check_time > self.ping_interval * 2:
                 logger.warning("Health check failed, closing connection")
+                # Notify before close() so the owner can reconnect; close()
+                # itself sets `self.closed=True` and would suppress the
+                # notification in `_on_close`.
+                self._notify_connection_lost("health check timeout")
                 self.close()
                 return
 

@@ -296,6 +296,112 @@ class TestWebSocketClient:
             assert not client.running
 
     @pytest.mark.asyncio
+    async def test_connection_lost_emitted_on_unexpected_close(
+        self, join_request, mock_websocket
+    ):
+        """An unexpected WS close after handshake emits a `connection_lost` event.
+
+        The owner (ConnectionManager) relies on this signal to drive
+        reconnection — without it, a transient socket drop leaves the
+        session hanging until the frontend times out.
+        """
+        client = WebSocketClient(
+            "wss://test.url", join_request, asyncio.get_running_loop()
+        )
+
+        received: list[str] = []
+
+        async def on_lost(reason):
+            received.append(reason)
+
+        client.on_event("connection_lost", on_lost)
+
+        # Complete handshake so we're past the initial connect phase.
+        join_response = events_pb2.SfuEvent()
+        join_response.join_response.reconnected = False
+
+        connect_task = asyncio.create_task(client.connect())
+        await asyncio.sleep(0.1)
+
+        on_open_callback = mock_websocket.call_args[1]["on_open"]
+        on_open_callback(mock_websocket.return_value)
+
+        on_message_callback = mock_websocket.call_args[1]["on_message"]
+        on_message_callback(
+            mock_websocket.return_value, join_response.SerializeToString()
+        )
+        await connect_task
+
+        # Simulate the remote dropping the connection (not user-initiated).
+        on_close_callback = mock_websocket.call_args[1]["on_close"]
+        on_close_callback(mock_websocket.return_value, 1006, "abnormal closure")
+
+        # Allow the threadsafe-scheduled emit to run on the loop.
+        await asyncio.sleep(0.1)
+
+        assert len(received) == 1, (
+            f"expected exactly one connection_lost event, got {received}"
+        )
+        assert "1006" in received[0], (
+            f"reason should mention the close code, got {received[0]!r}"
+        )
+
+        client.close()
+
+    @pytest.mark.asyncio
+    async def test_connection_lost_emitted_once_on_error_then_close(
+        self, join_request, mock_websocket
+    ):
+        """A chained ``_on_error`` → ``_on_close`` fires exactly one event.
+
+        websocket-client typically delivers an error followed by a close
+        for the same drop. Consumers (including the SDK-public re-emit via
+        ``ConnectionManager`` wildcard) expect one notification per
+        disconnect, not one per callback.
+        """
+        client = WebSocketClient(
+            "wss://test.url", join_request, asyncio.get_running_loop()
+        )
+
+        received: list[str] = []
+
+        async def on_lost(reason):
+            received.append(reason)
+
+        client.on_event("connection_lost", on_lost)
+
+        join_response = events_pb2.SfuEvent()
+        join_response.join_response.reconnected = False
+
+        connect_task = asyncio.create_task(client.connect())
+        await asyncio.sleep(0.1)
+
+        on_open_callback = mock_websocket.call_args[1]["on_open"]
+        on_open_callback(mock_websocket.return_value)
+
+        on_message_callback = mock_websocket.call_args[1]["on_message"]
+        on_message_callback(
+            mock_websocket.return_value, join_response.SerializeToString()
+        )
+        await connect_task
+
+        # Error first, then close — what websocket-client actually does on
+        # most transport-level failures.
+        on_error_callback = mock_websocket.call_args[1]["on_error"]
+        on_error_callback(mock_websocket.return_value, Exception("boom"))
+
+        on_close_callback = mock_websocket.call_args[1]["on_close"]
+        on_close_callback(mock_websocket.return_value, 1006, "abnormal closure")
+
+        await asyncio.sleep(0.1)
+
+        assert len(received) == 1, (
+            f"expected exactly one connection_lost event for the chain, got {received}"
+        )
+
+        client.close()
+
+    @pytest.mark.asyncio
     async def test_on_open_traces_ws_open_and_join_request(
         self, join_request, mock_websocket
     ):
