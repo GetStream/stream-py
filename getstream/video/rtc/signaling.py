@@ -67,6 +67,7 @@ class WebSocketClient(StreamAsyncIOEventEmitter):
         self.thread = None
         self.running = False
         self.closed = False
+        self._connection_lost_sent = False
 
         # For ping/health check mechanism
         self.ping_thread = None
@@ -230,13 +231,14 @@ class WebSocketClient(StreamAsyncIOEventEmitter):
     def _notify_connection_lost(self, reason: str) -> None:
         """Schedule a ``connection_lost`` emit on the main loop.
 
-        Callers run on the WS worker thread or ``_ping_loop`` thread; pyee
-        schedules async listeners via ``loop.create_task``, which is not
-        thread-safe. Same hop pattern as ``_on_message`` for SFU events.
-        Duplicate notifications from a chained ``_on_error`` → ``_on_close``
-        are safe: ``ReconnectionManager.reconnect`` is serialized by an
-        ``asyncio.Lock`` and checks ``connection_state`` before running.
+        Idempotent per ``WebSocketClient`` instance — only the first call
+        per disconnect actually emits. Callers run on the WS worker thread
+        or ``_ping_loop`` thread; pyee schedules async listeners via
+        ``loop.create_task``, which is not thread-safe, hence the hop.
+        Same pattern as ``_on_message`` for SFU events.
         """
+        if not self._claim_connection_lost():
+            return
         try:
             asyncio.run_coroutine_threadsafe(
                 self._emit_connection_lost(reason),
@@ -244,6 +246,13 @@ class WebSocketClient(StreamAsyncIOEventEmitter):
             )
         except Exception:
             logger.exception("Failed to schedule connection_lost emit")
+
+    def _claim_connection_lost(self) -> bool:
+        """Return True iff this is the first connection-lost notification."""
+        if self._connection_lost_sent:
+            return False
+        self._connection_lost_sent = True
+        return True
 
     async def _emit_connection_lost(self, reason: str) -> None:
         with telemetry.attach_span(self.parent_span):
