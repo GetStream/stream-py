@@ -38,8 +38,10 @@ class FeedsRestClient(BaseClient):
         feeds: List[str],
         copy_custom_to_notification: Optional[bool] = None,
         create_notification_activity: Optional[bool] = None,
+        create_users: Optional[bool] = None,
         enrich_own_fields: Optional[bool] = None,
         expires_at: Optional[str] = None,
+        force_moderation: Optional[bool] = None,
         id: Optional[str] = None,
         parent_id: Optional[str] = None,
         poll_id: Optional[str] = None,
@@ -56,7 +58,7 @@ class FeedsRestClient(BaseClient):
         interest_tags: Optional[List[str]] = None,
         mentioned_user_ids: Optional[List[str]] = None,
         custom: Optional[Dict[str, object]] = None,
-        location: Optional[ActivityLocation] = None,
+        location: Optional[Location] = None,
         search_data: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[AddActivityResponse]:
         json = AddActivityRequest(
@@ -64,8 +66,10 @@ class FeedsRestClient(BaseClient):
             feeds=feeds,
             copy_custom_to_notification=copy_custom_to_notification,
             create_notification_activity=create_notification_activity,
+            create_users=create_users,
             enrich_own_fields=enrich_own_fields,
             expires_at=expires_at,
+            force_moderation=force_moderation,
             id=id,
             parent_id=parent_id,
             poll_id=poll_id,
@@ -91,10 +95,15 @@ class FeedsRestClient(BaseClient):
     def upsert_activities(
         self,
         activities: List[ActivityRequest],
+        create_users: Optional[bool] = None,
         enrich_own_fields: Optional[bool] = None,
+        force_moderation: Optional[bool] = None,
     ) -> StreamResponse[UpsertActivitiesResponse]:
         json = UpsertActivitiesRequest(
-            activities=activities, enrich_own_fields=enrich_own_fields
+            activities=activities,
+            create_users=create_users,
+            enrich_own_fields=enrich_own_fields,
+            force_moderation=force_moderation,
         ).to_dict()
         return self.post(
             "/api/v2/feeds/activities/batch", UpsertActivitiesResponse, json=json
@@ -102,9 +111,13 @@ class FeedsRestClient(BaseClient):
 
     @telemetry.operation_name("getstream.api.feeds.update_activities_partial_batch")
     def update_activities_partial_batch(
-        self, changes: List[UpdateActivityPartialChangeRequest]
+        self,
+        changes: List[UpdateActivityPartialChangeRequest],
+        force_moderation: Optional[bool] = None,
     ) -> StreamResponse[UpdateActivitiesPartialBatchResponse]:
-        json = UpdateActivitiesPartialBatchRequest(changes=changes).to_dict()
+        json = UpdateActivitiesPartialBatchRequest(
+            changes=changes, force_moderation=force_moderation
+        ).to_dict()
         return self.patch(
             "/api/v2/feeds/activities/batch/partial",
             UpdateActivitiesPartialBatchResponse,
@@ -153,6 +166,7 @@ class FeedsRestClient(BaseClient):
         enrich_own_fields: Optional[bool] = None,
         include_expired_activities: Optional[bool] = None,
         include_private_activities: Optional[bool] = None,
+        include_soft_deleted_activities: Optional[bool] = None,
         limit: Optional[int] = None,
         next: Optional[str] = None,
         prev: Optional[str] = None,
@@ -165,6 +179,7 @@ class FeedsRestClient(BaseClient):
             enrich_own_fields=enrich_own_fields,
             include_expired_activities=include_expired_activities,
             include_private_activities=include_private_activities,
+            include_soft_deleted_activities=include_soft_deleted_activities,
             limit=limit,
             next=next,
             prev=prev,
@@ -327,6 +342,7 @@ class FeedsRestClient(BaseClient):
         type: str,
         copy_custom_to_notification: Optional[bool] = None,
         create_notification_activity: Optional[bool] = None,
+        create_users: Optional[bool] = None,
         enforce_unique: Optional[bool] = None,
         skip_push: Optional[bool] = None,
         user_id: Optional[str] = None,
@@ -340,6 +356,7 @@ class FeedsRestClient(BaseClient):
             type=type,
             copy_custom_to_notification=copy_custom_to_notification,
             create_notification_activity=create_notification_activity,
+            create_users=create_users,
             enforce_unique=enforce_unique,
             skip_push=skip_push,
             user_id=user_id,
@@ -425,13 +442,27 @@ class FeedsRestClient(BaseClient):
         )
 
     @telemetry.operation_name("getstream.api.feeds.get_activity")
-    def get_activity(self, id: str) -> StreamResponse[GetActivityResponse]:
+    def get_activity(
+        self,
+        id: str,
+        comment_sort: Optional[str] = None,
+        comment_limit: Optional[int] = None,
+        user_id: Optional[str] = None,
+    ) -> StreamResponse[GetActivityResponse]:
+        query_params = build_query_param(
+            **{
+                "comment_sort": comment_sort,
+                "comment_limit": comment_limit,
+                "user_id": user_id,
+            }
+        )
         path_params = {
             "id": id,
         }
         return self.get(
             "/api/v2/feeds/activities/{id}",
             GetActivityResponse,
+            query_params=query_params,
             path_params=path_params,
         )
 
@@ -441,6 +472,7 @@ class FeedsRestClient(BaseClient):
         id: str,
         copy_custom_to_notification: Optional[bool] = None,
         enrich_own_fields: Optional[bool] = None,
+        force_moderation: Optional[bool] = None,
         handle_mention_notifications: Optional[bool] = None,
         run_activity_processors: Optional[bool] = None,
         user_id: Optional[str] = None,
@@ -454,6 +486,7 @@ class FeedsRestClient(BaseClient):
         json = UpdateActivityPartialRequest(
             copy_custom_to_notification=copy_custom_to_notification,
             enrich_own_fields=enrich_own_fields,
+            force_moderation=force_moderation,
             handle_mention_notifications=handle_mention_notifications,
             run_activity_processors=run_activity_processors,
             user_id=user_id,
@@ -475,6 +508,7 @@ class FeedsRestClient(BaseClient):
         copy_custom_to_notification: Optional[bool] = None,
         enrich_own_fields: Optional[bool] = None,
         expires_at: Optional[datetime] = None,
+        force_moderation: Optional[bool] = None,
         handle_mention_notifications: Optional[bool] = None,
         poll_id: Optional[str] = None,
         restrict_replies: Optional[str] = None,
@@ -491,7 +525,7 @@ class FeedsRestClient(BaseClient):
         interest_tags: Optional[List[str]] = None,
         mentioned_user_ids: Optional[List[str]] = None,
         custom: Optional[Dict[str, object]] = None,
-        location: Optional[ActivityLocation] = None,
+        location: Optional[Location] = None,
         search_data: Optional[Dict[str, object]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[UpdateActivityResponse]:
@@ -502,6 +536,7 @@ class FeedsRestClient(BaseClient):
             copy_custom_to_notification=copy_custom_to_notification,
             enrich_own_fields=enrich_own_fields,
             expires_at=expires_at,
+            force_moderation=force_moderation,
             handle_mention_notifications=handle_mention_notifications,
             poll_id=poll_id,
             restrict_replies=restrict_replies,
@@ -610,16 +645,20 @@ class FeedsRestClient(BaseClient):
         limit: Optional[int] = None,
         next: Optional[str] = None,
         prev: Optional[str] = None,
+        user_id: Optional[str] = None,
         sort: Optional[List[SortParamRequest]] = None,
         filter: Optional[Dict[str, object]] = None,
+        user: Optional[UserRequest] = None,
     ) -> StreamResponse[QueryBookmarksResponse]:
         json = QueryBookmarksRequest(
             enrich_own_fields=enrich_own_fields,
             limit=limit,
             next=next,
             prev=prev,
+            user_id=user_id,
             sort=sort,
             filter=filter,
+            user=user,
         ).to_dict()
         return self.post(
             "/api/v2/feeds/bookmarks/query", QueryBookmarksResponse, json=json
@@ -748,6 +787,7 @@ class FeedsRestClient(BaseClient):
         comment: Optional[str] = None,
         copy_custom_to_notification: Optional[bool] = None,
         create_notification_activity: Optional[bool] = None,
+        force_moderation: Optional[bool] = None,
         id: Optional[str] = None,
         object_id: Optional[str] = None,
         object_type: Optional[str] = None,
@@ -764,6 +804,7 @@ class FeedsRestClient(BaseClient):
             comment=comment,
             copy_custom_to_notification=copy_custom_to_notification,
             create_notification_activity=create_notification_activity,
+            force_moderation=force_moderation,
             id=id,
             object_id=object_id,
             object_type=object_type,
@@ -813,6 +854,80 @@ class FeedsRestClient(BaseClient):
             "/api/v2/feeds/comments/query", QueryCommentsResponse, json=json
         )
 
+    @telemetry.operation_name("getstream.api.feeds.delete_comment_bookmark")
+    def delete_comment_bookmark(
+        self,
+        comment_id: str,
+        folder_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+    ) -> StreamResponse[DeleteCommentBookmarkResponse]:
+        query_params = build_query_param(**{"folder_id": folder_id, "user_id": user_id})
+        path_params = {
+            "comment_id": comment_id,
+        }
+        return self.delete(
+            "/api/v2/feeds/comments/{comment_id}/bookmarks",
+            DeleteCommentBookmarkResponse,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
+    @telemetry.operation_name("getstream.api.feeds.update_comment_bookmark")
+    def update_comment_bookmark(
+        self,
+        comment_id: str,
+        folder_id: Optional[str] = None,
+        new_folder_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        custom: Optional[Dict[str, object]] = None,
+        new_folder: Optional[AddFolderRequest] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[UpdateCommentBookmarkResponse]:
+        path_params = {
+            "comment_id": comment_id,
+        }
+        json = UpdateCommentBookmarkRequest(
+            folder_id=folder_id,
+            new_folder_id=new_folder_id,
+            user_id=user_id,
+            custom=custom,
+            new_folder=new_folder,
+            user=user,
+        ).to_dict()
+        return self.patch(
+            "/api/v2/feeds/comments/{comment_id}/bookmarks",
+            UpdateCommentBookmarkResponse,
+            path_params=path_params,
+            json=json,
+        )
+
+    @telemetry.operation_name("getstream.api.feeds.add_comment_bookmark")
+    def add_comment_bookmark(
+        self,
+        comment_id: str,
+        folder_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        custom: Optional[Dict[str, object]] = None,
+        new_folder: Optional[AddFolderRequest] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[AddCommentBookmarkResponse]:
+        path_params = {
+            "comment_id": comment_id,
+        }
+        json = AddCommentBookmarkRequest(
+            folder_id=folder_id,
+            user_id=user_id,
+            custom=custom,
+            new_folder=new_folder,
+            user=user,
+        ).to_dict()
+        return self.post(
+            "/api/v2/feeds/comments/{comment_id}/bookmarks",
+            AddCommentBookmarkResponse,
+            path_params=path_params,
+            json=json,
+        )
+
     @telemetry.operation_name("getstream.api.feeds.delete_comment")
     def delete_comment(
         self,
@@ -837,12 +952,18 @@ class FeedsRestClient(BaseClient):
         )
 
     @telemetry.operation_name("getstream.api.feeds.get_comment")
-    def get_comment(self, id: str) -> StreamResponse[GetCommentResponse]:
+    def get_comment(
+        self, id: str, user_id: Optional[str] = None
+    ) -> StreamResponse[GetCommentResponse]:
+        query_params = build_query_param(**{"user_id": user_id})
         path_params = {
             "id": id,
         }
         return self.get(
-            "/api/v2/feeds/comments/{id}", GetCommentResponse, path_params=path_params
+            "/api/v2/feeds/comments/{id}",
+            GetCommentResponse,
+            query_params=query_params,
+            path_params=path_params,
         )
 
     @telemetry.operation_name("getstream.api.feeds.update_comment")
@@ -851,6 +972,7 @@ class FeedsRestClient(BaseClient):
         id: str,
         comment: Optional[str] = None,
         copy_custom_to_notification: Optional[bool] = None,
+        force_moderation: Optional[bool] = None,
         handle_mention_notifications: Optional[bool] = None,
         skip_enrich_url: Optional[bool] = None,
         skip_push: Optional[bool] = None,
@@ -866,6 +988,7 @@ class FeedsRestClient(BaseClient):
         json = UpdateCommentRequest(
             comment=comment,
             copy_custom_to_notification=copy_custom_to_notification,
+            force_moderation=force_moderation,
             handle_mention_notifications=handle_mention_notifications,
             skip_enrich_url=skip_enrich_url,
             skip_push=skip_push,
@@ -887,6 +1010,7 @@ class FeedsRestClient(BaseClient):
         self,
         id: str,
         copy_custom_to_notification: Optional[bool] = None,
+        force_moderation: Optional[bool] = None,
         handle_mention_notifications: Optional[bool] = None,
         skip_enrich_url: Optional[bool] = None,
         skip_push: Optional[bool] = None,
@@ -900,6 +1024,7 @@ class FeedsRestClient(BaseClient):
         }
         json = UpdateCommentPartialRequest(
             copy_custom_to_notification=copy_custom_to_notification,
+            force_moderation=force_moderation,
             handle_mention_notifications=handle_mention_notifications,
             skip_enrich_url=skip_enrich_url,
             skip_push=skip_push,
@@ -1066,6 +1191,7 @@ class FeedsRestClient(BaseClient):
         default_visibility: Optional[str] = None,
         activity_processors: Optional[List[ActivityProcessorConfig]] = None,
         activity_selectors: Optional[List[ActivitySelectorConfig]] = None,
+        activity_filter: Optional[ActivityFilterConfig] = None,
         aggregation: Optional[AggregationConfig] = None,
         custom: Optional[Dict[str, object]] = None,
         notification: Optional[NotificationConfig] = None,
@@ -1078,6 +1204,7 @@ class FeedsRestClient(BaseClient):
             default_visibility=default_visibility,
             activity_processors=activity_processors,
             activity_selectors=activity_selectors,
+            activity_filter=activity_filter,
             aggregation=aggregation,
             custom=custom,
             notification=notification,
@@ -1163,24 +1290,28 @@ class FeedsRestClient(BaseClient):
         self,
         feed_group_id: str,
         feed_id: str,
+        clear_location: Optional[bool] = None,
         created_by_id: Optional[str] = None,
         description: Optional[str] = None,
         enrich_own_fields: Optional[bool] = None,
         name: Optional[str] = None,
         filter_tags: Optional[List[str]] = None,
         custom: Optional[Dict[str, object]] = None,
+        location: Optional[Location] = None,
     ) -> StreamResponse[UpdateFeedResponse]:
         path_params = {
             "feed_group_id": feed_group_id,
             "feed_id": feed_id,
         }
         json = UpdateFeedRequest(
+            clear_location=clear_location,
             created_by_id=created_by_id,
             description=description,
             enrich_own_fields=enrich_own_fields,
             name=name,
             filter_tags=filter_tags,
             custom=custom,
+            location=location,
         ).to_dict()
         return self.put(
             "/api/v2/feeds/feed_groups/{feed_group_id}/feeds/{feed_id}",
@@ -1267,6 +1398,28 @@ class FeedsRestClient(BaseClient):
         return self.post(
             "/api/v2/feeds/feed_groups/{feed_group_id}/feeds/{feed_id}/activities/{activity_id}/pin",
             PinActivityResponse,
+            path_params=path_params,
+            json=json,
+        )
+
+    @telemetry.operation_name("getstream.api.feeds.change_feed_visibility")
+    def change_feed_visibility(
+        self,
+        feed_group_id: str,
+        feed_id: str,
+        visibility: str,
+        pending_follows_action: Optional[str] = None,
+    ) -> StreamResponse[ChangeFeedVisibilityResponse]:
+        path_params = {
+            "feed_group_id": feed_group_id,
+            "feed_id": feed_id,
+        }
+        json = ChangeFeedVisibilityRequest(
+            visibility=visibility, pending_follows_action=pending_follows_action
+        ).to_dict()
+        return self.post(
+            "/api/v2/feeds/feed_groups/{feed_group_id}/feeds/{feed_id}/change_visibility",
+            ChangeFeedVisibilityResponse,
             path_params=path_params,
             json=json,
         )
@@ -1462,6 +1615,7 @@ class FeedsRestClient(BaseClient):
         default_visibility: Optional[str] = None,
         activity_processors: Optional[List[ActivityProcessorConfig]] = None,
         activity_selectors: Optional[List[ActivitySelectorConfig]] = None,
+        activity_filter: Optional[ActivityFilterConfig] = None,
         aggregation: Optional[AggregationConfig] = None,
         custom: Optional[Dict[str, object]] = None,
         notification: Optional[NotificationConfig] = None,
@@ -1476,6 +1630,7 @@ class FeedsRestClient(BaseClient):
             default_visibility=default_visibility,
             activity_processors=activity_processors,
             activity_selectors=activity_selectors,
+            activity_filter=activity_filter,
             aggregation=aggregation,
             custom=custom,
             notification=notification,
@@ -1497,6 +1652,7 @@ class FeedsRestClient(BaseClient):
         default_visibility: Optional[str] = None,
         activity_processors: Optional[List[ActivityProcessorConfig]] = None,
         activity_selectors: Optional[List[ActivitySelectorConfig]] = None,
+        activity_filter: Optional[ActivityFilterConfig] = None,
         aggregation: Optional[AggregationConfig] = None,
         custom: Optional[Dict[str, object]] = None,
         notification: Optional[NotificationConfig] = None,
@@ -1511,6 +1667,7 @@ class FeedsRestClient(BaseClient):
             default_visibility=default_visibility,
             activity_processors=activity_processors,
             activity_selectors=activity_selectors,
+            activity_filter=activity_filter,
             aggregation=aggregation,
             custom=custom,
             notification=notification,
@@ -1729,8 +1886,10 @@ class FeedsRestClient(BaseClient):
         self,
         source: str,
         target: str,
+        activity_copy_limit: Optional[int] = None,
         copy_custom_to_notification: Optional[bool] = None,
         create_notification_activity: Optional[bool] = None,
+        create_users: Optional[bool] = None,
         enrich_own_fields: Optional[bool] = None,
         follower_role: Optional[str] = None,
         push_preference: Optional[str] = None,
@@ -1741,8 +1900,10 @@ class FeedsRestClient(BaseClient):
         json = UpdateFollowRequest(
             source=source,
             target=target,
+            activity_copy_limit=activity_copy_limit,
             copy_custom_to_notification=copy_custom_to_notification,
             create_notification_activity=create_notification_activity,
+            create_users=create_users,
             enrich_own_fields=enrich_own_fields,
             follower_role=follower_role,
             push_preference=push_preference,
@@ -1757,8 +1918,10 @@ class FeedsRestClient(BaseClient):
         self,
         source: str,
         target: str,
+        activity_copy_limit: Optional[int] = None,
         copy_custom_to_notification: Optional[bool] = None,
         create_notification_activity: Optional[bool] = None,
+        create_users: Optional[bool] = None,
         enrich_own_fields: Optional[bool] = None,
         push_preference: Optional[str] = None,
         skip_push: Optional[bool] = None,
@@ -1768,8 +1931,10 @@ class FeedsRestClient(BaseClient):
         json = FollowRequest(
             source=source,
             target=target,
+            activity_copy_limit=activity_copy_limit,
             copy_custom_to_notification=copy_custom_to_notification,
             create_notification_activity=create_notification_activity,
+            create_users=create_users,
             enrich_own_fields=enrich_own_fields,
             push_preference=push_preference,
             skip_push=skip_push,
@@ -1791,19 +1956,29 @@ class FeedsRestClient(BaseClient):
 
     @telemetry.operation_name("getstream.api.feeds.follow_batch")
     def follow_batch(
-        self, follows: List[FollowRequest], enrich_own_fields: Optional[bool] = None
+        self,
+        follows: List[FollowRequest],
+        create_users: Optional[bool] = None,
+        enrich_own_fields: Optional[bool] = None,
     ) -> StreamResponse[FollowBatchResponse]:
         json = FollowBatchRequest(
-            follows=follows, enrich_own_fields=enrich_own_fields
+            follows=follows,
+            create_users=create_users,
+            enrich_own_fields=enrich_own_fields,
         ).to_dict()
         return self.post("/api/v2/feeds/follows/batch", FollowBatchResponse, json=json)
 
     @telemetry.operation_name("getstream.api.feeds.get_or_create_follows")
     def get_or_create_follows(
-        self, follows: List[FollowRequest], enrich_own_fields: Optional[bool] = None
+        self,
+        follows: List[FollowRequest],
+        create_users: Optional[bool] = None,
+        enrich_own_fields: Optional[bool] = None,
     ) -> StreamResponse[FollowBatchResponse]:
         json = FollowBatchRequest(
-            follows=follows, enrich_own_fields=enrich_own_fields
+            follows=follows,
+            create_users=create_users,
+            enrich_own_fields=enrich_own_fields,
         ).to_dict()
         return self.post(
             "/api/v2/feeds/follows/batch/upsert", FollowBatchResponse, json=json
@@ -1933,6 +2108,22 @@ class FeedsRestClient(BaseClient):
             UpdateMembershipLevelResponse,
             path_params=path_params,
             json=json,
+        )
+
+    @telemetry.operation_name("getstream.api.feeds.query_revision_history")
+    def query_revision_history(
+        self,
+        filter: Dict[str, object],
+        limit: Optional[int] = None,
+        next: Optional[str] = None,
+        prev: Optional[str] = None,
+        sort: Optional[List[SortParamRequest]] = None,
+    ) -> StreamResponse[QueryRevisionHistoryResponse]:
+        json = QueryRevisionHistoryRequest(
+            filter=filter, limit=limit, next=next, prev=prev, sort=sort
+        ).to_dict()
+        return self.post(
+            "/api/v2/feeds/revisions/query", QueryRevisionHistoryResponse, json=json
         )
 
     @telemetry.operation_name("getstream.api.feeds.query_feeds_usage_stats")

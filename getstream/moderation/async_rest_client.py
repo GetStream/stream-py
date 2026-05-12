@@ -31,6 +31,107 @@ class ModerationRestClient(AsyncBaseClient):
             user_agent=user_agent,
         )
 
+    @telemetry.operation_name("getstream.api.moderation.get_action_config")
+    async def get_action_config(
+        self,
+        queue_type: Optional[str] = None,
+        entity_type: Optional[str] = None,
+        exclude_defaults: Optional[bool] = None,
+        only_defaults: Optional[bool] = None,
+        user_id: Optional[str] = None,
+    ) -> StreamResponse[GetActionConfigResponse]:
+        query_params = build_query_param(
+            **{
+                "queue_type": queue_type,
+                "entity_type": entity_type,
+                "exclude_defaults": exclude_defaults,
+                "only_defaults": only_defaults,
+                "user_id": user_id,
+            }
+        )
+        return await self.get(
+            "/api/v2/moderation/action_config",
+            GetActionConfigResponse,
+            query_params=query_params,
+        )
+
+    @telemetry.operation_name("getstream.api.moderation.upsert_action_config")
+    async def upsert_action_config(
+        self,
+        action: str,
+        entity_type: str,
+        order: int,
+        description: Optional[str] = None,
+        icon: Optional[str] = None,
+        id: Optional[str] = None,
+        queue_type: Optional[str] = None,
+        user_id: Optional[str] = None,
+        custom: Optional[Dict[str, object]] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[UpsertActionConfigResponse]:
+        json = UpsertActionConfigRequest(
+            action=action,
+            entity_type=entity_type,
+            order=order,
+            description=description,
+            icon=icon,
+            id=id,
+            queue_type=queue_type,
+            user_id=user_id,
+            custom=custom,
+            user=user,
+        ).to_dict()
+        return await self.post(
+            "/api/v2/moderation/action_config", UpsertActionConfigResponse, json=json
+        )
+
+    @telemetry.operation_name("getstream.api.moderation.bulk_upsert_action_config")
+    async def bulk_upsert_action_config(
+        self,
+        action_configs: List[UpsertActionConfigItem],
+        user_id: Optional[str] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[BulkUpsertActionConfigResponse]:
+        json = BulkUpsertActionConfigRequest(
+            action_configs=action_configs, user_id=user_id, user=user
+        ).to_dict()
+        return await self.post(
+            "/api/v2/moderation/action_config/bulk",
+            BulkUpsertActionConfigResponse,
+            json=json,
+        )
+
+    @telemetry.operation_name("getstream.api.moderation.bulk_delete_action_config")
+    async def bulk_delete_action_config(
+        self,
+        ids: List[str],
+        user_id: Optional[str] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[BulkDeleteActionConfigResponse]:
+        json = BulkDeleteActionConfigRequest(
+            ids=ids, user_id=user_id, user=user
+        ).to_dict()
+        return await self.post(
+            "/api/v2/moderation/action_config/bulk_delete",
+            BulkDeleteActionConfigResponse,
+            json=json,
+        )
+
+    @telemetry.operation_name("getstream.api.moderation.delete_action_config")
+    async def delete_action_config(
+        self, id: str, user_id: Optional[str] = None
+    ) -> StreamResponse[DeleteActionConfigResponse]:
+        query_params = build_query_param(**{"user_id": user_id})
+        path_params = {
+            "id": id,
+        }
+        return await self.delete(
+            "/api/v2/moderation/action_config/{id}",
+            DeleteActionConfigResponse,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
     @telemetry.operation_name("getstream.api.moderation.insert_action_log")
     async def insert_action_log(
         self,
@@ -39,6 +140,8 @@ class ModerationRestClient(AsyncBaseClient):
         entity_id: str,
         entity_type: str,
         reason: Optional[str] = None,
+        reporter_type: Optional[str] = None,
+        reporter_user_id: Optional[str] = None,
         custom: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[InsertActionLogResponse]:
         json = InsertActionLogRequest(
@@ -47,6 +150,8 @@ class ModerationRestClient(AsyncBaseClient):
             entity_id=entity_id,
             entity_type=entity_type,
             reason=reason,
+            reporter_type=reporter_type,
+            reporter_user_id=reporter_user_id,
             custom=custom,
         ).to_dict()
         return await self.post(
@@ -143,6 +248,13 @@ class ModerationRestClient(AsyncBaseClient):
             json=json,
         )
 
+    @telemetry.operation_name("getstream.api.moderation.bypass")
+    async def bypass(
+        self, enabled: bool, target_user_id: str
+    ) -> StreamResponse[BypassResponse]:
+        json = BypassRequest(enabled=enabled, target_user_id=target_user_id).to_dict()
+        return await self.post("/api/v2/moderation/bypass", BypassResponse, json=json)
+
     @telemetry.operation_name("getstream.api.moderation.check")
     async def check(
         self,
@@ -236,9 +348,9 @@ class ModerationRestClient(AsyncBaseClient):
 
     @telemetry.operation_name("getstream.api.moderation.delete_config")
     async def delete_config(
-        self, key: str, team: Optional[str] = None
+        self, key: str, team: Optional[str] = None, user_id: Optional[str] = None
     ) -> StreamResponse[DeleteModerationConfigResponse]:
-        query_params = build_query_param(**{"team": team})
+        query_params = build_query_param(**{"team": team, "user_id": user_id})
         path_params = {
             "key": key,
         }
@@ -392,6 +504,50 @@ class ModerationRestClient(AsyncBaseClient):
             "/api/v2/moderation/flags", QueryModerationFlagsResponse, json=json
         )
 
+    @telemetry.operation_name("getstream.api.moderation.labels")
+    async def labels(
+        self,
+        content: str,
+        category: Optional[str] = None,
+        content_id: Optional[str] = None,
+        content_type: Optional[str] = None,
+        policy: Optional[str] = None,
+        user_id: Optional[str] = None,
+    ) -> StreamResponse[LabelsResponse]:
+        json = LabelsRequest(
+            content=content,
+            category=category,
+            content_id=content_id,
+            content_type=content_type,
+            policy=policy,
+            user_id=user_id,
+        ).to_dict()
+        return await self.post("/api/v2/moderation/labels", LabelsResponse, json=json)
+
+    @telemetry.operation_name("getstream.api.moderation.query_label_results")
+    async def query_label_results(
+        self,
+        limit: Optional[int] = None,
+        next: Optional[str] = None,
+        prev: Optional[str] = None,
+        user_id: Optional[str] = None,
+        sort: Optional[List[SortParamRequest]] = None,
+        filter: Optional[Dict[str, object]] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[QueryLabelResultsResponse]:
+        json = QueryLabelResultsRequest(
+            limit=limit,
+            next=next,
+            prev=prev,
+            user_id=user_id,
+            sort=sort,
+            filter=filter,
+            user=user,
+        ).to_dict()
+        return await self.post(
+            "/api/v2/moderation/labels/results", QueryLabelResultsResponse, json=json
+        )
+
     @telemetry.operation_name("getstream.api.moderation.query_moderation_logs")
     async def query_moderation_logs(
         self,
@@ -426,11 +582,13 @@ class ModerationRestClient(AsyncBaseClient):
         enabled: Optional[bool] = None,
         logic: Optional[str] = None,
         team: Optional[str] = None,
+        user_id: Optional[str] = None,
         action_sequences: Optional[List[CallRuleActionSequence]] = None,
         conditions: Optional[List[RuleBuilderCondition]] = None,
         config_keys: Optional[List[str]] = None,
         groups: Optional[List[RuleBuilderConditionGroup]] = None,
         action: Optional[RuleBuilderAction] = None,
+        user: Optional[UserRequest] = None,
     ) -> StreamResponse[UpsertModerationRuleResponse]:
         json = UpsertModerationRuleRequest(
             name=name,
@@ -440,11 +598,13 @@ class ModerationRestClient(AsyncBaseClient):
             enabled=enabled,
             logic=logic,
             team=team,
+            user_id=user_id,
             action_sequences=action_sequences,
             conditions=conditions,
             config_keys=config_keys,
             groups=groups,
             action=action,
+            user=user,
         ).to_dict()
         return await self.post(
             "/api/v2/moderation/moderation_rule",
@@ -454,10 +614,13 @@ class ModerationRestClient(AsyncBaseClient):
 
     @telemetry.operation_name("getstream.api.moderation.delete_moderation_rule")
     async def delete_moderation_rule(
-        self,
+        self, user_id: Optional[str] = None
     ) -> StreamResponse[DeleteModerationRuleResponse]:
+        query_params = build_query_param(**{"user_id": user_id})
         return await self.delete(
-            "/api/v2/moderation/moderation_rule/{id}", DeleteModerationRuleResponse
+            "/api/v2/moderation/moderation_rule/{id}",
+            DeleteModerationRuleResponse,
+            query_params=query_params,
         )
 
     @telemetry.operation_name("getstream.api.moderation.get_moderation_rule")
@@ -508,6 +671,7 @@ class ModerationRestClient(AsyncBaseClient):
     @telemetry.operation_name("getstream.api.moderation.query_review_queue")
     async def query_review_queue(
         self,
+        exclude_default_action_config: Optional[bool] = None,
         limit: Optional[int] = None,
         lock_count: Optional[int] = None,
         lock_duration: Optional[int] = None,
@@ -521,6 +685,7 @@ class ModerationRestClient(AsyncBaseClient):
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[QueryReviewQueueResponse]:
         json = QueryReviewQueueRequest(
+            exclude_default_action_config=exclude_default_action_config,
             limit=limit,
             lock_count=lock_count,
             lock_duration=lock_duration,
@@ -559,6 +724,7 @@ class ModerationRestClient(AsyncBaseClient):
         user_id: Optional[str] = None,
         ban: Optional[BanActionRequestPayload] = None,
         block: Optional[BlockActionRequestPayload] = None,
+        bypass: Optional[BypassActionRequest] = None,
         custom: Optional[CustomActionRequestPayload] = None,
         delete_activity: Optional[DeleteActivityRequestPayload] = None,
         delete_comment: Optional[DeleteCommentRequestPayload] = None,
@@ -582,6 +748,7 @@ class ModerationRestClient(AsyncBaseClient):
             user_id=user_id,
             ban=ban,
             block=block,
+            bypass=bypass,
             custom=custom,
             delete_activity=delete_activity,
             delete_comment=delete_comment,
@@ -600,6 +767,36 @@ class ModerationRestClient(AsyncBaseClient):
         ).to_dict()
         return await self.post(
             "/api/v2/moderation/submit_action", SubmitActionResponse, json=json
+        )
+
+    @telemetry.operation_name("getstream.api.moderation.submit_moderation_feedback")
+    async def submit_moderation_feedback(
+        self,
+        message: str,
+        published_at: str,
+        reference: str,
+        channel_id: Optional[str] = None,
+        current_recommended_action: Optional[str] = None,
+        description: Optional[str] = None,
+        expected_recommended_action: Optional[str] = None,
+        current_labels: Optional[List[str]] = None,
+        expected_labels: Optional[List[str]] = None,
+    ) -> StreamResponse[SubmitModerationFeedbackResponse]:
+        json = SubmitModerationFeedbackRequest(
+            message=message,
+            published_at=published_at,
+            reference=reference,
+            channel_id=channel_id,
+            current_recommended_action=current_recommended_action,
+            description=description,
+            expected_recommended_action=expected_recommended_action,
+            current_labels=current_labels,
+            expected_labels=expected_labels,
+        ).to_dict()
+        return await self.post(
+            "/api/v2/moderation/submit_moderation_feedback",
+            SubmitModerationFeedbackResponse,
+            json=json,
         )
 
     @telemetry.operation_name("getstream.api.moderation.unban")
