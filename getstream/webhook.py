@@ -349,27 +349,17 @@ EVENT_TYPE_USER_GROUP_MEMBER_REMOVED = "user_group.member_removed"
 EVENT_TYPE_USER_GROUP_UPDATED = "user_group.updated"
 
 
-class WebhookError(Exception):
-    """Base class for webhook handling errors.
+class InvalidWebhookError(Exception):
+    """Single error class for all webhook handling failures.
 
-    Catch ``WebhookError`` for a single arm that covers every failure mode.
-    Catch ``InvalidSignatureError`` or ``MalformedWebhookError`` instead when
-    you need to distinguish security failures from parse failures.
+    Catch this for any webhook problem; filter on the message text or the
+    failure-mode constants below to differentiate.
     """
 
-
-class InvalidSignatureError(WebhookError):
-    """The X-Signature header did not match the HMAC-SHA256 of the body under
-    the configured webhook secret. Treat as a security failure: log the source
-    and reject the request (HTTP 401/403).
-    """
-
-
-class MalformedWebhookError(WebhookError):
-    """The webhook body could not be parsed: invalid JSON, missing/non-string
-    ``type`` field, gzip decompression failure, base64 failure, or malformed
-    SNS envelope. Treat as a client/format problem (HTTP 400).
-    """
+    SIGNATURE_MISMATCH = "signature mismatch"
+    INVALID_BASE64 = "invalid base64 encoding"
+    GZIP_FAILED = "gzip decompression failed"
+    INVALID_JSON = "invalid JSON payload"
 
 
 @dataclass
@@ -655,23 +645,25 @@ def gunzip_payload(body: bytes) -> bytes:
     Magic-byte detection (0x1F 0x8B) is reliable for Stream payloads because
     Stream webhook bodies are always JSON, and JSON cannot start with 0x1F.
 
-    Raises MalformedWebhookError if body has the gzip magic prefix but isn't a
+    Raises InvalidWebhookError if body has the gzip magic prefix but isn't a
     valid gzip stream. gzip.decompress can fail with at least three different
     exception types depending on where decoding breaks:
       * gzip.BadGzipFile (subclass of OSError) - malformed header.
       * zlib.error                              - corrupt compressed stream.
       * EOFError                                - stream truncated mid-block.
     The first is OSError-derived; the latter two are not. Catch all three so
-    every "looks like gzip but isn't" failure mode surfaces as MalformedWebhookError.
+    every "looks like gzip but isn't" failure mode surfaces as InvalidWebhookError.
     """
     if not isinstance(body, (bytes, bytearray)):
-        raise MalformedWebhookError("body must be bytes")
+        raise InvalidWebhookError(
+            InvalidWebhookError.INVALID_JSON + ": body must be bytes"
+        )
     if len(body) < 2 or bytes(body[:2]) != _GZIP_MAGIC:
         return bytes(body)
     try:
         return gzip.decompress(bytes(body))
     except (OSError, zlib.error, EOFError) as e:
-        raise MalformedWebhookError(f"gzip decompression failed: {e}") from e
+        raise InvalidWebhookError(f"{InvalidWebhookError.GZIP_FAILED}: {e}") from e
 
 
 def decode_sqs_payload(message_body: str) -> bytes:
@@ -688,7 +680,9 @@ def decode_sqs_payload(message_body: str) -> bytes:
     formats — no caller code change, no flag, no header.
     """
     if not isinstance(message_body, str):
-        raise MalformedWebhookError("message_body must be str")
+        raise InvalidWebhookError(
+            InvalidWebhookError.INVALID_JSON + ": message_body must be str"
+        )
     try:
         decoded = base64.b64decode(message_body, validate=True)
     except (ValueError, base64.binascii.Error):
@@ -728,7 +722,9 @@ def decode_sns_payload(notification_body: str) -> bytes:
     :func:`decode_sqs_payload`.
     """
     if not isinstance(notification_body, str):
-        raise MalformedWebhookError("notification_body must be str")
+        raise InvalidWebhookError(
+            InvalidWebhookError.INVALID_JSON + ": notification_body must be str"
+        )
     inner = _unwrap_sns_notification_body(notification_body)
     return decode_sqs_payload(inner)
 
@@ -745,21 +741,30 @@ def parse_event(payload: bytes) -> Any:
     """Parse JSON, dispatch on type. Returns UnknownEvent for unrecognized types
     (well-formed JSON, well-formed type field, but type not in codegen-known set).
 
-    Raises MalformedWebhookError for invalid JSON, missing/non-string type field,
+    Raises InvalidWebhookError for invalid JSON, missing/non-string type field,
     or any deserialization failure on a known type.
     """
     if not isinstance(payload, (bytes, bytearray)):
-        raise MalformedWebhookError("payload must be bytes")
+        raise InvalidWebhookError(
+            InvalidWebhookError.INVALID_JSON + ": payload must be bytes"
+        )
     try:
         data = json.loads(payload)
     except (json.JSONDecodeError, UnicodeDecodeError) as e:
-        raise MalformedWebhookError(f"failed to parse webhook payload: {e}") from e
+        raise InvalidWebhookError(
+            f"{InvalidWebhookError.INVALID_JSON}: failed to parse webhook payload: {e}"
+        ) from e
     if not isinstance(data, dict):
-        raise MalformedWebhookError("webhook payload must be a JSON object")
+        raise InvalidWebhookError(
+            InvalidWebhookError.INVALID_JSON + ": webhook payload must be a JSON object"
+        )
 
     event_type = data.get("type")
     if not isinstance(event_type, str) or event_type == "":
-        raise MalformedWebhookError("webhook payload missing 'type' string field")
+        raise InvalidWebhookError(
+            InvalidWebhookError.INVALID_JSON
+            + ": webhook payload missing 'type' string field"
+        )
 
     event_class = _get_event_class(event_type)
     if event_class is None:
@@ -768,7 +773,9 @@ def parse_event(payload: bytes) -> Any:
     try:
         return event_class.from_dict(data, infer_missing=True)
     except Exception as e:
-        raise MalformedWebhookError(f"failed to deserialize event: {e}") from e
+        raise InvalidWebhookError(
+            f"{InvalidWebhookError.INVALID_JSON}: failed to deserialize event: {e}"
+        ) from e
 
 
 def _build_unknown_event(event_type: str, data: Dict[str, Any]) -> UnknownEvent:
@@ -791,14 +798,14 @@ def verify_and_parse_webhook(body: bytes, signature: str, secret: str) -> Any:
     can pass either the raw HTTP body or already-decompressed bytes; both work.
 
     Raises:
-        InvalidSignatureError: if the X-Signature header does not match the
-            HMAC-SHA256 of the body under the configured secret.
-        MalformedWebhookError: if gunzip, JSON parse, type dispatch, or
-            event deserialization fails.
+        InvalidWebhookError: for every failure mode. Inspect the message text or
+            match against the failure-mode constants on the class
+            (SIGNATURE_MISMATCH, INVALID_BASE64, GZIP_FAILED, INVALID_JSON) to
+            differentiate.
     """
     payload = gunzip_payload(body)
     if not verify_signature(payload, signature, secret):
-        raise InvalidSignatureError("webhook signature mismatch")
+        raise InvalidWebhookError(InvalidWebhookError.SIGNATURE_MISMATCH)
     return parse_event(payload)
 
 

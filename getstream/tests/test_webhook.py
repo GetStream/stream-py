@@ -19,9 +19,7 @@ from getstream.webhook import (
     parse_sqs,
     parse_sns,
     UnknownEvent,
-    WebhookError,
-    InvalidSignatureError,
-    MalformedWebhookError,
+    InvalidWebhookError,
 )
 
 
@@ -1192,11 +1190,10 @@ class TestWebhookConformanceNegative:
     def test_tampered_body(self):
         body = _read_bytes(self._neg("tampered_body") / "body.json")
         sig = _read_str(self._neg("tampered_body") / "signature.txt")
-        # Signature-mismatch path: must raise InvalidSignatureError. Base class
-        # WebhookError must also match for single-arm catchers.
-        with pytest.raises(InvalidSignatureError, match="signature mismatch"):
-            verify_and_parse_webhook(body, sig, CANONICAL_TEST_SECRET)
-        with pytest.raises(WebhookError):
+        # Single-arm catch on the unified InvalidWebhookError; message identifies the mode.
+        with pytest.raises(
+            InvalidWebhookError, match=InvalidWebhookError.SIGNATURE_MISMATCH
+        ):
             verify_and_parse_webhook(body, sig, CANONICAL_TEST_SECRET)
 
     def test_unknown_type_returns_unknown_event(self):
@@ -1207,41 +1204,41 @@ class TestWebhookConformanceNegative:
 
     def test_missing_type(self):
         body = _read_bytes(self._neg("missing_type") / "body.json")
-        with pytest.raises(MalformedWebhookError, match="missing 'type'"):
+        with pytest.raises(InvalidWebhookError, match="missing 'type'"):
             parse_event(body)
 
     def test_malformed_json(self):
         body = _read_bytes(self._neg("malformed_json") / "body.json")
         with pytest.raises(
-            MalformedWebhookError, match="failed to parse webhook payload"
+            InvalidWebhookError, match="failed to parse webhook payload"
         ):
             parse_event(body)
 
     def test_empty_body(self):
         body = _read_bytes(self._neg("empty_body") / "body.json")
-        with pytest.raises(MalformedWebhookError):
+        with pytest.raises(InvalidWebhookError):
             parse_event(body)
 
     def test_bad_compression(self):
         body = _read_bytes(self._neg("bad_compression") / "body.gz")
         sig = _read_str(self._neg("bad_compression") / "signature.txt")
-        with pytest.raises(MalformedWebhookError, match="gzip decompression failed"):
+        with pytest.raises(InvalidWebhookError, match=InvalidWebhookError.GZIP_FAILED):
             verify_and_parse_webhook(body, sig, CANONICAL_TEST_SECRET)
 
     def test_bad_base64(self):
         # Per CHA-3071 wire format: decode_sqs_payload falls back to raw bytes when
         # base64 decoding fails (uncompressed wire format). For input that is
         # neither valid base64 nor valid JSON nor gzip-prefixed, parse_sqs still
-        # raises MalformedWebhookError — just down the chain at JSON parsing.
+        # raises InvalidWebhookError — just down the chain at JSON parsing.
         msg = _read_str(self._neg("bad_base64") / "sqs_body.txt")
-        with pytest.raises(MalformedWebhookError):
+        with pytest.raises(InvalidWebhookError):
             parse_sqs(msg)
 
     def test_bad_sns_envelope(self):
         # Fix #4: bad_sns_envelope (a non-envelope JSON like "not json") is now
         # treated as a pre-extracted Message string and flows through the SQS
         # path, so it surfaces as a downstream parse failure rather than an
-        # SNS-specific one. Still MalformedWebhookError.
+        # SNS-specific one. Still InvalidWebhookError.
         notif = _read_str(self._neg("bad_sns_envelope") / "sns_notification.txt")
-        with pytest.raises(MalformedWebhookError):
+        with pytest.raises(InvalidWebhookError):
             parse_sns(notif)
