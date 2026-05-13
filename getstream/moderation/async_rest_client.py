@@ -511,6 +511,7 @@ class ModerationRestClient(AsyncBaseClient):
         category: Optional[str] = None,
         content_id: Optional[str] = None,
         content_type: Optional[str] = None,
+        dry_run: Optional[bool] = None,
         policy: Optional[str] = None,
         user_id: Optional[str] = None,
     ) -> StreamResponse[LabelsResponse]:
@@ -519,6 +520,7 @@ class ModerationRestClient(AsyncBaseClient):
             category=category,
             content_id=content_id,
             content_type=content_type,
+            dry_run=dry_run,
             policy=policy,
             user_id=user_id,
         ).to_dict()

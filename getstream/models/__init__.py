@@ -2103,8 +2103,7 @@ class AsyncExportErrorEvent(DataClassJsonMixin):
     task_id: str = dc_field(metadata=dc_config(field_name="task_id"))
     custom: Dict[str, object] = dc_field(metadata=dc_config(field_name="custom"))
     type: str = dc_field(
-        default="export.bulk_image_moderation.error",
-        metadata=dc_config(field_name="type"),
+        default="export.moderation_logs.error", metadata=dc_config(field_name="type")
     )
     received_at: Optional[datetime] = dc_field(
         default=None,
@@ -14485,6 +14484,10 @@ class LabelsRequest(DataClassJsonMixin):
     # Type of content: 'text' (default), 'message', or 'username'. Stored as-sent; only 'username' routes to the username moderation API.
     content_type: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="content_type")
+    )
+    # When true, run moderation and return labels without persisting the result. Useful for one-off checks (e.g. UI testers) that should not be recorded in the stored history.
+    dry_run: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="dry_run")
     )
     # Optional moderation policy key (max 128 chars)
     policy: Optional[str] = dc_field(

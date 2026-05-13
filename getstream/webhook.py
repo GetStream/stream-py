@@ -666,22 +666,25 @@ def gunzip_payload(body: bytes) -> bytes:
 
 
 def decode_sqs_payload(message_body: str) -> bytes:
-    """base64-decode an SQS Message Body, then gunzip if gzip-prefixed.
+    """Decode an SQS Message Body: try base64 then fall back to raw bytes, then gunzip if gzip-prefixed.
 
-    Forward-compat: today chat/ emits plain JSON to SQS; once CHA-3071 extends to
-    queue transports, bodies will be base64(gzip(json)). This helper handles
-    both cases via the magic-byte detection in gunzip_payload.
+    Wire format (per CHA-3071): SQS bodies are raw JSON when
+    enable_hook_payload_compression is off (today's default for all existing
+    apps), and base64(gzip(json)) when it's on. This helper handles both:
+    base64 decode first, fall back to raw bytes on failure (since raw JSON
+    starts with '{' which is not valid base64), then let gunzip_payload's
+    magic-byte detection decide whether to decompress.
 
-    Note: if the input is plain JSON (not base64), strict base64 decoding will
-    fail and raise InvalidWebhookError. Callers receiving today's plain-JSON
-    SQS messages should call parse_event directly with the body bytes.
+    parse_sqs sits on top of this and works transparently for both wire
+    formats — no caller code change, no flag, no header.
     """
     if not isinstance(message_body, str):
         raise InvalidWebhookError("message_body must be str")
     try:
         decoded = base64.b64decode(message_body, validate=True)
-    except (ValueError, base64.binascii.Error) as e:
-        raise InvalidWebhookError(f"invalid base64: {e}") from e
+    except (ValueError, base64.binascii.Error):
+        # Not base64 — treat input as raw bytes (uncompressed wire format).
+        decoded = message_body.encode("utf-8")
     return gunzip_payload(decoded)
 
 

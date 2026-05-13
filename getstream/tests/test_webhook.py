@@ -1223,8 +1223,12 @@ class TestWebhookConformanceNegative:
             verify_and_parse_webhook(body, sig, CANONICAL_TEST_SECRET)
 
     def test_bad_base64(self):
+        # Per CHA-3071 wire format: decode_sqs_payload falls back to raw bytes when
+        # base64 decoding fails (uncompressed wire format). For input that is
+        # neither valid base64 nor valid JSON nor gzip-prefixed, parse_sqs still
+        # raises InvalidWebhookError — just down the chain at JSON parsing.
         msg = _read_str(self._neg("bad_base64") / "sqs_body.txt")
-        with pytest.raises(InvalidWebhookError, match="base64"):
+        with pytest.raises(InvalidWebhookError):
             parse_sqs(msg)
 
     def test_bad_sns_envelope(self):
