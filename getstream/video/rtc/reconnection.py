@@ -218,6 +218,9 @@ class ReconnectionManager:
                     token=self.connection_manager.join_response.credentials.token
                     if self.connection_manager.join_response
                     else None,
+                    ws_url=self.connection_manager.join_response.credentials.server.ws_endpoint
+                    if self.connection_manager.join_response
+                    else None,
                     session_id=self.connection_manager.session_id,
                 )
 
