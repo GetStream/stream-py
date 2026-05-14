@@ -3,6 +3,8 @@ import pytest
 import threading
 from unittest.mock import patch
 
+import websocket
+
 from getstream.video.rtc.signaling import WebSocketClient, SignalingError
 from getstream.video.rtc.pb.stream.video.sfu.event import events_pb2
 from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
@@ -398,6 +400,67 @@ class TestWebSocketClient:
         assert len(received) == 1, (
             f"expected exactly one connection_lost event for the chain, got {received}"
         )
+
+        client.close()
+
+    @pytest.mark.asyncio
+    async def test_call_ended_suppresses_connection_lost(self, join_request):
+        """A `call_ended` event before close suppresses `connection_lost`.
+
+        The SFU sends `call_ended`, then closes the WS with no distinguishing
+        status (close code and reason are both None). Without an application-
+        level intent signal this would be indistinguishable from a TCP drop
+        and trip a spurious reconnect.
+        """
+        client = WebSocketClient(
+            "wss://test.url", join_request, asyncio.get_running_loop()
+        )
+        received: list[str] = []
+
+        async def on_lost(reason):
+            received.append(reason)
+
+        client.on_event("connection_lost", on_lost)
+
+        call_ended_event = events_pb2.SfuEvent()
+        call_ended_event.call_ended.reason = models_pb2.CALL_ENDED_REASON_ENDED
+
+        client._on_message(None, call_ended_event.SerializeToString())
+        client._on_close(None, None, None)
+
+        await asyncio.sleep(0.05)
+
+        assert received == []
+
+    @pytest.mark.asyncio
+    async def test_close_frame_during_handshake_raises(
+        self, join_request, mock_websocket
+    ):
+        """An ABNF close frame mid-handshake unblocks `connect()` with an error.
+
+        websocket-client surfaces a server-side close as both an error (an
+        `ABNF` close frame in `_on_error`) and an `_on_close` callback. If
+        this happens before the first SFU event, neither callback sets
+        `first_message_event` by default, so `connect()` would hang on the
+        executor wait. The synthetic error path in `_on_error` is what
+        unblocks it.
+        """
+        client = WebSocketClient(
+            "wss://test.url", join_request, asyncio.get_running_loop()
+        )
+
+        connect_task = asyncio.create_task(client.connect())
+        await asyncio.sleep(0.1)
+
+        # Server closed the socket before sending any SFU event.
+        close_frame = websocket.ABNF()
+        close_frame.opcode = websocket.ABNF.OPCODE_CLOSE
+
+        on_error_callback = mock_websocket.call_args[1]["on_error"]
+        on_error_callback(mock_websocket.return_value, close_frame)
+
+        with pytest.raises(SignalingError, match="Connection failed"):
+            await connect_task
 
         client.close()
 
