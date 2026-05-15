@@ -93,6 +93,39 @@ class TestBitratePatchDisabled:
         assert mod.BITRATE_PATCH_DISABLED is True
 
 
+class TestStreamH264Preset:
+    def test_default_is_ultrafast(self, monkeypatch):
+        """STREAM_H264_PRESET defaults to 'ultrafast' when env var is unset."""
+        monkeypatch.delenv("STREAM_PATCH_AIORTC_H264_PRESET", raising=False)
+
+        import getstream.video.rtc.encoders_patches as mod
+
+        importlib.reload(mod)
+        assert mod.STREAM_H264_PRESET == "ultrafast"
+        assert mod.StreamH264Encoder().preset == "ultrafast"
+
+    @pytest.mark.parametrize("env_val", ["medium", "veryfast", "superfast"])
+    def test_overridden_via_env(self, monkeypatch, env_val):
+        """STREAM_H264_PRESET reflects the env var and is stored on the instance."""
+        monkeypatch.setenv("STREAM_PATCH_AIORTC_H264_PRESET", env_val)
+
+        import getstream.video.rtc.encoders_patches as mod
+
+        importlib.reload(mod)
+        assert mod.STREAM_H264_PRESET == env_val
+        assert mod.StreamH264Encoder().preset == env_val
+
+    def test_whitespace_is_stripped(self, monkeypatch):
+        """Leading/trailing whitespace in the env value is stripped."""
+        monkeypatch.setenv("STREAM_PATCH_AIORTC_H264_PRESET", "  medium  ")
+
+        import getstream.video.rtc.encoders_patches as mod
+
+        importlib.reload(mod)
+        assert mod.STREAM_H264_PRESET == "medium"
+        assert mod.StreamH264Encoder().preset == "medium"
+
+
 class TestPatchSenderEncoder:
     @pytest.mark.asyncio
     async def test_installs_vp8_encoder(self):
