@@ -685,8 +685,9 @@ def decode_sqs_payload(message_body: str) -> bytes:
         )
     try:
         decoded = base64.b64decode(message_body, validate=True)
-    except (ValueError, base64.binascii.Error):
+    except ValueError:
         # Not base64 — treat input as raw bytes (uncompressed wire format).
+        # base64.binascii.Error is a subclass of ValueError so a single catch suffices.
         decoded = message_body.encode("utf-8")
     return gunzip_payload(decoded)
 
@@ -702,7 +703,8 @@ def _unwrap_sns_notification_body(body: str) -> str:
     """
     try:
         env = json.loads(body)
-    except (ValueError, json.JSONDecodeError):
+    except ValueError:
+        # json.JSONDecodeError is a subclass of ValueError.
         return body
     if isinstance(env, dict):
         msg = env.get("Message")
@@ -750,7 +752,8 @@ def parse_event(payload: bytes) -> Any:
         )
     try:
         data = json.loads(payload)
-    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+    except json.JSONDecodeError as e:
+        # json.loads handles bytes natively since Python 3.6; no UnicodeDecodeError path.
         raise InvalidWebhookError(
             f"{InvalidWebhookError.INVALID_JSON}: failed to parse webhook payload: {e}"
         ) from e

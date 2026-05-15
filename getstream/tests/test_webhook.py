@@ -1143,10 +1143,12 @@ class TestWebhookConformanceHappy:
     def test_parse_event(self, fixture_dir):
         body = _read_bytes(fixture_dir / "body.json")
         event = parse_event(body)
-        # Either a typed event whose `.type` matches the fixture, or UnknownEvent
-        # for events the codegen knows but the fixture set doesn't recognize the discriminator
-        # (shouldn't happen for the curated set, but tolerate it).
-        assert getattr(event, "type", fixture_dir.name) == fixture_dir.name
+        assert not isinstance(event, UnknownEvent), (
+            f"happy fixture {fixture_dir.name} unexpectedly parsed as UnknownEvent"
+        )
+        assert event.type == fixture_dir.name, (
+            f"expected event.type == {fixture_dir.name}, got {event.type}"
+        )
 
     def test_verify_signature(self, fixture_dir):
         body = _read_bytes(fixture_dir / "body.json")
