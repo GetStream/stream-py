@@ -79,11 +79,20 @@ try:
             self._H264Encoder__target_bitrate = bitrate
 
         def _encode_frame(self, frame, force_keyframe):
-            # Pre-build the codec with our libx264 preset so parent's
-            # `if self.codec is None` branch (which uses default `medium`)
-            # is skipped. Parent still handles invalidation/recreation on
-            # resolution/bitrate change; in that path upstream defaults
-            # apply until the next call lands here again.
+            # Mirror parent's invalidation policy so we own codec creation in
+            # both first-init AND recreation (resolution/bitrate change) paths;
+            # otherwise parent's `if self.codec is None` branch silently
+            # reverts our preset to libx264's default `medium`.
+            if self.codec and (
+                frame.width != self.codec.width
+                or frame.height != self.codec.height
+                or abs(self.target_bitrate - self.codec.bit_rate) / self.codec.bit_rate
+                > 0.1
+            ):
+                self.buffer_data = b""
+                self.buffer_pts = None
+                self.codec = None
+
             if self.codec is None:
                 self.codec = av.CodecContext.create("libx264", "w")
                 self.codec.width = frame.width
