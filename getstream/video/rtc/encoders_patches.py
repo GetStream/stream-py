@@ -83,11 +83,15 @@ try:
             # both first-init AND recreation (resolution/bitrate change) paths;
             # otherwise parent's `if self.codec is None` branch silently
             # reverts our preset to libx264's default `medium`.
-            if self.codec and (
-                frame.width != self.codec.width
-                or frame.height != self.codec.height
-                or abs(self.target_bitrate - self.codec.bit_rate) / self.codec.bit_rate
-                > 0.1
+            codec = self.codec
+            if (
+                codec is not None
+                and codec.bit_rate
+                and (
+                    frame.width != codec.width
+                    or frame.height != codec.height
+                    or abs(self.target_bitrate - codec.bit_rate) / codec.bit_rate > 0.1
+                )
             ):
                 self.buffer_data = b""
                 self.buffer_pts = None
