@@ -1,8 +1,11 @@
+import fractions
 import logging
 import os
 from typing import Optional
 
+import av
 from aiortc import RTCRtpCodecParameters
+from aiortc.codecs.h264 import MAX_FRAME_RATE as H264_MAX_FRAME_RATE
 from aiortc.codecs.h264 import H264Encoder
 from aiortc.codecs.vpx import Vp8Encoder
 from aiortc.rtcrtpsender import RTCEncodedFrame, RTCRtpSender
@@ -25,6 +28,11 @@ BITRATE_PATCH_DISABLED = os.getenv(
     "no",
     "off",
 )
+
+# libx264 preset for the StreamH264Encoder. Defaults to "ultrafast" for
+# real-time CPU; can be raised (e.g. "veryfast", "medium") for better
+# quality-per-bit at the cost of more CPU per frame.
+STREAM_H264_PRESET = os.getenv("STREAM_PATCH_AIORTC_H264_PRESET", "ultrafast").strip()
 
 
 try:
@@ -51,11 +59,13 @@ try:
             self._Vp8Encoder__target_bitrate = bitrate
 
     class StreamH264Encoder(H264Encoder):
-        """H264Encoder subclass with higher bitrate bounds for Stream calls."""
+        """H264Encoder subclass with higher bitrate bounds and a real-time
+        libx264 preset for Stream calls."""
 
         def __init__(self) -> None:
             super().__init__()
             self._H264Encoder__target_bitrate = STREAM_VIDEO_DEFAULT_BITRATE
+            self.preset = STREAM_H264_PRESET
 
         @property
         def target_bitrate(self) -> int:
@@ -68,10 +78,32 @@ try:
             )
             self._H264Encoder__target_bitrate = bitrate
 
+        def _encode_frame(self, frame, force_keyframe):
+            # Pre-build the codec with our libx264 preset so parent's
+            # `if self.codec is None` branch (which uses default `medium`)
+            # is skipped. Parent still handles invalidation/recreation on
+            # resolution/bitrate change; in that path upstream defaults
+            # apply until the next call lands here again.
+            if self.codec is None:
+                self.codec = av.CodecContext.create("libx264", "w")
+                self.codec.width = frame.width
+                self.codec.height = frame.height
+                self.codec.bit_rate = self.target_bitrate
+                self.codec.pix_fmt = "yuv420p"
+                self.codec.framerate = fractions.Fraction(H264_MAX_FRAME_RATE, 1)
+                self.codec.time_base = fractions.Fraction(1, H264_MAX_FRAME_RATE)
+                self.codec.options = {
+                    "level": "31",
+                    "tune": "zerolatency",
+                    "preset": self.preset,
+                }
+                self.codec.profile = "Baseline"
+            yield from super()._encode_frame(frame, force_keyframe)
+
 except Exception:
     logger.warning(
-        "Failed to patch aiortc video encoder subclasses with Stream bitrate values (aiortc internals may have changed), "
-        "falling back to default aiortc bitrates. \n"
+        "Failed to patch aiortc encoder subclasses with Stream values (aiortc internals may have changed), "
+        "falling back to default aiortc encoders. \n"
         "Set STREAM_PATCH_AIORTC_BITRATES=0 to disable patching.",
         exc_info=True,
     )
@@ -80,10 +112,11 @@ except Exception:
 
 
 def patch_sender_encoder(sender: RTCRtpSender) -> None:
-    """Patch a video sender to use Stream's higher-bitrate encoders.
+    """Patch a sender to use Stream's tuned encoders for the negotiated codec.
 
-    If anything goes wrong (e.g. aiortc internals changed), the sender
-    is left untouched and will use the stock encoder via get_encoder().
+    Works for video (VP8/H264) senders. If anything
+    goes wrong (e.g. aiortc internals changed), the sender is left untouched
+    and will use the stock encoder via get_encoder().
     """
     if StreamVp8Encoder is None or StreamH264Encoder is None:
         return
@@ -105,8 +138,8 @@ def patch_sender_encoder(sender: RTCRtpSender) -> None:
         sender._next_encoded_frame = _next_with_stream_encoder  # type: ignore[method-assign]
     except Exception:
         logger.warning(
-            "Failed to patch aiortc video encoder subclasses with Stream bitrate values (aiortc internals may have changed), "
-            "falling back to default aiortc bitrates. \n"
+            "Failed to patch aiortc encoder subclasses with Stream values (aiortc internals may have changed), "
+            "falling back to default aiortc encoders. \n"
             "Set STREAM_PATCH_AIORTC_BITRATES=0 to disable patching.",
             exc_info=True,
         )
