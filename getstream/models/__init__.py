@@ -22759,6 +22759,13 @@ class SearchResultMessage(DataClassJsonMixin):
 
 
 @dataclass
+class SearchRolesResponse(DataClassJsonMixin):
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    # Matching roles, sorted ascending by name
+    roles: "List[Role]" = dc_field(metadata=dc_config(field_name="roles"))
+
+
+@dataclass
 class SearchUserGroupsResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
     # List of matching user groups

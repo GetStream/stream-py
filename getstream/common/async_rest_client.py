@@ -899,6 +899,28 @@ class CommonRestClient(AsyncBaseClient):
         json = CreateRoleRequest(name=name).to_dict()
         return await self.post("/api/v2/roles", CreateRoleResponse, json=json)
 
+    @telemetry.operation_name("getstream.api.common.search_roles")
+    async def search_roles(
+        self,
+        query: str,
+        limit: Optional[int] = None,
+        name_gt: Optional[str] = None,
+        role_type: Optional[str] = None,
+        include_global_roles: Optional[bool] = None,
+    ) -> StreamResponse[SearchRolesResponse]:
+        query_params = build_query_param(
+            **{
+                "query": query,
+                "limit": limit,
+                "name_gt": name_gt,
+                "role_type": role_type,
+                "include_global_roles": include_global_roles,
+            }
+        )
+        return await self.get(
+            "/api/v2/roles/search", SearchRolesResponse, query_params=query_params
+        )
+
     @telemetry.operation_name("getstream.api.common.delete_role")
     async def delete_role(self, name: str) -> StreamResponse[Response]:
         path_params = {
