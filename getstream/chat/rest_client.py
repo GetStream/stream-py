@@ -31,6 +31,42 @@ class ChatRestClient(BaseClient):
             user_agent=user_agent,
         )
 
+    @telemetry.operation_name("getstream.api.chat.create_campaign")
+    def create_campaign(
+        self,
+        sender_id: str,
+        message_template: CampaignMessageTemplate,
+        create_channels: Optional[bool] = None,
+        description: Optional[str] = None,
+        id: Optional[str] = None,
+        name: Optional[str] = None,
+        sender_mode: Optional[str] = None,
+        sender_visibility: Optional[str] = None,
+        show_channels: Optional[bool] = None,
+        skip_push: Optional[bool] = None,
+        skip_webhook: Optional[bool] = None,
+        segment_ids: Optional[List[str]] = None,
+        user_ids: Optional[List[str]] = None,
+        channel_template: Optional[CampaignChannelTemplate] = None,
+    ) -> StreamResponse[CreateCampaignResponse]:
+        json = CreateCampaignRequest(
+            sender_id=sender_id,
+            message_template=message_template,
+            create_channels=create_channels,
+            description=description,
+            id=id,
+            name=name,
+            sender_mode=sender_mode,
+            sender_visibility=sender_visibility,
+            show_channels=show_channels,
+            skip_push=skip_push,
+            skip_webhook=skip_webhook,
+            segment_ids=segment_ids,
+            user_ids=user_ids,
+            channel_template=channel_template,
+        ).to_dict()
+        return self.post("/api/v2/chat/campaigns", CreateCampaignResponse, json=json)
+
     @telemetry.operation_name("getstream.api.chat.query_campaigns")
     def query_campaigns(
         self,
@@ -53,6 +89,17 @@ class ChatRestClient(BaseClient):
             "/api/v2/chat/campaigns/query", QueryCampaignsResponse, json=json
         )
 
+    @telemetry.operation_name("getstream.api.chat.delete_campaign")
+    def delete_campaign(self, id: str) -> StreamResponse[DeleteCampaignResponse]:
+        path_params = {
+            "id": id,
+        }
+        return self.delete(
+            "/api/v2/chat/campaigns/{id}",
+            DeleteCampaignResponse,
+            path_params=path_params,
+        )
+
     @telemetry.operation_name("getstream.api.chat.get_campaign")
     def get_campaign(
         self,
@@ -70,6 +117,51 @@ class ChatRestClient(BaseClient):
             GetCampaignResponse,
             query_params=query_params,
             path_params=path_params,
+        )
+
+    @telemetry.operation_name("getstream.api.chat.update_campaign")
+    def update_campaign(
+        self,
+        id: str,
+        sender_id: str,
+        message_template: CampaignMessageTemplate,
+        create_channels: Optional[bool] = None,
+        description: Optional[str] = None,
+        id_: Optional[str] = None,
+        name: Optional[str] = None,
+        sender_mode: Optional[str] = None,
+        sender_visibility: Optional[str] = None,
+        show_channels: Optional[bool] = None,
+        skip_push: Optional[bool] = None,
+        skip_webhook: Optional[bool] = None,
+        segment_ids: Optional[List[str]] = None,
+        user_ids: Optional[List[str]] = None,
+        channel_template: Optional[CampaignChannelTemplate] = None,
+    ) -> StreamResponse[CampaignResponse]:
+        path_params = {
+            "id": id,
+        }
+        json = UpdateCampaignRequest(
+            sender_id=sender_id,
+            message_template=message_template,
+            create_channels=create_channels,
+            description=description,
+            id=id_,
+            name=name,
+            sender_mode=sender_mode,
+            sender_visibility=sender_visibility,
+            show_channels=show_channels,
+            skip_push=skip_push,
+            skip_webhook=skip_webhook,
+            segment_ids=segment_ids,
+            user_ids=user_ids,
+            channel_template=channel_template,
+        ).to_dict()
+        return self.put(
+            "/api/v2/chat/campaigns/{id}",
+            CampaignResponse,
+            path_params=path_params,
+            json=json,
         )
 
     @telemetry.operation_name("getstream.api.chat.start_campaign")
@@ -179,6 +271,20 @@ class ChatRestClient(BaseClient):
             MarkDeliveredResponse,
             query_params=query_params,
             json=json,
+        )
+
+    @telemetry.operation_name("getstream.api.chat.grouped_query_channels")
+    def grouped_query_channels(
+        self,
+        limit: Optional[int] = None,
+        user_id: Optional[str] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[GroupedQueryChannelsResponse]:
+        json = GroupedQueryChannelsRequest(
+            limit=limit, user_id=user_id, user=user
+        ).to_dict()
+        return self.post(
+            "/api/v2/chat/channels/grouped", GroupedQueryChannelsResponse, json=json
         )
 
     @telemetry.operation_name("getstream.api.chat.mark_channels_read")

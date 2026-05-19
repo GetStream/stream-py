@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Webhook handling spec helpers (CHA-2961): `UnknownEvent` dataclass for
+  forward-compat; `gunzip_payload`, `decode_sqs_payload`, `decode_sns_payload`
+  primitives; `parse_event` (returns typed event or `UnknownEvent` for
+  unrecognized discriminators); `verify_signature` canonical alias of
+  `verify_webhook_signature`; `verify_and_parse_webhook` HTTP composite
+  (gunzip + verify + parse); `parse_sqs` and `parse_sns` queue composites
+  (no signature parameter — queue transports are authenticated by AWS IAM,
+  so the backend emits no HMAC for queue messages today). Transparent gzip
+  via magic-byte detection.
+- New instance methods on `Stream` and `AsyncStream`:
+  `verify_signature(body, signature)` and
+  `verify_and_parse_webhook(body, signature)` — drop the api_secret parameter
+  in favor of the client's stored secret. Dual API: the module-level functions
+  in `getstream.webhook` remain available for callers who want explicit
+  secret control.
+- New instance methods on `Stream` / `AsyncStream`: `parse_sqs(message_body)`,
+  `parse_sns(notification_body)` (no signature; AWS IAM).
+- `InvalidWebhookError` exception type covering both signature mismatches and
+  malformed payloads. Distinguish failure modes via the exception message or
+  `__cause__` chain.
+- Conformance fixture suite under `tests/fixtures/webhooks/` (13 happy-path
+  event directories + 8 negative cases) for SDK conformance testing across
+  language ports.
+
+### Changed
+
+- No breaking changes. All existing webhook helpers (`verify_webhook_signature`,
+  `parse_webhook_event`, `get_event_type`, event type constants) are preserved.
+
+[Spec](https://www.notion.so/stream-wiki/Server-Side-SDK-Webhook-Handling-Spec-34b6a5d7f9f681e78003c443f227493c)
+
 ## [3.0.0b1] - 2026-02-27
 
 ### Breaking Changes

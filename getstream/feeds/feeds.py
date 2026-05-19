@@ -15,10 +15,15 @@ class Feed:
             self.custom_data = data.feed.custom
 
     def delete(
-        self, hard_delete: Optional[bool] = None
+        self,
+        hard_delete: Optional[bool] = None,
+        purge_user_activities: Optional[bool] = None,
     ) -> StreamResponse[DeleteFeedResponse]:
         response = self.client.delete_feed(
-            feed_group_id=self.feed_group, feed_id=self.id, hard_delete=hard_delete
+            feed_group_id=self.feed_group,
+            feed_id=self.id,
+            hard_delete=hard_delete,
+            purge_user_activities=purge_user_activities,
         )
         self._sync_from_response(response.data)
         return response
@@ -69,22 +74,26 @@ class Feed:
 
     def update(
         self,
+        clear_location: Optional[bool] = None,
         created_by_id: Optional[str] = None,
         description: Optional[str] = None,
         enrich_own_fields: Optional[bool] = None,
         name: Optional[str] = None,
         filter_tags: Optional[List[str]] = None,
         custom: Optional[Dict[str, object]] = None,
+        location: Optional[Location] = None,
     ) -> StreamResponse[UpdateFeedResponse]:
         response = self.client.update_feed(
             feed_group_id=self.feed_group,
             feed_id=self.id,
+            clear_location=clear_location,
             created_by_id=created_by_id,
             description=description,
             enrich_own_fields=enrich_own_fields,
             name=name,
             filter_tags=filter_tags,
             custom=custom,
+            location=location,
         )
         self._sync_from_response(response.data)
         return response
@@ -143,6 +152,18 @@ class Feed:
             enrich_own_fields=enrich_own_fields,
             user_id=user_id,
             user=user,
+        )
+        self._sync_from_response(response.data)
+        return response
+
+    def change_feed_visibility(
+        self, visibility: str, pending_follows_action: Optional[str] = None
+    ) -> StreamResponse[ChangeFeedVisibilityResponse]:
+        response = self.client.change_feed_visibility(
+            feed_group_id=self.feed_group,
+            feed_id=self.id,
+            visibility=visibility,
+            pending_follows_action=pending_follows_action,
         )
         self._sync_from_response(response.data)
         return response
