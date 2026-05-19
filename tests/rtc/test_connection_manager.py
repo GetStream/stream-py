@@ -15,6 +15,7 @@ from getstream.video.rtc.connection_utils import (
     SfuJoinError,
 )
 from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
+from getstream.video.rtc.reconnection import ReconnectionStrategy
 
 load_dotenv()
 
@@ -203,3 +204,23 @@ class TestConnectionManager:
             pytest.raises(ValueError, match="max_join_retries must be >= 0"),
         ):
             ConnectionManager(call=MagicMock(), user_id="user1", max_join_retries=-1)
+
+    @pytest.mark.asyncio
+    async def test_signaling_connection_lost_triggers_fast_reconnect(
+        self, connection_manager
+    ):
+        """A signaling-WS `connection_lost` event drives a FAST reconnect.
+
+        Without this handler the session would sit hanging on a transient
+        socket drop until the frontend tears it down.
+        """
+        cm = connection_manager
+        cm.running = True
+        cm._reconnector.reconnect = AsyncMock()
+
+        await cm._on_signaling_connection_lost("health check timeout")
+
+        cm._reconnector.reconnect.assert_called_once()
+        kwargs = cm._reconnector.reconnect.call_args.kwargs
+        assert kwargs["strategy"] == ReconnectionStrategy.FAST
+        assert "health check timeout" in kwargs["reason"]

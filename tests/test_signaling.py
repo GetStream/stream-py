@@ -3,6 +3,8 @@ import pytest
 import threading
 from unittest.mock import patch
 
+import websocket
+
 from getstream.video.rtc.signaling import WebSocketClient, SignalingError
 from getstream.video.rtc.pb.stream.video.sfu.event import events_pb2
 from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
@@ -294,6 +296,173 @@ class TestWebSocketClient:
 
             # Thread should be joined during close
             assert not client.running
+
+    @pytest.mark.asyncio
+    async def test_connection_lost_emitted_on_unexpected_close(
+        self, join_request, mock_websocket
+    ):
+        """An unexpected WS close after handshake emits a `connection_lost` event.
+
+        The owner (ConnectionManager) relies on this signal to drive
+        reconnection — without it, a transient socket drop leaves the
+        session hanging until the frontend times out.
+        """
+        client = WebSocketClient(
+            "wss://test.url", join_request, asyncio.get_running_loop()
+        )
+
+        received: list[str] = []
+
+        async def on_lost(reason):
+            received.append(reason)
+
+        client.on_event("connection_lost", on_lost)
+
+        # Complete handshake so we're past the initial connect phase.
+        join_response = events_pb2.SfuEvent()
+        join_response.join_response.reconnected = False
+
+        connect_task = asyncio.create_task(client.connect())
+        await asyncio.sleep(0.1)
+
+        on_open_callback = mock_websocket.call_args[1]["on_open"]
+        on_open_callback(mock_websocket.return_value)
+
+        on_message_callback = mock_websocket.call_args[1]["on_message"]
+        on_message_callback(
+            mock_websocket.return_value, join_response.SerializeToString()
+        )
+        await connect_task
+
+        # Simulate the remote dropping the connection (not user-initiated).
+        on_close_callback = mock_websocket.call_args[1]["on_close"]
+        on_close_callback(mock_websocket.return_value, 1006, "abnormal closure")
+
+        # Allow the threadsafe-scheduled emit to run on the loop.
+        await asyncio.sleep(0.1)
+
+        assert len(received) == 1, (
+            f"expected exactly one connection_lost event, got {received}"
+        )
+        assert "1006" in received[0], (
+            f"reason should mention the close code, got {received[0]!r}"
+        )
+
+        client.close()
+
+    @pytest.mark.asyncio
+    async def test_connection_lost_emitted_once_on_error_then_close(
+        self, join_request, mock_websocket
+    ):
+        """A chained ``_on_error`` → ``_on_close`` fires exactly one event.
+
+        websocket-client typically delivers an error followed by a close
+        for the same drop. Consumers (including the SDK-public re-emit via
+        ``ConnectionManager`` wildcard) expect one notification per
+        disconnect, not one per callback.
+        """
+        client = WebSocketClient(
+            "wss://test.url", join_request, asyncio.get_running_loop()
+        )
+
+        received: list[str] = []
+
+        async def on_lost(reason):
+            received.append(reason)
+
+        client.on_event("connection_lost", on_lost)
+
+        join_response = events_pb2.SfuEvent()
+        join_response.join_response.reconnected = False
+
+        connect_task = asyncio.create_task(client.connect())
+        await asyncio.sleep(0.1)
+
+        on_open_callback = mock_websocket.call_args[1]["on_open"]
+        on_open_callback(mock_websocket.return_value)
+
+        on_message_callback = mock_websocket.call_args[1]["on_message"]
+        on_message_callback(
+            mock_websocket.return_value, join_response.SerializeToString()
+        )
+        await connect_task
+
+        # Error first, then close — what websocket-client actually does on
+        # most transport-level failures.
+        on_error_callback = mock_websocket.call_args[1]["on_error"]
+        on_error_callback(mock_websocket.return_value, Exception("boom"))
+
+        on_close_callback = mock_websocket.call_args[1]["on_close"]
+        on_close_callback(mock_websocket.return_value, 1006, "abnormal closure")
+
+        await asyncio.sleep(0.1)
+
+        assert len(received) == 1, (
+            f"expected exactly one connection_lost event for the chain, got {received}"
+        )
+
+        client.close()
+
+    @pytest.mark.asyncio
+    async def test_call_ended_suppresses_connection_lost(self, join_request):
+        """A `call_ended` event before close suppresses `connection_lost`.
+
+        The SFU sends `call_ended`, then closes the WS with no distinguishing
+        status (close code and reason are both None). Without an application-
+        level intent signal this would be indistinguishable from a TCP drop
+        and trip a spurious reconnect.
+        """
+        client = WebSocketClient(
+            "wss://test.url", join_request, asyncio.get_running_loop()
+        )
+        received: list[str] = []
+
+        async def on_lost(reason):
+            received.append(reason)
+
+        client.on_event("connection_lost", on_lost)
+
+        call_ended_event = events_pb2.SfuEvent()
+        call_ended_event.call_ended.reason = models_pb2.CALL_ENDED_REASON_ENDED
+
+        client._on_message(None, call_ended_event.SerializeToString())
+        client._on_close(None, None, None)
+
+        await asyncio.sleep(0.05)
+
+        assert received == []
+
+    @pytest.mark.asyncio
+    async def test_close_frame_during_handshake_raises(
+        self, join_request, mock_websocket
+    ):
+        """An ABNF close frame mid-handshake unblocks `connect()` with an error.
+
+        websocket-client surfaces a server-side close as both an error (an
+        `ABNF` close frame in `_on_error`) and an `_on_close` callback. If
+        this happens before the first SFU event, neither callback sets
+        `first_message_event` by default, so `connect()` would hang on the
+        executor wait. The synthetic error path in `_on_error` is what
+        unblocks it.
+        """
+        client = WebSocketClient(
+            "wss://test.url", join_request, asyncio.get_running_loop()
+        )
+
+        connect_task = asyncio.create_task(client.connect())
+        await asyncio.sleep(0.1)
+
+        # Server closed the socket before sending any SFU event.
+        close_frame = websocket.ABNF()
+        close_frame.opcode = websocket.ABNF.OPCODE_CLOSE
+
+        on_error_callback = mock_websocket.call_args[1]["on_error"]
+        on_error_callback(mock_websocket.return_value, close_frame)
+
+        with pytest.raises(SignalingError, match="Connection failed"):
+            await connect_task
+
+        client.close()
 
     @pytest.mark.asyncio
     async def test_on_open_traces_ws_open_and_join_request(

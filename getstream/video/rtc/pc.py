@@ -53,10 +53,6 @@ class PublisherPeerConnection(aiortc.RTCPeerConnection):
         self._closed = False
         self._connected_event = asyncio.Event()
 
-        for transceiver in self.getTransceivers():
-            if transceiver.kind == "video":
-                transceiver.setCodecPreferences(publish_codec_preferences())
-
         @self.on("icegatheringstatechange")
         def on_icegatheringstatechange():
             logger.info(
@@ -79,8 +75,13 @@ class PublisherPeerConnection(aiortc.RTCPeerConnection):
 
     def addTrack(self, track: MediaStreamTrack) -> RTCRtpSender:
         sender = super().addTrack(track)
-        if track.kind == "video" and not BITRATE_PATCH_DISABLED:
-            patch_sender_encoder(sender)
+        if track.kind == "video":
+            for transceiver in self.getTransceivers():
+                if transceiver.sender is sender:
+                    transceiver.setCodecPreferences(publish_codec_preferences())
+                    break
+            if not BITRATE_PATCH_DISABLED:
+                patch_sender_encoder(sender)
         return sender
 
     async def handle_answer(self, response):
