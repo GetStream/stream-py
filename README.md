@@ -125,7 +125,7 @@ We use [uv](https://github.com/astral-sh/uv) to manage dependencies and run test
 ### 🚀 Quick Start
 
 **Prerequisites:**
-- Python 3.9+ (recommended: 3.12.2)
+- Python 3.10+ (recommended: 3.12.2)
 - [uv](https://github.com/astral-sh/uv) package manager
 
 **Setup:**
