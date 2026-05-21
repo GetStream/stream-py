@@ -107,9 +107,7 @@ def read_pyproject_version(path: Path) -> str:
 
 def update_pyproject_version(path: Path, version: str) -> None:
     text = path.read_text(encoding="utf-8")
-    new_text, count = VERSION_LINE_PATTERN.subn(
-        f'version = "{version}"', text, count=1
-    )
+    new_text, count = VERSION_LINE_PATTERN.subn(f'version = "{version}"', text, count=1)
     if count == 0:
         raise RuntimeError(
             'Could not update version line in pyproject.toml (expected `version = "X.Y.Z"`)'
