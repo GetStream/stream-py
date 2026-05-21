@@ -1,6 +1,6 @@
 [project]
 name = "getstream"
-dynamic = [ "version" ]
+version = "3.3.4"
 description = "GetStream Python SDK - Build scalable activity feeds, chat, and video calling applications"
 authors = [
     { name = "sachaarbonel", email = "sacha.arbonel@hotmail.fr" },
@@ -100,12 +100,8 @@ members = [
  ]
 
 [build-system]
-requires = ["hatchling", "hatch-vcs", "setuptools-scm"]
+requires = ["hatchling"]
 build-backend = "hatchling.build"
-
-[tool.hatch.version]
-source = "vcs"
-raw-options = {  search_parent_directories = true, fallback_version = "0.0.0" }
 
 [tool.hatch.build.targets.wheel]
 packages = ["getstream"]
