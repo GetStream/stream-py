@@ -895,6 +895,7 @@ wheels = [
 
 [[package]]
 name = "getstream"
+version = "3.3.4"
 source = { editable = "." }
 dependencies = [
     { name = "dataclasses-json" },
@@ -995,7 +996,7 @@ requires-dist = [
     { name = "websockets", marker = "extra == 'webrtc'", specifier = ">=15.0.1" },
     { name = "websockets", marker = "extra == 'webrtc'", specifier = ">=15.0.1,<16" },
 ]
-provides-extras = ["openai-realtime", "telemetry", "webrtc"]
+provides-extras = ["openai-realtime", "webrtc", "telemetry"]
 
 [package.metadata.requires-dev]
 dev = [
