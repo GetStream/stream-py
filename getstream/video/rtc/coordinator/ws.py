@@ -194,6 +194,9 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
 
         # make sure we update connection_id to subscribe to events
         stream = self.call.client.stream
+        if self.user_token is None:
+            raise ValueError("user_token is required")
+        user_token = self.user_token
         if stream.has_api_secret:
             client = AsyncStream(
                 api_key=stream.api_key,
@@ -201,11 +204,11 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
                 base_url=stream.base_url,
             )
         else:
-            client = token_client(stream, self.user_token)
+            client = token_client(stream, user_token)
 
-        client.token = self.user_token
-        client.headers["authorization"] = self.user_token
-        client.client.headers["authorization"] = self.user_token  # type: ignore[index]
+        client.token = user_token
+        client.headers["authorization"] = user_token
+        client.client.headers["authorization"] = user_token
         if self.call.id is None:
             raise ValueError("call.id is required")
         path_params = {
