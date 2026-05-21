@@ -18,6 +18,7 @@ class BaseConfig:
         self.base_url = base_url
         self.params = {"api_key": api_key}
         self.api_key = api_key
+        self.token = token
 
         # Avoid shared mutable defaults and copy any provided headers
         headers_dict = dict(headers) if headers is not None else {}

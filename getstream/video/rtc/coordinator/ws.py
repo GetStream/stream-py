@@ -18,6 +18,7 @@ from websockets import ClientConnection
 from getstream import AsyncStream
 from getstream.utils import StreamAsyncIOEventEmitter
 from getstream.video.async_call import Call
+from getstream.video.rtc.connection_utils import token_client
 from .errors import (
     StreamWSAuthError,
     StreamWSConnectionError,
@@ -192,11 +193,15 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
             return message
 
         # make sure we update connection_id to subscribe to events
-        client = AsyncStream(
-            api_key=self.call.client.stream.api_key,
-            api_secret=self.call.client.stream.api_secret,
-            base_url=self.call.client.stream.base_url,
-        )
+        stream = self.call.client.stream
+        if stream.has_api_secret:
+            client = AsyncStream(
+                api_key=stream.api_key,
+                api_secret=stream.api_secret,
+                base_url=stream.base_url,
+            )
+        else:
+            client = token_client(stream, self.user_token)
 
         client.token = self.user_token
         client.headers["authorization"] = self.user_token

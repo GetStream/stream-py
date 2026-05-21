@@ -107,14 +107,36 @@ class ConnectionOptions:
     previous_session_id: Optional[str] = None
 
 
-def user_client(call: Call, user_id: str):
-    token = call.client.stream.create_token(user_id=user_id)
-    client = call.client.stream.__class__(
-        api_key=call.client.stream.api_key,
-        api_secret=call.client.stream.api_secret,
-        base_url=call.client.stream.base_url,
+def token_client(stream, user_token: str):
+    """Build a sibling of ``stream`` authenticated with ``user_token``.
+
+    Token-only path: the constructor wires ``user_token`` through `BaseConfig`
+    headers directly.
+    """
+    return stream.__class__(
+        api_key=stream.api_key,
+        token=user_token,
+        base_url=stream.base_url,
     )
-    # set up authentication
+
+
+def user_client(call: Call, user_id: str):
+    stream = call.client.stream
+    if stream.has_api_secret:
+        token = stream.create_token(user_id=user_id)
+        client = stream.__class__(
+            api_key=stream.api_key,
+            api_secret=stream.api_secret,
+            base_url=stream.base_url,
+        )
+    else:
+        # Token-only parent: reuse the pre-minted user token, no fresh mint.
+        token = stream.token
+        client = stream.__class__(
+            api_key=stream.api_key,
+            token=token,
+            base_url=stream.base_url,
+        )
     client.token = token
     client.headers["authorization"] = token
     client.client.headers["authorization"] = token
