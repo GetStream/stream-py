@@ -24,7 +24,7 @@ on:
 
 concurrency:
   group: release-${{ github.event.pull_request.base.ref || github.ref_name }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
