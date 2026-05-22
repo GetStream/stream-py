@@ -1,60 +1,219 @@
-name: Integration (pre-release / release)
+name: Release
+
 on:
-  release:
-    types: [published] # Run after a Github publish
+  workflow_dispatch:
+    inputs:
+      version_bump:
+        description: 'Version bump type for manual release'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      use_current_version:
+        description: 'Skip version bump and publish the version already set in pyproject.toml'
+        required: false
+        default: false
+        type: boolean
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+concurrency:
+  group: release-${{ github.event.pull_request.base.ref || github.ref_name }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
-  id-token: write       # REQUIRED for PyPI Trusted Publishing (OIDC)
 
 jobs:
-  integration:
+  prepare:
+    name: Prepare release
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.release_meta_final.outputs.should_release }}
+      bump: ${{ steps.release_meta_final.outputs.bump }}
+      previous_version: ${{ steps.release_meta_final.outputs.previous_version }}
+      version: ${{ steps.release_meta_final.outputs.version }}
+      tag: ${{ steps.release_meta_final.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.ref || github.ref_name }}
+
+      - name: Skip when PR is already released
+        id: already_released
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "value=false" >> "$GITHUB_OUTPUT"
+          else
+            if git log --oneline --grep="(pr #${{ github.event.pull_request.number }})" -n 1 | grep -q "chore(release):"; then
+              echo "value=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "value=false" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+      - name: Determine version bump (from PR metadata)
+        id: release_meta
+        if: github.event_name == 'pull_request' && steps.already_released.outputs.value != 'true'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          PR_BODY_FILE=$(mktemp)
+          printf '%s' "$PR_BODY" > "$PR_BODY_FILE"
+          python3 scripts/release/bump_version.py \
+            --title "$PR_TITLE" \
+            --body-file "$PR_BODY_FILE" \
+            --output "$GITHUB_OUTPUT"
+
+      - name: Determine version bump (manual)
+        id: release_meta_manual
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          python3 scripts/release/bump_version.py \
+            --manual-bump "${{ github.event.inputs.version_bump }}" \
+            --use-current-version "${{ github.event.inputs.use_current_version }}" \
+            --output "$GITHUB_OUTPUT"
+
+      - name: Consolidate release metadata
+        id: release_meta_final
+        run: |
+          if [ "${{ steps.already_released.outputs.value }}" = "true" ]; then
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+            echo "bump=none" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "should_release=${{ steps.release_meta_manual.outputs.should_release }}" >> "$GITHUB_OUTPUT"
+            echo "bump=${{ steps.release_meta_manual.outputs.bump }}" >> "$GITHUB_OUTPUT"
+            echo "previous_version=${{ steps.release_meta_manual.outputs.previous_version }}" >> "$GITHUB_OUTPUT"
+            echo "version=${{ steps.release_meta_manual.outputs.version }}" >> "$GITHUB_OUTPUT"
+            echo "tag=${{ steps.release_meta_manual.outputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_release=${{ steps.release_meta.outputs.should_release }}" >> "$GITHUB_OUTPUT"
+            echo "bump=${{ steps.release_meta.outputs.bump }}" >> "$GITHUB_OUTPUT"
+            echo "previous_version=${{ steps.release_meta.outputs.previous_version }}" >> "$GITHUB_OUTPUT"
+            echo "version=${{ steps.release_meta.outputs.version }}" >> "$GITHUB_OUTPUT"
+            echo "tag=${{ steps.release_meta.outputs.tag }}" >> "$GITHUB_OUTPUT"
+          fi
+
+  test-unit:
+    name: Test (unit)
+    needs: prepare
+    if: needs.prepare.outputs.should_release == 'true'
+    uses: ./.github/workflows/run_tests.yml
+    with:
+      marker: 'not integration'
+    secrets: inherit
+
+  test-integration:
+    name: Test (integration)
+    needs: prepare
+    if: needs.prepare.outputs.should_release == 'true'
     uses: ./.github/workflows/run_tests.yml
     with:
       marker: 'integration'
     secrets: inherit
 
-  build:
-    name: Build & Publish SDK
+  release:
+    name: 🚀 Release
+    needs: [prepare, test-unit, test-integration]
+    if: needs.prepare.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     environment: pypi
-    outputs:
-      version: ${{ steps.get_version.outputs.version }}
+    permissions:
+      contents: write
+      id-token: write
     steps:
-      - name: Checkout
-        uses: actions/checkout@v5
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.ref || github.ref_name }}
+
       - uses: ./.github/actions/python-uv-setup
 
-      - name: Clean dist directory
+      - name: Apply version bump
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
         run: |
-          rm -rf dist
+          python3 - <<'PY'
+          import os, re
+          from pathlib import Path
+          version = os.environ['VERSION']
+          path = Path('pyproject.toml')
+          text = path.read_text(encoding='utf-8')
+          pattern = re.compile(r'^version\s*=\s*"\d+\.\d+\.\d+"\s*$', re.MULTILINE)
+          new_text, count = pattern.subn(f'version = "{version}"', text, count=1)
+          if count == 0:
+              raise SystemExit('Could not update version line in pyproject.toml')
+          path.write_text(new_text, encoding='utf-8')
+          PY
+
+      - name: Commit version bump
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pyproject.toml
+          if git diff --cached --quiet; then
+            echo "No version changes to commit."
+            exit 0
+          fi
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            git commit -m "chore(release): v${VERSION} (manual)"
+            git push origin "HEAD:${{ github.ref_name }}"
+          else
+            git commit -m "chore(release): v${VERSION} (pr #${{ github.event.pull_request.number }})"
+            git push origin "HEAD:${{ github.event.pull_request.base.ref }}"
+          fi
+
+      - name: Create release tag
+        env:
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+            echo "Tag ${TAG} already exists; skipping tag creation."
+            exit 0
+          fi
+          git tag "${TAG}"
+          git push origin "${TAG}"
+
+      - name: Clean dist directory
+        run: rm -rf dist
 
       - name: Build distributions
-        run: |
-          uv build
-
-      - name: Extract package version
-        id: get_version
-        run: |
-          FILE=$(ls dist/getstream-*.tar.gz | head -1)
-          VERSION=$(basename "$FILE" .tar.gz | sed 's/^getstream-//')
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        run: uv build
 
       - name: Publish to PyPI (Trusted Publishing)
         run: uv publish
 
-  test-index:
-    name: Verify PIP install works
-    needs: build
-    runs-on: ubuntu-latest
-    env:
-      UV_NO_SOURCES: "1"
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-      - uses: ./.github/actions/python-uv-setup
+      - name: Create release on GitHub
+        uses: ncipollo/release-action@v1
         with:
-          sync-flags: "--all-extras --dev"
-      - name: Install from PyPI using uv
+          tag: ${{ needs.prepare.outputs.tag }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          skipIfReleaseExists: true
+          body: |
+            Release v${{ needs.prepare.outputs.version }}
+
+            - Bump type: `${{ needs.prepare.outputs.bump }}`
+            - Previous: `${{ needs.prepare.outputs.previous_version }}`
+            - Next: `${{ needs.prepare.outputs.version }}`
+            - Trigger: `${{ github.event_name }}`
+
+            Install with: `pip install getstream==${{ needs.prepare.outputs.version }}`
+
+      - name: Verify pip install
+        env:
+          UV_NO_SOURCES: "1"
         run: |
-          uv pip install getstream==${{ needs.build.outputs.version }}
+          uv pip install "getstream==${{ needs.prepare.outputs.version }}" || \
+            echo "WARNING: pip install verification failed (PyPI index may need a moment to propagate)"

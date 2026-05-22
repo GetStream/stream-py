@@ -230,6 +230,23 @@ uv run pytest -v -s
 uv run pytest tests/test_video.py::test_specific_function -v
 ```
 
+## Releases
+
+Releases use two paths:
+
+- **Default**: automatic release when a PR is merged to `main`. The PR title (and body) drives the semver bump.
+- **Fallback**: manual release via the `Release` workflow's `workflow_dispatch` (admin use). Select a `version_bump` (`patch`/`minor`/`major`). `use_current_version=true` skips the bump and publishes whatever is already in `pyproject.toml`.
+
+Automatic semver bump rules:
+
+- `feat:` -> minor
+- `fix:` (or `bug:`) -> patch
+- `feat!:`, `<type>(scope)!:`, or `BREAKING CHANGE` in the PR body/title -> major
+
+PRs with any other prefix do not trigger a release.
+
+The release pipeline runs lint, type-check, and the full test matrix (unit + integration, across all supported Python versions) on the merged commit before publishing to PyPI via Trusted Publishing (OIDC). Each step in the publish job is idempotent: a failed run can be re-dispatched from the Actions UI.
+
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
