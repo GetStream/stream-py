@@ -62,3 +62,11 @@ class TestStream:
         assert clone.user_agent == "ua/1.0"
         assert clone.api_key == client.api_key
         assert clone.base_url == client.base_url
+
+    def test_clone_for_token_subclients_use_clone_token(self, user_token):
+        client = Stream(api_key="k", api_secret="s")
+        clone = client.clone_for_token(user_token)
+        assert clone.chat.token == user_token
+        assert clone.video.token == user_token
+        assert clone.moderation.token == user_token
+        assert clone.feeds.token == user_token
