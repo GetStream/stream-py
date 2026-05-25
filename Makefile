@@ -56,11 +56,13 @@ TY_EXCLUDES := \
 
 ## Run non-video tests (chat, feeds, moderation, etc.)
 test:
-	uv run pytest -m "$(MARKER)" tests/ getstream/ $(VIDEO_IGNORE) $(MANUAL_IGNORE)
+	@uv run pytest -m "$(MARKER)" tests/ getstream/ $(VIDEO_IGNORE) $(MANUAL_IGNORE); \
+	ec=$$?; if [ $$ec -eq 5 ]; then echo "No tests matched marker '$(MARKER)' — treating as success."; exit 0; else exit $$ec; fi
 
 ## Run video/WebRTC tests only
 test-video:
-	uv run pytest -m "$(MARKER)" $(VIDEO_PATHS)
+	@uv run pytest -m "$(MARKER)" $(VIDEO_PATHS); \
+	ec=$$?; if [ $$ec -eq 5 ]; then echo "No tests matched marker '$(MARKER)' — treating as success."; exit 0; else exit $$ec; fi
 
 ## Run all tests (non-video + video), excluding manual tests
 test-all:
