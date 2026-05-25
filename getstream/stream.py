@@ -208,6 +208,8 @@ class BaseStream:
             api_key=self.api_key,
             token=token,
             base_url=self.base_url,
+            timeout=self.timeout,
+            user_agent=self.user_agent,
         )
 
     def create_call_token(

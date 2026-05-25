@@ -48,3 +48,17 @@ class TestStream:
         client = Stream(api_key="k", token=user_token)
         with pytest.raises(ValueError):
             client.verify_signature(b"body", "sig")
+
+    def test_clone_for_token_forwards_runtime_config(self, user_token):
+        client = Stream(
+            api_key="k",
+            api_secret="s",
+            timeout=12.5,
+            user_agent="ua/1.0",
+        )
+        clone = client.clone_for_token(user_token)
+        assert clone.token == user_token
+        assert clone.timeout == 12.5
+        assert clone.user_agent == "ua/1.0"
+        assert clone.api_key == client.api_key
+        assert clone.base_url == client.base_url
