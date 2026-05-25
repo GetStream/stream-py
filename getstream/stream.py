@@ -31,7 +31,7 @@ BASE_URL = "https://chat.stream-io-api.com/"
 class Settings(BaseSettings):
     # Env names: STREAM_API_KEY, STREAM_API_SECRET, STREAM_BASE_URL, STREAM_TIMEOUT
     api_key: str
-    api_secret: str
+    api_secret: Optional[str] = None
     base_url: Optional[str] = None
     timeout: float = 6.0
 
@@ -50,22 +50,70 @@ class BaseStream:
         user_agent: Optional[str] = None,
         transport=None,
         http_client=None,
+        token: Optional[str] = None,
     ):
+        """Build a Stream client.
+
+        Pass exactly one of ``api_secret`` or ``token``:
+        - ``api_secret`` enables a server-side client that can mint user tokens
+          and call protected admin endpoints.
+        - ``token`` enables a client-side client authenticated as a single
+          user. Token-only clients cannot mint tokens or call admin endpoints.
+
+        Any of ``api_key``, ``api_secret``, ``base_url`` left as ``None`` are
+        loaded from ``STREAM_*`` env vars; passing ``token`` skips the
+        ``api_secret`` env fallback.
+
+        Args:
+            api_key: Project API key. Falls back to ``STREAM_API_KEY``.
+            api_secret: Project API secret. Mutually exclusive with ``token``.
+                Falls back to ``STREAM_API_SECRET`` only when ``token`` is also
+                ``None``.
+            timeout: HTTP request timeout in seconds; must be > 0.
+            base_url: API base URL. Falls back to ``STREAM_BASE_URL`` then to
+                the SDK default.
+            user_agent: Optional custom ``User-Agent`` string.
+            transport: Optional ``httpx`` transport. Mutually exclusive with
+                ``http_client``.
+            http_client: Optional pre-built ``httpx`` client. Mutually
+                exclusive with ``transport``. When provided, sub-clients
+                (video/chat/moderation) reuse it instead of opening their own.
+            token: Pre-minted user JWT. Mutually exclusive with ``api_secret``.
+
+        Raises:
+            ValueError: If both ``transport`` and ``http_client`` are set; if
+                neither ``api_secret`` nor ``token`` can be resolved; if both
+                are provided; if either is the empty string; if ``api_key`` is
+                missing; or if ``timeout`` is not a positive number.
+        """
         if transport is not None and http_client is not None:
             raise ValueError("Cannot specify both 'transport' and 'http_client'")
 
-        if None in (api_key, api_secret, timeout, base_url):
-            s = Settings()  # loads from env and optional .env
+        # Env fallback for anything not explicitly provided. A caller-supplied
+        # token short-circuits api_secret loading so token-only callers don't
+        # need STREAM_API_SECRET in env.
+        if (
+            api_key is None
+            or base_url is None
+            or (api_secret is None and token is None)
+        ):
+            s = Settings()
             api_key = api_key or s.api_key
-            api_secret = api_secret or s.api_secret
             base_url = base_url or (s.base_url or BASE_URL)
+            if token is None and api_secret is None:
+                api_secret = s.api_secret
 
-        if api_key is None or api_key == "":
+        if not api_key:
             raise ValueError("api_key is required")
-        if api_secret is None or api_secret == "":
-            raise ValueError("api_secret is required")
+        if api_secret and token:
+            raise ValueError("Pass either api_secret or token, not both")
+        if api_secret == "" or token == "":
+            raise ValueError("api_secret and token must not be empty strings")
+        if api_secret is None and token is None:
+            raise ValueError("Either api_secret or token is required")
+
         self.api_key = api_key
-        self.api_secret = api_secret
+        self._api_secret = api_secret or None
 
         if timeout is not None:
             if not isinstance(timeout, (int, float)) or timeout <= 0.0:
@@ -76,7 +124,7 @@ class BaseStream:
         self.user_agent = user_agent
         self._transport = transport
         self._http_client = http_client
-        self.token = self._create_token()
+        self.token = token or self._create_token()
         super().__init__(
             self.api_key, self.base_url, self.token, self.timeout, self.user_agent
         )
@@ -87,6 +135,25 @@ class BaseStream:
             self._shared_client = self.client
         else:
             self._shared_client = None
+
+    @property
+    def api_secret(self) -> str:
+        """
+        Get api secret if it's set.
+        Otherwise, raise a ValueError.
+        """
+        if self._api_secret is None:
+            raise ValueError(
+                "api_secret is required; this client was initialized with a token"
+            )
+        return self._api_secret
+
+    @property
+    def has_api_secret(self) -> bool:
+        """
+        Check if api secret is set for this client.
+        """
+        return self._api_secret is not None
 
     def _apply_shared_client(self, sub_client):
         """Replace a sub-client's auto-created httpx client with the shared
@@ -129,6 +196,20 @@ class BaseStream:
 
         return self._create_token(
             user_id=user_id, expiration=expiration, iat=int(time.time()) - 5
+        )
+
+    def clone_for_token(self, token: str):
+        """Return a sibling client authenticated with the given user token.
+
+        Keeps this client's ``api_key`` and ``base_url``. The clone is
+        token-only; it cannot mint further tokens.
+        """
+        return self.__class__(
+            api_key=self.api_key,
+            token=token,
+            base_url=self.base_url,
+            timeout=self.timeout,
+            user_agent=self.user_agent,
         )
 
     def create_call_token(
@@ -358,7 +439,8 @@ class Stream(BaseStream, CommonClient):
     def as_async(self) -> "AsyncStream":
         return AsyncStream(
             api_key=self.api_key,
-            api_secret=self.api_secret,
+            api_secret=self._api_secret,
+            token=None if self.has_api_secret else self.token,
             timeout=self.timeout,
             base_url=self.base_url,
             user_agent=self.user_agent,

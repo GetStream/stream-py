@@ -7,6 +7,7 @@ import pytest
 from dotenv import load_dotenv
 
 from getstream import AsyncStream
+from getstream.models import CallRequest, UserRequest
 from getstream.video import rtc
 from getstream.video.rtc.connection_manager import ConnectionManager
 from getstream.video.rtc.connection_utils import (
@@ -81,6 +82,37 @@ class TestConnectionManager:
             # Second leave must not hang
             await asyncio.wait_for(connection.leave(), timeout=10.0)
             assert connection.connection_state == ConnectionState.LEFT
+
+    @pytest.mark.asyncio
+    @pytest.mark.integration
+    async def test_token_only_client_can_join_call(self, client: AsyncStream):
+        """A token-only AsyncStream can join a call created by a secret-holding client."""
+        call_id = str(uuid.uuid4())
+        user_id = f"test-user-{uuid.uuid4()}"
+        call_cid = f"default:{call_id}"
+
+        await client.upsert_users(UserRequest(id=user_id))
+
+        server_call = client.video.call("default", call_id)
+        await server_call.get_or_create(data=CallRequest(created_by_id="test-admin"))
+
+        user_token = client.create_call_token(user_id, call_cids=[call_cid])
+
+        async with AsyncStream(
+            api_key=client.api_key,
+            token=user_token,
+            base_url=client.base_url,
+            timeout=10.0,
+        ) as token_client:
+            assert token_client.has_api_secret is False
+
+            token_call = token_client.video.call("default", call_id)
+
+            async with await rtc.join(token_call, user_id) as connection:
+                assert connection.connection_state == ConnectionState.JOINED
+                await asyncio.sleep(2)
+                await asyncio.wait_for(connection.leave(), timeout=10.0)
+                assert connection.connection_state == ConnectionState.LEFT
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("connection_manager", [2], indirect=True)
