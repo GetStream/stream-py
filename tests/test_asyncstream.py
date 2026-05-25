@@ -4,8 +4,10 @@ from getstream import AsyncStream
 
 
 @pytest.fixture
-def user_token():
-    return AsyncStream(api_key="k", api_secret="s").create_token("alice")
+async def user_token():
+    stream = AsyncStream(api_key="k", api_secret="s")
+    yield stream.create_token("alice")
+    await stream.aclose()
 
 
 @pytest.mark.asyncio
@@ -47,42 +49,42 @@ class TestAsyncStream:
         await client.aclose()
         assert client.client.is_closed is True
 
-    def test_subclients_use_token(self, user_token):
-        client = AsyncStream(api_key="k", token=user_token)
-        assert client.chat.token == user_token
-        assert client.video.token == user_token
-        assert client.moderation.token == user_token
+    async def test_subclients_use_token(self, user_token):
+        async with AsyncStream(api_key="k", token=user_token) as client:
+            assert client.chat.token == user_token
+            assert client.video.token == user_token
+            assert client.moderation.token == user_token
 
-    def test_async_accepts_token(self, user_token):
-        client = AsyncStream(api_key="k", token=user_token)
-        assert client.token == user_token
-        assert client.has_api_secret is False
+    async def test_async_accepts_token(self, user_token):
+        async with AsyncStream(api_key="k", token=user_token) as client:
+            assert client.token == user_token
+            assert client.has_api_secret is False
 
-    def test_neither_secret_nor_token_raises(self, monkeypatch):
+    async def test_neither_secret_nor_token_raises(self, monkeypatch):
         monkeypatch.delenv("STREAM_API_KEY", raising=False)
         monkeypatch.delenv("STREAM_API_SECRET", raising=False)
         with pytest.raises(ValueError):
             AsyncStream(api_key="k")
 
-    def test_both_secret_and_token_raises(self, user_token):
+    async def test_both_secret_and_token_raises(self, user_token):
         with pytest.raises(ValueError):
             AsyncStream(api_key="k", api_secret="s", token=user_token)
 
-    def test_empty_token_raises(self):
+    async def test_empty_token_raises(self):
         with pytest.raises(ValueError):
             AsyncStream(api_key="k", token="")
 
-    def test_create_token_raises_without_secret(self, user_token):
-        client = AsyncStream(api_key="k", token=user_token)
-        with pytest.raises(ValueError):
-            client.create_token("bob")
+    async def test_create_token_raises_without_secret(self, user_token):
+        async with AsyncStream(api_key="k", token=user_token) as client:
+            with pytest.raises(ValueError):
+                client.create_token("bob")
 
-    def test_create_call_token_raises_without_secret(self, user_token):
-        client = AsyncStream(api_key="k", token=user_token)
-        with pytest.raises(ValueError):
-            client.create_call_token("bob", call_cids=["default:c1"])
+    async def test_create_call_token_raises_without_secret(self, user_token):
+        async with AsyncStream(api_key="k", token=user_token) as client:
+            with pytest.raises(ValueError):
+                client.create_call_token("bob", call_cids=["default:c1"])
 
-    def test_verify_signature_raises_without_secret(self, user_token):
-        client = AsyncStream(api_key="k", token=user_token)
-        with pytest.raises(ValueError):
-            client.verify_signature(b"body", "sig")
+    async def test_verify_signature_raises_without_secret(self, user_token):
+        async with AsyncStream(api_key="k", token=user_token) as client:
+            with pytest.raises(ValueError):
+                client.verify_signature(b"body", "sig")

@@ -98,21 +98,21 @@ class TestConnectionManager:
 
         user_token = client.create_call_token(user_id, call_cids=[call_cid])
 
-        token_client = AsyncStream(
+        async with AsyncStream(
             api_key=client.api_key,
             token=user_token,
             base_url=client.base_url,
             timeout=10.0,
-        )
-        assert token_client.has_api_secret is False
+        ) as token_client:
+            assert token_client.has_api_secret is False
 
-        token_call = token_client.video.call("default", call_id)
+            token_call = token_client.video.call("default", call_id)
 
-        async with await rtc.join(token_call, user_id) as connection:
-            assert connection.connection_state == ConnectionState.JOINED
-            await asyncio.sleep(2)
-            await asyncio.wait_for(connection.leave(), timeout=10.0)
-            assert connection.connection_state == ConnectionState.LEFT
+            async with await rtc.join(token_call, user_id) as connection:
+                assert connection.connection_state == ConnectionState.JOINED
+                await asyncio.sleep(2)
+                await asyncio.wait_for(connection.leave(), timeout=10.0)
+                assert connection.connection_state == ConnectionState.LEFT
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("connection_manager", [2], indirect=True)
