@@ -107,55 +107,22 @@ class ConnectionOptions:
     previous_session_id: Optional[str] = None
 
 
-def token_client(stream, user_token: str):
-    """Build a sibling of ``stream`` authenticated with ``user_token``.
-
-    Token-only path: the constructor wires ``user_token`` through `BaseConfig`
-    headers directly.
-    """
-    return stream.__class__(
-        api_key=stream.api_key,
-        token=user_token,
-        base_url=stream.base_url,
-    )
-
-
-def user_client(call: Call, user_id: str):
-    stream = call.client.stream
-    if stream.has_api_secret:
-        token = stream.create_token(user_id=user_id)
-        client = stream.__class__(
-            api_key=stream.api_key,
-            api_secret=stream.api_secret,
-            base_url=stream.base_url,
-        )
-    else:
-        # Token-only parent: reuse the pre-minted user token, no fresh mint.
-        token = stream.token
-        client = stream.__class__(
-            api_key=stream.api_key,
-            token=token,
-            base_url=stream.base_url,
-        )
-    client.token = token
-    client.headers["authorization"] = token
-    client.client.headers["authorization"] = token
-    return client
-
-
 async def watch_call(call: Call, user_id: str, connection_id: str):
-    client = user_client(call, user_id)
-
-    # Make the POST request to join the call
-    return await client.post(
-        "/api/v2/video/call/{type}/{id}",
-        JoinCallResponse,
-        path_params={
-            "type": call.call_type,
-            "id": call.id,
-        },
-        query_params=build_query_param(connection_id=connection_id),
+    stream = call.client.stream
+    token = (
+        stream.create_token(user_id=user_id) if stream.has_api_secret else stream.token
     )
+    # Make the POST request to join the call
+    async with stream.clone_for_token(token) as client:
+        return await client.post(
+            "/api/v2/video/call/{type}/{id}",
+            JoinCallResponse,
+            path_params={
+                "type": call.call_type,
+                "id": call.id,
+            },
+            query_params=build_query_param(connection_id=connection_id),
+        )
 
 
 async def join_call(
@@ -217,7 +184,6 @@ async def join_call_coordinator_request(
     Returns:
         A response containing the call information and credentials
     """
-    client = user_client(call, user_id)
 
     # Prepare path parameters for the request
     path_params = {
@@ -240,12 +206,19 @@ async def join_call_coordinator_request(
         json_body["migrating_from_list"] = migrating_from_list
 
     # Make the POST request to join the call
-    return await client.post(
-        "/api/v2/video/call/{type}/{id}/join",
-        JoinCallResponse,
-        path_params=path_params,
-        json=json_body,
+    stream = call.client.stream
+    # Create a new client instance with the token for the given user_id
+    token = (
+        stream.create_token(user_id=user_id) if stream.has_api_secret else stream.token
     )
+    client = stream.clone_for_token(token)
+    async with client:
+        return await client.post(
+            "/api/v2/video/call/{type}/{id}/join",
+            JoinCallResponse,
+            path_params=path_params,
+            json=json_body,
+        )
 
 
 async def create_join_request(token: str, session_id: str) -> events_pb2.JoinRequest:

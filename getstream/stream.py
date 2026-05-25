@@ -198,6 +198,18 @@ class BaseStream:
             user_id=user_id, expiration=expiration, iat=int(time.time()) - 5
         )
 
+    def clone_for_token(self, token: str):
+        """Return a sibling client authenticated with the given user token.
+
+        Keeps this client's ``api_key`` and ``base_url``. The clone is
+        token-only; it cannot mint further tokens.
+        """
+        return self.__class__(
+            api_key=self.api_key,
+            token=token,
+            base_url=self.base_url,
+        )
+
     def create_call_token(
         self,
         user_id: str,

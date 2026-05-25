@@ -15,10 +15,8 @@ import websockets
 
 from websockets import ClientConnection
 
-from getstream import AsyncStream
 from getstream.utils import StreamAsyncIOEventEmitter
 from getstream.video.async_call import Call
-from getstream.video.rtc.connection_utils import token_client
 from .errors import (
     StreamWSAuthError,
     StreamWSConnectionError,
@@ -193,22 +191,10 @@ class StreamAPIWS(StreamAsyncIOEventEmitter):
             return message
 
         # make sure we update connection_id to subscribe to events
-        stream = self.call.client.stream
         if self.user_token is None:
             raise ValueError("user_token is required")
-        user_token = self.user_token
-        if stream.has_api_secret:
-            client = AsyncStream(
-                api_key=stream.api_key,
-                api_secret=stream.api_secret,
-                base_url=stream.base_url,
-            )
-        else:
-            client = token_client(stream, user_token)
 
-        client.token = user_token
-        client.headers["authorization"] = user_token
-        client.client.headers["authorization"] = user_token
+        client = self.call.client.stream.clone_for_token(self.user_token)
         if self.call.id is None:
             raise ValueError("call.id is required")
         path_params = {

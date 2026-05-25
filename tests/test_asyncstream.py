@@ -88,3 +88,8 @@ class TestAsyncStream:
         async with AsyncStream(api_key="k", token=user_token) as client:
             with pytest.raises(ValueError):
                 client.verify_signature(b"body", "sig")
+
+    async def test_custom_token_is_passed_to_http(self, user_token):
+        # Safety net after refactoring of token handling in AsyncStream
+        async with AsyncStream(api_key="k", token="123") as client:
+            assert client.client.headers["Authorization"] == "123"
