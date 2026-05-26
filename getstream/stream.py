@@ -188,15 +188,12 @@ class BaseStream:
         self._transport = transport
         self._http_client = http_client
         self.token = token or self._create_token()
+        # Pool knobs are read by BaseClient via getattr(self, ...) since the
+        # intermediate generated REST clients (CommonRestClient etc.) do not
+        # forward these kwargs. self.max_conns_per_host / idle_timeout /
+        # connect_timeout were set above before super().__init__().
         super().__init__(
-            self.api_key,
-            self.base_url,
-            self.token,
-            self.timeout,
-            self.user_agent,
-            max_conns_per_host=self.max_conns_per_host,
-            idle_timeout=self.idle_timeout,
-            connect_timeout=self.connect_timeout,
+            self.api_key, self.base_url, self.token, self.timeout, self.user_agent
         )
         # After super().__init__(), self.client is fully built and configured.
         # When the user provided custom HTTP config, sub-clients share this

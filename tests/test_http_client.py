@@ -45,6 +45,87 @@ class TestSyncPoolDefaults:
         assert t.pool == 30.0
 
 
+@pytest.mark.asyncio
+class TestAsyncPoolDefaults:
+    async def test_default_limits_applied(self):
+        client = AsyncStream(api_key="k", api_secret="s", base_url="http://test")
+        pool = client.client._transport._pool
+        assert pool._max_connections == 5
+        assert pool._max_keepalive_connections == 5
+        assert pool._keepalive_expiry == 55.0
+        await client.aclose()
+
+    async def test_default_timeout_is_30s(self):
+        client = AsyncStream(api_key="k", api_secret="s", base_url="http://test")
+        t = client.client.timeout
+        assert t.connect == 10.0
+        assert t.read == 30.0
+        assert t.write == 30.0
+        assert t.pool == 30.0
+        await client.aclose()
+
+
+class TestSyncPoolOverrides:
+    def _make(self, **kw):
+        return Stream(api_key="k", api_secret="s", base_url="http://test", **kw)
+
+    def test_max_conns_per_host_override(self):
+        pool = self._make(max_conns_per_host=20).client._transport._pool
+        assert pool._max_connections == 20
+        assert pool._max_keepalive_connections == 20
+
+    def test_idle_timeout_override(self):
+        pool = self._make(idle_timeout=120.0).client._transport._pool
+        assert pool._keepalive_expiry == 120.0
+
+    def test_connect_timeout_override(self):
+        assert self._make(connect_timeout=3.0).client.timeout.connect == 3.0
+
+    def test_request_timeout_override(self):
+        t = self._make(request_timeout=15.0).client.timeout
+        assert t.read == 15.0 and t.write == 15.0 and t.pool == 15.0
+
+    def test_legacy_timeout_alias_still_works(self):
+        c = self._make(timeout=12.0)
+        assert c.client.timeout.read == 12.0
+        assert c.timeout == 12.0 and c.request_timeout == 12.0
+
+
+@pytest.mark.asyncio
+class TestAsyncPoolOverrides:
+    async def _make(self, **kw):
+        return AsyncStream(api_key="k", api_secret="s", base_url="http://test", **kw)
+
+    async def test_max_conns_per_host_override(self):
+        c = await self._make(max_conns_per_host=20)
+        pool = c.client._transport._pool
+        assert pool._max_connections == 20
+        assert pool._max_keepalive_connections == 20
+        await c.aclose()
+
+    async def test_idle_timeout_override(self):
+        c = await self._make(idle_timeout=120.0)
+        assert c.client._transport._pool._keepalive_expiry == 120.0
+        await c.aclose()
+
+    async def test_connect_timeout_override(self):
+        c = await self._make(connect_timeout=3.0)
+        assert c.client.timeout.connect == 3.0
+        await c.aclose()
+
+    async def test_request_timeout_override(self):
+        c = await self._make(request_timeout=15.0)
+        t = c.client.timeout
+        assert t.read == 15.0 and t.write == 15.0 and t.pool == 15.0
+        await c.aclose()
+
+    async def test_legacy_timeout_alias_still_works(self):
+        c = await self._make(timeout=12.0)
+        assert c.client.timeout.read == 12.0
+        assert c.timeout == 12.0 and c.request_timeout == 12.0
+        await c.aclose()
+
+
 # ── transport (primary API) ──────────────────────────────────────────
 
 

@@ -27,6 +27,28 @@ from getstream.common.telemetry import (
 import ijson
 
 
+# ── Connection pool defaults (spec §4, CHA-2956) ─────────────────────
+# Kept in sync with getstream.stream constants; duplicated here so
+# BaseClient/AsyncBaseClient can be instantiated standalone (e.g. by
+# sub-clients constructed directly without going through Stream/AsyncStream).
+DEFAULT_MAX_CONNS_PER_HOST = 5
+DEFAULT_IDLE_TIMEOUT = 55.0
+DEFAULT_CONNECT_TIMEOUT = 10.0
+
+
+def _resolve_pool_knobs(obj):
+    """Pull the 3 pool knobs off ``obj`` if BaseStream has set them, else
+    fall back to spec defaults. Top-level ``Stream``/``AsyncStream`` sets
+    them on ``self`` before calling ``super().__init__()``, so a directly
+    instantiated sub-client (or test fixture) still gets sane values.
+    """
+    return (
+        getattr(obj, "max_conns_per_host", None) or DEFAULT_MAX_CONNS_PER_HOST,
+        getattr(obj, "idle_timeout", None) or DEFAULT_IDLE_TIMEOUT,
+        getattr(obj, "connect_timeout", None) or DEFAULT_CONNECT_TIMEOUT,
+    )
+
+
 def _read_file_bytes(file_path: str) -> bytes:
     with open(file_path, "rb") as f:
         return f.read()
@@ -151,12 +173,20 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
         timeout=None,
         user_agent=None,
     ):
+        # The 3 pool knobs (max_conns_per_host, idle_timeout, connect_timeout)
+        # are set on ``self`` by BaseStream prior to this call when used via
+        # the top-level ``Stream``/``AsyncStream`` constructors. Sub-clients
+        # constructed directly use the spec defaults via _resolve_pool_knobs.
+        max_conns_per_host, idle_timeout, connect_timeout = _resolve_pool_knobs(self)
         super().__init__(
             api_key=api_key,
             base_url=base_url,
             token=token,
             timeout=timeout,
             user_agent=user_agent,
+            max_conns_per_host=max_conns_per_host,
+            idle_timeout=idle_timeout,
+            connect_timeout=connect_timeout,
         )
         http_client = getattr(self, "_http_client", None)
         if http_client is not None:
@@ -173,13 +203,25 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
             self.client = http_client
             self._owns_http_client = False
         else:
+            limits = httpx.Limits(
+                max_connections=self.max_conns_per_host,
+                max_keepalive_connections=self.max_conns_per_host,
+                keepalive_expiry=self.idle_timeout,
+            )
+            timeout_obj = httpx.Timeout(
+                connect=self.connect_timeout,
+                read=self.timeout,
+                write=self.timeout,
+                pool=self.timeout,
+            )
             transport = getattr(self, "_transport", None)
             if transport is not None:
                 self.client = httpx.Client(
                     base_url=self.base_url or "",
                     headers={**self.headers, "Accept-Encoding": "gzip"},
                     params=self.params,
-                    timeout=httpx.Timeout(self.timeout),
+                    timeout=timeout_obj,
+                    limits=limits,
                     transport=transport,
                 )
             else:
@@ -187,7 +229,8 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
                     base_url=self.base_url or "",
                     headers={**self.headers, "Accept-Encoding": "gzip"},
                     params=self.params,
-                    timeout=httpx.Timeout(self.timeout),
+                    timeout=timeout_obj,
+                    limits=limits,
                 )
             self._owns_http_client = True
 
@@ -392,12 +435,20 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
         timeout=None,
         user_agent=None,
     ):
+        # The 3 pool knobs (max_conns_per_host, idle_timeout, connect_timeout)
+        # are set on ``self`` by BaseStream prior to this call when used via
+        # the top-level ``Stream``/``AsyncStream`` constructors. Sub-clients
+        # constructed directly use the spec defaults via _resolve_pool_knobs.
+        max_conns_per_host, idle_timeout, connect_timeout = _resolve_pool_knobs(self)
         super().__init__(
             api_key=api_key,
             base_url=base_url,
             token=token,
             timeout=timeout,
             user_agent=user_agent,
+            max_conns_per_host=max_conns_per_host,
+            idle_timeout=idle_timeout,
+            connect_timeout=connect_timeout,
         )
         http_client = getattr(self, "_http_client", None)
         if http_client is not None:
@@ -414,13 +465,25 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
             self.client = http_client
             self._owns_http_client = False
         else:
+            limits = httpx.Limits(
+                max_connections=self.max_conns_per_host,
+                max_keepalive_connections=self.max_conns_per_host,
+                keepalive_expiry=self.idle_timeout,
+            )
+            timeout_obj = httpx.Timeout(
+                connect=self.connect_timeout,
+                read=self.timeout,
+                write=self.timeout,
+                pool=self.timeout,
+            )
             transport = getattr(self, "_transport", None)
             if transport is not None:
                 self.client = httpx.AsyncClient(
                     base_url=self.base_url or "",
                     headers={**self.headers, "Accept-Encoding": "gzip"},
                     params=self.params,
-                    timeout=httpx.Timeout(self.timeout),
+                    timeout=timeout_obj,
+                    limits=limits,
                     transport=transport,
                 )
             else:
@@ -428,7 +491,8 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
                     base_url=self.base_url or "",
                     headers={**self.headers, "Accept-Encoding": "gzip"},
                     params=self.params,
-                    timeout=httpx.Timeout(self.timeout),
+                    timeout=timeout_obj,
+                    limits=limits,
                 )
             self._owns_http_client = True
 
