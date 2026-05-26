@@ -289,6 +289,60 @@ class TestAsyncHttpClientEscapeHatch:
         assert not custom.is_closed
 
 
+class TestSyncHttpClientEscapeHatchKnobs:
+    def test_pool_knobs_ignored_when_http_client_provided(self):
+        custom_limits = httpx.Limits(
+            max_connections=99,
+            max_keepalive_connections=99,
+            keepalive_expiry=99.0,
+        )
+        custom = httpx.Client(transport=httpx.HTTPTransport(limits=custom_limits))
+        client = Stream(
+            api_key="k",
+            api_secret="s",
+            base_url="http://test",
+            http_client=custom,
+            max_conns_per_host=1,
+            idle_timeout=1.0,
+            connect_timeout=1.0,
+            request_timeout=1.0,
+        )
+        assert client.client is custom
+        pool = client.client._transport._pool
+        assert pool._max_connections == 99
+        assert pool._max_keepalive_connections == 99
+        assert pool._keepalive_expiry == 99.0
+
+
+@pytest.mark.asyncio
+class TestAsyncHttpClientEscapeHatchKnobs:
+    async def test_pool_knobs_ignored_when_http_client_provided(self):
+        custom_limits = httpx.Limits(
+            max_connections=99,
+            max_keepalive_connections=99,
+            keepalive_expiry=99.0,
+        )
+        custom = httpx.AsyncClient(
+            transport=httpx.AsyncHTTPTransport(limits=custom_limits),
+        )
+        client = AsyncStream(
+            api_key="k",
+            api_secret="s",
+            base_url="http://test",
+            http_client=custom,
+            max_conns_per_host=1,
+            idle_timeout=1.0,
+            connect_timeout=1.0,
+            request_timeout=1.0,
+        )
+        assert client.client is custom
+        pool = client.client._transport._pool
+        assert pool._max_connections == 99
+        assert pool._max_keepalive_connections == 99
+        assert pool._keepalive_expiry == 99.0
+        await client.aclose()
+
+
 # ── validation ───────────────────────────────────────────────────────
 
 
