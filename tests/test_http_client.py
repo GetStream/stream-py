@@ -1,3 +1,5 @@
+import logging
+
 import httpx
 import pytest
 
@@ -21,6 +23,26 @@ def _capture_transport():
         return httpx.Response(200, json={}, request=request)
 
     return httpx.MockTransport(handler), captured
+
+
+# ── pool defaults (spec §4) ──────────────────────────────────────────
+
+
+class TestSyncPoolDefaults:
+    def test_default_limits_applied(self):
+        client = Stream(api_key="k", api_secret="s", base_url="http://test")
+        pool = client.client._transport._pool
+        assert pool._max_connections == 5
+        assert pool._max_keepalive_connections == 5
+        assert pool._keepalive_expiry == 55.0
+
+    def test_default_timeout_is_30s(self):
+        client = Stream(api_key="k", api_secret="s", base_url="http://test")
+        t = client.client.timeout
+        assert t.connect == 10.0
+        assert t.read == 30.0
+        assert t.write == 30.0
+        assert t.pool == 30.0
 
 
 # ── transport (primary API) ──────────────────────────────────────────
