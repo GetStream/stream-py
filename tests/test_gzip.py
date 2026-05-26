@@ -1,13 +1,4 @@
-"""Tests for gzip request/response support (CHA-2964).
-
-Server-Side SDK Gzip Spec, section 6.2 (stream-py):
-- httpx does NOT auto-add ``Accept-Encoding``; the SDK must set it on the
-  default client it constructs.
-- httpx auto-decodes ``Content-Encoding: gzip`` responses transparently.
-- Sync and async parity required.
-- The escape hatch (user passing their own ``httpx.Client``/``httpx.AsyncClient``)
-  MUST NOT be modified by the SDK — those tests live in ``test_http_client.py``.
-"""
+"""Tests for gzip request/response support."""
 
 from __future__ import annotations
 
