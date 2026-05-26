@@ -385,6 +385,41 @@ class TestAsyncInfoLog:
         assert "user_http_client=False" in infos[0].getMessage()
 
 
+# ── sync/async parity (spec §5.3) ────────────────────────────────────
+
+
+@pytest.mark.asyncio
+class TestSyncAsyncParity:
+    async def test_same_kwargs_produce_same_pool_config(self):
+        kwargs = dict(
+            api_key="k",
+            api_secret="s",
+            base_url="http://test",
+            max_conns_per_host=7,
+            idle_timeout=42.0,
+            connect_timeout=3.0,
+            request_timeout=11.0,
+        )
+        sync_c = Stream(**kwargs)
+        async_c = AsyncStream(**kwargs)
+
+        sp = sync_c.client._transport._pool
+        ap = async_c.client._transport._pool
+        assert sp._max_connections == ap._max_connections == 7
+        assert sp._max_keepalive_connections == ap._max_keepalive_connections == 7
+        assert sp._keepalive_expiry == ap._keepalive_expiry == 42.0
+
+        st = sync_c.client.timeout
+        at = async_c.client.timeout
+        assert st.connect == at.connect == 3.0
+        assert st.read == at.read == 11.0
+        assert st.write == at.write == 11.0
+        assert st.pool == at.pool == 11.0
+
+        sync_c.close()
+        await async_c.aclose()
+
+
 # ── per-call timeout override (spec §5.2) ────────────────────────────
 
 
