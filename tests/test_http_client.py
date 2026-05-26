@@ -343,6 +343,51 @@ class TestAsyncHttpClientEscapeHatchKnobs:
         await client.aclose()
 
 
+# ── per-call timeout override (spec §5.2) ────────────────────────────
+
+
+def _timeout_capture_transport():
+    observed = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        observed["timeout"] = request.extensions.get("timeout")
+        return httpx.Response(200, json={}, request=request)
+
+    return httpx.MockTransport(handler), observed
+
+
+class TestSyncPerCallTimeoutOverride:
+    def test_per_call_timeout_reaches_httpx(self):
+        transport, observed = _timeout_capture_transport()
+        client = Stream(
+            api_key="k",
+            api_secret="s",
+            base_url="http://test",
+            transport=transport,
+            request_timeout=30.0,
+        )
+        client.get("/app", timeout=httpx.Timeout(2.5))
+        assert observed["timeout"]["read"] == 2.5
+        assert observed["timeout"]["connect"] == 2.5
+
+
+@pytest.mark.asyncio
+class TestAsyncPerCallTimeoutOverride:
+    async def test_per_call_timeout_reaches_httpx(self):
+        transport, observed = _timeout_capture_transport()
+        client = AsyncStream(
+            api_key="k",
+            api_secret="s",
+            base_url="http://test",
+            transport=transport,
+            request_timeout=30.0,
+        )
+        await client.get("/app", timeout=httpx.Timeout(2.5))
+        assert observed["timeout"]["read"] == 2.5
+        assert observed["timeout"]["connect"] == 2.5
+        await client.aclose()
+
+
 # ── validation ───────────────────────────────────────────────────────
 
 
