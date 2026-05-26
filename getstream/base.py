@@ -177,7 +177,7 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
             if transport is not None:
                 self.client = httpx.Client(
                     base_url=self.base_url or "",
-                    headers=self.headers,
+                    headers={**self.headers, "Accept-Encoding": "gzip"},
                     params=self.params,
                     timeout=httpx.Timeout(self.timeout),
                     transport=transport,
@@ -185,7 +185,7 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
             else:
                 self.client = httpx.Client(
                     base_url=self.base_url or "",
-                    headers=self.headers,
+                    headers={**self.headers, "Accept-Encoding": "gzip"},
                     params=self.params,
                     timeout=httpx.Timeout(self.timeout),
                 )
@@ -418,7 +418,7 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
             if transport is not None:
                 self.client = httpx.AsyncClient(
                     base_url=self.base_url or "",
-                    headers=self.headers,
+                    headers={**self.headers, "Accept-Encoding": "gzip"},
                     params=self.params,
                     timeout=httpx.Timeout(self.timeout),
                     transport=transport,
@@ -426,7 +426,7 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
             else:
                 self.client = httpx.AsyncClient(
                     base_url=self.base_url or "",
-                    headers=self.headers,
+                    headers={**self.headers, "Accept-Encoding": "gzip"},
                     params=self.params,
                     timeout=httpx.Timeout(self.timeout),
                 )
