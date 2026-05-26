@@ -1,4 +1,5 @@
 import json
+import logging
 import mimetypes
 import os
 import time
@@ -36,6 +37,9 @@ DEFAULT_IDLE_TIMEOUT = 55.0
 DEFAULT_CONNECT_TIMEOUT = 10.0
 
 
+logger = logging.getLogger("getstream")
+
+
 def _resolve_pool_knobs(obj):
     """Pull the 3 pool knobs off ``obj`` if BaseStream has set them, else
     fall back to spec defaults. Top-level ``Stream``/``AsyncStream`` sets
@@ -47,6 +51,24 @@ def _resolve_pool_knobs(obj):
         getattr(obj, "idle_timeout", None) or DEFAULT_IDLE_TIMEOUT,
         getattr(obj, "connect_timeout", None) or DEFAULT_CONNECT_TIMEOUT,
     )
+
+
+def _log_pool_config(cfg, *, user_http_client: bool) -> None:
+    if user_http_client:
+        logger.info(
+            "getstream connection pool: user_http_client=True (5 knobs not applied)"
+        )
+    else:
+        logger.info(
+            "getstream connection pool: "
+            "max_conns_per_host=%s idle_timeout=%ss "
+            "connect_timeout=%ss request_timeout=%ss "
+            "user_http_client=False",
+            cfg.max_conns_per_host,
+            cfg.idle_timeout,
+            cfg.connect_timeout,
+            cfg.timeout,
+        )
 
 
 def _read_file_bytes(file_path: str) -> bytes:
@@ -233,6 +255,7 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
                     limits=limits,
                 )
             self._owns_http_client = True
+        _log_pool_config(self, user_http_client=http_client is not None)
 
     def __enter__(self):
         return self
@@ -495,6 +518,7 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
                     limits=limits,
                 )
             self._owns_http_client = True
+        _log_pool_config(self, user_http_client=http_client is not None)
 
     async def __aenter__(self):
         return self

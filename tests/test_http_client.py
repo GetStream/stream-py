@@ -343,6 +343,48 @@ class TestAsyncHttpClientEscapeHatchKnobs:
         await client.aclose()
 
 
+# ── INFO log on construction (spec §8) ───────────────────────────────
+
+
+class TestSyncInfoLog:
+    def test_info_log_emitted_with_defaults(self, caplog):
+        with caplog.at_level(logging.INFO, logger="getstream"):
+            Stream(api_key="k", api_secret="s", base_url="http://test")
+        infos = [r for r in caplog.records if r.name == "getstream"]
+        assert len(infos) == 1
+        msg = infos[0].getMessage()
+        assert "max_conns_per_host=5" in msg
+        assert "idle_timeout=55.0s" in msg
+        assert "connect_timeout=10.0s" in msg
+        assert "request_timeout=30.0s" in msg
+        assert "user_http_client=False" in msg
+
+    def test_info_log_when_user_http_client_provided(self, caplog):
+        custom = httpx.Client(transport=_mock_transport())
+        with caplog.at_level(logging.INFO, logger="getstream"):
+            Stream(
+                api_key="k",
+                api_secret="s",
+                base_url="http://test",
+                http_client=custom,
+            )
+        infos = [r for r in caplog.records if r.name == "getstream"]
+        assert len(infos) == 1
+        assert "user_http_client=True" in infos[0].getMessage()
+
+
+@pytest.mark.asyncio
+class TestAsyncInfoLog:
+    async def test_info_log_emitted_with_defaults(self, caplog):
+        with caplog.at_level(logging.INFO, logger="getstream"):
+            client = AsyncStream(api_key="k", api_secret="s", base_url="http://test")
+            await client.aclose()
+        infos = [r for r in caplog.records if r.name == "getstream"]
+        assert len(infos) == 1
+        assert "max_conns_per_host=5" in infos[0].getMessage()
+        assert "user_http_client=False" in infos[0].getMessage()
+
+
 # ── per-call timeout override (spec §5.2) ────────────────────────────
 
 
