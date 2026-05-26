@@ -468,6 +468,59 @@ class TestAsyncPerCallTimeoutOverride:
 # ── validation ───────────────────────────────────────────────────────
 
 
+class TestResolvePoolKnobsExplicitZero:
+    """`_resolve_pool_knobs` must use `is None`, not truthiness, so callers
+    who deliberately pass `0` / `0.0` get their value back unchanged.
+    Regression test for the falsy-fallback bug flagged in CHA-2956 review.
+    """
+
+    def test_explicit_zero_preserved(self):
+        from getstream.base import _resolve_pool_knobs
+
+        class Obj:
+            max_conns_per_host = 0
+            idle_timeout = 0.0
+            connect_timeout = 0.0
+
+        assert _resolve_pool_knobs(Obj()) == (0, 0.0, 0.0)
+
+    def test_missing_attrs_fall_back_to_defaults(self):
+        from getstream.base import (
+            _resolve_pool_knobs,
+            DEFAULT_MAX_CONNS_PER_HOST,
+            DEFAULT_IDLE_TIMEOUT,
+            DEFAULT_CONNECT_TIMEOUT,
+        )
+
+        class Obj:
+            pass
+
+        assert _resolve_pool_knobs(Obj()) == (
+            DEFAULT_MAX_CONNS_PER_HOST,
+            DEFAULT_IDLE_TIMEOUT,
+            DEFAULT_CONNECT_TIMEOUT,
+        )
+
+    def test_none_attrs_fall_back_to_defaults(self):
+        from getstream.base import (
+            _resolve_pool_knobs,
+            DEFAULT_MAX_CONNS_PER_HOST,
+            DEFAULT_IDLE_TIMEOUT,
+            DEFAULT_CONNECT_TIMEOUT,
+        )
+
+        class Obj:
+            max_conns_per_host = None
+            idle_timeout = None
+            connect_timeout = None
+
+        assert _resolve_pool_knobs(Obj()) == (
+            DEFAULT_MAX_CONNS_PER_HOST,
+            DEFAULT_IDLE_TIMEOUT,
+            DEFAULT_CONNECT_TIMEOUT,
+        )
+
+
 class TestValidation:
     def test_transport_and_http_client_mutually_exclusive(self):
         with pytest.raises(ValueError, match="Cannot specify both"):

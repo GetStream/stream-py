@@ -45,11 +45,17 @@ def _resolve_pool_knobs(obj):
     fall back to spec defaults. Top-level ``Stream``/``AsyncStream`` sets
     them on ``self`` before calling ``super().__init__()``, so a directly
     instantiated sub-client (or test fixture) still gets sane values.
+
+    `is None` (not truthiness) so an explicit `0` / `0.0` from the caller is
+    preserved rather than silently swapped for a default.
     """
+    max_conns_per_host = getattr(obj, "max_conns_per_host", None)
+    idle_timeout = getattr(obj, "idle_timeout", None)
+    connect_timeout = getattr(obj, "connect_timeout", None)
     return (
-        getattr(obj, "max_conns_per_host", None) or DEFAULT_MAX_CONNS_PER_HOST,
-        getattr(obj, "idle_timeout", None) or DEFAULT_IDLE_TIMEOUT,
-        getattr(obj, "connect_timeout", None) or DEFAULT_CONNECT_TIMEOUT,
+        DEFAULT_MAX_CONNS_PER_HOST if max_conns_per_host is None else max_conns_per_host,
+        DEFAULT_IDLE_TIMEOUT if idle_timeout is None else idle_timeout,
+        DEFAULT_CONNECT_TIMEOUT if connect_timeout is None else connect_timeout,
     )
 
 
