@@ -21,9 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `http_client` is set, none of the four new kwargs apply. Env-var fallbacks for
   the new kwargs: `STREAM_MAX_CONNS_PER_HOST`, `STREAM_IDLE_TIMEOUT`,
   `STREAM_CONNECT_TIMEOUT`, `STREAM_REQUEST_TIMEOUT`.
-  See the [Connection Pooling Spec](https://www.notion.so/stream-wiki/Server-Side-SDK-Connection-Pooling-Spec-3496a5d7f9f680749b8be9ee238ae108).
 - INFO log on client construction (logger `getstream`) lists the effective pool
-  config and whether a user-supplied `http_client` is in use (spec §8).
+  config and whether a user-supplied `http_client` is in use.
 
 - Webhook handling spec helpers (CHA-2961): `UnknownEvent` dataclass for
   forward-compat; `gunzip_payload`, `decode_sqs_payload`, `decode_sns_payload`
@@ -66,8 +65,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Per-call `timeout=httpx.Timeout(...)` continues to work through `.get(...)`,
   `.post(...)`, etc., and pre-empts the client-level `request_timeout`.
-
-[Spec](https://www.notion.so/stream-wiki/Server-Side-SDK-Webhook-Handling-Spec-34b6a5d7f9f681e78003c443f227493c)
 
 ## [3.0.0b1] - 2026-02-27
 

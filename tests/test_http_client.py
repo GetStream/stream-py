@@ -25,7 +25,7 @@ def _capture_transport():
     return httpx.MockTransport(handler), captured
 
 
-# ── pool defaults (spec §4) ──────────────────────────────────────────
+# ── pool defaults ────────────────────────────────────────────────────
 
 
 class TestSyncPoolDefaults:
@@ -343,7 +343,7 @@ class TestAsyncHttpClientEscapeHatchKnobs:
         await client.aclose()
 
 
-# ── INFO log on construction (spec §8) ───────────────────────────────
+# ── INFO log on construction ─────────────────────────────────────────
 
 
 class TestSyncInfoLog:
@@ -385,7 +385,7 @@ class TestAsyncInfoLog:
         assert "user_http_client=False" in infos[0].getMessage()
 
 
-# ── sync/async parity (spec §5.3) ────────────────────────────────────
+# ── sync/async parity ────────────────────────────────────────────────
 
 
 @pytest.mark.asyncio
@@ -420,7 +420,7 @@ class TestSyncAsyncParity:
         await async_c.aclose()
 
 
-# ── per-call timeout override (spec §5.2) ────────────────────────────
+# ── per-call timeout override ────────────────────────────────────────
 
 
 def _timeout_capture_transport():

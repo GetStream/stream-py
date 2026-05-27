@@ -28,7 +28,7 @@ from getstream.common.telemetry import (
 import ijson
 
 
-# ── Connection pool defaults (spec §4, CHA-2956) ─────────────────────
+# ── Connection pool defaults (CHA-2956) ──────────────────────────────
 # Kept in sync with getstream.stream constants; duplicated here so
 # BaseClient/AsyncBaseClient can be instantiated standalone (e.g. by
 # sub-clients constructed directly without going through Stream/AsyncStream).

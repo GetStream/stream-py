@@ -27,7 +27,7 @@ from typing_extensions import deprecated
 
 BASE_URL = "https://chat.stream-io-api.com/"
 
-# ── Connection pool defaults (spec §4, CHA-2956) ─────────────────────
+# ── Connection pool defaults (CHA-2956) ──────────────────────────────
 # DEFAULT_REQUEST_TIMEOUT is the default per-request timeout (was 6.0 prior to 3.5.0).
 DEFAULT_REQUEST_TIMEOUT = 30.0
 # DEFAULT_MAX_CONNS_PER_HOST caps concurrent TCP connections per host.
