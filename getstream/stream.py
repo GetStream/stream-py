@@ -168,13 +168,15 @@ class BaseStream:
         super().__init__(
             self.api_key, self.base_url, self.token, self.timeout, self.user_agent
         )
-        # After super().__init__(), self.client is fully built and configured.
-        # When the user provided custom HTTP config, sub-clients share this
-        # client instead of each building their own.
-        if transport is not None or http_client is not None:
-            self._shared_client = self.client
-        else:
-            self._shared_client = None
+        # After super().__init__(), self.client is fully built and configured
+        # with the resolved pool knobs (max_conns_per_host/idle_timeout/
+        # connect_timeout) and request timeout. Sub-clients (video/chat/
+        # moderation/feeds) always share this single client so the pool config
+        # actually reaches the clients that issue requests. The intermediate
+        # generated REST clients do not forward the pool kwargs, so a
+        # per-sub-client client would silently fall back to defaults; sharing
+        # the parent's client avoids that and keeps one pool per Stream.
+        self._shared_client = self.client
 
     @property
     def api_secret(self) -> str:

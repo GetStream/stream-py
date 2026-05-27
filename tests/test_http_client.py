@@ -126,6 +126,68 @@ class TestAsyncPoolOverrides:
         await c.aclose()
 
 
+# ── sub-clients inherit the configured pool (default path) ───────────
+
+
+class TestSubClientPoolPropagation:
+    """Regression for CHA-2956 BLOCKER 1: on the DEFAULT path (no transport /
+    no http_client) the sub-clients (video/chat/moderation/feeds) are what
+    issue the real API calls, so their httpx pool must reflect the configured
+    knobs — not the SDK defaults. They were silently falling back to 5/55
+    because the intermediate generated REST clients don't forward the pool
+    kwargs and ``stream`` was assigned after ``super().__init__()``.
+    """
+
+    KNOBS = dict(
+        max_conns_per_host=99,
+        idle_timeout=11.0,
+        connect_timeout=3.0,
+        request_timeout=7.0,
+    )
+
+    def _assert_pool(self, sub_client, parent_client):
+        # Sub-clients share the parent's single configured client.
+        assert sub_client.client is parent_client
+        pool = sub_client.client._transport._pool
+        assert pool._max_connections == 99
+        assert pool._max_keepalive_connections == 99
+        assert pool._keepalive_expiry == 11.0
+        t = sub_client.client.timeout
+        assert t.connect == 3.0
+        assert t.read == 7.0
+
+    def test_sync_sub_client_pools_match_configured_knobs(self):
+        client = Stream(
+            api_key="k", api_secret="s", base_url="http://test", **self.KNOBS
+        )
+        for name in ("video", "chat", "moderation", "feeds"):
+            self._assert_pool(getattr(client, name), client.client)
+        client.close()
+
+    @pytest.mark.asyncio
+    async def test_async_sub_client_pools_match_configured_knobs(self):
+        client = AsyncStream(
+            api_key="k", api_secret="s", base_url="http://test", **self.KNOBS
+        )
+        for name in ("video", "chat", "moderation"):
+            self._assert_pool(getattr(client, name), client.client)
+        await client.aclose()
+
+    def test_sync_sub_client_pools_match_defaults(self):
+        # Even with no explicit knobs, sub-clients must carry the SDK defaults
+        # (5/55/10/30), not whatever a freshly-built sub-client would default to.
+        client = Stream(api_key="k", api_secret="s", base_url="http://test")
+        for name in ("video", "chat", "moderation", "feeds"):
+            sub = getattr(client, name)
+            assert sub.client is client.client
+            pool = sub.client._transport._pool
+            assert pool._max_connections == 5
+            assert pool._keepalive_expiry == 55.0
+            assert sub.client.timeout.connect == 10.0
+            assert sub.client.timeout.read == 30.0
+        client.close()
+
+
 # ── transport (primary API) ──────────────────────────────────────────
 
 
@@ -189,11 +251,14 @@ class TestSyncTransport:
         assert pool._max_connections == 42
         assert pool._max_keepalive_connections == 10
 
-    def test_default_path_unchanged(self):
+    def test_default_path_owns_and_shares_client(self):
+        # On the default path (no transport/http_client) the top-level client
+        # owns the single httpx client AND shares it with sub-clients, so the
+        # resolved pool config reaches the clients that issue requests.
         client = Stream(api_key="k", api_secret="s", base_url="http://test")
         assert client._owns_http_client is True
         assert isinstance(client.client, httpx.Client)
-        assert client._shared_client is None
+        assert client._shared_client is client.client
 
 
 @pytest.mark.asyncio
