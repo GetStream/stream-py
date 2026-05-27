@@ -55,6 +55,27 @@ class Settings(BaseSettings):
     )
 
 
+class _PoolSettings(BaseSettings):
+    """Env-only view of the pool knobs and request timeout.
+
+    Unlike ``Settings`` this has no required ``api_key`` field, so it can be
+    instantiated for knob resolution even when no ``STREAM_*`` credentials are
+    present in the environment (the normal case for callers that pass
+    ``api_key``/``api_secret`` explicitly). Reads the same ``STREAM_*`` env
+    vars with the same types as ``Settings``.
+    """
+
+    timeout: float = DEFAULT_REQUEST_TIMEOUT
+    request_timeout: Optional[float] = None
+    max_conns_per_host: int = DEFAULT_MAX_CONNS_PER_HOST
+    idle_timeout: float = DEFAULT_IDLE_TIMEOUT
+    connect_timeout: float = DEFAULT_CONNECT_TIMEOUT
+
+    model_config = SettingsConfigDict(
+        env_prefix="STREAM_",
+    )
+
+
 class BaseStream:
     def __init__(
         self,
@@ -114,12 +135,15 @@ class BaseStream:
                 api_secret = s.api_secret
 
         # Env fallback + defaults for the 4 pool knobs and request_timeout. `timeout` is a backward-compat alias for `request_timeout`.
-        s_for_pool: Optional[Settings] = None
+        # _PoolSettings (not Settings) is used here so missing STREAM_API_KEY
+        # in the environment does not crash construction when api_key was
+        # passed explicitly. It reads the same STREAM_* env vars.
+        s_for_pool: Optional[_PoolSettings] = None
 
-        def _settings() -> Settings:
+        def _settings() -> _PoolSettings:
             nonlocal s_for_pool
             if s_for_pool is None:
-                s_for_pool = Settings()
+                s_for_pool = _PoolSettings()
             return s_for_pool
 
         # request_timeout precedence: explicit kwarg > explicit timeout kwarg > STREAM_REQUEST_TIMEOUT > STREAM_TIMEOUT > DEFAULT_REQUEST_TIMEOUT.

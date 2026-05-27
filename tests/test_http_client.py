@@ -1,4 +1,5 @@
 import logging
+import os
 
 import httpx
 import pytest
@@ -623,6 +624,43 @@ class TestPoolConfigForwardedOnClone:
         assert aclient.client._transport._pool._max_connections == 20
         await aclient.aclose()
         sync_client.close()
+
+
+class TestConstructsWithoutStreamEnv:
+    """Regression for CHA-2956 BLOCKER 2: knob resolution must not require
+    STREAM_API_KEY in the environment. Passing api_key/api_secret explicitly
+    in a clean environment (no STREAM_* vars) must succeed and fall back to the
+    spec defaults, instead of crashing inside ``Settings()`` (api_key is a
+    required field).
+    """
+
+    @staticmethod
+    def _clear_stream_env(monkeypatch):
+        for key in list(os.environ):
+            if key.startswith("STREAM_"):
+                monkeypatch.delenv(key, raising=False)
+
+    def test_sync_constructs_with_spec_defaults(self, monkeypatch):
+        self._clear_stream_env(monkeypatch)
+        client = Stream(api_key="k", api_secret="s", base_url="http://test")
+        assert client.max_conns_per_host == 5
+        assert client.idle_timeout == 55.0
+        assert client.connect_timeout == 10.0
+        assert client.request_timeout == 30.0
+        pool = client.client._transport._pool
+        assert pool._max_connections == 5
+        assert pool._keepalive_expiry == 55.0
+        client.close()
+
+    @pytest.mark.asyncio
+    async def test_async_constructs_with_spec_defaults(self, monkeypatch):
+        self._clear_stream_env(monkeypatch)
+        client = AsyncStream(api_key="k", api_secret="s", base_url="http://test")
+        assert client.max_conns_per_host == 5
+        assert client.idle_timeout == 55.0
+        assert client.connect_timeout == 10.0
+        assert client.request_timeout == 30.0
+        await client.aclose()
 
 
 class TestValidation:
