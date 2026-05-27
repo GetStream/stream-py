@@ -248,7 +248,10 @@ class BaseStream:
             api_key=self.api_key,
             token=token,
             base_url=self.base_url,
-            timeout=self.timeout,
+            request_timeout=self.request_timeout,
+            max_conns_per_host=self.max_conns_per_host,
+            idle_timeout=self.idle_timeout,
+            connect_timeout=self.connect_timeout,
             user_agent=self.user_agent,
         )
 
@@ -481,7 +484,10 @@ class Stream(BaseStream, CommonClient):
             api_key=self.api_key,
             api_secret=self._api_secret,
             token=None if self.has_api_secret else self.token,
-            timeout=self.timeout,
+            request_timeout=self.request_timeout,
+            max_conns_per_host=self.max_conns_per_host,
+            idle_timeout=self.idle_timeout,
+            connect_timeout=self.connect_timeout,
             base_url=self.base_url,
             user_agent=self.user_agent,
         )

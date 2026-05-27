@@ -521,6 +521,45 @@ class TestResolvePoolKnobsExplicitZero:
         )
 
 
+class TestPoolConfigForwardedOnClone:
+    """clone_for_token and as_async build fresh top-level clients; they must
+    carry the source client's pool config, not silently revert to defaults.
+    """
+
+    def _make(self):
+        return Stream(
+            api_key="k",
+            api_secret="s",
+            base_url="http://test",
+            max_conns_per_host=20,
+            idle_timeout=120.0,
+            connect_timeout=3.0,
+            request_timeout=15.0,
+        )
+
+    def test_clone_for_token_preserves_pool_config(self):
+        clone = self._make().clone_for_token("user-token")
+        assert clone.max_conns_per_host == 20
+        assert clone.idle_timeout == 120.0
+        assert clone.connect_timeout == 3.0
+        assert clone.request_timeout == 15.0
+        pool = clone.client._transport._pool
+        assert pool._max_connections == 20
+        assert pool._keepalive_expiry == 120.0
+
+    @pytest.mark.asyncio
+    async def test_as_async_preserves_pool_config(self):
+        sync_client = self._make()
+        aclient = sync_client.as_async()
+        assert aclient.max_conns_per_host == 20
+        assert aclient.idle_timeout == 120.0
+        assert aclient.connect_timeout == 3.0
+        assert aclient.request_timeout == 15.0
+        assert aclient.client._transport._pool._max_connections == 20
+        await aclient.aclose()
+        sync_client.close()
+
+
 class TestValidation:
     def test_transport_and_http_client_mutually_exclusive(self):
         with pytest.raises(ValueError, match="Cannot specify both"):
