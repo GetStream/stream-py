@@ -11,12 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Explicit HTTP connection pool configuration ([CHA-2956](https://linear.app/stream/issue/CHA-2956/connection-pooling)).
   Four new kwargs on `Stream(...)` and `AsyncStream(...)`:
-    - `max_conns_per_host: int` — default `5`
-    - `idle_timeout: float` (seconds) — default `55.0`
-    - `connect_timeout: float` (seconds) — default `10.0`
-    - `request_timeout: float` (seconds) — default `30.0` (was `6.0`; see Behavior changes)
+    - `max_conns_per_host: int` - default `5`
+    - `idle_timeout: float` (seconds) - default `55.0`
+    - `connect_timeout: float` (seconds) - default `10.0`
+    - `request_timeout: float` (seconds) - default `30.0` (was `6.0`; see Behavior changes)
 
-  These tune the underlying `httpx.Limits` and `httpx.Timeout`. The existing `http_client=` and `transport=` kwargs continue to act as escape hatches — when `http_client` is set, none of the four new kwargs apply. Env-var fallbacks for the new kwargs: `STREAM_MAX_CONNS_PER_HOST`, `STREAM_IDLE_TIMEOUT`, `STREAM_CONNECT_TIMEOUT`, `STREAM_REQUEST_TIMEOUT`.
+  These tune the underlying `httpx.Limits` and `httpx.Timeout`. The existing `http_client=` and `transport=` kwargs continue to act as escape hatches; when `http_client` is set, none of the four new kwargs apply. Env-var fallbacks for the new kwargs: `STREAM_MAX_CONNS_PER_HOST`, `STREAM_IDLE_TIMEOUT`, `STREAM_CONNECT_TIMEOUT`, `STREAM_REQUEST_TIMEOUT`.
 - INFO log on client construction (logger `getstream`) lists the effective pool config and whether a user-supplied `http_client` is in use.
 
 - Webhook handling spec helpers (CHA-2961): `UnknownEvent` dataclass for
@@ -45,7 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Default `request_timeout` is now `30.0` seconds (was `6.0`).** Aligns stream-py with the cross-SDK contract in CHA-2956. Existing callers using `timeout=` are unaffected — `timeout` is kept as an alias for `request_timeout`. Callers relying on the 6s ceiling for fail-fast behavior should pass `request_timeout=6.0` (or `timeout=6.0`) explicitly.
+- **Default `request_timeout` is now `30.0` seconds (was `6.0`).** Aligns stream-py with the cross-SDK contract in CHA-2956. Existing callers using `timeout=` are unaffected; `timeout` is kept as an alias for `request_timeout`. Callers relying on the 6s ceiling for fail-fast behavior should pass `request_timeout=6.0` (or `timeout=6.0`) explicitly.
 - Default HTTP transport now caps connections per host at `5` and closes idle sockets after `55.0s`. Previous default was httpx's `100` max-connections with `5.0s` keep-alive expiry.
 - No breaking changes. All existing webhook helpers (`verify_webhook_signature`,
   `parse_webhook_event`, `get_event_type`, event type constants) are preserved.
