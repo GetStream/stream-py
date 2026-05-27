@@ -441,7 +441,7 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
         Close HTTPX client.
 
         If the client was provided externally via ``http_client``, this is a
-        no-op — the caller that created the client is responsible for closing
+        no-op; the caller that created the client is responsible for closing
         it.
         """
         if getattr(self, "_owns_http_client", True):
@@ -526,7 +526,7 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
         """Close HTTPX async client (closes pools/keep-alives).
 
         If the client was provided externally via ``http_client``, this is a
-        no-op — the caller that created the client is responsible for closing
+        no-op; the caller that created the client is responsible for closing
         it.
         """
         if getattr(self, "_owns_http_client", True):

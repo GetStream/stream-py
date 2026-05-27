@@ -424,7 +424,7 @@ class AsyncStream(BaseStream, AsyncCommonClient):
         parse failures.
 
         Note: this is intentionally a synchronous ``def`` rather than ``async
-        def`` because it performs no I/O — it's CPU-bound (HMAC + gzip + JSON
+        def`` because it performs no I/O; it's CPU-bound (HMAC + gzip + JSON
         parsing).
         """
         from .webhook import verify_and_parse_webhook as _verify_and_parse_webhook

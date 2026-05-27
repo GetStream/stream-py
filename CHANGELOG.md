@@ -25,12 +25,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unrecognized discriminators); `verify_signature` canonical alias of
   `verify_webhook_signature`; `verify_and_parse_webhook` HTTP composite
   (gunzip + verify + parse); `parse_sqs` and `parse_sns` queue composites
-  (no signature parameter — queue transports are authenticated by AWS IAM,
+  (no signature parameter: queue transports are authenticated by AWS IAM,
   so the backend emits no HMAC for queue messages today). Transparent gzip
   via magic-byte detection.
 - New instance methods on `Stream` and `AsyncStream`:
   `verify_signature(body, signature)` and
-  `verify_and_parse_webhook(body, signature)` — drop the api_secret parameter
+  `verify_and_parse_webhook(body, signature)` that drop the api_secret parameter
   in favor of the client's stored secret. Dual API: the module-level functions
   in `getstream.webhook` remain available for callers who want explicit
   secret control.
