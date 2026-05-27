@@ -425,6 +425,35 @@ class TestSyncInfoLog:
         assert "request_timeout=30.0s" in msg
         assert "user_http_client=False" in msg
 
+    def test_info_log_emitted_once_even_with_sub_clients(self, caplog):
+        # Regression for CHA-2956 MINOR: the pool-config INFO line must fire
+        # exactly once per Stream (at the top level), not once per sub-client.
+        with caplog.at_level(logging.INFO, logger="getstream"):
+            client = Stream(api_key="k", api_secret="s", base_url="http://test")
+            _ = (client.video, client.chat, client.moderation, client.feeds)
+        infos = [r for r in caplog.records if r.name == "getstream"]
+        assert len(infos) == 1
+        client.close()
+
+    def test_info_log_reflects_resolved_knobs(self, caplog):
+        with caplog.at_level(logging.INFO, logger="getstream"):
+            Stream(
+                api_key="k",
+                api_secret="s",
+                base_url="http://test",
+                max_conns_per_host=33,
+                idle_timeout=12.0,
+                connect_timeout=4.0,
+                request_timeout=9.0,
+            )
+        infos = [r for r in caplog.records if r.name == "getstream"]
+        assert len(infos) == 1
+        msg = infos[0].getMessage()
+        assert "max_conns_per_host=33" in msg
+        assert "idle_timeout=12.0s" in msg
+        assert "connect_timeout=4.0s" in msg
+        assert "request_timeout=9.0s" in msg
+
     def test_info_log_when_user_http_client_provided(self, caplog):
         custom = httpx.Client(transport=_mock_transport())
         with caplog.at_level(logging.INFO, logger="getstream"):

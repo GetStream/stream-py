@@ -10,6 +10,7 @@ import httpx
 import jwt
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from getstream.base import _log_pool_config
 from getstream.common import telemetry
 from getstream.chat.client import ChatClient
 from getstream.chat.async_client import ChatClient as AsyncChatClient
@@ -201,6 +202,10 @@ class BaseStream:
         # per-sub-client client would silently fall back to defaults; sharing
         # the parent's client avoids that and keeps one pool per Stream.
         self._shared_client = self.client
+
+        # Emit the pool-config INFO line exactly once per Stream, reflecting the
+        # resolved knobs on the top-level client. Sub-clients no longer log.
+        _log_pool_config(self, user_http_client=http_client is not None)
 
     @property
     def api_secret(self) -> str:
@@ -491,10 +496,14 @@ class Stream(BaseStream, CommonClient):
 
     @classmethod
     @deprecated("from_env is deprecated, use __init__ instead")
-    def from_env(cls, timeout: float = 6.0) -> Stream:
+    def from_env(cls, timeout: Optional[float] = None) -> Stream:
         """
         Construct a StreamClient by loading its credentials and base_url
         from environment variables (via our pydantic Settings).
+
+        ``timeout`` defaults to ``None`` so the client inherits the SDK default
+        request timeout (``DEFAULT_REQUEST_TIMEOUT``, 30.0s) rather than the
+        old hard-coded 6.0s.
         """
         settings = Settings()
 

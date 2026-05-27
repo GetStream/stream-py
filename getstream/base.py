@@ -254,7 +254,9 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
                     limits=limits,
                 )
             self._owns_http_client = True
-        _log_pool_config(self, user_http_client=http_client is not None)
+        # The pool-config INFO line is emitted once by BaseStream after the
+        # top-level client is built, not here, to avoid one line per
+        # sub-client construction.
 
     def __enter__(self):
         return self
@@ -514,7 +516,9 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
                     limits=limits,
                 )
             self._owns_http_client = True
-        _log_pool_config(self, user_http_client=http_client is not None)
+        # The pool-config INFO line is emitted once by BaseStream after the
+        # top-level client is built, not here, to avoid one line per
+        # sub-client construction.
 
     async def __aenter__(self):
         return self
