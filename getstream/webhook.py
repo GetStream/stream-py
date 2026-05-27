@@ -677,7 +677,7 @@ def decode_sqs_payload(message_body: str) -> bytes:
     magic-byte detection decide whether to decompress.
 
     parse_sqs sits on top of this and works transparently for both wire
-    formats — no caller code change, no flag, no header.
+    formats: no caller code change, no flag, no header.
     """
     if not isinstance(message_body, str):
         raise InvalidWebhookError(
@@ -686,7 +686,7 @@ def decode_sqs_payload(message_body: str) -> bytes:
     try:
         decoded = base64.b64decode(message_body, validate=True)
     except ValueError:
-        # Not base64 — treat input as raw bytes (uncompressed wire format).
+        # Not base64, so treat input as raw bytes (uncompressed wire format).
         # base64.binascii.Error is a subclass of ValueError so a single catch suffices.
         decoded = message_body.encode("utf-8")
     return gunzip_payload(decoded)
@@ -697,7 +697,7 @@ def _unwrap_sns_notification_body(body: str) -> str:
     else return body unchanged so a pre-extracted Message string flows through.
 
     Heuristic: try to JSON-parse the input. If it yields a dict with a string
-    'Message' field, that's the envelope shape — return the Message. Otherwise
+    'Message' field, that's the envelope shape; return the Message. Otherwise
     the input is presumed to BE the pre-extracted Message (base64-encoded
     bytes are not valid JSON, so this falls through cleanly).
     """
