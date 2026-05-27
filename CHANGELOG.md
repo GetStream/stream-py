@@ -11,10 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Explicit HTTP connection pool configuration ([CHA-2956](https://linear.app/stream/issue/CHA-2956/connection-pooling)).
   Four new kwargs on `Stream(...)` and `AsyncStream(...)`:
-    - `max_conns_per_host: int` - default `5`
-    - `idle_timeout: float` (seconds) - default `55.0`
-    - `connect_timeout: float` (seconds) - default `10.0`
-    - `request_timeout: float` (seconds) - default `30.0` (was `6.0`; see Behavior changes)
+    - `max_conns_per_host: int`: default `5`
+    - `idle_timeout: float` (seconds): default `55.0`
+    - `connect_timeout: float` (seconds): default `10.0`
+    - `request_timeout: float` (seconds): default `30.0` (was `6.0`; see Behavior changes)
 
   These tune the underlying `httpx.Limits` and `httpx.Timeout`. The existing `http_client=` and `transport=` kwargs continue to act as escape hatches; when `http_client` is set, none of the four new kwargs apply. Env-var fallbacks for the new kwargs: `STREAM_MAX_CONNS_PER_HOST`, `STREAM_IDLE_TIMEOUT`, `STREAM_CONNECT_TIMEOUT`, `STREAM_REQUEST_TIMEOUT`.
 - INFO log on client construction (logger `getstream`) lists the effective pool config and whether a user-supplied `http_client` is in use.
