@@ -621,8 +621,9 @@ class TestPoolConfigForwardedOnClone:
     carry the source client's pool config, not silently revert to defaults.
     """
 
-    def _make(self):
-        return Stream(
+    @pytest.fixture
+    def stream_client(self):
+        client = Stream(
             api_key="k",
             api_secret="s",
             base_url="http://test",
@@ -631,9 +632,11 @@ class TestPoolConfigForwardedOnClone:
             connect_timeout=3.0,
             request_timeout=15.0,
         )
+        yield client
+        client.close()
 
-    def test_clone_for_token_preserves_pool_config(self):
-        clone = self._make().clone_for_token("user-token")
+    def test_clone_for_token_preserves_pool_config(self, stream_client):
+        clone = stream_client.clone_for_token("user-token")
         assert clone.max_conns_per_host == 20
         assert clone.idle_timeout == 120.0
         assert clone.connect_timeout == 3.0
@@ -643,16 +646,14 @@ class TestPoolConfigForwardedOnClone:
         assert pool._keepalive_expiry == 120.0
 
     @pytest.mark.asyncio
-    async def test_as_async_preserves_pool_config(self):
-        sync_client = self._make()
-        aclient = sync_client.as_async()
+    async def test_as_async_preserves_pool_config(self, stream_client):
+        aclient = stream_client.as_async()
         assert aclient.max_conns_per_host == 20
         assert aclient.idle_timeout == 120.0
         assert aclient.connect_timeout == 3.0
         assert aclient.request_timeout == 15.0
         assert aclient.client._transport._pool._max_connections == 20
         await aclient.aclose()
-        sync_client.close()
 
 
 class TestConstructsWithoutStreamEnv:
