@@ -29,9 +29,7 @@ import ijson
 
 
 # ── Connection pool defaults (CHA-2956) ──────────────────────────────
-# Kept in sync with getstream.stream constants; duplicated here so
-# BaseClient/AsyncBaseClient can be instantiated standalone (e.g. by
-# sub-clients constructed directly without going through Stream/AsyncStream).
+# Kept in sync with getstream.stream constants; duplicated here so BaseClient/AsyncBaseClient can be instantiated standalone (e.g. by sub-clients constructed directly without going through Stream/AsyncStream).
 DEFAULT_MAX_CONNS_PER_HOST = 5
 DEFAULT_IDLE_TIMEOUT = 55.0
 DEFAULT_CONNECT_TIMEOUT = 10.0
@@ -41,13 +39,9 @@ logger = logging.getLogger("getstream")
 
 
 def _resolve_pool_knobs(obj):
-    """Pull the 3 pool knobs off ``obj`` if BaseStream has set them, else
-    fall back to spec defaults. Top-level ``Stream``/``AsyncStream`` sets
-    them on ``self`` before calling ``super().__init__()``, so a directly
-    instantiated sub-client (or test fixture) still gets sane values.
+    """Pull the 3 pool knobs off ``obj`` if BaseStream has set them, else fall back to spec defaults. Top-level ``Stream``/``AsyncStream`` sets them on ``self`` before calling ``super().__init__()``, so a directly instantiated sub-client (or test fixture) still gets sane values.
 
-    `is None` (not truthiness) so an explicit `0` / `0.0` from the caller is
-    preserved rather than silently swapped for a default.
+    `is None` (not truthiness) so an explicit `0` / `0.0` from the caller is preserved rather than silently swapped for a default.
     """
     max_conns_per_host = getattr(obj, "max_conns_per_host", None)
     idle_timeout = getattr(obj, "idle_timeout", None)
@@ -203,10 +197,7 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
         timeout=None,
         user_agent=None,
     ):
-        # The 3 pool knobs (max_conns_per_host, idle_timeout, connect_timeout)
-        # are set on ``self`` by BaseStream prior to this call when used via
-        # the top-level ``Stream``/``AsyncStream`` constructors. Sub-clients
-        # constructed directly use the spec defaults via _resolve_pool_knobs.
+        # The 3 pool knobs (max_conns_per_host, idle_timeout, connect_timeout) are set on ``self`` by BaseStream prior to this call when used via the top-level ``Stream``/``AsyncStream`` constructors. Sub-clients constructed directly use the spec defaults via _resolve_pool_knobs.
         max_conns_per_host, idle_timeout, connect_timeout = _resolve_pool_knobs(self)
         super().__init__(
             api_key=api_key,
@@ -466,10 +457,7 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
         timeout=None,
         user_agent=None,
     ):
-        # The 3 pool knobs (max_conns_per_host, idle_timeout, connect_timeout)
-        # are set on ``self`` by BaseStream prior to this call when used via
-        # the top-level ``Stream``/``AsyncStream`` constructors. Sub-clients
-        # constructed directly use the spec defaults via _resolve_pool_knobs.
+        # The 3 pool knobs (max_conns_per_host, idle_timeout, connect_timeout) are set on ``self`` by BaseStream prior to this call when used via the top-level ``Stream``/``AsyncStream`` constructors. Sub-clients constructed directly use the spec defaults via _resolve_pool_knobs.
         max_conns_per_host, idle_timeout, connect_timeout = _resolve_pool_knobs(self)
         super().__init__(
             api_key=api_key,

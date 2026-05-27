@@ -39,9 +39,7 @@ DEFAULT_CONNECT_TIMEOUT = 10.0
 
 
 class Settings(BaseSettings):
-    # Env names: STREAM_API_KEY, STREAM_API_SECRET, STREAM_BASE_URL,
-    # STREAM_TIMEOUT, STREAM_REQUEST_TIMEOUT, STREAM_MAX_CONNS_PER_HOST,
-    # STREAM_IDLE_TIMEOUT, STREAM_CONNECT_TIMEOUT
+    # Env names: STREAM_API_KEY, STREAM_API_SECRET, STREAM_BASE_URL, STREAM_TIMEOUT, STREAM_REQUEST_TIMEOUT, STREAM_MAX_CONNS_PER_HOST, STREAM_IDLE_TIMEOUT, STREAM_CONNECT_TIMEOUT
     api_key: str
     api_secret: Optional[str] = None
     base_url: Optional[str] = None
@@ -76,47 +74,27 @@ class BaseStream:
         """Build a Stream client.
 
         Pass exactly one of ``api_secret`` or ``token``:
-        - ``api_secret`` enables a server-side client that can mint user tokens
-          and call protected admin endpoints.
-        - ``token`` enables a client-side client authenticated as a single
-          user. Token-only clients cannot mint tokens or call admin endpoints.
+        - ``api_secret`` enables a server-side client that can mint user tokens and call protected admin endpoints.
+        - ``token`` enables a client-side client authenticated as a single user. Token-only clients cannot mint tokens or call admin endpoints.
 
-        Any of ``api_key``, ``api_secret``, ``base_url`` left as ``None`` are
-        loaded from ``STREAM_*`` env vars; passing ``token`` skips the
-        ``api_secret`` env fallback.
+        Any of ``api_key``, ``api_secret``, ``base_url`` left as ``None`` are loaded from ``STREAM_*`` env vars; passing ``token`` skips the ``api_secret`` env fallback.
 
         Args:
             api_key: Project API key. Falls back to ``STREAM_API_KEY``.
-            api_secret: Project API secret. Mutually exclusive with ``token``.
-                Falls back to ``STREAM_API_SECRET`` only when ``token`` is also
-                ``None``.
-            timeout: HTTP request timeout in seconds; must be > 0. Kept as a
-                backward-compat alias for ``request_timeout``.
-            base_url: API base URL. Falls back to ``STREAM_BASE_URL`` then to
-                the SDK default.
+            api_secret: Project API secret. Mutually exclusive with ``token``. Falls back to ``STREAM_API_SECRET`` only when ``token`` is also ``None``.
+            timeout: HTTP request timeout in seconds; must be > 0. Kept as a backward-compat alias for ``request_timeout``.
+            base_url: API base URL. Falls back to ``STREAM_BASE_URL`` then to the SDK default.
             user_agent: Optional custom ``User-Agent`` string.
-            transport: Optional ``httpx`` transport. Mutually exclusive with
-                ``http_client``.
-            http_client: Optional pre-built ``httpx`` client. Mutually
-                exclusive with ``transport``. When provided, sub-clients
-                (video/chat/moderation) reuse it instead of opening their own.
+            transport: Optional ``httpx`` transport. Mutually exclusive with ``http_client``.
+            http_client: Optional pre-built ``httpx`` client. Mutually exclusive with ``transport``. When provided, sub-clients (video/chat/moderation) reuse it instead of opening their own.
             token: Pre-minted user JWT. Mutually exclusive with ``api_secret``.
-            request_timeout: Default per-request timeout in seconds. Default
-                30.0. Replaces the older ``timeout`` kwarg; ``timeout`` is
-                kept as an alias for backward compatibility.
-            max_conns_per_host: Max concurrent TCP connections per host.
-                Default 5. Ignored when ``http_client`` is set.
-            idle_timeout: Idle connection lifetime in seconds. Default 55.0
-                (sits 5s under the typical 60s LB idle timeout). Ignored
-                when ``http_client`` is set.
-            connect_timeout: TCP + TLS handshake timeout in seconds.
-                Default 10.0. Ignored when ``http_client`` is set.
+            request_timeout: Default per-request timeout in seconds. Default 30.0. Replaces the older ``timeout`` kwarg; ``timeout`` is kept as an alias for backward compatibility.
+            max_conns_per_host: Max concurrent TCP connections per host. Default 5. Ignored when ``http_client`` is set.
+            idle_timeout: Idle connection lifetime in seconds. Default 55.0 (sits 5s under the typical 60s LB idle timeout). Ignored when ``http_client`` is set.
+            connect_timeout: TCP + TLS handshake timeout in seconds. Default 10.0. Ignored when ``http_client`` is set.
 
         Raises:
-            ValueError: If both ``transport`` and ``http_client`` are set; if
-                neither ``api_secret`` nor ``token`` can be resolved; if both
-                are provided; if either is the empty string; if ``api_key`` is
-                missing; or if ``request_timeout`` is not a positive number.
+            ValueError: If both ``transport`` and ``http_client`` are set; if neither ``api_secret`` nor ``token`` can be resolved; if both are provided; if either is the empty string; if ``api_key`` is missing; or if ``request_timeout`` is not a positive number.
         """
         if transport is not None and http_client is not None:
             raise ValueError("Cannot specify both 'transport' and 'http_client'")
@@ -135,8 +113,7 @@ class BaseStream:
             if token is None and api_secret is None:
                 api_secret = s.api_secret
 
-        # Env fallback + defaults for the 4 pool knobs and request_timeout.
-        # `timeout` is a backward-compat alias for `request_timeout`.
+        # Env fallback + defaults for the 4 pool knobs and request_timeout. `timeout` is a backward-compat alias for `request_timeout`.
         s_for_pool: Optional[Settings] = None
 
         def _settings() -> Settings:
@@ -145,8 +122,7 @@ class BaseStream:
                 s_for_pool = Settings()
             return s_for_pool
 
-        # request_timeout precedence: explicit kwarg > explicit timeout kwarg
-        # > STREAM_REQUEST_TIMEOUT > STREAM_TIMEOUT > DEFAULT_REQUEST_TIMEOUT.
+        # request_timeout precedence: explicit kwarg > explicit timeout kwarg > STREAM_REQUEST_TIMEOUT > STREAM_TIMEOUT > DEFAULT_REQUEST_TIMEOUT.
         if request_timeout is None:
             if timeout is not None:
                 request_timeout = timeout
@@ -188,10 +164,7 @@ class BaseStream:
         self._transport = transport
         self._http_client = http_client
         self.token = token or self._create_token()
-        # Pool knobs are read by BaseClient via getattr(self, ...) since the
-        # intermediate generated REST clients (CommonRestClient etc.) do not
-        # forward these kwargs. self.max_conns_per_host / idle_timeout /
-        # connect_timeout were set above before super().__init__().
+        # Pool knobs are read by BaseClient via getattr(self, ...) since the intermediate generated REST clients (CommonRestClient etc.) do not forward these kwargs. self.max_conns_per_host / idle_timeout / connect_timeout were set above before super().__init__().
         super().__init__(
             self.api_key, self.base_url, self.token, self.timeout, self.user_agent
         )
