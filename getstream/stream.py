@@ -408,6 +408,24 @@ class AsyncStream(BaseStream, AsyncCommonClient):
                 stack.push_async_callback(self.moderation.aclose)
             stack.push_async_callback(super().aclose)
 
+    async def wait_for_task(
+        self,
+        task_id: str,
+        *,
+        poll_interval: float = 1.0,
+        timeout: float = 60.0,
+    ):
+        """Poll an async task until ``completed`` (returns the response),
+        ``failed`` (raises :class:`StreamTaskException`), or the timeout
+        elapses (raises :class:`StreamTransportException` with
+        ``error_type='timeout'``). See CHA-2958 §8.
+        """
+        from .tasks import wait_for_task_async
+
+        return await wait_for_task_async(
+            self, task_id, poll_interval=poll_interval, timeout=timeout
+        )
+
     @cached_property
     def feeds(self):
         raise NotImplementedError("Feeds not supported for async client")
@@ -620,6 +638,24 @@ class Stream(BaseStream, CommonClient):
         """
         users_map = {u.id: u for u in users}
         return self.update_users(users_map)
+
+    def wait_for_task(
+        self,
+        task_id: str,
+        *,
+        poll_interval: float = 1.0,
+        timeout: float = 60.0,
+    ):
+        """Poll an async task until ``completed`` (returns the response),
+        ``failed`` (raises :class:`StreamTaskException`), or the timeout
+        elapses (raises :class:`StreamTransportException` with
+        ``error_type='timeout'``). See CHA-2958 §8.
+        """
+        from .tasks import wait_for_task_sync
+
+        return wait_for_task_sync(
+            self, task_id, poll_interval=poll_interval, timeout=timeout
+        )
 
     def verify_signature(self, body, signature):
         """Verify a webhook signature using this client's API secret.
