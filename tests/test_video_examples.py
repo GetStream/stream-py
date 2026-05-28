@@ -27,7 +27,7 @@ def test_setup_client():
     assert isinstance(client, Stream)
     assert client.api_key == "your_api_key"
     assert client.api_secret == "your_api_secret"
-    assert client.timeout == 6.0
+    assert client.timeout == 30.0
 
 
 def test_create_user(client: Stream):
@@ -493,7 +493,7 @@ async def test_async_client():
     assert isinstance(client, AsyncStream)
     assert client.api_key == "your_api_key"
     assert client.api_secret == "your_api_secret"
-    assert client.timeout == 6.0
+    assert client.timeout == 30.0
 
 
 @pytest.mark.asyncio

@@ -10,6 +10,7 @@ import httpx
 import jwt
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from getstream.base import _log_pool_config
 from getstream.common import telemetry
 from getstream.chat.client import ChatClient
 from getstream.chat.async_client import ChatClient as AsyncChatClient
@@ -27,13 +28,49 @@ from typing_extensions import deprecated
 
 BASE_URL = "https://chat.stream-io-api.com/"
 
+# ── Connection pool defaults (CHA-2956) ──────────────────────────────
+# DEFAULT_REQUEST_TIMEOUT is the default per-request timeout (was 6.0 prior to 3.5.0).
+DEFAULT_REQUEST_TIMEOUT = 30.0
+# DEFAULT_MAX_CONNS_PER_HOST caps concurrent TCP connections per host.
+DEFAULT_MAX_CONNS_PER_HOST = 5
+# DEFAULT_IDLE_TIMEOUT sits below the typical 60s LB idle timeout with a 5s safety margin.
+DEFAULT_IDLE_TIMEOUT = 55.0
+# DEFAULT_CONNECT_TIMEOUT caps TCP + TLS handshake duration.
+DEFAULT_CONNECT_TIMEOUT = 10.0
+
 
 class Settings(BaseSettings):
-    # Env names: STREAM_API_KEY, STREAM_API_SECRET, STREAM_BASE_URL, STREAM_TIMEOUT
+    # Env names: STREAM_API_KEY, STREAM_API_SECRET, STREAM_BASE_URL, STREAM_TIMEOUT, STREAM_REQUEST_TIMEOUT, STREAM_MAX_CONNS_PER_HOST, STREAM_IDLE_TIMEOUT, STREAM_CONNECT_TIMEOUT
     api_key: str
     api_secret: Optional[str] = None
     base_url: Optional[str] = None
-    timeout: float = 6.0
+    # `timeout` kept as alias for `request_timeout` for backward compat.
+    timeout: float = DEFAULT_REQUEST_TIMEOUT
+    request_timeout: Optional[float] = None
+    max_conns_per_host: int = DEFAULT_MAX_CONNS_PER_HOST
+    idle_timeout: float = DEFAULT_IDLE_TIMEOUT
+    connect_timeout: float = DEFAULT_CONNECT_TIMEOUT
+
+    model_config = SettingsConfigDict(
+        env_prefix="STREAM_",
+    )
+
+
+class _PoolSettings(BaseSettings):
+    """Env-only view of the pool knobs and request timeout.
+
+    Unlike ``Settings`` this has no required ``api_key`` field, so it can be
+    instantiated for knob resolution even when no ``STREAM_*`` credentials are
+    present in the environment (the normal case for callers that pass
+    ``api_key``/``api_secret`` explicitly). Reads the same ``STREAM_*`` env
+    vars with the same types as ``Settings``.
+    """
+
+    timeout: float = DEFAULT_REQUEST_TIMEOUT
+    request_timeout: Optional[float] = None
+    max_conns_per_host: int = DEFAULT_MAX_CONNS_PER_HOST
+    idle_timeout: float = DEFAULT_IDLE_TIMEOUT
+    connect_timeout: float = DEFAULT_CONNECT_TIMEOUT
 
     model_config = SettingsConfigDict(
         env_prefix="STREAM_",
@@ -45,46 +82,41 @@ class BaseStream:
         self,
         api_key: Optional[str] = None,
         api_secret: Optional[str] = None,
-        timeout: Optional[float] = 6.0,
+        timeout: Optional[float] = None,
         base_url: Optional[str] = BASE_URL,
         user_agent: Optional[str] = None,
         transport=None,
         http_client=None,
         token: Optional[str] = None,
+        request_timeout: Optional[float] = None,
+        max_conns_per_host: Optional[int] = None,
+        idle_timeout: Optional[float] = None,
+        connect_timeout: Optional[float] = None,
     ):
         """Build a Stream client.
 
         Pass exactly one of ``api_secret`` or ``token``:
-        - ``api_secret`` enables a server-side client that can mint user tokens
-          and call protected admin endpoints.
-        - ``token`` enables a client-side client authenticated as a single
-          user. Token-only clients cannot mint tokens or call admin endpoints.
+        - ``api_secret`` enables a server-side client that can mint user tokens and call protected admin endpoints.
+        - ``token`` enables a client-side client authenticated as a single user. Token-only clients cannot mint tokens or call admin endpoints.
 
-        Any of ``api_key``, ``api_secret``, ``base_url`` left as ``None`` are
-        loaded from ``STREAM_*`` env vars; passing ``token`` skips the
-        ``api_secret`` env fallback.
+        Any of ``api_key``, ``api_secret``, ``base_url`` left as ``None`` are loaded from ``STREAM_*`` env vars; passing ``token`` skips the ``api_secret`` env fallback.
 
         Args:
             api_key: Project API key. Falls back to ``STREAM_API_KEY``.
-            api_secret: Project API secret. Mutually exclusive with ``token``.
-                Falls back to ``STREAM_API_SECRET`` only when ``token`` is also
-                ``None``.
-            timeout: HTTP request timeout in seconds; must be > 0.
-            base_url: API base URL. Falls back to ``STREAM_BASE_URL`` then to
-                the SDK default.
+            api_secret: Project API secret. Mutually exclusive with ``token``. Falls back to ``STREAM_API_SECRET`` only when ``token`` is also ``None``.
+            timeout: HTTP request timeout in seconds; must be > 0. Kept as a backward-compat alias for ``request_timeout``.
+            base_url: API base URL. Falls back to ``STREAM_BASE_URL`` then to the SDK default.
             user_agent: Optional custom ``User-Agent`` string.
-            transport: Optional ``httpx`` transport. Mutually exclusive with
-                ``http_client``.
-            http_client: Optional pre-built ``httpx`` client. Mutually
-                exclusive with ``transport``. When provided, sub-clients
-                (video/chat/moderation) reuse it instead of opening their own.
+            transport: Optional ``httpx`` transport. Mutually exclusive with ``http_client``.
+            http_client: Optional pre-built ``httpx`` client. Mutually exclusive with ``transport``. When provided, sub-clients (video/chat/moderation) reuse it instead of opening their own.
             token: Pre-minted user JWT. Mutually exclusive with ``api_secret``.
+            request_timeout: Default per-request timeout in seconds. Default 30.0. Replaces the older ``timeout`` kwarg; ``timeout`` is kept as an alias for backward compatibility.
+            max_conns_per_host: Max concurrent TCP connections per host. Default 5. Ignored when ``http_client`` is set.
+            idle_timeout: Idle connection lifetime in seconds. Default 55.0 (sits 5s under the typical 60s LB idle timeout). Ignored when ``http_client`` is set.
+            connect_timeout: TCP + TLS handshake timeout in seconds. Default 10.0. Ignored when ``http_client`` is set.
 
         Raises:
-            ValueError: If both ``transport`` and ``http_client`` are set; if
-                neither ``api_secret`` nor ``token`` can be resolved; if both
-                are provided; if either is the empty string; if ``api_key`` is
-                missing; or if ``timeout`` is not a positive number.
+            ValueError: If both ``transport`` and ``http_client`` are set; if neither ``api_secret`` nor ``token`` can be resolved; if both are provided; if either is the empty string; if ``api_key`` is missing; or if ``request_timeout`` is not a positive number.
         """
         if transport is not None and http_client is not None:
             raise ValueError("Cannot specify both 'transport' and 'http_client'")
@@ -103,6 +135,35 @@ class BaseStream:
             if token is None and api_secret is None:
                 api_secret = s.api_secret
 
+        # Env fallback + defaults for the 4 pool knobs and request_timeout. `timeout` is a backward-compat alias for `request_timeout`.
+        # _PoolSettings (not Settings) is used here so missing STREAM_API_KEY
+        # in the environment does not crash construction when api_key was
+        # passed explicitly. It reads the same STREAM_* env vars.
+        s_for_pool: Optional[_PoolSettings] = None
+
+        def _settings() -> _PoolSettings:
+            nonlocal s_for_pool
+            if s_for_pool is None:
+                s_for_pool = _PoolSettings()
+            return s_for_pool
+
+        # request_timeout precedence: explicit kwarg > explicit timeout kwarg > STREAM_REQUEST_TIMEOUT > STREAM_TIMEOUT > DEFAULT_REQUEST_TIMEOUT.
+        if request_timeout is None:
+            if timeout is not None:
+                request_timeout = timeout
+            else:
+                s = _settings()
+                request_timeout = (
+                    s.request_timeout if s.request_timeout is not None else s.timeout
+                )
+
+        if max_conns_per_host is None:
+            max_conns_per_host = _settings().max_conns_per_host
+        if idle_timeout is None:
+            idle_timeout = _settings().idle_timeout
+        if connect_timeout is None:
+            connect_timeout = _settings().connect_timeout
+
         if not api_key:
             raise ValueError("api_key is required")
         if api_secret and token:
@@ -115,26 +176,36 @@ class BaseStream:
         self.api_key = api_key
         self._api_secret = api_secret or None
 
-        if timeout is not None:
-            if not isinstance(timeout, (int, float)) or timeout <= 0.0:
-                raise ValueError("timeout must be a number greater than zero")
-        self.timeout = timeout
+        if not isinstance(request_timeout, (int, float)) or request_timeout <= 0.0:
+            raise ValueError("request_timeout must be a number greater than zero")
+        self.timeout = request_timeout
+        self.request_timeout = request_timeout
+        self.max_conns_per_host = max_conns_per_host
+        self.idle_timeout = idle_timeout
+        self.connect_timeout = connect_timeout
 
         self.base_url = validate_and_clean_url(base_url)
         self.user_agent = user_agent
         self._transport = transport
         self._http_client = http_client
         self.token = token or self._create_token()
+        # Pool knobs are read by BaseClient via getattr(self, ...) since the intermediate generated REST clients (CommonRestClient etc.) do not forward these kwargs. self.max_conns_per_host / idle_timeout / connect_timeout were set above before super().__init__().
         super().__init__(
             self.api_key, self.base_url, self.token, self.timeout, self.user_agent
         )
-        # After super().__init__(), self.client is fully built and configured.
-        # When the user provided custom HTTP config, sub-clients share this
-        # client instead of each building their own.
-        if transport is not None or http_client is not None:
-            self._shared_client = self.client
-        else:
-            self._shared_client = None
+        # After super().__init__(), self.client is fully built and configured
+        # with the resolved pool knobs (max_conns_per_host/idle_timeout/
+        # connect_timeout) and request timeout. Sub-clients (video/chat/
+        # moderation/feeds) always share this single client so the pool config
+        # actually reaches the clients that issue requests. The intermediate
+        # generated REST clients do not forward the pool kwargs, so a
+        # per-sub-client client would silently fall back to defaults; sharing
+        # the parent's client avoids that and keeps one pool per Stream.
+        self._shared_client = self.client
+
+        # Emit the pool-config INFO line exactly once per Stream, reflecting the
+        # resolved knobs on the top-level client. Sub-clients no longer log.
+        _log_pool_config(self, user_http_client=http_client is not None)
 
     @property
     def api_secret(self) -> str:
@@ -208,7 +279,10 @@ class BaseStream:
             api_key=self.api_key,
             token=token,
             base_url=self.base_url,
-            timeout=self.timeout,
+            request_timeout=self.request_timeout,
+            max_conns_per_host=self.max_conns_per_host,
+            idle_timeout=self.idle_timeout,
+            connect_timeout=self.connect_timeout,
             user_agent=self.user_agent,
         )
 
@@ -384,7 +458,7 @@ class AsyncStream(BaseStream, AsyncCommonClient):
         parse failures.
 
         Note: this is intentionally a synchronous ``def`` rather than ``async
-        def`` because it performs no I/O — it's CPU-bound (HMAC + gzip + JSON
+        def`` because it performs no I/O; it's CPU-bound (HMAC + gzip + JSON
         parsing).
         """
         from .webhook import verify_and_parse_webhook as _verify_and_parse_webhook
@@ -422,10 +496,14 @@ class Stream(BaseStream, CommonClient):
 
     @classmethod
     @deprecated("from_env is deprecated, use __init__ instead")
-    def from_env(cls, timeout: float = 6.0) -> Stream:
+    def from_env(cls, timeout: Optional[float] = None) -> Stream:
         """
         Construct a StreamClient by loading its credentials and base_url
         from environment variables (via our pydantic Settings).
+
+        ``timeout`` defaults to ``None`` so the client inherits the SDK default
+        request timeout (``DEFAULT_REQUEST_TIMEOUT``, 30.0s) rather than the
+        old hard-coded 6.0s.
         """
         settings = Settings()
 
@@ -441,7 +519,10 @@ class Stream(BaseStream, CommonClient):
             api_key=self.api_key,
             api_secret=self._api_secret,
             token=None if self.has_api_secret else self.token,
-            timeout=self.timeout,
+            request_timeout=self.request_timeout,
+            max_conns_per_host=self.max_conns_per_host,
+            idle_timeout=self.idle_timeout,
+            connect_timeout=self.connect_timeout,
             base_url=self.base_url,
             user_agent=self.user_agent,
         )

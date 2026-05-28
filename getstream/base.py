@@ -1,4 +1,5 @@
 import json
+import logging
 import mimetypes
 import os
 import time
@@ -25,6 +26,51 @@ from getstream.common.telemetry import (
     get_current_channel_cid,
 )
 import ijson
+
+
+# ── Connection pool defaults (CHA-2956) ──────────────────────────────
+# Kept in sync with getstream.stream constants; duplicated here so BaseClient/AsyncBaseClient can be instantiated standalone (e.g. by sub-clients constructed directly without going through Stream/AsyncStream).
+DEFAULT_MAX_CONNS_PER_HOST = 5
+DEFAULT_IDLE_TIMEOUT = 55.0
+DEFAULT_CONNECT_TIMEOUT = 10.0
+
+
+logger = logging.getLogger("getstream")
+
+
+def _resolve_pool_knobs(obj):
+    """Pull the 3 pool knobs off ``obj`` if BaseStream has set them, else fall back to spec defaults. Top-level ``Stream``/``AsyncStream`` sets them on ``self`` before calling ``super().__init__()``, so a directly instantiated sub-client (or test fixture) still gets sane values.
+
+    `is None` (not truthiness) so an explicit `0` / `0.0` from the caller is preserved rather than silently swapped for a default.
+    """
+    max_conns_per_host = getattr(obj, "max_conns_per_host", None)
+    idle_timeout = getattr(obj, "idle_timeout", None)
+    connect_timeout = getattr(obj, "connect_timeout", None)
+    return (
+        DEFAULT_MAX_CONNS_PER_HOST
+        if max_conns_per_host is None
+        else max_conns_per_host,
+        DEFAULT_IDLE_TIMEOUT if idle_timeout is None else idle_timeout,
+        DEFAULT_CONNECT_TIMEOUT if connect_timeout is None else connect_timeout,
+    )
+
+
+def _log_pool_config(cfg, *, user_http_client: bool) -> None:
+    if user_http_client:
+        logger.info(
+            "getstream connection pool: user_http_client=True (5 knobs not applied)"
+        )
+    else:
+        logger.info(
+            "getstream connection pool: "
+            "max_conns_per_host=%s idle_timeout=%ss "
+            "connect_timeout=%ss request_timeout=%ss "
+            "user_http_client=False",
+            cfg.max_conns_per_host,
+            cfg.idle_timeout,
+            cfg.connect_timeout,
+            cfg.timeout,
+        )
 
 
 def _read_file_bytes(file_path: str) -> bytes:
@@ -151,12 +197,17 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
         timeout=None,
         user_agent=None,
     ):
+        # The 3 pool knobs (max_conns_per_host, idle_timeout, connect_timeout) are set on ``self`` by BaseStream prior to this call when used via the top-level ``Stream``/``AsyncStream`` constructors. Sub-clients constructed directly use the spec defaults via _resolve_pool_knobs.
+        max_conns_per_host, idle_timeout, connect_timeout = _resolve_pool_knobs(self)
         super().__init__(
             api_key=api_key,
             base_url=base_url,
             token=token,
             timeout=timeout,
             user_agent=user_agent,
+            max_conns_per_host=max_conns_per_host,
+            idle_timeout=idle_timeout,
+            connect_timeout=connect_timeout,
         )
         http_client = getattr(self, "_http_client", None)
         if http_client is not None:
@@ -173,13 +224,25 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
             self.client = http_client
             self._owns_http_client = False
         else:
+            limits = httpx.Limits(
+                max_connections=self.max_conns_per_host,
+                max_keepalive_connections=self.max_conns_per_host,
+                keepalive_expiry=self.idle_timeout,
+            )
+            timeout_obj = httpx.Timeout(
+                connect=self.connect_timeout,
+                read=self.timeout,
+                write=self.timeout,
+                pool=self.timeout,
+            )
             transport = getattr(self, "_transport", None)
             if transport is not None:
                 self.client = httpx.Client(
                     base_url=self.base_url or "",
                     headers={**self.headers, "Accept-Encoding": "gzip"},
                     params=self.params,
-                    timeout=httpx.Timeout(self.timeout),
+                    timeout=timeout_obj,
+                    limits=limits,
                     transport=transport,
                 )
             else:
@@ -187,9 +250,13 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
                     base_url=self.base_url or "",
                     headers={**self.headers, "Accept-Encoding": "gzip"},
                     params=self.params,
-                    timeout=httpx.Timeout(self.timeout),
+                    timeout=timeout_obj,
+                    limits=limits,
                 )
             self._owns_http_client = True
+        # The pool-config INFO line is emitted once by BaseStream after the
+        # top-level client is built, not here, to avoid one line per
+        # sub-client construction.
 
     def __enter__(self):
         return self
@@ -376,7 +443,7 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
         Close HTTPX client.
 
         If the client was provided externally via ``http_client``, this is a
-        no-op — the caller that created the client is responsible for closing
+        no-op; the caller that created the client is responsible for closing
         it.
         """
         if getattr(self, "_owns_http_client", True):
@@ -392,12 +459,17 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
         timeout=None,
         user_agent=None,
     ):
+        # The 3 pool knobs (max_conns_per_host, idle_timeout, connect_timeout) are set on ``self`` by BaseStream prior to this call when used via the top-level ``Stream``/``AsyncStream`` constructors. Sub-clients constructed directly use the spec defaults via _resolve_pool_knobs.
+        max_conns_per_host, idle_timeout, connect_timeout = _resolve_pool_knobs(self)
         super().__init__(
             api_key=api_key,
             base_url=base_url,
             token=token,
             timeout=timeout,
             user_agent=user_agent,
+            max_conns_per_host=max_conns_per_host,
+            idle_timeout=idle_timeout,
+            connect_timeout=connect_timeout,
         )
         http_client = getattr(self, "_http_client", None)
         if http_client is not None:
@@ -414,13 +486,25 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
             self.client = http_client
             self._owns_http_client = False
         else:
+            limits = httpx.Limits(
+                max_connections=self.max_conns_per_host,
+                max_keepalive_connections=self.max_conns_per_host,
+                keepalive_expiry=self.idle_timeout,
+            )
+            timeout_obj = httpx.Timeout(
+                connect=self.connect_timeout,
+                read=self.timeout,
+                write=self.timeout,
+                pool=self.timeout,
+            )
             transport = getattr(self, "_transport", None)
             if transport is not None:
                 self.client = httpx.AsyncClient(
                     base_url=self.base_url or "",
                     headers={**self.headers, "Accept-Encoding": "gzip"},
                     params=self.params,
-                    timeout=httpx.Timeout(self.timeout),
+                    timeout=timeout_obj,
+                    limits=limits,
                     transport=transport,
                 )
             else:
@@ -428,9 +512,13 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
                     base_url=self.base_url or "",
                     headers={**self.headers, "Accept-Encoding": "gzip"},
                     params=self.params,
-                    timeout=httpx.Timeout(self.timeout),
+                    timeout=timeout_obj,
+                    limits=limits,
                 )
             self._owns_http_client = True
+        # The pool-config INFO line is emitted once by BaseStream after the
+        # top-level client is built, not here, to avoid one line per
+        # sub-client construction.
 
     async def __aenter__(self):
         return self
@@ -442,7 +530,7 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
         """Close HTTPX async client (closes pools/keep-alives).
 
         If the client was provided externally via ``http_client``, this is a
-        no-op — the caller that created the client is responsible for closing
+        no-op; the caller that created the client is responsible for closing
         it.
         """
         if getattr(self, "_owns_http_client", True):
