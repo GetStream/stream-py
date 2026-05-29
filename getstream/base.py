@@ -296,9 +296,6 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
                     url_path, params=query_params, *args, **call_kwargs
                 )
             except httpx.RequestError as err:
-                # Spec §6.1/§6.4: wrap transport-layer failures at the HTTP-client
-                # boundary; preserve the original via ``raise ... from err`` so
-                # ``__cause__`` exposes the underlying ``httpx`` exception.
                 raise wrap_transport_error(err) from err
             duration = parse_duration_from_body(response.content)
             if duration:
@@ -615,8 +612,6 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
                     url_path, params=query_params, *args, **call_kwargs
                 )
             except httpx.RequestError as err:
-                # Spec §6.1/§6.4: wrap transport-layer failures at the HTTP-client
-                # boundary; preserve the original via ``raise ... from err``.
                 raise wrap_transport_error(err) from err
             duration = parse_duration_from_body(response.content)
             if duration:
@@ -733,13 +728,7 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
 
 
 def __getattr__(name: str):
-    """Lazy back-compat alias: ``from getstream.base import StreamAPIException``
-    keeps working but emits ``DeprecationWarning`` per CHA-2958 §10.
-
-    The canonical class is :class:`getstream.exceptions.StreamApiException`
-    (lowercase ``Api``); the old capitalised alias will be removed one minor
-    cycle after rollout.
-    """
+    """StreamApiException is exported under its new name; resolve here lazily and warn once."""
     if name == "StreamAPIException":
         warnings.warn(
             "getstream.base.StreamAPIException is deprecated; import "

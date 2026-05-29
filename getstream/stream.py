@@ -418,7 +418,7 @@ class AsyncStream(BaseStream, AsyncCommonClient):
         """Poll an async task until ``completed`` (returns the response),
         ``failed`` (raises :class:`StreamTaskException`), or the timeout
         elapses (raises :class:`StreamTransportException` with
-        ``error_type='timeout'``). See CHA-2958 §8.
+        ``error_type='timeout'``).
         """
         from .tasks import wait_for_task_async
 
@@ -649,7 +649,7 @@ class Stream(BaseStream, CommonClient):
         """Poll an async task until ``completed`` (returns the response),
         ``failed`` (raises :class:`StreamTaskException`), or the timeout
         elapses (raises :class:`StreamTransportException` with
-        ``error_type='timeout'``). See CHA-2958 §8.
+        ``error_type='timeout'``).
         """
         from .tasks import wait_for_task_sync
 

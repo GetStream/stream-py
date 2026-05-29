@@ -1,14 +1,4 @@
-"""Task-waiting helpers (CHA-2958 §8).
-
-Sync and async polling helpers that wait for an async task to reach a
-terminal state. On ``status='failed'`` they raise ``StreamTaskException``
-populated from the task's ``ErrorResult``; on timeout they raise
-``StreamTransportException`` with ``error_type='timeout'``.
-
-The public surface for SDK users is the ``wait_for_task`` method on
-``Stream``/``AsyncStream`` (see ``getstream.stream``); the functions here
-are reused by both.
-"""
+"""Polling helpers used by ``Stream.wait_for_task`` and ``AsyncStream.wait_for_task``."""
 
 from __future__ import annotations
 
@@ -90,11 +80,7 @@ async def wait_for_task_async(
     poll_interval: float = DEFAULT_POLL_INTERVAL,
     timeout: float = DEFAULT_TIMEOUT,
 ) -> "StreamResponse[GetTaskResponse]":
-    """Async variant of :func:`wait_for_task_sync`.
-
-    Uses ``asyncio.get_running_loop().time()`` for the deadline so callers
-    don't pay for instantiating a default loop when none exists.
-    """
+    """Async variant of :func:`wait_for_task_sync`."""
     loop = asyncio.get_running_loop()
     deadline = loop.time() + timeout
     while True:

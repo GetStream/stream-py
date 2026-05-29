@@ -1,17 +1,10 @@
-"""Server-side SDK error hierarchy (CHA-2958).
+"""Stream SDK error hierarchy. See class docstrings for when each is raised.
 
-Per the Server-Side SDK Error Handling Spec §9.2, this module defines the
-canonical Python error hierarchy:
-
-    StreamException                — abstract base
-        StreamApiException         — HTTP 4xx/5xx with APIError envelope
-            StreamRateLimitException   — HTTP 429, carries ``retry_after``
-        StreamTransportException   — network-layer failure (no HTTP response)
-        StreamTaskException        — async task observed as ``status='failed'``
-
-Back-compat: ``getstream.base.StreamAPIException`` (capital ``API``) is an
-alias for ``StreamApiException`` for one minor cycle; importing the old name
-emits ``DeprecationWarning``.
+StreamException                — abstract base
+    StreamApiException         — HTTP 4xx/5xx with APIError envelope
+        StreamRateLimitException   — HTTP 429, carries ``retry_after``
+    StreamTransportException   — network-layer failure (no HTTP response)
+    StreamTaskException        — async task observed as ``status='failed'``
 """
 
 from __future__ import annotations
@@ -43,12 +36,10 @@ class StreamException(Exception):
 class StreamApiException(StreamException):
     """Raised on any HTTP 4xx/5xx response from the Stream API.
 
-    Also raised when an HTTP response was received but the body could not be
-    parsed as an ``APIError`` envelope (spec §6.3): in that case ``code`` is
-    ``0``, ``message`` is ``"failed to parse error response"``, and
-    ``__cause__`` is set to the underlying ``ValueError``/``AttributeError``
-    via ``raise ... from err`` at the call site (and via the ``response=``
-    constructor path internally).
+    Raised with code=0 and message='failed to parse error response' when an
+    HTTP response was received but the body could not be parsed as an
+    APIError envelope; in that case ``__cause__`` carries the underlying
+    parse error.
     """
 
     def __init__(
@@ -132,9 +123,8 @@ class StreamRateLimitException(StreamApiException):
 class StreamTransportException(StreamException):
     """Network-layer failure: connection reset, timeout, TLS, DNS, etc.
 
-    No HTTP response was received. Callers MUST set ``__cause__`` via
-    ``raise StreamTransportException(...) from err`` so users can recover
-    the original transport error.
+    No HTTP response was received. ``__cause__`` carries the original httpx
+    exception.
     """
 
     def __init__(self, error_type: str, message: str = "") -> None:
@@ -144,8 +134,8 @@ class StreamTransportException(StreamException):
 
 class StreamTaskException(StreamException):
     """Raised by ``wait_for_task`` when the polled task ends in
-    ``status='failed'``. Fields mirror the ``ErrorResult`` envelope on the
-    task-status response.
+    status='failed'. Carries task_id, error_type, description, stack_trace,
+    version.
     """
 
     def __init__(
@@ -168,12 +158,10 @@ class StreamTaskException(StreamException):
 def _fields_from_response(
     response: httpx.Response,
 ) -> Tuple[Dict[str, Any], Optional[BaseException]]:
-    """Pull the §5.1 fields out of an httpx response.
+    """Pull the APIError envelope fields out of an httpx response.
 
-    Returns ``(fields, parse_error)`` where ``parse_error`` is the
-    ``ValueError`` or ``TypeError`` that prevented body decoding, or ``None``
-    when the body parsed cleanly as an ``APIError`` envelope (or the body was
-    empty).
+    Returns ``(fields, parse_error)``; ``parse_error`` is None when the body
+    parsed cleanly or was empty.
     """
     raw_body = ""
     try:
@@ -277,11 +265,9 @@ def parse_retry_after(
 def build_api_exception(response: httpx.Response) -> StreamApiException:
     """Build the right ``StreamApiException`` subclass from an httpx response.
 
-    * 429 → ``StreamRateLimitException`` with parsed ``Retry-After``.
-    * otherwise → base ``StreamApiException``.
-
-    The ``__cause__`` chain is populated from any body-parse failure
-    encountered while extracting the ``APIError`` envelope (spec §6.3).
+    Returns ``StreamRateLimitException`` for 429, else base
+    ``StreamApiException``. ``__cause__`` is set when the body could not be
+    parsed.
     """
     if response.status_code == 429:
         return StreamRateLimitException(response=response)
@@ -289,12 +275,9 @@ def build_api_exception(response: httpx.Response) -> StreamApiException:
 
 
 def classify_transport_error(exc: BaseException) -> str:
-    """Map an httpx transport-layer exception to the spec ``error_type`` enum.
-
-    Walks the ``__cause__``/``__context__`` chain to catch the underlying
-    ``ssl.SSLError`` or ``socket.gaierror`` that httpx wraps. Falls back to
-    generic ``connection_reset`` for network errors and ``unknown`` for
-    anything we don't recognize.
+    """Map an httpx transport exception to the ``error_type`` enum: ``timeout``,
+    ``tls_handshake_failed``, ``dns_failure``, ``connection_reset``, or
+    ``unknown``.
     """
     if isinstance(exc, httpx.TimeoutException):
         return TRANSPORT_ERROR_TIMEOUT
@@ -317,8 +300,7 @@ def classify_transport_error(exc: BaseException) -> str:
 def wrap_transport_error(exc: httpx.RequestError) -> StreamTransportException:
     """Build a ``StreamTransportException`` from an httpx ``RequestError``.
 
-    Caller is expected to ``raise ... from exc`` so ``__cause__`` is set per
-    spec §6.4.
+    Callers must use ``raise ... from exc`` to set ``__cause__``.
     """
     return StreamTransportException(
         error_type=classify_transport_error(exc),
