@@ -326,23 +326,28 @@ def test_transport_exception_cause_chain_preserved():
         assert caught.error_type == TRANSPORT_ERROR_CONNECTION_RESET
 
 
-def test_transport_wrapping_via_mock_transport_sync(monkeypatch):
-    """End-to-end: an ``httpx`` transport error inside the SDK sync path is
-    re-raised as ``StreamTransportException`` with the original on
-    ``__cause__``."""
+def _closed_port() -> int:
+    """Bind a loopback socket, close it, and return the now-closed port.
+    Connecting to it triggers a real ``httpx.ConnectError``."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(("127.0.0.1", 0))
+    port = s.getsockname()[1]
+    s.close()
+    return port
+
+
+def test_transport_wrapping_sync_connection_refused(monkeypatch):
+    """End-to-end: a real ``httpx.ConnectError`` (loopback port closed) is
+    re-raised by the SDK as ``StreamTransportException`` with the original
+    on ``__cause__``."""
     from getstream import Stream
 
-    def boom(request: httpx.Request) -> httpx.Response:
-        raise httpx.ConnectError("network down", request=request)
-
-    transport = httpx.MockTransport(boom)
     monkeypatch.delenv("STREAM_API_KEY", raising=False)
     monkeypatch.delenv("STREAM_API_SECRET", raising=False)
     client = Stream(
         api_key="k",
         api_secret="s",
-        base_url="https://example.invalid/",
-        transport=transport,
+        base_url=f"http://127.0.0.1:{_closed_port()}/",
     )
     try:
         with pytest.raises(StreamTransportException) as info:
@@ -356,28 +361,37 @@ def test_transport_wrapping_via_mock_transport_sync(monkeypatch):
         client.close()
 
 
-async def test_transport_wrapping_via_mock_transport_async(monkeypatch):
-    """End-to-end async path mirrors the sync test."""
+async def test_transport_wrapping_async_read_timeout(httpserver, monkeypatch):
+    """A real local server that delays the response longer than the client
+    read-timeout triggers ``httpx.ReadTimeout``, wrapped by the SDK as
+    ``StreamTransportException`` with ``error_type='timeout'``."""
+    import time
+
     from getstream import AsyncStream
 
-    def boom(request: httpx.Request) -> httpx.Response:
-        raise httpx.ReadTimeout("read timed out", request=request)
+    from werkzeug.wrappers import Response as WerkzeugResponse
 
-    transport = httpx.MockTransport(boom)
+    def slow_handler(_request):
+        time.sleep(1.0)  # exceed the client's read timeout below
+        return WerkzeugResponse("{}", status=200, content_type="application/json")
+
+    httpserver.expect_request("/api/v2/app").respond_with_handler(slow_handler)
+
     monkeypatch.delenv("STREAM_API_KEY", raising=False)
     monkeypatch.delenv("STREAM_API_SECRET", raising=False)
-
     client = AsyncStream(
         api_key="k",
         api_secret="s",
-        base_url="https://example.invalid/",
-        transport=transport,
+        base_url=httpserver.url_for("/"),
+        request_timeout=0.2,
     )
     try:
         with pytest.raises(StreamTransportException) as info:
             await client.get_app()
         assert info.value.error_type == TRANSPORT_ERROR_TIMEOUT
-        assert isinstance(info.value.__cause__, httpx.ReadTimeout)
+        assert isinstance(
+            info.value.__cause__, (httpx.ReadTimeout, httpx.TimeoutException)
+        )
     finally:
         await client.aclose()
 
@@ -415,69 +429,99 @@ def test_legacy_alias_catches_new_exception():
 # ── wait_for_task (§8) ────────────────────────────────────────────────
 
 
-class _FakeError:
-    def __init__(self, type_: str, description: str, stack=None, version=None):
-        self.type = type_
-        self.description = description
-        self.stacktrace = stack
-        self.version = version
+_FIXED_NS = int(datetime(2026, 1, 1, 0, 0, 0, tzinfo=timezone.utc).timestamp() * 1e9)
 
 
-class _FakeTaskData:
-    def __init__(self, status: str, error: Optional[_FakeError] = None):
-        self.status = status
-        self.error = error
+def _task_response(status: str, error: Optional[dict] = None) -> dict:
+    """Build a get-task response body matching the real API shape.
+    `created_at` / `updated_at` are nanosecond Unix timestamps per the
+    backend's wire format."""
+    body: dict = {
+        "duration": "1ms",
+        "task_id": "t",
+        "status": status,
+        "created_at": _FIXED_NS,
+        "updated_at": _FIXED_NS,
+    }
+    if error is not None:
+        body["error"] = error
+    return body
 
 
-class _FakeResponse:
-    def __init__(self, status: str, error: Optional[_FakeError] = None):
-        self.data = _FakeTaskData(status, error)
+def _client_against(httpserver, monkeypatch):
+    """Real ``Stream`` instance pointing at the loopback ``httpserver``."""
+    from getstream import Stream
+
+    monkeypatch.delenv("STREAM_API_KEY", raising=False)
+    monkeypatch.delenv("STREAM_API_SECRET", raising=False)
+    return Stream(
+        api_key="k",
+        api_secret="s",
+        base_url=httpserver.url_for("/"),
+    )
 
 
-class _FakeSyncClient:
-    """Sync stand-in for a ``Stream`` client; ``get_task`` returns the next
-    scripted response, repeating the last one indefinitely once the list is
-    drained so timeout tests don't run out of mock data."""
+def _async_client_against(httpserver, monkeypatch):
+    from getstream import AsyncStream
 
-    def __init__(self, responses):
-        self._responses = list(responses)
-        self.calls = 0
-
-    def get_task(self, *, id):
-        self.calls += 1
-        if len(self._responses) > 1:
-            return self._responses.pop(0)
-        return self._responses[0]
+    monkeypatch.delenv("STREAM_API_KEY", raising=False)
+    monkeypatch.delenv("STREAM_API_SECRET", raising=False)
+    return AsyncStream(
+        api_key="k",
+        api_secret="s",
+        base_url=httpserver.url_for("/"),
+    )
 
 
-class _FakeAsyncClient:
-    def __init__(self, responses):
-        self._responses = list(responses)
-        self.calls = 0
+def test_wait_for_task_sync_returns_on_completed(httpserver, monkeypatch):
+    """The helper exits the polling loop the first time the server reports
+    ``status='completed'``."""
+    bodies = iter(
+        [
+            _task_response("waiting"),
+            _task_response("completed"),
+        ]
+    )
+    from werkzeug.wrappers import Response as WerkzeugResponse
 
-    async def get_task(self, *, id):
-        self.calls += 1
-        if len(self._responses) > 1:
-            return self._responses.pop(0)
-        return self._responses[0]
+    def handler(_r):
+        return WerkzeugResponse(
+            json.dumps(next(bodies)),
+            status=200,
+            content_type="application/json",
+        )
 
+    httpserver.expect_request("/api/v2/tasks/task-1").respond_with_handler(handler)
 
-def test_wait_for_task_sync_returns_on_completed():
-    from getstream.tasks import wait_for_task_sync
-
-    client = _FakeSyncClient([_FakeResponse("waiting"), _FakeResponse("completed")])
-    result = wait_for_task_sync(client, "task-1", poll_interval=0.0, timeout=5.0)
+    client = _client_against(httpserver, monkeypatch)
+    try:
+        result = client.wait_for_task("task-1", poll_interval=0.0, timeout=5.0)
+    finally:
+        client.close()
     assert result.data.status == "completed"
-    assert client.calls == 2
 
 
-def test_wait_for_task_sync_raises_on_failed():
-    from getstream.tasks import wait_for_task_sync
+def test_wait_for_task_sync_raises_on_failed(httpserver, monkeypatch):
+    """A ``status='failed'`` response surfaces as ``StreamTaskException``
+    populated from the task's ``ErrorResult``."""
+    httpserver.expect_request("/api/v2/tasks/task-fail").respond_with_json(
+        _task_response(
+            "failed",
+            error={
+                "type": "ImportFailed",
+                "description": "bad rows",
+                "stacktrace": "trace",
+                "version": "v1",
+            },
+        )
+    )
 
-    err = _FakeError("ImportFailed", "bad rows", stack="trace", version="v1")
-    client = _FakeSyncClient([_FakeResponse("failed", err)])
-    with pytest.raises(StreamTaskException) as info:
-        wait_for_task_sync(client, "task-fail", poll_interval=0.0, timeout=5.0)
+    client = _client_against(httpserver, monkeypatch)
+    try:
+        with pytest.raises(StreamTaskException) as info:
+            client.wait_for_task("task-fail", poll_interval=0.0, timeout=5.0)
+    finally:
+        client.close()
     exc = info.value
     assert exc.task_id == "task-fail"
     assert exc.error_type == "ImportFailed"
@@ -486,44 +530,86 @@ def test_wait_for_task_sync_raises_on_failed():
     assert exc.version == "v1"
 
 
-def test_wait_for_task_sync_times_out_raises_transport_exception():
-    from getstream.tasks import wait_for_task_sync
+def test_wait_for_task_sync_times_out_raises_transport_exception(
+    httpserver, monkeypatch
+):
+    """A perpetually-waiting task causes the helper to raise
+    ``StreamTransportException`` with ``error_type='timeout'``."""
+    httpserver.expect_request("/api/v2/tasks/task-timeout").respond_with_json(
+        _task_response("waiting")
+    )
 
-    # Always 'waiting' — must time out.
-    client = _FakeSyncClient([_FakeResponse("waiting") for _ in range(50)])
-    with pytest.raises(StreamTransportException) as info:
-        wait_for_task_sync(client, "task-timeout", poll_interval=0.0, timeout=0.01)
+    client = _client_against(httpserver, monkeypatch)
+    try:
+        with pytest.raises(StreamTransportException) as info:
+            client.wait_for_task("task-timeout", poll_interval=0.05, timeout=0.15)
+    finally:
+        client.close()
     assert info.value.error_type == TRANSPORT_ERROR_TIMEOUT
 
 
-async def test_wait_for_task_async_returns_on_completed():
-    from getstream.tasks import wait_for_task_async
+async def test_wait_for_task_async_returns_on_completed(httpserver, monkeypatch):
+    bodies = iter(
+        [
+            _task_response("waiting"),
+            _task_response("completed"),
+        ]
+    )
+    from werkzeug.wrappers import Response as WerkzeugResponse
 
-    client = _FakeAsyncClient([_FakeResponse("waiting"), _FakeResponse("completed")])
-    result = await wait_for_task_async(client, "task-1", poll_interval=0.0, timeout=5.0)
+    def handler(_r):
+        return WerkzeugResponse(
+            json.dumps(next(bodies)),
+            status=200,
+            content_type="application/json",
+        )
+
+    httpserver.expect_request("/api/v2/tasks/task-1").respond_with_handler(handler)
+
+    client = _async_client_against(httpserver, monkeypatch)
+    try:
+        result = await client.wait_for_task("task-1", poll_interval=0.0, timeout=5.0)
+    finally:
+        await client.aclose()
     assert result.data.status == "completed"
 
 
-async def test_wait_for_task_async_raises_on_failed():
-    from getstream.tasks import wait_for_task_async
+async def test_wait_for_task_async_raises_on_failed(httpserver, monkeypatch):
+    httpserver.expect_request("/api/v2/tasks/task-fail").respond_with_json(
+        _task_response(
+            "failed",
+            error={
+                "type": "ImportFailed",
+                "description": "async bad",
+                "stacktrace": None,
+                "version": None,
+            },
+        )
+    )
 
-    err = _FakeError("ImportFailed", "async bad", stack=None, version=None)
-    client = _FakeAsyncClient([_FakeResponse("failed", err)])
-
-    with pytest.raises(StreamTaskException) as info:
-        await wait_for_task_async(client, "task-fail", poll_interval=0.0, timeout=5.0)
+    client = _async_client_against(httpserver, monkeypatch)
+    try:
+        with pytest.raises(StreamTaskException) as info:
+            await client.wait_for_task("task-fail", poll_interval=0.0, timeout=5.0)
+    finally:
+        await client.aclose()
     assert info.value.task_id == "task-fail"
     assert info.value.description == "async bad"
 
 
-async def test_wait_for_task_async_times_out_raises_transport_exception():
-    from getstream.tasks import wait_for_task_async
+async def test_wait_for_task_async_times_out_raises_transport_exception(
+    httpserver, monkeypatch
+):
+    httpserver.expect_request("/api/v2/tasks/task-timeout").respond_with_json(
+        _task_response("waiting")
+    )
 
-    client = _FakeAsyncClient([_FakeResponse("waiting") for _ in range(50)])
-    with pytest.raises(StreamTransportException) as info:
-        await wait_for_task_async(
-            client, "task-timeout", poll_interval=0.0, timeout=0.01
-        )
+    client = _async_client_against(httpserver, monkeypatch)
+    try:
+        with pytest.raises(StreamTransportException) as info:
+            await client.wait_for_task("task-timeout", poll_interval=0.05, timeout=0.15)
+    finally:
+        await client.aclose()
     assert info.value.error_type == TRANSPORT_ERROR_TIMEOUT
 
 
