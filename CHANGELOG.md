@@ -9,6 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Standardized error hierarchy ([CHA-2958](https://linear.app/stream/issue/CHA-2958)).
+  New exception classes importable from `getstream` (also re-exported from
+  `getstream.exceptions`):
+    - `StreamException`: abstract base for every SDK error.
+    - `StreamApiException`: any HTTP 4xx/5xx response. Carries `status_code`,
+      `code`, `message`, `exception_fields`, `unrecoverable`,
+      `raw_response_body`, `more_info`, `details`. The `unrecoverable` flag
+      from `APIError` is now surfaced (was previously dropped on most paths).
+    - `StreamRateLimitException`: subclass of `StreamApiException` raised on
+      HTTP 429. Adds `retry_after: datetime.timedelta | None`, parsed from
+      `Retry-After` per RFC 7231 (integer seconds or HTTP-date). Missing or
+      unparseable headers map to `None`; past HTTP-dates clamp to `0`.
+    - `StreamTransportException`: raised when a network-layer failure (no
+      HTTP response received) propagates out of `httpx` — connection reset,
+      timeout, TLS handshake failure, DNS failure. Carries `error_type`
+      enum (`connection_reset` / `timeout` / `dns_failure` /
+      `tls_handshake_failed` / `unknown`). The original `httpx` exception
+      is preserved as `__cause__`.
+    - `StreamTaskException`: raised by `wait_for_task` when the polled task
+      ends in `status='failed'`. Carries `task_id`, `error_type`,
+      `description`, `stack_trace`, `version`.
+- `Stream.wait_for_task(task_id, *, poll_interval=1.0, timeout=60.0)` and
+  the matching async coroutine on `AsyncStream`. Polls `get_task` until the
+  task reaches a terminal state. On `completed` returns the
+  `StreamResponse[GetTaskResponse]`; on `failed` raises
+  `StreamTaskException` populated from `ErrorResult`; on timeout raises
+  `StreamTransportException(error_type='timeout')`.
+
 - Explicit HTTP connection pool configuration ([CHA-2956](https://linear.app/stream/issue/CHA-2956/connection-pooling)).
   Four new kwargs on `Stream(...)` and `AsyncStream(...)`:
     - `max_conns_per_host: int`: default `5`
@@ -45,10 +73,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- HTTP request errors raised by `httpx` (the `httpx.RequestError` family —
+  `ConnectError`, `ReadTimeout`, etc.) are now wrapped at the SDK boundary
+  in `StreamTransportException` so callers handle one Stream error category
+  instead of catching `httpx.RequestError` separately. The original `httpx`
+  exception is preserved via `__cause__` (CHA-2958).
 - **Default `request_timeout` is now `30.0` seconds (was `6.0`).** Aligns stream-py with the cross-SDK contract in CHA-2956. Existing callers using `timeout=` are unaffected; `timeout` is kept as an alias for `request_timeout`. Callers relying on the 6s ceiling for fail-fast behavior should pass `request_timeout=6.0` (or `timeout=6.0`) explicitly.
 - Default HTTP transport now caps connections per host at `5` and closes idle sockets after `55.0s`. Previous default was httpx's `100` max-connections with `5.0s` keep-alive expiry.
 - No breaking changes. All existing webhook helpers (`verify_webhook_signature`,
   `parse_webhook_event`, `get_event_type`, event type constants) are preserved.
+
+### Deprecated
+
+- `getstream.base.StreamAPIException` (capital `API`) is now an alias for
+  `getstream.exceptions.StreamApiException` (lowercase `Api`). Importing the
+  old name emits `DeprecationWarning`; existing `isinstance` / `except` /
+  `pytest.raises` checks continue to work because the alias resolves to the
+  same class. The legacy spelling will be removed one minor cycle after this
+  release (CHA-2958 §10).
 
 ### Notes
 

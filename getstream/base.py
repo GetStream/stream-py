@@ -4,11 +4,15 @@ import mimetypes
 import os
 import time
 import uuid
+import warnings
 import asyncio
 from typing import Any, Dict, List, Optional, Tuple, Type, cast, get_origin
 
-from getstream.models import APIError
-from getstream.rate_limit import extract_rate_limit
+from getstream.exceptions import (
+    StreamApiException,
+    build_api_exception,
+    wrap_transport_error,
+)
 from getstream.stream_response import StreamResponse
 from getstream.generic import T
 import httpx
@@ -102,9 +106,7 @@ class ResponseParserMixin:
         self, response: httpx.Response, data_type: Type[T]
     ) -> StreamResponse[T]:
         if response.status_code >= 399:
-            raise StreamAPIException(
-                response=response,
-            )
+            raise build_api_exception(response)
 
         try:
             parsed_result = json.loads(response.text) if response.text else {}
@@ -118,10 +120,8 @@ class ResponseParserMixin:
             else:
                 data = cast(T, parsed_result)
 
-        except (ValueError, AttributeError):
-            raise StreamAPIException(
-                response=response,
-            )
+        except (ValueError, AttributeError) as err:
+            raise StreamApiException(response=response) from err
 
         return StreamResponse(response, data)
 
@@ -291,9 +291,12 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
         ) as span:
             call_kwargs = dict(kwargs)
             call_kwargs.pop("path_params", None)
-            response = getattr(self.client, method.lower())(
-                url_path, params=query_params, *args, **call_kwargs
-            )
+            try:
+                response = getattr(self.client, method.lower())(
+                    url_path, params=query_params, *args, **call_kwargs
+                )
+            except httpx.RequestError as err:
+                raise wrap_transport_error(err) from err
             duration = parse_duration_from_body(response.content)
             if duration:
                 span.set_attribute("http.server.duration", duration)
@@ -604,9 +607,12 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
                 call_kwargs["headers"] = call_kwargs.get("headers", {})
                 call_kwargs["headers"]["Content-Type"] = "application/json"
 
-            response = await getattr(self.client, method.lower())(
-                url_path, params=query_params, *args, **call_kwargs
-            )
+            try:
+                response = await getattr(self.client, method.lower())(
+                    url_path, params=query_params, *args, **call_kwargs
+                )
+            except httpx.RequestError as err:
+                raise wrap_transport_error(err) from err
             duration = parse_duration_from_body(response.content)
             if duration:
                 span.set_attribute("http.server.duration", duration)
@@ -721,54 +727,19 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
         )
 
 
-class StreamAPIException(Exception):
-    """
-    A custom exception for handling errors from a Stream API response.
-
-    This exception is raised when an API call encounters an issue, providing
-    detailed information from the HTTP response. It attempts to parse the response
-    content into a structured API error. If the response content is not JSON or
-    lacks the expected structure, it will simply report the HTTP status code.
-
-    Attributes:
-        api_error (Optional[APIError]): An optional APIError object that is
-            populated if the response content contains structured error information.
-        rate_limit_info (RateLimitInfo): Information about the API's rate limiting
-            controls extracted from the response headers.
-        http_response (httpx.Response): The full HTTP response object from httpx.
-        status_code (int): The HTTP status code from the response.
-
-    Args:
-        response (httpx.Response): The HTTP response received from the Stream API.
-
-    Raises:
-        ValueError: If the response content cannot be parsed into JSON, indicating
-            that the server's response was not in the expected format.
-    """
-
-    def __init__(self, response: httpx.Response) -> None:
-        self.api_error: Optional[APIError] = None
-        self.rate_limit_info = extract_rate_limit(response)
-        self.http_response = response
-        self.status_code = response.status_code
-
-        try:
-            parsed_response: Dict = json.loads(response.content)
-            self.api_error = APIError.from_dict(parsed_response)
-        except ValueError:
-            pass
-
-    def __str__(self) -> str:
-        if self.api_error:
-            return f'Stream error code {self.api_error.code}: {self.api_error.message}"'
-        body_preview = ""
-        try:
-            text = self.http_response.text[:200] if self.http_response.text else ""
-            if text:
-                body_preview = f" body: {text}"
-        except Exception:
-            pass
-        return f"Stream error HTTP code: {self.status_code}{body_preview}"
+def __getattr__(name: str):
+    """StreamApiException is exported under its new name; resolve here lazily and warn once."""
+    if name == "StreamAPIException":
+        warnings.warn(
+            "getstream.base.StreamAPIException is deprecated; import "
+            "StreamApiException from getstream (or getstream.exceptions) "
+            "instead. The legacy alias will be removed one minor cycle after "
+            "this release.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return StreamApiException
+    raise AttributeError(f"module 'getstream.base' has no attribute {name!r}")
 
 
 def parse_duration_from_body(body: bytes) -> Optional[str]:
