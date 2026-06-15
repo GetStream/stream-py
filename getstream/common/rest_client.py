@@ -46,6 +46,7 @@ class CommonRestClient(BaseClient):
         custom_action_handler_url: Optional[str] = None,
         disable_auth_checks: Optional[bool] = None,
         disable_permissions_checks: Optional[bool] = None,
+        enable_hook_payload_compression: Optional[bool] = None,
         enforce_unique_usernames: Optional[str] = None,
         feeds_moderation_enabled: Optional[bool] = None,
         feeds_v2_region: Optional[str] = None,
@@ -100,6 +101,7 @@ class CommonRestClient(BaseClient):
             custom_action_handler_url=custom_action_handler_url,
             disable_auth_checks=disable_auth_checks,
             disable_permissions_checks=disable_permissions_checks,
+            enable_hook_payload_compression=enable_hook_payload_compression,
             enforce_unique_usernames=enforce_unique_usernames,
             feeds_moderation_enabled=feeds_moderation_enabled,
             feeds_v2_region=feeds_v2_region,
@@ -880,6 +882,28 @@ class CommonRestClient(BaseClient):
     def create_role(self, name: str) -> StreamResponse[CreateRoleResponse]:
         json = CreateRoleRequest(name=name).to_dict()
         return self.post("/api/v2/roles", CreateRoleResponse, json=json)
+
+    @telemetry.operation_name("getstream.api.common.search_roles")
+    def search_roles(
+        self,
+        query: str,
+        limit: Optional[int] = None,
+        name_gt: Optional[str] = None,
+        role_type: Optional[str] = None,
+        include_global_roles: Optional[bool] = None,
+    ) -> StreamResponse[SearchRolesResponse]:
+        query_params = build_query_param(
+            **{
+                "query": query,
+                "limit": limit,
+                "name_gt": name_gt,
+                "role_type": role_type,
+                "include_global_roles": include_global_roles,
+            }
+        )
+        return self.get(
+            "/api/v2/roles/search", SearchRolesResponse, query_params=query_params
+        )
 
     @telemetry.operation_name("getstream.api.common.delete_role")
     def delete_role(self, name: str) -> StreamResponse[Response]:

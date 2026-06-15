@@ -968,6 +968,26 @@ class VideoRestClient(AsyncBaseClient):
             path_params=path_params,
         )
 
+    @telemetry.operation_name("getstream.api.video.query_call_session_stats")
+    async def query_call_session_stats(
+        self,
+        limit: Optional[int] = None,
+        next: Optional[str] = None,
+        prev: Optional[str] = None,
+        sort: Optional[List[SortParamRequest]] = None,
+        filter_conditions: Optional[Dict[str, object]] = None,
+    ) -> StreamResponse[QueryCallSessionStatsResponse]:
+        json = QueryCallSessionStatsRequest(
+            limit=limit,
+            next=next,
+            prev=prev,
+            sort=sort,
+            filter_conditions=filter_conditions,
+        ).to_dict()
+        return await self.post(
+            "/api/v2/video/call_stats", QueryCallSessionStatsResponse, json=json
+        )
+
     @telemetry.operation_name("getstream.api.video.get_call_stats_map")
     async def get_call_stats_map(
         self,

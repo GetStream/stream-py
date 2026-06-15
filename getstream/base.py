@@ -1,13 +1,18 @@
 import json
+import logging
 import mimetypes
 import os
 import time
 import uuid
+import warnings
 import asyncio
 from typing import Any, Dict, List, Optional, Tuple, Type, cast, get_origin
 
-from getstream.models import APIError
-from getstream.rate_limit import extract_rate_limit
+from getstream.exceptions import (
+    StreamApiException,
+    build_api_exception,
+    wrap_transport_error,
+)
 from getstream.stream_response import StreamResponse
 from getstream.generic import T
 import httpx
@@ -25,6 +30,51 @@ from getstream.common.telemetry import (
     get_current_channel_cid,
 )
 import ijson
+
+
+# ── Connection pool defaults (CHA-2956) ──────────────────────────────
+# Kept in sync with getstream.stream constants; duplicated here so BaseClient/AsyncBaseClient can be instantiated standalone (e.g. by sub-clients constructed directly without going through Stream/AsyncStream).
+DEFAULT_MAX_CONNS_PER_HOST = 5
+DEFAULT_IDLE_TIMEOUT = 55.0
+DEFAULT_CONNECT_TIMEOUT = 10.0
+
+
+logger = logging.getLogger("getstream")
+
+
+def _resolve_pool_knobs(obj):
+    """Pull the 3 pool knobs off ``obj`` if BaseStream has set them, else fall back to spec defaults. Top-level ``Stream``/``AsyncStream`` sets them on ``self`` before calling ``super().__init__()``, so a directly instantiated sub-client (or test fixture) still gets sane values.
+
+    `is None` (not truthiness) so an explicit `0` / `0.0` from the caller is preserved rather than silently swapped for a default.
+    """
+    max_conns_per_host = getattr(obj, "max_conns_per_host", None)
+    idle_timeout = getattr(obj, "idle_timeout", None)
+    connect_timeout = getattr(obj, "connect_timeout", None)
+    return (
+        DEFAULT_MAX_CONNS_PER_HOST
+        if max_conns_per_host is None
+        else max_conns_per_host,
+        DEFAULT_IDLE_TIMEOUT if idle_timeout is None else idle_timeout,
+        DEFAULT_CONNECT_TIMEOUT if connect_timeout is None else connect_timeout,
+    )
+
+
+def _log_pool_config(cfg, *, user_http_client: bool) -> None:
+    if user_http_client:
+        logger.info(
+            "getstream connection pool: user_http_client=True (5 knobs not applied)"
+        )
+    else:
+        logger.info(
+            "getstream connection pool: "
+            "max_conns_per_host=%s idle_timeout=%ss "
+            "connect_timeout=%ss request_timeout=%ss "
+            "user_http_client=False",
+            cfg.max_conns_per_host,
+            cfg.idle_timeout,
+            cfg.connect_timeout,
+            cfg.timeout,
+        )
 
 
 def _read_file_bytes(file_path: str) -> bytes:
@@ -56,9 +106,7 @@ class ResponseParserMixin:
         self, response: httpx.Response, data_type: Type[T]
     ) -> StreamResponse[T]:
         if response.status_code >= 399:
-            raise StreamAPIException(
-                response=response,
-            )
+            raise build_api_exception(response)
 
         try:
             parsed_result = json.loads(response.text) if response.text else {}
@@ -72,10 +120,8 @@ class ResponseParserMixin:
             else:
                 data = cast(T, parsed_result)
 
-        except (ValueError, AttributeError):
-            raise StreamAPIException(
-                response=response,
-            )
+        except (ValueError, AttributeError) as err:
+            raise StreamApiException(response=response) from err
 
         return StreamResponse(response, data)
 
@@ -151,12 +197,17 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
         timeout=None,
         user_agent=None,
     ):
+        # The 3 pool knobs (max_conns_per_host, idle_timeout, connect_timeout) are set on ``self`` by BaseStream prior to this call when used via the top-level ``Stream``/``AsyncStream`` constructors. Sub-clients constructed directly use the spec defaults via _resolve_pool_knobs.
+        max_conns_per_host, idle_timeout, connect_timeout = _resolve_pool_knobs(self)
         super().__init__(
             api_key=api_key,
             base_url=base_url,
             token=token,
             timeout=timeout,
             user_agent=user_agent,
+            max_conns_per_host=max_conns_per_host,
+            idle_timeout=idle_timeout,
+            connect_timeout=connect_timeout,
         )
         http_client = getattr(self, "_http_client", None)
         if http_client is not None:
@@ -173,23 +224,39 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
             self.client = http_client
             self._owns_http_client = False
         else:
+            limits = httpx.Limits(
+                max_connections=self.max_conns_per_host,
+                max_keepalive_connections=self.max_conns_per_host,
+                keepalive_expiry=self.idle_timeout,
+            )
+            timeout_obj = httpx.Timeout(
+                connect=self.connect_timeout,
+                read=self.timeout,
+                write=self.timeout,
+                pool=self.timeout,
+            )
             transport = getattr(self, "_transport", None)
             if transport is not None:
                 self.client = httpx.Client(
                     base_url=self.base_url or "",
-                    headers=self.headers,
+                    headers={**self.headers, "Accept-Encoding": "gzip"},
                     params=self.params,
-                    timeout=httpx.Timeout(self.timeout),
+                    timeout=timeout_obj,
+                    limits=limits,
                     transport=transport,
                 )
             else:
                 self.client = httpx.Client(
                     base_url=self.base_url or "",
-                    headers=self.headers,
+                    headers={**self.headers, "Accept-Encoding": "gzip"},
                     params=self.params,
-                    timeout=httpx.Timeout(self.timeout),
+                    timeout=timeout_obj,
+                    limits=limits,
                 )
             self._owns_http_client = True
+        # The pool-config INFO line is emitted once by BaseStream after the
+        # top-level client is built, not here, to avoid one line per
+        # sub-client construction.
 
     def __enter__(self):
         return self
@@ -224,9 +291,12 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
         ) as span:
             call_kwargs = dict(kwargs)
             call_kwargs.pop("path_params", None)
-            response = getattr(self.client, method.lower())(
-                url_path, params=query_params, *args, **call_kwargs
-            )
+            try:
+                response = getattr(self.client, method.lower())(
+                    url_path, params=query_params, *args, **call_kwargs
+                )
+            except httpx.RequestError as err:
+                raise wrap_transport_error(err) from err
             duration = parse_duration_from_body(response.content)
             if duration:
                 span.set_attribute("http.server.duration", duration)
@@ -376,7 +446,7 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
         Close HTTPX client.
 
         If the client was provided externally via ``http_client``, this is a
-        no-op — the caller that created the client is responsible for closing
+        no-op; the caller that created the client is responsible for closing
         it.
         """
         if getattr(self, "_owns_http_client", True):
@@ -392,12 +462,17 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
         timeout=None,
         user_agent=None,
     ):
+        # The 3 pool knobs (max_conns_per_host, idle_timeout, connect_timeout) are set on ``self`` by BaseStream prior to this call when used via the top-level ``Stream``/``AsyncStream`` constructors. Sub-clients constructed directly use the spec defaults via _resolve_pool_knobs.
+        max_conns_per_host, idle_timeout, connect_timeout = _resolve_pool_knobs(self)
         super().__init__(
             api_key=api_key,
             base_url=base_url,
             token=token,
             timeout=timeout,
             user_agent=user_agent,
+            max_conns_per_host=max_conns_per_host,
+            idle_timeout=idle_timeout,
+            connect_timeout=connect_timeout,
         )
         http_client = getattr(self, "_http_client", None)
         if http_client is not None:
@@ -414,23 +489,39 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
             self.client = http_client
             self._owns_http_client = False
         else:
+            limits = httpx.Limits(
+                max_connections=self.max_conns_per_host,
+                max_keepalive_connections=self.max_conns_per_host,
+                keepalive_expiry=self.idle_timeout,
+            )
+            timeout_obj = httpx.Timeout(
+                connect=self.connect_timeout,
+                read=self.timeout,
+                write=self.timeout,
+                pool=self.timeout,
+            )
             transport = getattr(self, "_transport", None)
             if transport is not None:
                 self.client = httpx.AsyncClient(
                     base_url=self.base_url or "",
-                    headers=self.headers,
+                    headers={**self.headers, "Accept-Encoding": "gzip"},
                     params=self.params,
-                    timeout=httpx.Timeout(self.timeout),
+                    timeout=timeout_obj,
+                    limits=limits,
                     transport=transport,
                 )
             else:
                 self.client = httpx.AsyncClient(
                     base_url=self.base_url or "",
-                    headers=self.headers,
+                    headers={**self.headers, "Accept-Encoding": "gzip"},
                     params=self.params,
-                    timeout=httpx.Timeout(self.timeout),
+                    timeout=timeout_obj,
+                    limits=limits,
                 )
             self._owns_http_client = True
+        # The pool-config INFO line is emitted once by BaseStream after the
+        # top-level client is built, not here, to avoid one line per
+        # sub-client construction.
 
     async def __aenter__(self):
         return self
@@ -442,7 +533,7 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
         """Close HTTPX async client (closes pools/keep-alives).
 
         If the client was provided externally via ``http_client``, this is a
-        no-op — the caller that created the client is responsible for closing
+        no-op; the caller that created the client is responsible for closing
         it.
         """
         if getattr(self, "_owns_http_client", True):
@@ -516,9 +607,12 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
                 call_kwargs["headers"] = call_kwargs.get("headers", {})
                 call_kwargs["headers"]["Content-Type"] = "application/json"
 
-            response = await getattr(self.client, method.lower())(
-                url_path, params=query_params, *args, **call_kwargs
-            )
+            try:
+                response = await getattr(self.client, method.lower())(
+                    url_path, params=query_params, *args, **call_kwargs
+                )
+            except httpx.RequestError as err:
+                raise wrap_transport_error(err) from err
             duration = parse_duration_from_body(response.content)
             if duration:
                 span.set_attribute("http.server.duration", duration)
@@ -633,54 +727,19 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
         )
 
 
-class StreamAPIException(Exception):
-    """
-    A custom exception for handling errors from a Stream API response.
-
-    This exception is raised when an API call encounters an issue, providing
-    detailed information from the HTTP response. It attempts to parse the response
-    content into a structured API error. If the response content is not JSON or
-    lacks the expected structure, it will simply report the HTTP status code.
-
-    Attributes:
-        api_error (Optional[APIError]): An optional APIError object that is
-            populated if the response content contains structured error information.
-        rate_limit_info (RateLimitInfo): Information about the API's rate limiting
-            controls extracted from the response headers.
-        http_response (httpx.Response): The full HTTP response object from httpx.
-        status_code (int): The HTTP status code from the response.
-
-    Args:
-        response (httpx.Response): The HTTP response received from the Stream API.
-
-    Raises:
-        ValueError: If the response content cannot be parsed into JSON, indicating
-            that the server's response was not in the expected format.
-    """
-
-    def __init__(self, response: httpx.Response) -> None:
-        self.api_error: Optional[APIError] = None
-        self.rate_limit_info = extract_rate_limit(response)
-        self.http_response = response
-        self.status_code = response.status_code
-
-        try:
-            parsed_response: Dict = json.loads(response.content)
-            self.api_error = APIError.from_dict(parsed_response)
-        except ValueError:
-            pass
-
-    def __str__(self) -> str:
-        if self.api_error:
-            return f'Stream error code {self.api_error.code}: {self.api_error.message}"'
-        body_preview = ""
-        try:
-            text = self.http_response.text[:200] if self.http_response.text else ""
-            if text:
-                body_preview = f" body: {text}"
-        except Exception:
-            pass
-        return f"Stream error HTTP code: {self.status_code}{body_preview}"
+def __getattr__(name: str):
+    """StreamApiException is exported under its new name; resolve here lazily and warn once."""
+    if name == "StreamAPIException":
+        warnings.warn(
+            "getstream.base.StreamAPIException is deprecated; import "
+            "StreamApiException from getstream (or getstream.exceptions) "
+            "instead. The legacy alias will be removed one minor cycle after "
+            "this release.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return StreamApiException
+    raise AttributeError(f"module 'getstream.base' has no attribute {name!r}")
 
 
 def parse_duration_from_body(body: bytes) -> Optional[str]:

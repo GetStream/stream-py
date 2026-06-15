@@ -307,9 +307,11 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             with telemetry.start_as_current_span(
                 "coordinator-ws-connect",
             ):
+                stream = self.call.client.stream
                 self._coordinator_ws_client = StreamAPIWS(
                     call=self.call,
                     user_details={"id": self.user_id},
+                    user_token=None if stream.has_api_secret else stream.token,
                 )
                 self._coordinator_ws_client.on_wildcard("*", _log_event)
                 self._coordinator_ws_client.on(

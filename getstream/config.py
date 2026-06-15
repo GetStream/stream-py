@@ -11,13 +11,20 @@ class BaseConfig:
         anonymous=False,
         timeout=None,
         user_agent=None,
+        max_conns_per_host=None,
+        idle_timeout=None,
+        connect_timeout=None,
     ):
         self.anonymous = anonymous
         self.timeout = timeout
+        self.max_conns_per_host = max_conns_per_host
+        self.idle_timeout = idle_timeout
+        self.connect_timeout = connect_timeout
 
         self.base_url = base_url
         self.params = {"api_key": api_key}
         self.api_key = api_key
+        self.token = token
 
         # Avoid shared mutable defaults and copy any provided headers
         headers_dict = dict(headers) if headers is not None else {}

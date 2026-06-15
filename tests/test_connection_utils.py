@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from getstream.video.rtc.connection_utils import (
     connect_websocket,
@@ -32,17 +32,15 @@ def coordinator_request():
     mock_call.client.stream.base_url = "https://test.url"
 
     captured_body = {}
+    mock_client = AsyncMock()
 
-    with patch("getstream.video.rtc.connection_utils.user_client") as mock_user_client:
-        mock_client = AsyncMock()
+    async def capture_post(*args, **kwargs):
+        captured_body.update(kwargs.get("json", {}))
+        return AsyncMock()
 
-        async def capture_post(*args, **kwargs):
-            captured_body.update(kwargs.get("json", {}))
-            return AsyncMock()
-
-        mock_client.post = capture_post
-        mock_user_client.return_value = mock_client
-        yield mock_call, captured_body
+    mock_client.post = capture_post
+    mock_call.client.stream.clone_for_token = MagicMock(return_value=mock_client)
+    yield mock_call, captured_body
 
 
 class TestConnectWebsocket:
