@@ -65,12 +65,11 @@ def find_latest_semver_tag() -> str:
     return "{}.{}.{}".format(*versions[-1])
 
 
-def determine_bump_type(title: str, body: str) -> str:
+def determine_bump_type(title: str) -> str:
+    # Breaking changes are signalled only by the `!` marker in the title
+    # (e.g. `feat!:`). Free-text body/title prose is not trusted: a PR that
+    # merely mentions "BREAKING CHANGE" must not force a major bump.
     title = title.strip()
-    body = body.strip()
-    breaking_re = re.compile(r"BREAKING[ -]CHANGES?", re.IGNORECASE)
-    if breaking_re.search(title) or breaking_re.search(body):
-        return "major"
     match = re.match(r"^([a-zA-Z]+)(\([^)]+\))?(!)?:", title)
     if not match:
         return "none"
@@ -119,12 +118,6 @@ def parse_bool(value: str) -> bool:
     return value.strip().lower() == "true"
 
 
-def resolve_body(args: argparse.Namespace) -> str:
-    if args.body_file:
-        return Path(args.body_file).read_text(encoding="utf-8")
-    return args.body or ""
-
-
 def write_outputs(output_path: str, entries: dict[str, str]) -> None:
     if not output_path:
         for key, value in entries.items():
@@ -138,8 +131,6 @@ def write_outputs(output_path: str, entries: dict[str, str]) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--title", default="")
-    parser.add_argument("--body", default="")
-    parser.add_argument("--body-file", dest="body_file", default="")
     parser.add_argument("--output", default="")
     parser.add_argument("--manual-bump", dest="manual_bump", default="")
     parser.add_argument(
@@ -174,8 +165,7 @@ def main() -> int:
         )
         return 0
 
-    body = resolve_body(args)
-    bump = determine_bump_type(args.title, body)
+    bump = determine_bump_type(args.title)
     if bump == "none":
         write_outputs(
             args.output,
