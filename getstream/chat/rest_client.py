@@ -278,10 +278,11 @@ class ChatRestClient(BaseClient):
         self,
         limit: Optional[int] = None,
         user_id: Optional[str] = None,
+        groups: Optional[Dict[str, GroupedChannelsGroupRequest]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[GroupedQueryChannelsResponse]:
         json = GroupedQueryChannelsRequest(
-            limit=limit, user_id=user_id, user=user
+            limit=limit, user_id=user_id, groups=groups, user=user
         ).to_dict()
         return self.post(
             "/api/v2/chat/channels/grouped", GroupedQueryChannelsResponse, json=json
@@ -1643,6 +1644,28 @@ class ChatRestClient(BaseClient):
             "/api/v2/chat/search", SearchResponse, query_params=query_params
         )
 
+    @telemetry.operation_name("getstream.api.chat.create_segment")
+    def create_segment(
+        self,
+        type: str,
+        all_sender_channels: Optional[bool] = None,
+        all_users: Optional[bool] = None,
+        description: Optional[str] = None,
+        id: Optional[str] = None,
+        name: Optional[str] = None,
+        filter: Optional[Dict[str, object]] = None,
+    ) -> StreamResponse[CreateSegmentResponse]:
+        json = CreateSegmentRequest(
+            type=type,
+            all_sender_channels=all_sender_channels,
+            all_users=all_users,
+            description=description,
+            id=id,
+            name=name,
+            filter=filter,
+        ).to_dict()
+        return self.post("/api/v2/chat/segments", CreateSegmentResponse, json=json)
+
     @telemetry.operation_name("getstream.api.chat.query_segments")
     def query_segments(
         self,
@@ -1675,6 +1698,42 @@ class ChatRestClient(BaseClient):
         }
         return self.get(
             "/api/v2/chat/segments/{id}", GetSegmentResponse, path_params=path_params
+        )
+
+    @telemetry.operation_name("getstream.api.chat.update_segment")
+    def update_segment(
+        self,
+        id: str,
+        description: Optional[str] = None,
+        name: Optional[str] = None,
+        filter: Optional[Dict[str, object]] = None,
+    ) -> StreamResponse[UpdateSegmentResponse]:
+        path_params = {
+            "id": id,
+        }
+        json = UpdateSegmentRequest(
+            description=description, name=name, filter=filter
+        ).to_dict()
+        return self.put(
+            "/api/v2/chat/segments/{id}",
+            UpdateSegmentResponse,
+            path_params=path_params,
+            json=json,
+        )
+
+    @telemetry.operation_name("getstream.api.chat.add_segment_targets")
+    def add_segment_targets(
+        self, id: str, target_ids: List[str]
+    ) -> StreamResponse[Response]:
+        path_params = {
+            "id": id,
+        }
+        json = AddSegmentTargetsRequest(target_ids=target_ids).to_dict()
+        return self.post(
+            "/api/v2/chat/segments/{id}/addtargets",
+            Response,
+            path_params=path_params,
+            json=json,
         )
 
     @telemetry.operation_name("getstream.api.chat.delete_segment_targets")

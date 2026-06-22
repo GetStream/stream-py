@@ -158,12 +158,43 @@ class ModerationRestClient(AsyncBaseClient):
             "/api/v2/moderation/action_logs", InsertActionLogResponse, json=json
         )
 
+    @telemetry.operation_name("getstream.api.moderation.analyze")
+    async def analyze(
+        self,
+        async_response: Optional[bool] = None,
+        config_key: Optional[str] = None,
+        content_published_at: Optional[datetime] = None,
+        entity_creator_id: Optional[str] = None,
+        entity_id: Optional[str] = None,
+        entity_type: Optional[str] = None,
+        user_id: Optional[str] = None,
+        content_ids: Optional[Dict[str, str]] = None,
+        custom: Optional[Dict[str, object]] = None,
+        texts: Optional[Dict[str, str]] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[AnalyzeResponse]:
+        json = AnalyzeRequest(
+            async_response=async_response,
+            config_key=config_key,
+            content_published_at=content_published_at,
+            entity_creator_id=entity_creator_id,
+            entity_id=entity_id,
+            entity_type=entity_type,
+            user_id=user_id,
+            content_ids=content_ids,
+            custom=custom,
+            texts=texts,
+            user=user,
+        ).to_dict()
+        return await self.post("/api/v2/moderation/analyze", AnalyzeResponse, json=json)
+
     @telemetry.operation_name("getstream.api.moderation.appeal")
     async def appeal(
         self,
         appeal_reason: str,
         entity_id: str,
         entity_type: str,
+        review_queue_item_id: Optional[str] = None,
         user_id: Optional[str] = None,
         attachments: Optional[List[str]] = None,
         user: Optional[UserRequest] = None,
@@ -172,6 +203,7 @@ class ModerationRestClient(AsyncBaseClient):
             appeal_reason=appeal_reason,
             entity_id=entity_id,
             entity_type=entity_type,
+            review_queue_item_id=review_queue_item_id,
             user_id=user_id,
             attachments=attachments,
             user=user,
@@ -211,6 +243,36 @@ class ModerationRestClient(AsyncBaseClient):
             "/api/v2/moderation/appeals", QueryAppealsResponse, json=json
         )
 
+    @telemetry.operation_name("getstream.api.moderation.bulk_action_appeals")
+    async def bulk_action_appeals(
+        self,
+        action_type: str,
+        appeal_ids: List[str],
+        user_id: Optional[str] = None,
+        mark_reviewed: Optional[MarkReviewedRequestPayload] = None,
+        reject_appeal: Optional[RejectAppealRequestPayload] = None,
+        restore: Optional[RestoreActionRequestPayload] = None,
+        unban: Optional[UnbanActionRequestPayload] = None,
+        unblock: Optional[UnblockActionRequestPayload] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[BulkActionAppealsResponse]:
+        json = BulkActionAppealsRequest(
+            action_type=action_type,
+            appeal_ids=appeal_ids,
+            user_id=user_id,
+            mark_reviewed=mark_reviewed,
+            reject_appeal=reject_appeal,
+            restore=restore,
+            unban=unban,
+            unblock=unblock,
+            user=user,
+        ).to_dict()
+        return await self.post(
+            "/api/v2/moderation/appeals/bulk_action",
+            BulkActionAppealsResponse,
+            json=json,
+        )
+
     @telemetry.operation_name("getstream.api.moderation.ban")
     async def ban(
         self,
@@ -223,7 +285,7 @@ class ModerationRestClient(AsyncBaseClient):
         shadow: Optional[bool] = None,
         timeout: Optional[int] = None,
         banned_by: Optional[UserRequest] = None,
-    ) -> StreamResponse[BanResponse]:
+    ) -> StreamResponse[ModerationBanResponse]:
         json = BanRequest(
             target_user_id=target_user_id,
             banned_by_id=banned_by_id,
@@ -235,7 +297,9 @@ class ModerationRestClient(AsyncBaseClient):
             timeout=timeout,
             banned_by=banned_by,
         ).to_dict()
-        return await self.post("/api/v2/moderation/ban", BanResponse, json=json)
+        return await self.post(
+            "/api/v2/moderation/ban", ModerationBanResponse, json=json
+        )
 
     @telemetry.operation_name("getstream.api.moderation.bulk_image_moderation")
     async def bulk_image_moderation(
@@ -314,6 +378,7 @@ class ModerationRestClient(AsyncBaseClient):
         aws_rekognition_config: Optional[AIImageConfig] = None,
         block_list_config: Optional[BlockListConfig] = None,
         bodyguard_config: Optional[AITextConfig] = None,
+        flood_config: Optional[FloodConfig] = None,
         google_vision_config: Optional[GoogleVisionConfig] = None,
         llm_config: Optional[LLMConfig] = None,
         rule_builder_config: Optional[RuleBuilderConfig] = None,
@@ -335,6 +400,7 @@ class ModerationRestClient(AsyncBaseClient):
             aws_rekognition_config=aws_rekognition_config,
             block_list_config=block_list_config,
             bodyguard_config=bodyguard_config,
+            flood_config=flood_config,
             google_vision_config=google_vision_config,
             llm_config=llm_config,
             rule_builder_config=rule_builder_config,
@@ -464,7 +530,7 @@ class ModerationRestClient(AsyncBaseClient):
         custom: Optional[Dict[str, object]] = None,
         moderation_payload: Optional[ModerationPayload] = None,
         user: Optional[UserRequest] = None,
-    ) -> StreamResponse[FlagResponse]:
+    ) -> StreamResponse[FlagItemResponse]:
         json = FlagRequest(
             entity_id=entity_id,
             entity_type=entity_type,
@@ -475,7 +541,7 @@ class ModerationRestClient(AsyncBaseClient):
             moderation_payload=moderation_payload,
             user=user,
         ).to_dict()
-        return await self.post("/api/v2/moderation/flag", FlagResponse, json=json)
+        return await self.post("/api/v2/moderation/flag", FlagItemResponse, json=json)
 
     @telemetry.operation_name("getstream.api.moderation.get_flag_count")
     async def get_flag_count(
@@ -715,6 +781,24 @@ class ModerationRestClient(AsyncBaseClient):
             "/api/v2/moderation/review_queue/{id}",
             GetReviewQueueItemResponse,
             path_params=path_params,
+        )
+
+    @telemetry.operation_name("getstream.api.moderation.get_setup_session")
+    async def get_setup_session(self) -> StreamResponse[GetSetupSessionResponse]:
+        return await self.get("/api/v2/moderation/setup", GetSetupSessionResponse)
+
+    @telemetry.operation_name("getstream.api.moderation.upsert_setup_session")
+    async def upsert_setup_session(
+        self,
+        current_step: str,
+        status: str,
+        setup_data: Optional[Dict[str, object]] = None,
+    ) -> StreamResponse[UpsertSetupSessionResponse]:
+        json = UpsertSetupSessionRequest(
+            current_step=current_step, status=status, setup_data=setup_data
+        ).to_dict()
+        return await self.post(
+            "/api/v2/moderation/setup", UpsertSetupSessionResponse, json=json
         )
 
     @telemetry.operation_name("getstream.api.moderation.submit_action")

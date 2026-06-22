@@ -143,7 +143,9 @@ from .models import (
     MessageUpdatedEvent,
     ModerationCustomActionEvent,
     ModerationFlaggedEvent,
+    ModerationImageAnalysisCompleteEvent,
     ModerationMarkReviewedEvent,
+    ModerationTextAnalysisCompleteEvent,
     ModerationCheckCompletedEvent,
     ModerationRulesTriggeredEvent,
     NotificationMarkUnreadEvent,
@@ -316,7 +318,9 @@ EVENT_TYPE_MESSAGE_UNDELETED = "message.undeleted"
 EVENT_TYPE_MESSAGE_UPDATED = "message.updated"
 EVENT_TYPE_MODERATION_CUSTOM_ACTION = "moderation.custom_action"
 EVENT_TYPE_MODERATION_FLAGGED = "moderation.flagged"
+EVENT_TYPE_MODERATION_IMAGE_ANALYSIS_COMPLETE = "moderation.image_analysis.complete"
 EVENT_TYPE_MODERATION_MARK_REVIEWED = "moderation.mark_reviewed"
+EVENT_TYPE_MODERATION_TEXT_ANALYSIS_COMPLETE = "moderation.text_analysis.complete"
 EVENT_TYPE_MODERATION_CHECK_COMPLETED = "moderation_check.completed"
 EVENT_TYPE_MODERATION_RULE_TRIGGERED = "moderation_rule.triggered"
 EVENT_TYPE_NOTIFICATION_MARK_UNREAD = "notification.mark_unread"
@@ -579,7 +583,9 @@ def _get_event_class(event_type: str):
         "message.updated": MessageUpdatedEvent,
         "moderation.custom_action": ModerationCustomActionEvent,
         "moderation.flagged": ModerationFlaggedEvent,
+        "moderation.image_analysis.complete": ModerationImageAnalysisCompleteEvent,
         "moderation.mark_reviewed": ModerationMarkReviewedEvent,
+        "moderation.text_analysis.complete": ModerationTextAnalysisCompleteEvent,
         "moderation_check.completed": ModerationCheckCompletedEvent,
         "moderation_rule.triggered": ModerationRulesTriggeredEvent,
         "notification.mark_unread": NotificationMarkUnreadEvent,
