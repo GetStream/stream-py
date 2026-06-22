@@ -906,11 +906,23 @@ class TestParseWebhookEvent:
             event = parse_webhook_event({"type": "moderation.flagged"})
         assert type(event).__name__ == "ModerationFlaggedEvent"
 
+    def test_parse_moderation_image_analysis_complete(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            event = parse_webhook_event({"type": "moderation.image_analysis.complete"})
+        assert type(event).__name__ == "ModerationImageAnalysisCompleteEvent"
+
     def test_parse_moderation_mark_reviewed(self):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", RuntimeWarning)
             event = parse_webhook_event({"type": "moderation.mark_reviewed"})
         assert type(event).__name__ == "ModerationMarkReviewedEvent"
+
+    def test_parse_moderation_text_analysis_complete(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            event = parse_webhook_event({"type": "moderation.text_analysis.complete"})
+        assert type(event).__name__ == "ModerationTextAnalysisCompleteEvent"
 
     def test_parse_moderation_check_completed(self):
         with warnings.catch_warnings():

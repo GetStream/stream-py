@@ -70,6 +70,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Conformance fixture suite under `tests/fixtures/webhooks/` (13 happy-path
   event directories + 8 negative cases) for SDK conformance testing across
   language ports.
+- Regenerated from the latest chat OpenAPI spec. New endpoints: `moderation.analyze`,
+  `moderation.bulk_action_appeals`, `moderation.get_setup_session`,
+  `moderation.upsert_setup_session`; `feeds.get_or_create_follow`,
+  `feeds.get_or_create_unfollow`, `feeds.get_user_interests`; `chat.create_segment`,
+  `chat.update_segment`, `chat.add_segment_targets`; `common.cancel_import_v2_task`;
+  `video.report_client_call_event`, together with the request/response models backing them.
+- New webhook event types `moderation.image_analysis.complete` and
+  `moderation.text_analysis.complete`, with `ModerationImageAnalysisCompleteEvent`
+  and `ModerationTextAnalysisCompleteEvent` models.
 
 ### Changed
 
@@ -82,6 +91,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Default HTTP transport now caps connections per host at `5` and closes idle sockets after `55.0s`. Previous default was httpx's `100` max-connections with `5.0s` keep-alive expiry.
 - No breaking changes. All existing webhook helpers (`verify_webhook_signature`,
   `parse_webhook_event`, `get_event_type`, event type constants) are preserved.
+- `FlagResponse` now represents the full flag record (`created_at`, `updated_at`,
+  `target_message`, `target_user`, `user`, `reason`, `details`, `custom`, and related
+  fields). The moderation flag-action acknowledgement, which carries `item_id` and
+  `duration`, moved to the new `FlagItemResponse`; `moderation.flag()` now returns
+  `FlagItemResponse`. The `/api/v2/moderation/flag` wire response is unchanged, so code
+  reading `item_id`/`duration` off the parsed response is unaffected. Code referencing
+  the `FlagResponse` type for those two fields should switch to `FlagItemResponse`.
+- `ChannelInput.config_overrides` and `ChannelDataUpdate.config_overrides` are now typed
+  as `ChannelConfigOverrides` (the override-specific field set) instead of `ChannelConfig`.
+- `enabled` on `DeliveryReceiptsResponse`, `ReadReceiptsResponse`, and
+  `TypingIndicatorsResponse` is now a required `bool` (was `Optional[bool]`).
+- `LLMRule.description`, `TargetResolution.bitrate`, and `TranslationSettings.languages` /
+  `TranslationSettings.enabled` are now optional.
 
 ### Deprecated
 

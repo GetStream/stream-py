@@ -40,6 +40,7 @@ class CommonRestClient(BaseClient):
         self,
         async_url_enrich_enabled: Optional[bool] = None,
         auto_translation_enabled: Optional[bool] = None,
+        before_message_send_hook_attempt_timeout_ms: Optional[int] = None,
         before_message_send_hook_url: Optional[str] = None,
         cdn_expiration_seconds: Optional[int] = None,
         channel_hide_members_only: Optional[bool] = None,
@@ -56,6 +57,7 @@ class CommonRestClient(BaseClient):
         migrate_permissions_to_v2: Optional[bool] = None,
         moderation_analytics_enabled: Optional[bool] = None,
         moderation_enabled: Optional[bool] = None,
+        moderation_onboarding_complete: Optional[bool] = None,
         moderation_s3_image_access_role_arn: Optional[str] = None,
         moderation_webhook_url: Optional[str] = None,
         multi_tenant_enabled: Optional[bool] = None,
@@ -70,6 +72,7 @@ class CommonRestClient(BaseClient):
         sqs_secret: Optional[str] = None,
         sqs_url: Optional[str] = None,
         user_response_time_enabled: Optional[bool] = None,
+        video_primary_use_case: Optional[str] = None,
         webhook_url: Optional[str] = None,
         allowed_flag_reasons: Optional[List[str]] = None,
         event_hooks: Optional[List[EventHook]] = None,
@@ -95,6 +98,7 @@ class CommonRestClient(BaseClient):
         json = UpdateAppRequest(
             async_url_enrich_enabled=async_url_enrich_enabled,
             auto_translation_enabled=auto_translation_enabled,
+            before_message_send_hook_attempt_timeout_ms=before_message_send_hook_attempt_timeout_ms,
             before_message_send_hook_url=before_message_send_hook_url,
             cdn_expiration_seconds=cdn_expiration_seconds,
             channel_hide_members_only=channel_hide_members_only,
@@ -111,6 +115,7 @@ class CommonRestClient(BaseClient):
             migrate_permissions_to_v2=migrate_permissions_to_v2,
             moderation_analytics_enabled=moderation_analytics_enabled,
             moderation_enabled=moderation_enabled,
+            moderation_onboarding_complete=moderation_onboarding_complete,
             moderation_s3_image_access_role_arn=moderation_s3_image_access_role_arn,
             moderation_webhook_url=moderation_webhook_url,
             multi_tenant_enabled=multi_tenant_enabled,
@@ -125,6 +130,7 @@ class CommonRestClient(BaseClient):
             sqs_secret=sqs_secret,
             sqs_url=sqs_url,
             user_response_time_enabled=user_response_time_enabled,
+            video_primary_use_case=video_primary_use_case,
             webhook_url=webhook_url,
             allowed_flag_reasons=allowed_flag_reasons,
             event_hooks=event_hooks,
@@ -161,16 +167,20 @@ class CommonRestClient(BaseClient):
         self,
         name: str,
         words: List[str],
+        is_confusable_folding_enabled: Optional[bool] = None,
         is_leet_check_enabled: Optional[bool] = None,
         is_plural_check_enabled: Optional[bool] = None,
+        is_substring_matching_enabled: Optional[bool] = None,
         team: Optional[str] = None,
         type: Optional[str] = None,
     ) -> StreamResponse[CreateBlockListResponse]:
         json = CreateBlockListRequest(
             name=name,
             words=words,
+            is_confusable_folding_enabled=is_confusable_folding_enabled,
             is_leet_check_enabled=is_leet_check_enabled,
             is_plural_check_enabled=is_plural_check_enabled,
+            is_substring_matching_enabled=is_substring_matching_enabled,
             team=team,
             type=type,
         ).to_dict()
@@ -210,8 +220,10 @@ class CommonRestClient(BaseClient):
     def update_block_list(
         self,
         name: str,
+        is_confusable_folding_enabled: Optional[bool] = None,
         is_leet_check_enabled: Optional[bool] = None,
         is_plural_check_enabled: Optional[bool] = None,
+        is_substring_matching_enabled: Optional[bool] = None,
         team: Optional[str] = None,
         words: Optional[List[str]] = None,
     ) -> StreamResponse[UpdateBlockListResponse]:
@@ -219,8 +231,10 @@ class CommonRestClient(BaseClient):
             "name": name,
         }
         json = UpdateBlockListRequest(
+            is_confusable_folding_enabled=is_confusable_folding_enabled,
             is_leet_check_enabled=is_leet_check_enabled,
             is_plural_check_enabled=is_plural_check_enabled,
+            is_substring_matching_enabled=is_substring_matching_enabled,
             team=team,
             words=words,
         ).to_dict()
@@ -304,6 +318,7 @@ class CommonRestClient(BaseClient):
         self,
         id: str,
         push_provider: str,
+        hardware_id: Optional[str] = None,
         push_provider_name: Optional[str] = None,
         user_id: Optional[str] = None,
         voip_token: Optional[bool] = None,
@@ -312,6 +327,7 @@ class CommonRestClient(BaseClient):
         json = CreateDeviceRequest(
             id=id,
             push_provider=push_provider,
+            hardware_id=hardware_id,
             push_provider_name=push_provider_name,
             user_id=user_id,
             voip_token=voip_token,
@@ -510,6 +526,19 @@ class CommonRestClient(BaseClient):
         }
         return self.get(
             "/api/v2/imports/v2/{id}", GetImportV2TaskResponse, path_params=path_params
+        )
+
+    @telemetry.operation_name("getstream.api.common.cancel_import_v2_task")
+    def cancel_import_v2_task(
+        self, id: str
+    ) -> StreamResponse[CancelImportV2TaskResponse]:
+        path_params = {
+            "id": id,
+        }
+        return self.post(
+            "/api/v2/imports/v2/{id}/cancel",
+            CancelImportV2TaskResponse,
+            path_params=path_params,
         )
 
     @telemetry.operation_name("getstream.api.common.get_import")

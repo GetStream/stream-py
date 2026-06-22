@@ -968,6 +968,15 @@ class VideoRestClient(AsyncBaseClient):
             path_params=path_params,
         )
 
+    @telemetry.operation_name("getstream.api.video.report_client_call_event")
+    async def report_client_call_event(
+        self, events: List[ClientEvent]
+    ) -> StreamResponse[ReportClientEventResponse]:
+        json = ReportClientEventRequest(events=events).to_dict()
+        return await self.post(
+            "/api/v2/video/call_client_event", ReportClientEventResponse, json=json
+        )
+
     @telemetry.operation_name("getstream.api.video.query_call_session_stats")
     async def query_call_session_stats(
         self,

@@ -1249,6 +1249,7 @@ class FeedsRestClient(BaseClient):
         id_around: Optional[str] = None,
         limit: Optional[int] = None,
         next: Optional[str] = None,
+        overwrite_interest_weights: Optional[bool] = None,
         prev: Optional[str] = None,
         user_id: Optional[str] = None,
         view: Optional[str] = None,
@@ -1272,6 +1273,7 @@ class FeedsRestClient(BaseClient):
             id_around=id_around,
             limit=limit,
             next=next,
+            overwrite_interest_weights=overwrite_interest_weights,
             prev=prev,
             user_id=user_id,
             view=view,
@@ -2023,6 +2025,38 @@ class FeedsRestClient(BaseClient):
             "/api/v2/feeds/follows/reject", RejectFollowResponse, json=json
         )
 
+    @telemetry.operation_name("getstream.api.feeds.get_or_create_follow")
+    def get_or_create_follow(
+        self,
+        source: str,
+        target: str,
+        activity_copy_limit: Optional[int] = None,
+        copy_custom_to_notification: Optional[bool] = None,
+        create_notification_activity: Optional[bool] = None,
+        create_users: Optional[bool] = None,
+        enrich_own_fields: Optional[bool] = None,
+        push_preference: Optional[str] = None,
+        skip_push: Optional[bool] = None,
+        status: Optional[str] = None,
+        custom: Optional[Dict[str, object]] = None,
+    ) -> StreamResponse[GetOrCreateFollowResponse]:
+        json = FollowRequest(
+            source=source,
+            target=target,
+            activity_copy_limit=activity_copy_limit,
+            copy_custom_to_notification=copy_custom_to_notification,
+            create_notification_activity=create_notification_activity,
+            create_users=create_users,
+            enrich_own_fields=enrich_own_fields,
+            push_preference=push_preference,
+            skip_push=skip_push,
+            status=status,
+            custom=custom,
+        ).to_dict()
+        return self.post(
+            "/api/v2/feeds/follows/upsert", GetOrCreateFollowResponse, json=json
+        )
+
     @telemetry.operation_name("getstream.api.feeds.unfollow")
     def unfollow(
         self,
@@ -2183,6 +2217,26 @@ class FeedsRestClient(BaseClient):
             "/api/v2/feeds/unfollow/batch/upsert", UnfollowBatchResponse, json=json
         )
 
+    @telemetry.operation_name("getstream.api.feeds.get_or_create_unfollow")
+    def get_or_create_unfollow(
+        self,
+        source: str,
+        target: str,
+        delete_notification_activity: Optional[bool] = None,
+        enrich_own_fields: Optional[bool] = None,
+        keep_history: Optional[bool] = None,
+    ) -> StreamResponse[GetOrCreateUnfollowResponse]:
+        json = GetOrCreateUnfollowRequest(
+            source=source,
+            target=target,
+            delete_notification_activity=delete_notification_activity,
+            enrich_own_fields=enrich_own_fields,
+            keep_history=keep_history,
+        ).to_dict()
+        return self.post(
+            "/api/v2/feeds/unfollow/upsert", GetOrCreateUnfollowResponse, json=json
+        )
+
     @telemetry.operation_name("getstream.api.feeds.delete_feed_user_data")
     def delete_feed_user_data(
         self, user_id: str, hard_delete: Optional[bool] = None
@@ -2208,5 +2262,20 @@ class FeedsRestClient(BaseClient):
         return self.post(
             "/api/v2/feeds/users/{user_id}/export",
             ExportFeedUserDataResponse,
+            path_params=path_params,
+        )
+
+    @telemetry.operation_name("getstream.api.feeds.get_user_interests")
+    def get_user_interests(
+        self, user_id: str, limit: Optional[int] = None
+    ) -> StreamResponse[GetUserInterestsResponse]:
+        query_params = build_query_param(**{"limit": limit})
+        path_params = {
+            "user_id": user_id,
+        }
+        return self.get(
+            "/api/v2/feeds/users/{user_id}/interests",
+            GetUserInterestsResponse,
+            query_params=query_params,
             path_params=path_params,
         )
