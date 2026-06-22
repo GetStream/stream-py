@@ -64,13 +64,9 @@ jobs:
         if: github.event_name == 'pull_request' && steps.already_released.outputs.value != 'true'
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
-          PR_BODY: ${{ github.event.pull_request.body }}
         run: |
-          PR_BODY_FILE=$(mktemp)
-          printf '%s' "$PR_BODY" > "$PR_BODY_FILE"
           python3 scripts/release/bump_version.py \
             --title "$PR_TITLE" \
-            --body-file "$PR_BODY_FILE" \
             --output "$GITHUB_OUTPUT"
 
       - name: Determine version bump (manual)
