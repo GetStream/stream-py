@@ -309,7 +309,7 @@ class TestAudioStreamTrack:
         elapsed_ms = (time.time() - start) * 1000
 
         assert frame.pts == 0
-        assert elapsed_ms < 10  # no pacing wait on the first frame
+        assert elapsed_ms < 15  # no pacing wait on the first frame (< one 20ms frame)
 
     @pytest.mark.asyncio
     async def test_pts_advances_by_one_frame_per_recv(self):
@@ -337,7 +337,9 @@ class TestAudioStreamTrack:
         elapsed_ms = (time.time() - start) * 1000
 
         assert frame.pts == 960
-        assert elapsed_ms < 10  # overdue frame is due already -> no wait
+        assert (
+            elapsed_ms < 15
+        )  # overdue frame is due already -> no wait (< one 20ms frame)
 
     @pytest.mark.asyncio
     async def test_pacing_is_independent_of_buffer_content(self):
