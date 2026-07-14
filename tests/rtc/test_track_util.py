@@ -8,6 +8,7 @@ from getstream.video.rtc.track_util import (
     AudioTrackHandler,
     PcmData,
     AudioFormat,
+    FrameResampler,
 )
 import getstream.video.rtc.track_util as track_util
 
@@ -946,3 +947,107 @@ class TestPcmDataHeadTail:
         result_new = pcm_exact.tail(duration_s=8.0, pad=True, pad_at="start")
 
         np.testing.assert_array_equal(result_new.samples, result_original)
+
+
+SINE_FREQ = 1000.0
+
+
+def _sine_chunks(
+    freq: float,
+    sample_rate: int,
+    total_ms: int,
+    chunk_ms: int = 20,
+    amplitude: int = 10000,
+) -> list[PcmData]:
+    n_total = int(sample_rate * total_ms / 1000)
+    t = np.arange(n_total) / sample_rate
+    wave = (amplitude * np.sin(2 * np.pi * freq * t)).astype(np.int16)
+    chunk = int(sample_rate * chunk_ms / 1000)
+    return [
+        PcmData(
+            samples=wave[i : i + chunk],
+            sample_rate=sample_rate,
+            format="s16",
+            channels=1,
+        )
+        for i in range(0, n_total, chunk)
+        if len(wave[i : i + chunk]) == chunk
+    ]
+
+
+def _silence_chunk(sample_rate: int, chunk_ms: int = 20) -> PcmData:
+    n = int(sample_rate * chunk_ms / 1000)
+    return PcmData(
+        samples=np.zeros(n, dtype=np.int16),
+        sample_rate=sample_rate,
+        format="s16",
+        channels=1,
+    )
+
+
+def _frames_samples(frames: list) -> np.ndarray:
+    if not frames:
+        return np.array([], dtype=np.int16)
+    return np.concatenate([f.to_ndarray().reshape(-1) for f in frames])
+
+
+class TestFrameResampler:
+    @pytest.fixture
+    def resampler(self) -> FrameResampler:
+        return FrameResampler(rate=48000, layout="mono", format="s16", frame_size=0)
+
+    def test_resample_preserves_tone_at_target_rate(self, resampler):
+        out = [
+            _frames_samples(resampler.resample(chunk))
+            for chunk in _sine_chunks(SINE_FREQ, 24000, total_ms=200)
+        ]
+        signal = np.concatenate(out).astype(np.float64)
+        signal = signal[: np.nonzero(np.abs(signal) > 1)[0][-1] + 1]
+
+        spectrum = np.abs(np.fft.rfft(signal * np.hanning(len(signal))))
+        freqs = np.fft.rfftfreq(len(signal), 1 / 48000)
+        assert abs(freqs[np.argmax(spectrum)] - SINE_FREQ) < 20
+
+    def test_matched_rate_is_passed_through(self, resampler):
+        # The resampler targets 48000 mono s16; a chunk already at that rate needs no
+        # resampling and comes back unchanged (same-rate swr is a lossless passthrough).
+        chunk = _sine_chunks(SINE_FREQ, 48000, total_ms=20)[0]
+        out = _frames_samples(resampler.resample(chunk))
+        assert np.array_equal(out, chunk.samples.reshape(-1))
+
+    def test_flush_returns_tail_then_resets(self, resampler):
+        for chunk in _sine_chunks(SINE_FREQ, 24000, total_ms=200):
+            resampler.resample(chunk)
+
+        assert len(resampler.flush()) > 0
+        assert resampler.flush() == []
+
+    def test_resample_is_usable_after_flush(self, resampler):
+        chunks = _sine_chunks(SINE_FREQ, 24000, total_ms=100)
+        for chunk in chunks:
+            resampler.resample(chunk)
+        resampler.flush()
+
+        # swr is at EOF after a flush; the wrapper must rebuild, not raise EOFError.
+        produced = _frames_samples(
+            [frame for chunk in chunks for frame in resampler.resample(chunk)]
+        )
+        assert produced.size > 0
+
+    def test_rebuilds_on_input_rate_change(self, resampler):
+        at_24k = _frames_samples(
+            [
+                frame
+                for chunk in _sine_chunks(SINE_FREQ, 24000, total_ms=100)
+                for frame in resampler.resample(chunk)
+            ]
+        )
+        at_16k = _frames_samples(
+            [
+                frame
+                for chunk in _sine_chunks(SINE_FREQ, 16000, total_ms=100)
+                for frame in resampler.resample(chunk)
+            ]
+        )
+        assert at_24k.size > 0
+        assert at_16k.size > 0

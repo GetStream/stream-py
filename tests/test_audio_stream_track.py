@@ -1,11 +1,37 @@
 import asyncio
 import time
-import pytest
+
+import aiortc
 import numpy as np
+import pytest
 
 from getstream.video.rtc.audio_track import AudioStreamTrack
-from getstream.video.rtc.track_util import PcmData, AudioFormat
-import aiortc
+from getstream.video.rtc.track_util import AudioFormat, PcmData
+
+SINE_FREQ = 1000.0
+
+
+def _sine_chunks(
+    freq: float,
+    sample_rate: int,
+    total_ms: int,
+    chunk_ms: int = 20,
+    amplitude: int = 10000,
+) -> list[PcmData]:
+    n_total = int(sample_rate * total_ms / 1000)
+    t = np.arange(n_total) / sample_rate
+    wave = (amplitude * np.sin(2 * np.pi * freq * t)).astype(np.int16)
+    chunk = int(sample_rate * chunk_ms / 1000)
+    return [
+        PcmData(
+            samples=wave[i : i + chunk],
+            sample_rate=sample_rate,
+            format="s16",
+            channels=1,
+        )
+        for i in range(0, n_total, chunk)
+        if len(wave[i : i + chunk]) == chunk
+    ]
 
 
 class TestAudioStreamTrack:
@@ -27,12 +53,12 @@ class TestAudioStreamTrack:
         track = AudioStreamTrack(
             sample_rate=16000,
             channels=2,
-            format="f32",
+            format="s16",
             audio_buffer_size_ms=10000,
         )
         assert track.sample_rate == 16000
         assert track.channels == 2
-        assert track.format == "f32"
+        assert track.format == "s16"
         assert track.audio_buffer_size_ms == 10000
 
     @pytest.mark.asyncio
@@ -65,32 +91,38 @@ class TestAudioStreamTrack:
         assert frame2.sample_rate == 48000
         assert frame2.samples == 960
 
+    def test_rejects_f32_output(self):
+        """Output format must be s16; f32 is rejected at construction."""
+        with pytest.raises(ValueError):
+            AudioStreamTrack(format="f32")
+
     @pytest.mark.asyncio
     async def test_format_conversion(self):
-        """Test that write converts formats correctly."""
-        track = AudioStreamTrack(sample_rate=48000, channels=1, format="f32")
+        """Test that write converts input to the track's s16 output format."""
+        track = AudioStreamTrack(sample_rate=48000, channels=1, format="s16")
 
-        # Write s16 data to f32 track
-        samples = np.array([100, 200, 300], dtype=np.int16)
+        # Write a full 20ms of f32 input at half scale.
         pcm = PcmData(
-            samples=samples,
+            samples=np.full(960, 0.5, dtype=np.float32),
             sample_rate=48000,
-            format=AudioFormat.S16,
+            format=AudioFormat.F32,
             channels=1,
         )
 
         await track.write(pcm)
 
-        # Check that buffer contains f32 data
-        assert track._bytes_per_sample == 4  # f32 = 4 bytes
+        # The emitted frame is s16 with the f32 value scaled into the int16 range.
+        frame = await track.recv()
+        assert frame.format.name == "s16"
+        assert 15000 < int(np.max(frame.to_ndarray())) < 17000  # ~0.5 * 32767
 
     @pytest.mark.asyncio
     async def test_sample_rate_conversion(self):
-        """Test that write resamples audio correctly."""
+        """Test that write resamples audio to the track's output rate."""
         track = AudioStreamTrack(sample_rate=48000, channels=1, format="s16")
 
-        # Write 16kHz data to 48kHz track
-        samples_16k = np.zeros(320, dtype=np.int16)  # 20ms at 16kHz
+        # 20ms at 16kHz = 320 samples; upsampled to 48kHz that is one 960-sample frame.
+        samples_16k = np.zeros(320, dtype=np.int16)
         pcm = PcmData(
             samples=samples_16k,
             sample_rate=16000,
@@ -100,14 +132,14 @@ class TestAudioStreamTrack:
 
         await track.write(pcm)
 
-        # After resampling, we should have 3x more samples (960 samples)
-        expected_bytes = 960 * 2  # 960 samples * 2 bytes per s16 sample
-        assert len(track._buffer) == expected_bytes
+        frame = await track.recv()
+        assert frame.sample_rate == 48000
+        assert frame.samples == 960  # 320 samples @16kHz -> 960 @48kHz
 
     @pytest.mark.asyncio
     async def test_channel_conversion(self):
         """Test mono to stereo and stereo to mono conversion."""
-        # Test mono to stereo
+        # Mono input to a stereo track -> stereo output frame.
         track_stereo = AudioStreamTrack(sample_rate=48000, channels=2, format="s16")
 
         samples_mono = np.zeros(960, dtype=np.int16)  # 20ms mono
@@ -120,11 +152,11 @@ class TestAudioStreamTrack:
 
         await track_stereo.write(pcm_mono)
 
-        # Should have doubled the data for stereo
-        expected_bytes = 960 * 2 * 2  # samples * bytes_per_sample * channels
-        assert len(track_stereo._buffer) == expected_bytes
+        frame = await track_stereo.recv()
+        assert len(frame.layout.channels) == 2
+        assert frame.samples == 960
 
-        # Test stereo to mono
+        # Stereo input to a mono track -> mono output frame.
         track_mono = AudioStreamTrack(sample_rate=48000, channels=1, format="s16")
 
         samples_stereo = np.zeros((2, 960), dtype=np.int16)  # 20ms stereo
@@ -137,21 +169,21 @@ class TestAudioStreamTrack:
 
         await track_mono.write(pcm_stereo)
 
-        # Should have halved the data for mono
-        expected_bytes = 960 * 2  # samples * bytes_per_sample
-        assert len(track_mono._buffer) == expected_bytes
+        frame = await track_mono.recv()
+        assert len(frame.layout.channels) == 1
+        assert frame.samples == 960
 
     @pytest.mark.asyncio
     async def test_buffer_overflow(self):
-        """Test that buffer drops old data when it exceeds max size."""
-        # Set small buffer size for testing (100ms)
+        """Test that the buffer drops old data when it exceeds max size."""
+        # 100ms cap holds at most five 20ms frames.
         track = AudioStreamTrack(
             sample_rate=48000, channels=1, format="s16", audio_buffer_size_ms=100
         )
 
-        # Try to write 200ms of data
+        # Write 200ms (ten 20ms frames) of non-zero audio; the cap must drop the oldest.
         samples_200ms = int(0.2 * 48000)  # 9600 samples
-        audio_data = np.zeros(samples_200ms, dtype=np.int16)
+        audio_data = np.full(samples_200ms, 100, dtype=np.int16)
         pcm = PcmData(
             samples=audio_data,
             sample_rate=48000,
@@ -161,10 +193,13 @@ class TestAudioStreamTrack:
 
         await track.write(pcm)
 
-        # Buffer should only contain 100ms worth of data
-        max_samples = int(0.1 * 48000)  # 4800 samples
-        max_bytes = max_samples * 2  # * 2 bytes per s16 sample
-        assert len(track._buffer) == max_bytes
+        # Only the last 100ms survives: five frames carry data, the rest are silence.
+        data_frames = 0
+        for _ in range(8):
+            frame = await track.recv()
+            if np.any(frame.to_ndarray() != 0):
+                data_frames += 1
+        assert data_frames == 5
 
     @pytest.mark.asyncio
     async def test_silence_emission(self):
@@ -180,38 +215,48 @@ class TestAudioStreamTrack:
         assert np.all(audio_data == 0)
 
     @pytest.mark.asyncio
-    async def test_partial_frame_padding(self):
-        """Test that partial frames are padded with silence."""
-        track = AudioStreamTrack(sample_rate=48000, channels=1, format="s16")
-
-        # Write only 10ms of data (480 samples)
-        samples_10ms = int(0.01 * 48000)
-        audio_data = np.ones(samples_10ms, dtype=np.int16) * 100  # Non-zero data
-        pcm = PcmData(
-            samples=audio_data,
-            sample_rate=48000,
-            format=AudioFormat.S16,
-            channels=1,
+    async def test_partial_frame_buffered_until_flush(self):
+        """Sub-frame writes are held; a final flush emits them, padded by recv to a full frame."""
+        # Without a final flush, a sub-frame write (10ms) emits nothing.
+        held = AudioStreamTrack(sample_rate=48000, channels=1, format="s16")
+        await held.write(
+            PcmData(
+                samples=np.full(480, 100, dtype=np.int16),
+                sample_rate=48000,
+                format=AudioFormat.S16,
+                channels=1,
+            )
         )
+        starved = await held.recv()
+        assert np.all(
+            starved.to_ndarray() == 0
+        )  # partial held -> recv starves to silence
 
-        await track.write(pcm)
-
-        # Receive 20ms frame
-        frame = await track.recv()
-        assert frame.samples == 960  # Full 20ms frame
-
-        # Check that first half has data and second half is silence
-        audio_array = frame.to_ndarray()
-        assert np.any(audio_array[:480] != 0)  # First 10ms has data
-        assert np.all(audio_array[480:] == 0)  # Last 10ms is silence
+        # With final=True the buffered partial is flushed; recv pads it to a full 20ms
+        # frame: the first 10ms carries the data, the last 10ms is silence.
+        flushed = AudioStreamTrack(sample_rate=48000, channels=1, format="s16")
+        await flushed.write(
+            PcmData(
+                samples=np.full(480, 100, dtype=np.int16),
+                sample_rate=48000,
+                format=AudioFormat.S16,
+                channels=1,
+            ),
+            final=True,
+        )
+        frame = await flushed.recv()
+        assert frame.samples == 960
+        audio = frame.to_ndarray().flatten()
+        assert np.all(audio[:480] != 0)  # flushed data
+        assert np.all(audio[480:] == 0)  # silence padding
 
     @pytest.mark.asyncio
     async def test_flush(self):
-        """Test that flush clears the buffer."""
+        """Test that flush drops pending audio so recv falls back to silence."""
         track = AudioStreamTrack(sample_rate=48000, channels=1, format="s16")
 
-        # Write some data
-        samples = np.zeros(960, dtype=np.int16)
+        # Buffer 40ms of non-zero audio (two frames).
+        samples = np.full(1920, 100, dtype=np.int16)
         pcm = PcmData(
             samples=samples,
             sample_rate=48000,
@@ -220,14 +265,10 @@ class TestAudioStreamTrack:
         )
         await track.write(pcm)
 
-        # Verify data is in buffer
-        assert len(track._buffer) > 0
-
-        # Flush
+        # Flush drops the buffered frames; the next recv is synthesized silence.
         await track.flush()
-
-        # Verify buffer is empty
-        assert len(track._buffer) == 0
+        frame = await track.recv()
+        assert np.all(frame.to_ndarray() == 0)
 
     @pytest.mark.asyncio
     async def test_frame_timing(self, monkeypatch):
@@ -257,6 +298,57 @@ class TestAudioStreamTrack:
             interval_ms = (frame_times[i] - frame_times[i - 1]) * 1000
             # Allow reasonable tolerance for asyncio.sleep() accuracy
             assert 15.0 <= interval_ms <= 25.0
+
+    @pytest.mark.asyncio
+    async def test_first_frame_is_immediate_and_pts_zero(self):
+        """The first recv anchors the clock: it returns without waiting, pts=0."""
+        track = AudioStreamTrack(sample_rate=48000, channels=1, format="s16")
+
+        start = time.time()
+        frame = await track.recv()
+        elapsed_ms = (time.time() - start) * 1000
+
+        assert frame.pts == 0
+        assert elapsed_ms < 10  # no pacing wait on the first frame
+
+    @pytest.mark.asyncio
+    async def test_pts_advances_by_one_frame_per_recv(self):
+        """Successive frames carry pts stepping by samples_per_frame (960 @48kHz)."""
+        track = AudioStreamTrack(sample_rate=48000, channels=1, format="s16")
+
+        pts = [(await track.recv()).pts for _ in range(4)]
+
+        assert pts == [0, 960, 1920, 2880]
+
+    @pytest.mark.asyncio
+    async def test_slow_consumer_does_not_accumulate_drift(self):
+        """A consumer that falls behind gets overdue frames immediately, not delayed.
+
+        Pacing anchors each pts to the start time, not the previous frame, so a stalled
+        consumer catches up rather than stretching the timeline.
+        """
+        track = AudioStreamTrack(sample_rate=48000, channels=1, format="s16")
+
+        await track.recv()  # anchor the clock at pts=0
+        await asyncio.sleep(0.1)  # fall ~5 frames behind
+
+        start = time.time()
+        frame = await track.recv()
+        elapsed_ms = (time.time() - start) * 1000
+
+        assert frame.pts == 960
+        assert elapsed_ms < 10  # overdue frame is due already -> no wait
+
+    @pytest.mark.asyncio
+    async def test_pacing_is_independent_of_buffer_content(self):
+        """Pacing advances even while starved: silence frames still step pts by a frame."""
+        track = AudioStreamTrack(sample_rate=48000, channels=1, format="s16")
+
+        # No write(): every recv starves to silence, but the clock keeps ticking.
+        frames = [await track.recv() for _ in range(3)]
+
+        assert [f.pts for f in frames] == [0, 960, 1920]
+        assert all(np.all(f.to_ndarray() == 0) for f in frames)
 
     @pytest.mark.asyncio
     async def test_continuous_streaming(self):
@@ -303,12 +395,14 @@ class TestAudioStreamTrack:
             assert frame.samples == 960
 
     @pytest.mark.asyncio
-    async def test_recv_does_not_reallocate_buffer(self):
-        """Test that recv consumes data in-place without creating a new buffer object."""
+    async def test_recv_consumes_frames_in_order(self):
+        """recv hands out buffered frames one at a time, in FIFO order, then starves."""
         track = AudioStreamTrack(sample_rate=48000, channels=1, format="s16")
 
-        # Write 40ms of data (enough for 2 frames)
-        samples = np.zeros(1920, dtype=np.int16)
+        # Two distinguishable 20ms frames: first all 100, then all 200.
+        samples = np.concatenate(
+            [np.full(960, 100, dtype=np.int16), np.full(960, 200, dtype=np.int16)]
+        )
         pcm = PcmData(
             samples=samples,
             sample_rate=48000,
@@ -317,55 +411,46 @@ class TestAudioStreamTrack:
         )
         await track.write(pcm)
 
-        buffer_ref = track._buffer  # save reference before recv
+        first = await track.recv()
+        second = await track.recv()
+        third = await track.recv()
 
-        # Receive a frame (consumes 20ms from buffer)
-        await track.recv()
-
-        assert track._buffer is buffer_ref, (
-            "recv should modify buffer in-place, not create a new one"
-        )
-        assert len(track._buffer) == 960 * 2, (
-            "should have 20ms of data remaining (960 samples * 2 bytes)"
-        )
+        assert np.all(first.to_ndarray() == 100)
+        assert np.all(second.to_ndarray() == 200)
+        assert np.all(third.to_ndarray() == 0)  # buffer drained -> silence
 
     @pytest.mark.asyncio
-    async def test_buffer_overflow_does_not_reallocate(self):
-        """Test that buffer overflow trims in-place without creating a new buffer object."""
+    async def test_buffer_overflow_drops_oldest_across_writes(self):
+        """Overflow across multiple writes drops the oldest frames, keeping the newest."""
         track = AudioStreamTrack(
             sample_rate=48000, channels=1, format="s16", audio_buffer_size_ms=100
         )
 
-        # Write 50ms of data first to get a buffer reference
-        samples_50ms = np.zeros(2400, dtype=np.int16)
-        pcm = PcmData(
-            samples=samples_50ms,
-            sample_rate=48000,
-            format=AudioFormat.S16,
-            channels=1,
+        # First 40ms (value 100), then 200ms (value 200); total far exceeds the 100ms cap.
+        await track.write(
+            PcmData(
+                samples=np.full(1920, 100, dtype=np.int16),
+                sample_rate=48000,
+                format=AudioFormat.S16,
+                channels=1,
+            )
         )
-        await track.write(pcm)
-        buffer_ref = track._buffer  # save reference before overflow
+        await track.write(
+            PcmData(
+                samples=np.full(9600, 200, dtype=np.int16),
+                sample_rate=48000,
+                format=AudioFormat.S16,
+                channels=1,
+            )
+        )
 
-        # Write 200ms of data (exceeds 100ms limit, triggers overflow trim)
-        samples_200ms = np.zeros(9600, dtype=np.int16)
-        pcm_large = PcmData(
-            samples=samples_200ms,
-            sample_rate=48000,
-            format=AudioFormat.S16,
-            channels=1,
-        )
-        await track.write(pcm_large)
-
-        assert track._buffer is buffer_ref, (
-            "overflow trim should modify buffer in-place, not create a new one"
-        )
-        max_buffer_seconds = 100 / 1000
-        bytes_per_sample = 2
-        expected_max_bytes = int(max_buffer_seconds * 48000) * bytes_per_sample
-        assert len(track._buffer) == expected_max_bytes, (
-            "buffer should be trimmed to configured max size"
-        )
+        # Only the newest five frames survive: all value 200, the older 100s were dropped.
+        values = []
+        for _ in range(6):
+            frame = await track.recv()
+            arr = frame.to_ndarray()
+            values.append(0 if np.all(arr == 0) else int(arr.flatten()[0]))
+        assert values == [200, 200, 200, 200, 200, 0]
 
     @pytest.mark.asyncio
     async def test_media_stream_error(self):
@@ -378,3 +463,24 @@ class TestAudioStreamTrack:
         # Try to receive - should raise error
         with pytest.raises(aiortc.mediastreams.MediaStreamError):
             await track.recv()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("src_rate, dst_rate", [(24000, 48000), (48000, 24000)])
+    async def test_resampling_is_high_quality(self, src_rate, dst_rate):
+        # A clean tone resampled up or down must stay clean: the fundamental should
+        # dominate, i.e. high SINAD. Linear interpolation lands around ~28 dB here.
+        track = AudioStreamTrack(sample_rate=dst_rate, channels=1)
+        for chunk in _sine_chunks(SINE_FREQ, src_rate, total_ms=500):
+            await track.write(chunk)
+        drained = np.concatenate(
+            [(await track.recv()).to_ndarray().reshape(-1) for _ in range(28)]
+        ).astype(np.float64)
+        drained = drained[: np.nonzero(np.abs(drained) > 1)[0][-1] + 1]
+
+        spectrum = np.abs(np.fft.rfft(drained * np.hanning(len(drained)))) ** 2
+        freqs = np.fft.rfftfreq(len(drained), 1 / dst_rate)
+        df = freqs[1] - freqs[0]
+        fundamental = spectrum[np.abs(freqs - SINE_FREQ) <= 4 * df].sum()
+        noise = spectrum.sum() - fundamental - spectrum[freqs < 30].sum()
+
+        assert 10 * np.log10(fundamental / noise) > 60
