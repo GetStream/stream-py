@@ -158,21 +158,22 @@ class _FramePacer:
     def __init__(self, sample_rate: int, samples_per_frame: int):
         self._sample_rate = sample_rate
         self._samples_per_frame = samples_per_frame
-        # Wall-clock anchor and monotonic sample cursor (= next pts); None until start.
+        # Monotonic clock anchor and sample cursor (= next pts); None until start.
         self._start: float | None = None
         self._ts: int | None = None
 
     async def next_pts(self) -> int:
         if self._ts is None:
             # First frame: anchor the clock and emit without waiting.
-            self._start = time.time()
+            self._start = time.monotonic()
             self._ts = 0
         else:
-            # Advance one frame and sleep until that wall-clock time. Anchoring to
-            # _start (not the previous frame) keeps drift from accumulating.
+            # Advance one frame and sleep until that time. Anchoring to _start
+            # (not the previous frame) keeps drift from accumulating. monotonic()
+            # is used so a wall-clock step (NTP, VM migration) can't stall pacing.
             self._ts += self._samples_per_frame
-            start = self._start or time.time()
-            wait = start + self._ts / self._sample_rate - time.time()
+            start = self._start or time.monotonic()
+            wait = start + self._ts / self._sample_rate - time.monotonic()
             if wait > 0:
                 await asyncio.sleep(wait)
         return self._ts
