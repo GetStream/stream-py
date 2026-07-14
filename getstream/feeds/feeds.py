@@ -30,6 +30,8 @@ class Feed:
 
     def get_or_create(
         self,
+        language: Optional[str] = None,
+        translate_text: Optional[bool] = None,
         id_around: Optional[str] = None,
         limit: Optional[int] = None,
         next: Optional[str] = None,
@@ -52,6 +54,8 @@ class Feed:
         response = self.client.get_or_create_feed(
             feed_group_id=self.feed_group,
             feed_id=self.id,
+            language=language,
+            translate_text=translate_text,
             id_around=id_around,
             limit=limit,
             next=next,
@@ -230,6 +234,8 @@ class Feed:
 
     def query_pinned_activities(
         self,
+        language: Optional[str] = None,
+        translate_text: Optional[bool] = None,
         enrich_own_fields: Optional[bool] = None,
         limit: Optional[int] = None,
         next: Optional[str] = None,
@@ -240,6 +246,8 @@ class Feed:
         response = self.client.query_pinned_activities(
             feed_group_id=self.feed_group,
             feed_id=self.id,
+            language=language,
+            translate_text=translate_text,
             enrich_own_fields=enrich_own_fields,
             limit=limit,
             next=next,

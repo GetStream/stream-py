@@ -86,6 +86,7 @@ from .models import (
     AsyncBulkImageModerationEvent,
     AsyncExportChannelsEvent,
     AsyncExportModerationLogsEvent,
+    AsyncExportReviewQueueEvent,
     AsyncExportErrorEvent,
     AsyncExportUsersEvent,
     ActivityAddedEvent,
@@ -261,6 +262,8 @@ EVENT_TYPE_EXPORT_CHANNELS_ERROR = "export.channels.error"
 EVENT_TYPE_EXPORT_CHANNELS_SUCCESS = "export.channels.success"
 EVENT_TYPE_EXPORT_MODERATION_LOGS_ERROR = "export.moderation_logs.error"
 EVENT_TYPE_EXPORT_MODERATION_LOGS_SUCCESS = "export.moderation_logs.success"
+EVENT_TYPE_EXPORT_REVIEW_QUEUE_ERROR = "export.review_queue.error"
+EVENT_TYPE_EXPORT_REVIEW_QUEUE_SUCCESS = "export.review_queue.success"
 EVENT_TYPE_EXPORT_USERS_ERROR = "export.users.error"
 EVENT_TYPE_EXPORT_USERS_SUCCESS = "export.users.success"
 EVENT_TYPE_FEEDS_ACTIVITY_ADDED = "feeds.activity.added"
@@ -526,6 +529,8 @@ def _get_event_class(event_type: str):
         "export.channels.success": AsyncExportChannelsEvent,
         "export.moderation_logs.error": AsyncExportErrorEvent,
         "export.moderation_logs.success": AsyncExportModerationLogsEvent,
+        "export.review_queue.error": AsyncExportErrorEvent,
+        "export.review_queue.success": AsyncExportReviewQueueEvent,
         "export.users.error": AsyncExportErrorEvent,
         "export.users.success": AsyncExportUsersEvent,
         "feeds.activity.added": ActivityAddedEvent,

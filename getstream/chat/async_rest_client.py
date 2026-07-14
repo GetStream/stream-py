@@ -353,6 +353,35 @@ class ChatRestClient(AsyncBaseClient):
             path_params=path_params,
         )
 
+    @telemetry.operation_name("getstream.api.chat.get_channel")
+    async def get_channel(
+        self,
+        type: str,
+        id: str,
+        state: Optional[bool] = None,
+        messages_limit: Optional[int] = None,
+        members_limit: Optional[int] = None,
+        watchers_limit: Optional[int] = None,
+    ) -> StreamResponse[ChannelStateResponse]:
+        query_params = build_query_param(
+            **{
+                "state": state,
+                "messages_limit": messages_limit,
+                "members_limit": members_limit,
+                "watchers_limit": watchers_limit,
+            }
+        )
+        path_params = {
+            "type": type,
+            "id": id,
+        }
+        return await self.get(
+            "/api/v2/chat/channels/{type}/{id}",
+            ChannelStateResponse,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
     @telemetry.operation_name("getstream.api.chat.update_channel_partial")
     async def update_channel_partial(
         self,
