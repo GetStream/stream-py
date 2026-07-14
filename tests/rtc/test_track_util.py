@@ -1082,3 +1082,23 @@ class TestFrameResampler:
 
         samples = np.concatenate([f.to_ndarray().flatten() for f in frames])
         assert np.any(samples == 100)  # the held tail survived the rebuild
+
+
+class TestToAvFrameNonContiguous:
+    """to_av_frame must accept non-contiguous sample arrays."""
+
+    def test_stereo_transposed_samples(self):
+        """(num_samples, channels) input hits the internal .T branch, which
+        produces a non-contiguous (channels, num_samples) view; it must convert."""
+        # Caller supplies interleaved (N, 2) samples; to_av_frame transposes.
+        samples = np.arange(8, dtype=np.int16).reshape(4, 2)
+        pcm = PcmData(
+            samples=samples, sample_rate=48000, format=AudioFormat.S16, channels=2
+        )
+
+        frame = pcm.to_av_frame()
+
+        assert frame.sample_rate == 48000
+        assert frame.layout.name == "stereo"
+        # Frame holds the transposed (channels, num_samples) data.
+        np.testing.assert_array_equal(frame.to_ndarray(), samples.T)

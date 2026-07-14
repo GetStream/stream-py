@@ -811,7 +811,11 @@ class PcmData:
 
         # Create PyAV AudioFrame
         layout = "mono" if pcm_formatted.channels == 1 else "stereo"
-        frame = av.AudioFrame.from_ndarray(samples, format=av_format, layout=layout)
+        # from_ndarray requires C-contiguous input; .T above and strided chunk
+        # views (PcmData.chunks on stereo) can make samples non-contiguous.
+        frame = av.AudioFrame.from_ndarray(
+            np.ascontiguousarray(samples), format=av_format, layout=layout
+        )
         frame.sample_rate = pcm_formatted.sample_rate
         frame.pts = pcm_formatted.pts
         return frame
