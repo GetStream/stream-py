@@ -351,6 +351,50 @@ class TestAudioStreamTrack:
         assert all(np.all(f.to_ndarray() == 0) for f in frames)
 
     @pytest.mark.asyncio
+    async def test_flush_during_inflight_write_discards_pre_flush_audio(self):
+        """A barge-in racing an in-flight write must not leak pre-flush audio.
+
+        write() must resample and enqueue inside the same lock flush() uses, so a
+        flush that lands mid-write can't be followed by frames the write computed
+        before it.
+        """
+        track = AudioStreamTrack(sample_rate=48000, channels=1, format="s16")
+
+        # Prime the resampler with a sub-frame chunk of a distinctive "old" value:
+        # held in the resampler, nothing enqueued yet.
+        await track.write(
+            PcmData(
+                samples=np.full(480, 999, dtype=np.int16),
+                sample_rate=48000,
+                format=AudioFormat.S16,
+                channels=1,
+            )
+        )
+
+        # Hold the buffer lock to force the adversarial interleaving: a concurrent
+        # flush() and write() both queue on it, flush ahead of write.
+        await track._frame_lock.acquire()
+        flush_task = asyncio.create_task(track.flush())
+        write_task = asyncio.create_task(
+            track.write(
+                PcmData(
+                    samples=np.full(480, 111, dtype=np.int16),
+                    sample_rate=48000,
+                    format=AudioFormat.S16,
+                    channels=1,
+                )
+            )
+        )
+        await asyncio.sleep(0)  # let both tasks run up to the lock
+        track._frame_lock.release()
+        await flush_task
+        await write_task
+
+        # Barge-in wins: the pre-flush "old" audio (999) must not survive.
+        frame = await track.recv()
+        assert not np.any(frame.to_ndarray() == 999)
+
+    @pytest.mark.asyncio
     async def test_continuous_streaming(self):
         """Test continuous audio streaming scenario."""
         track = AudioStreamTrack(sample_rate=48000, channels=1, format="s16")

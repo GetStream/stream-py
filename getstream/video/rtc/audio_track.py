@@ -84,12 +84,14 @@ class AudioStreamTrack(aiortc.mediastreams.MediaStreamTrack):
             final: if True, drain the resampler's tail and add it to the buffer
                 (e.g. on end-of-utterance event).
         """
-        # Zero or more finished 20ms frames (empty while swr is still buffering).
-        frames = self._resampler.resample(pcm, flush=final)
-        if not frames:
-            return
-
+        # Resample under the lock so an interleaved flush() (barge-in) can't reset
+        # the resampler between resampling and enqueuing, leaking pre-flush audio.
         async with self._frame_lock:
+            # Zero or more finished frames (empty while the resampler is buffering).
+            frames = self._resampler.resample(pcm, flush=final)
+            if not frames:
+                return
+
             for frame in frames:
                 self._frame_buffer.append(frame)
                 self._buffered_samples += frame.samples
