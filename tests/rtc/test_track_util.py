@@ -1051,3 +1051,34 @@ class TestFrameResampler:
         )
         assert at_24k.size > 0
         assert at_16k.size > 0
+
+    def test_flushes_buffered_tail_before_rebuild_on_signature_change(self):
+        # frame_size buffers a sub-frame chunk instead of emitting it.
+        r = FrameResampler(rate=48000, layout="mono", format="s16", frame_size=960)
+
+        # 10ms at the target rate (passthrough); held toward a full 960 frame, so
+        # nothing is emitted yet. Distinctive value marks this "old" audio.
+        held = r.resample(
+            PcmData(
+                samples=np.full(480, 100, dtype=np.int16),
+                sample_rate=48000,
+                format=AudioFormat.S16,
+                channels=1,
+            )
+        )
+        assert held == []
+
+        # Input rate changes -> the resampler rebuilds. The buffered tail must be
+        # drained first, not silently dropped.
+        frames = r.resample(
+            PcmData(
+                samples=np.full(1600, 50, dtype=np.int16),
+                sample_rate=16000,
+                format=AudioFormat.S16,
+                channels=1,
+            )
+        )
+        frames += r.flush()
+
+        samples = np.concatenate([f.to_ndarray().flatten() for f in frames])
+        assert np.any(samples == 100)  # the held tail survived the rebuild
