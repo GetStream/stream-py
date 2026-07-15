@@ -367,6 +367,7 @@ class ModerationRestClient(AsyncBaseClient):
         _async: Optional[bool] = None,
         team: Optional[str] = None,
         user_id: Optional[str] = None,
+        ai_audio_config: Optional[AIAudioConfigRequest] = None,
         ai_image_config: Optional[AIImageConfig] = None,
         ai_text_config: Optional[AITextConfig] = None,
         ai_video_config: Optional[AIVideoConfig] = None,
@@ -391,6 +392,7 @@ class ModerationRestClient(AsyncBaseClient):
             _async=_async,
             team=team,
             user_id=user_id,
+            ai_audio_config=ai_audio_config,
             ai_image_config=ai_image_config,
             ai_text_config=ai_text_config,
             ai_video_config=ai_video_config,
@@ -735,6 +737,91 @@ class ModerationRestClient(AsyncBaseClient):
             target_ids=target_ids, timeout=timeout, user_id=user_id, user=user
         ).to_dict()
         return await self.post("/api/v2/moderation/mute", MuteResponse, json=json)
+
+    @telemetry.operation_name("getstream.api.moderation.list_queues")
+    async def list_queues(self) -> StreamResponse[ListQueuesResponse]:
+        return await self.get("/api/v2/moderation/queues", ListQueuesResponse)
+
+    @telemetry.operation_name("getstream.api.moderation.create_queue")
+    async def create_queue(
+        self,
+        name: str,
+        type: str,
+        description: Optional[str] = None,
+        user_id: Optional[str] = None,
+        sort: Optional[List[Dict[str, object]]] = None,
+        filters: Optional[Dict[str, object]] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[QueueResponse]:
+        json = CreateQueueRequest(
+            name=name,
+            type=type,
+            description=description,
+            user_id=user_id,
+            sort=sort,
+            filters=filters,
+            user=user,
+        ).to_dict()
+        return await self.post("/api/v2/moderation/queues", QueueResponse, json=json)
+
+    @telemetry.operation_name("getstream.api.moderation.get_queue")
+    async def get_queue(
+        self, id: str, user_id: Optional[str] = None
+    ) -> StreamResponse[QueueResponse]:
+        query_params = build_query_param(**{"user_id": user_id})
+        path_params = {
+            "id": id,
+        }
+        return await self.get(
+            "/api/v2/moderation/queues/{id}",
+            QueueResponse,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
+    @telemetry.operation_name("getstream.api.moderation.update_queue")
+    async def update_queue(
+        self,
+        id: str,
+        description: Optional[str] = None,
+        name: Optional[str] = None,
+        user_id: Optional[str] = None,
+        sort: Optional[List[Dict[str, object]]] = None,
+        filters: Optional[Dict[str, object]] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[QueueResponse]:
+        path_params = {
+            "id": id,
+        }
+        json = UpdateQueueRequest(
+            description=description,
+            name=name,
+            user_id=user_id,
+            sort=sort,
+            filters=filters,
+            user=user,
+        ).to_dict()
+        return await self.patch(
+            "/api/v2/moderation/queues/{id}",
+            QueueResponse,
+            path_params=path_params,
+            json=json,
+        )
+
+    @telemetry.operation_name("getstream.api.moderation.delete_queue")
+    async def delete_queue(
+        self, id: str, user_id: Optional[str] = None, user: Optional[UserRequest] = None
+    ) -> StreamResponse[QueueResponse]:
+        path_params = {
+            "id": id,
+        }
+        json = DeleteQueueRequest(user_id=user_id, user=user).to_dict()
+        return await self.post(
+            "/api/v2/moderation/queues/{id}/delete",
+            QueueResponse,
+            path_params=path_params,
+            json=json,
+        )
 
     @telemetry.operation_name("getstream.api.moderation.query_review_queue")
     async def query_review_queue(

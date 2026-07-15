@@ -564,6 +564,18 @@ class TestParseWebhookEvent:
             event = parse_webhook_event({"type": "export.moderation_logs.success"})
         assert type(event).__name__ == "AsyncExportModerationLogsEvent"
 
+    def test_parse_export_review_queue_error(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            event = parse_webhook_event({"type": "export.review_queue.error"})
+        assert type(event).__name__ == "AsyncExportErrorEvent"
+
+    def test_parse_export_review_queue_success(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            event = parse_webhook_event({"type": "export.review_queue.success"})
+        assert type(event).__name__ == "AsyncExportReviewQueueEvent"
+
     def test_parse_export_users_error(self):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", RuntimeWarning)

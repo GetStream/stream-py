@@ -32,6 +32,25 @@ class Channel:
         return response
 
     @attach_channel_cid_async
+    async def get(
+        self,
+        state: Optional[bool] = None,
+        messages_limit: Optional[int] = None,
+        members_limit: Optional[int] = None,
+        watchers_limit: Optional[int] = None,
+    ) -> StreamResponse[ChannelStateResponse]:
+        response = await self.client.get_channel(
+            type=self.channel_type,
+            id=self.channel_id,
+            state=state,
+            messages_limit=messages_limit,
+            members_limit=members_limit,
+            watchers_limit=watchers_limit,
+        )
+        self._sync_from_response(response.data)
+        return response
+
+    @attach_channel_cid_async
     async def update_channel_partial(
         self,
         user_id: Optional[str] = None,
