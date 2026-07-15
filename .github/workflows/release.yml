@@ -52,7 +52,10 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "value=false" >> "$GITHUB_OUTPUT"
           else
-            if git log --oneline --grep="(pr #${{ github.event.pull_request.number }})" -n 1 | grep -q "chore(release):"; then
+            # Idempotency is tracked on the release tag (annotated with the PR number
+            # in "Create release tag"), not on a default-branch commit: the version
+            # bump is no longer pushed to the protected default branch.
+            if git for-each-ref refs/tags --format='%(contents)' | grep -q "(pr #${{ github.event.pull_request.number }})"; then
               echo "value=true" >> "$GITHUB_OUTPUT"
             else
               echo "value=false" >> "$GITHUB_OUTPUT"
@@ -152,7 +155,11 @@ jobs:
           path.write_text(new_text, encoding='utf-8')
           PY
 
-      - name: Commit version bump
+      # Commit the bump locally only, so the release tag points at a tree with the
+      # correct version. It is intentionally NOT pushed to the protected default
+      # branch (which rejects direct pushes). Versioning is driven by tags, not by
+      # pyproject.toml on the default branch (see bump_version.py: find_latest_semver_tag).
+      - name: Commit version bump (local, for tagging only)
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
         run: |
@@ -161,25 +168,26 @@ jobs:
           git add pyproject.toml
           if git diff --cached --quiet; then
             echo "No version changes to commit."
-            exit 0
-          fi
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            git commit -m "chore(release): v${VERSION} (manual)"
-            git push origin "HEAD:${{ github.ref_name }}"
           else
-            git commit -m "chore(release): v${VERSION} (pr #${{ github.event.pull_request.number }})"
-            git push origin "HEAD:${{ github.event.pull_request.base.ref }}"
+            git commit -m "chore(release): v${VERSION}"
           fi
 
       - name: Create release tag
         env:
           TAG: ${{ needs.prepare.outputs.tag }}
+          PR: ${{ github.event.pull_request.number }}
         run: |
           if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
             echo "Tag ${TAG} already exists; skipping tag creation."
             exit 0
           fi
-          git tag "${TAG}"
+          # Annotate the tag with the trigger; the PR number is used by the
+          # "Skip when PR is already released" idempotency check.
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            git tag -a "${TAG}" -m "chore(release): ${TAG} (manual)"
+          else
+            git tag -a "${TAG}" -m "chore(release): ${TAG} (pr #${PR})"
+          fi
           git push origin "${TAG}"
 
       - name: Clean dist directory
