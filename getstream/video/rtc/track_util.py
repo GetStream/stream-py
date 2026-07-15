@@ -811,7 +811,11 @@ class PcmData:
 
         # Create PyAV AudioFrame
         layout = "mono" if pcm_formatted.channels == 1 else "stereo"
-        frame = av.AudioFrame.from_ndarray(samples, format=av_format, layout=layout)
+        # from_ndarray requires C-contiguous input; .T above and strided chunk
+        # views (PcmData.chunks on stereo) can make samples non-contiguous.
+        frame = av.AudioFrame.from_ndarray(
+            np.ascontiguousarray(samples), format=av_format, layout=layout
+        )
         frame.sample_rate = pcm_formatted.sample_rate
         frame.pts = pcm_formatted.pts
         return frame
@@ -2597,3 +2601,98 @@ class AudioTrackHandler:
                     time_base=time_base,
                 )
             )
+
+
+class FrameResampler:
+    """Wraps av.AudioResampler to emit fixed-size packed av.AudioFrames from PcmData.
+
+    A single av.AudioResampler locks onto its first input frame's rate/layout/format,
+    so this rebuilds the underlying resampler whenever the input signature changes.
+    """
+
+    def __init__(
+        self, rate: int, layout: str, format: AudioFormatType, frame_size: int
+    ):
+        """
+        Args:
+            rate: Target output sample rate in Hz.
+            layout: Target channel layout, e.g. "mono" or "stereo".
+            format: Output sample format passed to av.AudioResampler (packed, e.g. "s16").
+            frame_size: Samples per channel in each emitted frame; input is buffered
+                until a full frame_size can be emitted. 0 emits variable-size frames.
+                The tail returned by flush() may be shorter than frame_size.
+        """
+        self._rate = rate
+        self._layout = layout
+        self._format = format
+        self._frame_size = frame_size
+        self._resampler: Optional[av.AudioResampler] = None
+        # Input signature the current resampler was built for.
+        self._in_rate: Optional[int] = None
+        self._in_channels: Optional[int] = None
+        self._in_format: Optional[str] = None
+
+    def resample(self, pcm: PcmData, flush: bool = False) -> list[av.AudioFrame]:
+        """Resample pcm data and return finished av.AudioFrames.
+        The resampler keeps some samples in the buffer for smoothing unless `flush` is True.
+
+        Args:
+            pcm: PcmData audio
+            flush: if True, also flush the tail and reset."""
+        frames: list[av.AudioFrame] = []
+        # Empty input (e.g. the final marker) yields no frames but can still flush.
+        if pcm.samples.size:
+            resampler, tail = self._reset_resampler(pcm)
+            # `tail` holds the old resampler's drained buffer when the input
+            # signature changed; emit it before this input's frames.
+            frames = tail + resampler.resample(pcm.to_av_frame())
+
+        if flush:
+            frames.extend(self.flush())
+
+        return frames
+
+    def flush(self) -> list[av.AudioFrame]:
+        """
+        Flush the resampler's buffered tail and reset it.
+        """
+        frames: list[av.AudioFrame] = []
+        if self._resampler is not None:
+            # resample(None) flushes swr to EOF: it raises on any further input, so
+            # drop it here and _reset_resampler rebuilds on the next write.
+            frames = self._resampler.resample(None)
+            self._resampler = None
+        return frames
+
+    def _reset_resampler(
+        self, pcm: PcmData
+    ) -> tuple[av.AudioResampler, list[av.AudioFrame]]:
+        """Return the resampler for pcm's signature, rebuilding it on a change.
+
+        On a rebuild the old resampler's buffered tail is drained and returned so it
+        isn't dropped; the output signature is fixed, so the tail stays compatible.
+        """
+        resampler = self._resampler
+        if (
+            resampler is None
+            or self._in_rate != pcm.sample_rate
+            or self._in_channels != pcm.channels
+            or self._in_format != pcm.format
+        ):
+            tail: list[av.AudioFrame] = []
+            if resampler is not None:
+                # Drain the outgoing resampler before swapping it out.
+                tail = resampler.resample(None)
+            resampler = av.AudioResampler(
+                format=self._format,
+                layout=self._layout,
+                rate=self._rate,
+                # frame_size makes the resampler emit fixed frame_size-sample frames.
+                frame_size=self._frame_size,
+            )
+            self._resampler = resampler
+            self._in_rate = pcm.sample_rate
+            self._in_channels = pcm.channels
+            self._in_format = pcm.format
+            return resampler, tail
+        return resampler, []
