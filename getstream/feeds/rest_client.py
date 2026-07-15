@@ -163,6 +163,8 @@ class FeedsRestClient(BaseClient):
     @telemetry.operation_name("getstream.api.feeds.query_activities")
     def query_activities(
         self,
+        language: Optional[str] = None,
+        translate_text: Optional[bool] = None,
         enrich_own_fields: Optional[bool] = None,
         include_expired_activities: Optional[bool] = None,
         include_private_activities: Optional[bool] = None,
@@ -175,6 +177,9 @@ class FeedsRestClient(BaseClient):
         filter: Optional[Dict[str, object]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[QueryActivitiesResponse]:
+        query_params = build_query_param(
+            **{"language": language, "translate_text": translate_text}
+        )
         json = QueryActivitiesRequest(
             enrich_own_fields=enrich_own_fields,
             include_expired_activities=include_expired_activities,
@@ -189,7 +194,38 @@ class FeedsRestClient(BaseClient):
             user=user,
         ).to_dict()
         return self.post(
-            "/api/v2/feeds/activities/query", QueryActivitiesResponse, json=json
+            "/api/v2/feeds/activities/query",
+            QueryActivitiesResponse,
+            query_params=query_params,
+            json=json,
+        )
+
+    @telemetry.operation_name("getstream.api.feeds.batch_query_activity_reactions")
+    def batch_query_activity_reactions(
+        self,
+        activity_ids: List[str],
+        limit: Optional[int] = None,
+        next: Optional[str] = None,
+        prev: Optional[str] = None,
+        user_id: Optional[str] = None,
+        sort: Optional[List[SortParamRequest]] = None,
+        filter: Optional[Dict[str, object]] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[BatchQueryActivityReactionsResponse]:
+        json = BatchQueryActivityReactionsRequest(
+            activity_ids=activity_ids,
+            limit=limit,
+            next=next,
+            prev=prev,
+            user_id=user_id,
+            sort=sort,
+            filter=filter,
+            user=user,
+        ).to_dict()
+        return self.post(
+            "/api/v2/feeds/activities/reactions/query",
+            BatchQueryActivityReactionsResponse,
+            json=json,
         )
 
     @telemetry.operation_name("getstream.api.feeds.delete_bookmark")
@@ -346,6 +382,7 @@ class FeedsRestClient(BaseClient):
         enforce_unique: Optional[bool] = None,
         skip_push: Optional[bool] = None,
         user_id: Optional[str] = None,
+        target_feeds: Optional[List[str]] = None,
         custom: Optional[Dict[str, object]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[AddReactionResponse]:
@@ -360,6 +397,7 @@ class FeedsRestClient(BaseClient):
             enforce_unique=enforce_unique,
             skip_push=skip_push,
             user_id=user_id,
+            target_feeds=target_feeds,
             custom=custom,
             user=user,
         ).to_dict()
@@ -418,6 +456,25 @@ class FeedsRestClient(BaseClient):
             path_params=path_params,
         )
 
+    @telemetry.operation_name("getstream.api.feeds.query_activity_shares")
+    def query_activity_shares(
+        self,
+        activity_id: str,
+        limit: Optional[int] = None,
+        prev: Optional[str] = None,
+        next: Optional[str] = None,
+    ) -> StreamResponse[QueryActivitySharesResponse]:
+        query_params = build_query_param(**{"limit": limit, "prev": prev, "next": next})
+        path_params = {
+            "activity_id": activity_id,
+        }
+        return self.get(
+            "/api/v2/feeds/activities/{activity_id}/shares",
+            QueryActivitySharesResponse,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
     @telemetry.operation_name("getstream.api.feeds.delete_activity")
     def delete_activity(
         self,
@@ -445,12 +502,16 @@ class FeedsRestClient(BaseClient):
     def get_activity(
         self,
         id: str,
+        language: Optional[str] = None,
+        translate_text: Optional[bool] = None,
         comment_sort: Optional[str] = None,
         comment_limit: Optional[int] = None,
         user_id: Optional[str] = None,
     ) -> StreamResponse[GetActivityResponse]:
         query_params = build_query_param(
             **{
+                "language": language,
+                "translate_text": translate_text,
                 "comment_sort": comment_sort,
                 "comment_limit": comment_limit,
                 "user_id": user_id,
@@ -585,6 +646,21 @@ class FeedsRestClient(BaseClient):
             json=json,
         )
 
+    @telemetry.operation_name("getstream.api.feeds.translate_activity")
+    def translate_activity(
+        self, id: str, language: str
+    ) -> StreamResponse[TranslateActivityResponse]:
+        path_params = {
+            "id": id,
+        }
+        json = TranslateActivityRequest(language=language).to_dict()
+        return self.post(
+            "/api/v2/feeds/activities/{id}/translate",
+            TranslateActivityResponse,
+            path_params=path_params,
+            json=json,
+        )
+
     @telemetry.operation_name("getstream.api.feeds.query_bookmark_folders")
     def query_bookmark_folders(
         self,
@@ -641,6 +717,8 @@ class FeedsRestClient(BaseClient):
     @telemetry.operation_name("getstream.api.feeds.query_bookmarks")
     def query_bookmarks(
         self,
+        language: Optional[str] = None,
+        translate_text: Optional[bool] = None,
         enrich_own_fields: Optional[bool] = None,
         limit: Optional[int] = None,
         next: Optional[str] = None,
@@ -650,6 +728,9 @@ class FeedsRestClient(BaseClient):
         filter: Optional[Dict[str, object]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[QueryBookmarksResponse]:
+        query_params = build_query_param(
+            **{"language": language, "translate_text": translate_text}
+        )
         json = QueryBookmarksRequest(
             enrich_own_fields=enrich_own_fields,
             limit=limit,
@@ -661,7 +742,10 @@ class FeedsRestClient(BaseClient):
             user=user,
         ).to_dict()
         return self.post(
-            "/api/v2/feeds/bookmarks/query", QueryBookmarksResponse, json=json
+            "/api/v2/feeds/bookmarks/query",
+            QueryBookmarksResponse,
+            query_params=query_params,
+            json=json,
         )
 
     @telemetry.operation_name("getstream.api.feeds.delete_collections")
@@ -758,6 +842,8 @@ class FeedsRestClient(BaseClient):
         sort: Optional[str] = None,
         replies_limit: Optional[int] = None,
         id_around: Optional[str] = None,
+        language: Optional[str] = None,
+        translate_text: Optional[bool] = None,
         user_id: Optional[str] = None,
         limit: Optional[int] = None,
         prev: Optional[str] = None,
@@ -771,6 +857,8 @@ class FeedsRestClient(BaseClient):
                 "sort": sort,
                 "replies_limit": replies_limit,
                 "id_around": id_around,
+                "language": language,
+                "translate_text": translate_text,
                 "user_id": user_id,
                 "limit": limit,
                 "prev": prev,
@@ -839,7 +927,12 @@ class FeedsRestClient(BaseClient):
         sort: Optional[str] = None,
         user_id: Optional[str] = None,
         user: Optional[UserRequest] = None,
+        language: Optional[str] = None,
+        translate_text: Optional[bool] = None,
     ) -> StreamResponse[QueryCommentsResponse]:
+        query_params = build_query_param(
+            **{"language": language, "translate_text": translate_text}
+        )
         json = QueryCommentsRequest(
             filter=filter,
             id_around=id_around,
@@ -851,7 +944,38 @@ class FeedsRestClient(BaseClient):
             user=user,
         ).to_dict()
         return self.post(
-            "/api/v2/feeds/comments/query", QueryCommentsResponse, json=json
+            "/api/v2/feeds/comments/query",
+            QueryCommentsResponse,
+            query_params=query_params,
+            json=json,
+        )
+
+    @telemetry.operation_name("getstream.api.feeds.batch_query_comment_reactions")
+    def batch_query_comment_reactions(
+        self,
+        comment_ids: List[str],
+        limit: Optional[int] = None,
+        next: Optional[str] = None,
+        prev: Optional[str] = None,
+        user_id: Optional[str] = None,
+        sort: Optional[List[SortParamRequest]] = None,
+        filter: Optional[Dict[str, object]] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[BatchQueryCommentReactionsResponse]:
+        json = BatchQueryCommentReactionsRequest(
+            comment_ids=comment_ids,
+            limit=limit,
+            next=next,
+            prev=prev,
+            user_id=user_id,
+            sort=sort,
+            filter=filter,
+            user=user,
+        ).to_dict()
+        return self.post(
+            "/api/v2/feeds/comments/reactions/query",
+            BatchQueryCommentReactionsResponse,
+            json=json,
         )
 
     @telemetry.operation_name("getstream.api.feeds.delete_comment_bookmark")
@@ -953,9 +1077,19 @@ class FeedsRestClient(BaseClient):
 
     @telemetry.operation_name("getstream.api.feeds.get_comment")
     def get_comment(
-        self, id: str, user_id: Optional[str] = None
+        self,
+        id: str,
+        language: Optional[str] = None,
+        translate_text: Optional[bool] = None,
+        user_id: Optional[str] = None,
     ) -> StreamResponse[GetCommentResponse]:
-        query_params = build_query_param(**{"user_id": user_id})
+        query_params = build_query_param(
+            **{
+                "language": language,
+                "translate_text": translate_text,
+                "user_id": user_id,
+            }
+        )
         path_params = {
             "id": id,
         }
@@ -1050,6 +1184,7 @@ class FeedsRestClient(BaseClient):
         enforce_unique: Optional[bool] = None,
         skip_push: Optional[bool] = None,
         user_id: Optional[str] = None,
+        target_feeds: Optional[List[str]] = None,
         custom: Optional[Dict[str, object]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[AddCommentReactionResponse]:
@@ -1063,6 +1198,7 @@ class FeedsRestClient(BaseClient):
             enforce_unique=enforce_unique,
             skip_push=skip_push,
             user_id=user_id,
+            target_feeds=target_feeds,
             custom=custom,
             user=user,
         ).to_dict()
@@ -1129,6 +1265,8 @@ class FeedsRestClient(BaseClient):
         sort: Optional[str] = None,
         replies_limit: Optional[int] = None,
         id_around: Optional[str] = None,
+        language: Optional[str] = None,
+        translate_text: Optional[bool] = None,
         user_id: Optional[str] = None,
         limit: Optional[int] = None,
         prev: Optional[str] = None,
@@ -1140,6 +1278,8 @@ class FeedsRestClient(BaseClient):
                 "sort": sort,
                 "replies_limit": replies_limit,
                 "id_around": id_around,
+                "language": language,
+                "translate_text": translate_text,
                 "user_id": user_id,
                 "limit": limit,
                 "prev": prev,
@@ -1167,6 +1307,21 @@ class FeedsRestClient(BaseClient):
         return self.post(
             "/api/v2/feeds/comments/{id}/restore",
             RestoreCommentResponse,
+            path_params=path_params,
+            json=json,
+        )
+
+    @telemetry.operation_name("getstream.api.feeds.translate_comment")
+    def translate_comment(
+        self, id: str, language: str
+    ) -> StreamResponse[TranslateCommentResponse]:
+        path_params = {
+            "id": id,
+        }
+        json = TranslateCommentRequest(language=language).to_dict()
+        return self.post(
+            "/api/v2/feeds/comments/{id}/translate",
+            TranslateCommentResponse,
             path_params=path_params,
             json=json,
         )
@@ -1246,6 +1401,8 @@ class FeedsRestClient(BaseClient):
         self,
         feed_group_id: str,
         feed_id: str,
+        language: Optional[str] = None,
+        translate_text: Optional[bool] = None,
         id_around: Optional[str] = None,
         limit: Optional[int] = None,
         next: Optional[str] = None,
@@ -1265,6 +1422,9 @@ class FeedsRestClient(BaseClient):
         member_pagination: Optional[PagerRequest] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[GetOrCreateFeedResponse]:
+        query_params = build_query_param(
+            **{"language": language, "translate_text": translate_text}
+        )
         path_params = {
             "feed_group_id": feed_group_id,
             "feed_id": feed_id,
@@ -1292,6 +1452,7 @@ class FeedsRestClient(BaseClient):
         return self.post(
             "/api/v2/feeds/feed_groups/{feed_group_id}/feeds/{feed_id}",
             GetOrCreateFeedResponse,
+            query_params=query_params,
             path_params=path_params,
             json=json,
         )
@@ -1530,6 +1691,8 @@ class FeedsRestClient(BaseClient):
         self,
         feed_group_id: str,
         feed_id: str,
+        language: Optional[str] = None,
+        translate_text: Optional[bool] = None,
         enrich_own_fields: Optional[bool] = None,
         limit: Optional[int] = None,
         next: Optional[str] = None,
@@ -1537,6 +1700,9 @@ class FeedsRestClient(BaseClient):
         sort: Optional[List[SortParamRequest]] = None,
         filter: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[QueryPinnedActivitiesResponse]:
+        query_params = build_query_param(
+            **{"language": language, "translate_text": translate_text}
+        )
         path_params = {
             "feed_group_id": feed_group_id,
             "feed_id": feed_id,
@@ -1552,6 +1718,7 @@ class FeedsRestClient(BaseClient):
         return self.post(
             "/api/v2/feeds/feed_groups/{feed_group_id}/feeds/{feed_id}/pinned_activities/query",
             QueryPinnedActivitiesResponse,
+            query_params=query_params,
             path_params=path_params,
             json=json,
         )
