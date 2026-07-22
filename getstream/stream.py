@@ -221,10 +221,10 @@ class BaseStream:
         _log_client_initialized(self, user_http_client=http_client is not None)
         if self.log_bodies:
             _resolve_logger(self).warning(
-                "getstream: log_bodies is True, request and response bodies "
-                "will be logged (only known secret keys are redacted: "
-                "api_secret, token, password). Do not enable in production "
-                "if payloads may contain other sensitive data."
+                "HTTP request/response bodies will be logged. Auth headers "
+                "and known-secret fields are still redacted, but other "
+                "sensitive data (messages, PII) may appear in logs. Disable "
+                "for production."
             )
 
     @property
