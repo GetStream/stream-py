@@ -99,6 +99,19 @@ response: StreamResponse[StartClosedCaptionsResponse] = call.start_closed_captio
 response.data  # Gives the StartClosedCaptionsResponse model
 ```
 
+### Logging
+
+The SDK emits structured log events (`client.initialized`, `http.request.sent`, `http.response.received`, `http.request.failed`) through the stdlib `logging` module. By default nothing is printed: pass a `logging.Logger` to see them.
+
+```python
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
+client = Stream(api_key="key", api_secret="secret", logger=logging.getLogger("myapp.stream"))
+```
+
+Each event carries structured fields via the standard `extra={}` mechanism (for example `http.response.status_code`, `duration_ms`, `stream.endpoint_name`). Query and body values for known secret keys (`api_key`, `api_secret`, `token`, `password`) are always redacted. Request/response bodies are omitted by default; pass `log_bodies=True` to include them (still redacted, and this emits one WARNING at construction since bodies can contain other sensitive data).
+
 ### App configuration
 
 ```python

@@ -13,10 +13,12 @@ from getstream.exceptions import (
     build_api_exception,
     wrap_transport_error,
 )
+from getstream.logging_utils import redact_json_body, redact_query
 from getstream.stream_response import StreamResponse
 from getstream.generic import T
 import httpx
 from getstream.config import BaseConfig
+from getstream.version import VERSION
 from urllib.parse import quote
 from abc import ABC
 from getstream.common.telemetry import (
@@ -59,22 +61,43 @@ def _resolve_pool_knobs(obj):
     )
 
 
-def _log_pool_config(cfg, *, user_http_client: bool) -> None:
-    if user_http_client:
-        logger.info(
-            "getstream connection pool: user_http_client=True (5 knobs not applied)"
-        )
-    else:
-        logger.info(
-            "getstream connection pool: "
-            "max_conns_per_host=%s idle_timeout=%ss "
-            "connect_timeout=%ss request_timeout=%ss "
-            "user_http_client=False",
-            cfg.max_conns_per_host,
-            cfg.idle_timeout,
-            cfg.connect_timeout,
-            cfg.timeout,
-        )
+def _resolve_logger(obj) -> logging.Logger:
+    """The caller's injected logger (``Stream``/``AsyncStream``'s ``logger=``
+    kwarg, plumbed onto ``obj.log`` the same way as the pool knobs), or the
+    shared module logger when none was passed."""
+    return getattr(obj, "log", None) or logger
+
+
+def _log_client_initialized(cfg, *, user_http_client: bool) -> None:
+    """Emit the one-shot ``client.initialized`` event, replacing the old
+    plain-text pool-config INFO line with the structured logging schema."""
+    _resolve_logger(cfg).info(
+        "client.initialized",
+        extra={
+            "stream.sdk.name": "stream-py",
+            "stream.sdk.version": VERSION,
+            "stream.client.max_conns_per_host": cfg.max_conns_per_host,
+            "stream.client.idle_timeout_seconds": cfg.idle_timeout,
+            "stream.client.connect_timeout_seconds": cfg.connect_timeout,
+            "stream.client.request_timeout_seconds": cfg.timeout,
+            "stream.client.gzip_enabled": not user_http_client,
+            "stream.client.user_http_client": user_http_client,
+            "stream.client.log_bodies": bool(getattr(cfg, "log_bodies", False)),
+        },
+    )
+
+
+def _response_body_for_log(response: httpx.Response):
+    """Redact a response body for the ``http.response.body`` log field.
+    JSON bodies get the shallow key redaction; anything else (or anything
+    that fails to parse as JSON) is passed through as text."""
+    content_type = response.headers.get("content-type", "")
+    if "application/json" in content_type:
+        try:
+            return redact_json_body(json.loads(response.text))
+        except (ValueError, TypeError):
+            return response.text
+    return response.text
 
 
 def _read_file_bytes(file_path: str) -> bytes:
@@ -284,6 +307,18 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
         url_path, url_full, endpoint, attrs = self._prepare_request(
             method, path, query_params, kwargs
         )
+        log = _resolve_logger(self)
+        log_bodies = bool(getattr(self, "log_bodies", False))
+        sent_extra = {
+            "http.request.method": method,
+            "url.path": path,
+            "url.query": redact_query(query_params) or "",
+            "stream.endpoint_name": endpoint,
+        }
+        if log_bodies:
+            sent_extra["http.request.body"] = redact_json_body(kwargs.get("json"))
+        log.debug("http.request.sent", extra=sent_extra)
+
         start = time.perf_counter()
         # Span name uses logical operation (endpoint) rather than raw HTTP
         with span_request(
@@ -296,7 +331,19 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
                     url_path, params=query_params, *args, **call_kwargs
                 )
             except httpx.RequestError as err:
-                raise wrap_transport_error(err) from err
+                exc = wrap_transport_error(err)
+                log.error(
+                    "http.request.failed",
+                    extra={
+                        "http.request.method": method,
+                        "url.path": path,
+                        "stream.endpoint_name": endpoint,
+                        "error.type": exc.error_type,
+                        "error.message": str(err),
+                        "duration_ms": int((time.perf_counter() - start) * 1000.0),
+                    },
+                )
+                raise exc from err
             duration = parse_duration_from_body(response.content)
             if duration:
                 span.set_attribute("http.server.duration", duration)
@@ -308,6 +355,17 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
                 pass
 
             duration_ms = (time.perf_counter() - start) * 1000.0
+            received_extra = {
+                "http.request.method": method,
+                "url.path": path,
+                "stream.endpoint_name": endpoint,
+                "http.response.status_code": response.status_code,
+                "http.response.body.size": len(response.content or b""),
+                "duration_ms": int(duration_ms),
+            }
+            if log_bodies:
+                received_extra["http.response.body"] = _response_body_for_log(response)
+            log.debug("http.response.received", extra=received_extra)
             # Metrics should be low-cardinality: exclude url/call_cid/channel_cid
             metric_attrs = metric_attributes(
                 api_key=self.api_key,
@@ -593,6 +651,18 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
         url_path, url_full, endpoint, attrs = self._prepare_request(
             method, path, query_params, kwargs
         )
+        log = _resolve_logger(self)
+        log_bodies = bool(getattr(self, "log_bodies", False))
+        sent_extra = {
+            "http.request.method": method,
+            "url.path": path,
+            "url.query": redact_query(query_params) or "",
+            "stream.endpoint_name": endpoint,
+        }
+        if log_bodies:
+            sent_extra["http.request.body"] = redact_json_body(kwargs.get("json"))
+        log.debug("http.request.sent", extra=sent_extra)
+
         start = time.perf_counter()
         with span_request(
             endpoint, attributes=attrs, request_body=kwargs.get("json")
@@ -612,7 +682,19 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
                     url_path, params=query_params, *args, **call_kwargs
                 )
             except httpx.RequestError as err:
-                raise wrap_transport_error(err) from err
+                exc = wrap_transport_error(err)
+                log.error(
+                    "http.request.failed",
+                    extra={
+                        "http.request.method": method,
+                        "url.path": path,
+                        "stream.endpoint_name": endpoint,
+                        "error.type": exc.error_type,
+                        "error.message": str(err),
+                        "duration_ms": int((time.perf_counter() - start) * 1000.0),
+                    },
+                )
+                raise exc from err
             duration = parse_duration_from_body(response.content)
             if duration:
                 span.set_attribute("http.server.duration", duration)
@@ -624,6 +706,19 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
                 pass
 
             duration_ms = (time.perf_counter() - start) * 1000.0
+            received_extra = {
+                "http.request.method": method,
+                "url.path": path,
+                "stream.endpoint_name": endpoint,
+                "http.response.status_code": response.status_code,
+                "http.response.body.size": len(response.content or b""),
+                "duration_ms": int(duration_ms),
+            }
+            if log_bodies:
+                received_extra["http.response.body"] = await asyncio.to_thread(
+                    _response_body_for_log, response
+                )
+            log.debug("http.response.received", extra=received_extra)
             # Metrics should be low-cardinality: exclude url/call_cid/channel_cid
             metric_attrs = metric_attributes(
                 api_key=self.api_key,
