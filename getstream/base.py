@@ -91,8 +91,11 @@ def _response_body_for_log(response: httpx.Response):
     """Redact a response body for the ``http.response.body`` log field.
     JSON bodies get the shallow key redaction; anything else (or anything
     that fails to parse as JSON) is passed through as text."""
-    content_type = response.headers.get("content-type", "")
-    if "application/json" in content_type:
+    # Media types are case-insensitive; match application/json and any
+    # structured +json type (e.g. application/problem+json) so their bodies
+    # are redacted, not logged as raw text.
+    content_type = response.headers.get("content-type", "").lower()
+    if "application/json" in content_type or "+json" in content_type:
         try:
             return redact_json_body(json.loads(response.text))
         except (ValueError, TypeError):

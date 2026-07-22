@@ -99,11 +99,13 @@ def test_no_logger_no_output(caplog):
 
 def test_query_redaction(caplog):
     client = make_client(ok, caplog)
-    client.get("/api/v2/app")
+    client.get("/api/v2/app", query_params={"api_key": "sekret", "user_id": "123"})
     sent = records_named(caplog, "http.request.sent")[0]
-    q = getattr(sent, "url.query", "")
-    assert "secret" not in str(q)
-    assert "<redacted>" in str(q) or q == ""
+    q = str(getattr(sent, "url.query", ""))
+    # Secret value redacted, non-secret param retained.
+    assert "sekret" not in q
+    assert "<redacted>" in q
+    assert "123" in q
 
 
 def test_log_bodies_opt_in_and_warn(caplog):
