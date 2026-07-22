@@ -45,7 +45,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `request_timeout: float` (seconds): default `30.0` (was `6.0`; see Behavior changes)
 
   These tune the underlying `httpx.Limits` and `httpx.Timeout`. The existing `http_client=` and `transport=` kwargs continue to act as escape hatches; when `http_client` is set, none of the four new kwargs apply. Env-var fallbacks for the new kwargs: `STREAM_MAX_CONNS_PER_HOST`, `STREAM_IDLE_TIMEOUT`, `STREAM_CONNECT_TIMEOUT`, `STREAM_REQUEST_TIMEOUT`.
-- INFO log on client construction (logger `getstream`) lists the effective pool config and whether a user-supplied `http_client` is in use.
+
+- Structured logging ([CHA-2957](https://linear.app/stream/issue/CHA-2957)).
+  New `logger: logging.Logger | None` and `log_bodies: bool = False` kwargs on
+  `Stream(...)` and `AsyncStream(...)`. Off by default: nothing is emitted
+  unless a logger is passed. Four events, each carrying structured fields via
+  the stdlib logging `extra={}` mechanism:
+    - `client.initialized` (INFO, once at construction): SDK name/version,
+      resolved pool knobs, `gzip_enabled`, `user_http_client`, `log_bodies`.
+      Replaces the old plain-text pool-config INFO line.
+    - `http.request.sent` (DEBUG, before each request): method, path,
+      redacted query, `stream.endpoint_name`.
+    - `http.response.received` (DEBUG, after any response including
+      4xx/5xx): status code, response size, `duration_ms`. HTTP error
+      status codes are data, not failures.
+    - `http.request.failed` (ERROR, transport failure only, no HTTP
+      response received): `error.type` (`connection_reset` / `timeout` /
+      `dns_failure` / `tls_handshake_failed` / `unknown`), `error.message`.
+  Query values for `api_key`/`api_secret`/`token` and top-level JSON body
+  keys `api_secret`/`token`/`password` are always redacted; no opt-out.
+  Bodies are never logged by default; `log_bodies=True` adds redacted
+  request/response bodies and emits one WARNING at construction.
 
 - Webhook handling spec helpers (CHA-2961): `UnknownEvent` dataclass for
   forward-compat; `gunzip_payload`, `decode_sqs_payload`, `decode_sns_payload`

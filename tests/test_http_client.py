@@ -409,7 +409,10 @@ class TestAsyncHttpClientEscapeHatchKnobs:
         await client.aclose()
 
 
-# ── INFO log on construction ─────────────────────────────────────────
+# ── client.initialized event on construction (CHA-2957) ──────────────
+# Formerly a plain-text "getstream connection pool: ..." INFO line
+# (_log_pool_config); replaced by the structured client.initialized event.
+# See tests/test_logging.py for the full logging-feature test suite.
 
 
 class TestSyncInfoLog:
@@ -418,12 +421,13 @@ class TestSyncInfoLog:
             Stream(api_key="k", api_secret="s", base_url="http://test")
         infos = [r for r in caplog.records if r.name == "getstream"]
         assert len(infos) == 1
-        msg = infos[0].getMessage()
-        assert "max_conns_per_host=5" in msg
-        assert "idle_timeout=55.0s" in msg
-        assert "connect_timeout=10.0s" in msg
-        assert "request_timeout=30.0s" in msg
-        assert "user_http_client=False" in msg
+        r = infos[0]
+        assert r.getMessage() == "client.initialized"
+        assert getattr(r, "stream.client.max_conns_per_host") == 5
+        assert getattr(r, "stream.client.idle_timeout_seconds") == 55.0
+        assert getattr(r, "stream.client.connect_timeout_seconds") == 10.0
+        assert getattr(r, "stream.client.request_timeout_seconds") == 30.0
+        assert getattr(r, "stream.client.user_http_client") is False
 
     def test_info_log_emitted_once_even_with_sub_clients(self, caplog):
         # Regression for CHA-2956 MINOR: the pool-config INFO line must fire
@@ -448,11 +452,11 @@ class TestSyncInfoLog:
             )
         infos = [r for r in caplog.records if r.name == "getstream"]
         assert len(infos) == 1
-        msg = infos[0].getMessage()
-        assert "max_conns_per_host=33" in msg
-        assert "idle_timeout=12.0s" in msg
-        assert "connect_timeout=4.0s" in msg
-        assert "request_timeout=9.0s" in msg
+        r = infos[0]
+        assert getattr(r, "stream.client.max_conns_per_host") == 33
+        assert getattr(r, "stream.client.idle_timeout_seconds") == 12.0
+        assert getattr(r, "stream.client.connect_timeout_seconds") == 4.0
+        assert getattr(r, "stream.client.request_timeout_seconds") == 9.0
 
     def test_info_log_when_user_http_client_provided(self, caplog):
         custom = httpx.Client(transport=_mock_transport())
@@ -465,7 +469,8 @@ class TestSyncInfoLog:
             )
         infos = [r for r in caplog.records if r.name == "getstream"]
         assert len(infos) == 1
-        assert "user_http_client=True" in infos[0].getMessage()
+        assert getattr(infos[0], "stream.client.user_http_client") is True
+        assert getattr(infos[0], "stream.client.gzip_enabled") is False
 
 
 @pytest.mark.asyncio
@@ -476,8 +481,8 @@ class TestAsyncInfoLog:
             await client.aclose()
         infos = [r for r in caplog.records if r.name == "getstream"]
         assert len(infos) == 1
-        assert "max_conns_per_host=5" in infos[0].getMessage()
-        assert "user_http_client=False" in infos[0].getMessage()
+        assert getattr(infos[0], "stream.client.max_conns_per_host") == 5
+        assert getattr(infos[0], "stream.client.user_http_client") is False
 
 
 # ── sync/async parity ────────────────────────────────────────────────

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from contextlib import AsyncExitStack
 from functools import cached_property
+import logging
 import time
 from typing import List, Optional
 from uuid import uuid4
@@ -10,7 +11,7 @@ import httpx
 import jwt
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from getstream.base import _log_pool_config
+from getstream.base import _log_client_initialized, _resolve_logger
 from getstream.common import telemetry
 from getstream.chat.client import ChatClient
 from getstream.chat.async_client import ChatClient as AsyncChatClient
@@ -92,6 +93,8 @@ class BaseStream:
         max_conns_per_host: Optional[int] = None,
         idle_timeout: Optional[float] = None,
         connect_timeout: Optional[float] = None,
+        logger: Optional[logging.Logger] = None,
+        log_bodies: bool = False,
     ):
         """Build a Stream client.
 
@@ -114,6 +117,8 @@ class BaseStream:
             max_conns_per_host: Max concurrent TCP connections per host. Default 5. Ignored when ``http_client`` is set.
             idle_timeout: Idle connection lifetime in seconds. Default 55.0 (sits 5s under the typical 60s LB idle timeout). Ignored when ``http_client`` is set.
             connect_timeout: TCP + TLS handshake timeout in seconds. Default 10.0. Ignored when ``http_client`` is set.
+            logger: Optional stdlib ``logging.Logger`` for the SDK's structured log events (``client.initialized``, ``http.request.sent``, ``http.response.received``, ``http.request.failed``). Defaults to ``logging.getLogger("getstream")``, which is a no-op until the caller attaches a handler.
+            log_bodies: When ``True``, adds redacted request/response bodies to the request/response log events. Off by default. Emits one WARNING at construction when enabled.
 
         Raises:
             ValueError: If both ``transport`` and ``http_client`` are set; if neither ``api_secret`` nor ``token`` can be resolved; if both are provided; if either is the empty string; if ``api_key`` is missing; or if ``request_timeout`` is not a positive number.
@@ -189,6 +194,13 @@ class BaseStream:
         self._transport = transport
         self._http_client = http_client
         self.token = token or self._create_token()
+        # log / log_bodies are read by BaseClient via getattr(self, ...), same
+        # plumbing as the pool knobs below: the intermediate generated REST
+        # clients (CommonRestClient etc.) do not forward these kwargs, so they
+        # must be set on self before super().__init__() and copied onto
+        # sub-clients in _apply_shared_client.
+        self.log = logger
+        self.log_bodies = log_bodies
         # Pool knobs are read by BaseClient via getattr(self, ...) since the intermediate generated REST clients (CommonRestClient etc.) do not forward these kwargs. self.max_conns_per_host / idle_timeout / connect_timeout were set above before super().__init__().
         super().__init__(
             self.api_key, self.base_url, self.token, self.timeout, self.user_agent
@@ -203,9 +215,17 @@ class BaseStream:
         # the parent's client avoids that and keeps one pool per Stream.
         self._shared_client = self.client
 
-        # Emit the pool-config INFO line exactly once per Stream, reflecting the
-        # resolved knobs on the top-level client. Sub-clients no longer log.
-        _log_pool_config(self, user_http_client=http_client is not None)
+        # Emit the client.initialized event exactly once per Stream, reflecting
+        # the resolved knobs on the top-level client. Sub-clients no longer log
+        # their own construction.
+        _log_client_initialized(self, user_http_client=http_client is not None)
+        if self.log_bodies:
+            _resolve_logger(self).warning(
+                "HTTP request/response bodies will be logged. Auth headers "
+                "and known-secret fields are still redacted, but other "
+                "sensitive data (messages, PII) may appear in logs. Disable "
+                "for production."
+            )
 
     @property
     def api_secret(self) -> str:
@@ -234,6 +254,11 @@ class BaseStream:
                 sub_client.client.close()
             sub_client.client = self._shared_client
             sub_client._owns_http_client = False
+        # log / log_bodies: same getattr(self, ..., default) plumbing as the
+        # pool knobs, so sub-clients (which issue the actual requests) emit
+        # through the caller's logger instead of silently falling back.
+        sub_client.log = getattr(self, "log", None)
+        sub_client.log_bodies = getattr(self, "log_bodies", False)
         return sub_client
 
     def create_token(
@@ -284,6 +309,8 @@ class BaseStream:
             idle_timeout=self.idle_timeout,
             connect_timeout=self.connect_timeout,
             user_agent=self.user_agent,
+            logger=self.log,
+            log_bodies=self.log_bodies,
         )
 
     def create_call_token(
@@ -543,6 +570,8 @@ class Stream(BaseStream, CommonClient):
             connect_timeout=self.connect_timeout,
             base_url=self.base_url,
             user_agent=self.user_agent,
+            logger=self.log,
+            log_bodies=self.log_bodies,
         )
 
     @cached_property
