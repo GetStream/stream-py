@@ -71,7 +71,10 @@ ENABLED = RetryConfig(enabled=True, max_attempts=3, max_backoff=0.001)
 # ── sync ────────────────────────────────────────────────────────────
 
 
-def test_disabled_by_default_single_attempt(monkeypatch):
+def test_disabled_by_default_single_attempt(monkeypatch, caplog):
+    import logging
+
+    caplog.set_level(logging.DEBUG, logger="getstream")
     counter = Counter(
         [httpx.Response(429, headers={"Retry-After": "1"}, json=rate_limited_body())]
     )
@@ -79,6 +82,10 @@ def test_disabled_by_default_single_attempt(monkeypatch):
     with pytest.raises(StreamRateLimitException):
         client.get("/api/v2/app")
     assert counter.calls == 1
+    # A single, non-retried 429 is logged via http.response.received only;
+    # http.request.failed is never emitted for it.
+    failed = [r for r in caplog.records if r.getMessage() == "http.request.failed"]
+    assert len(failed) == 0
 
 
 def test_enabled_get_retries_429_then_succeeds(monkeypatch, caplog):
@@ -118,12 +125,18 @@ def test_enabled_post_never_retried(monkeypatch):
     assert counter.calls == 1
 
 
-def test_unrecoverable_never_retried(monkeypatch):
+def test_unrecoverable_never_retried(monkeypatch, caplog):
+    import logging
+
+    caplog.set_level(logging.DEBUG, logger="getstream")
     counter = Counter([httpx.Response(429, json=rate_limited_body(unrecoverable=True))])
     client = sync_client(counter, retry=ENABLED, monkeypatch=monkeypatch)
     with pytest.raises(StreamRateLimitException):
         client.get("/api/v2/app")
     assert counter.calls == 1
+    # unrecoverable 429 is never retried, so http.request.failed never fires.
+    failed = [r for r in caplog.records if r.getMessage() == "http.request.failed"]
+    assert len(failed) == 0
 
 
 def test_transport_error_retried(monkeypatch, caplog):
@@ -154,12 +167,22 @@ def test_transport_error_retried(monkeypatch, caplog):
     assert hasattr(failed[0], "error.type")
 
 
-def test_exhaustion_surfaces_last_error(monkeypatch):
+def test_exhaustion_surfaces_last_error(monkeypatch, caplog):
+    import logging
+
+    caplog.set_level(logging.DEBUG, logger="getstream")
     counter = Counter([httpx.Response(429, json=rate_limited_body())] * 3)
     client = sync_client(counter, retry=ENABLED, monkeypatch=monkeypatch)
     with pytest.raises(StreamRateLimitException):
         client.get("/api/v2/app")
     assert counter.calls == 3
+    # The 2 retried attempts log at DEBUG; the terminal (exhausting) 429 is
+    # never logged as http.request.failed at all (unlike transport
+    # exhaustion, see test_transport_exhaustion_logs_final_error) since its
+    # response was already captured via http.response.received.
+    failed = [r for r in caplog.records if r.getMessage() == "http.request.failed"]
+    assert len(failed) == 2
+    assert not any(r.levelno == logging.ERROR for r in failed)
 
 
 def test_transport_exhaustion_logs_final_error(monkeypatch, caplog):
@@ -205,6 +228,41 @@ def test_disabled_transport_failure_logs_identical_to_today(monkeypatch, caplog)
     failed = [r for r in caplog.records if r.getMessage() == "http.request.failed"]
     assert len(failed) == 1
     assert failed[0].levelno == logging.ERROR
+    # Field content must match the pre-retry per-attempt failed log exactly
+    # (this is the logging-fidelity regression the retry loop must not
+    # reintroduce): method, path, non-empty endpoint name, error type/message,
+    # and duration are all present.
+    record = failed[0]
+    assert record.getMessage() == "http.request.failed"
+    assert getattr(record, "http.request.method") == "GET"
+    assert getattr(record, "url.path") == "/api/v2/app"
+    assert getattr(record, "stream.endpoint_name")
+    assert getattr(record, "error.type")
+    assert getattr(record, "error.message")
+    assert isinstance(getattr(record, "duration_ms"), int)
+
+
+def test_retry_after_honored(monkeypatch):
+    """retry_after is honored end-to-end via client.get, and clamped to
+    max_backoff (sync mirror of test_async_retry_after_honored)."""
+    slept = []
+    monkeypatch.setattr("time.sleep", slept.append)
+    counter = Counter(
+        [
+            httpx.Response(429, headers={"Retry-After": "5"}, json=rate_limited_body()),
+            httpx.Response(200, json={}),
+        ]
+    )
+    retry = RetryConfig(enabled=True, max_attempts=3, max_backoff=1.0)
+    client = Stream(
+        api_key="key",
+        api_secret="secret",
+        transport=httpx.MockTransport(counter),
+        retry=retry,
+    )
+    client.get("/api/v2/app")
+    assert counter.calls == 2
+    assert slept == [1.0]  # clamped from 5s to max_backoff=1.0
 
 
 def test_delay_clamp_and_jitter_bounds():
@@ -246,26 +304,52 @@ def test_retry_config_validation():
 
 
 @pytest.mark.asyncio
-async def test_async_disabled_by_default_single_attempt():
+async def test_async_disabled_by_default_single_attempt(caplog):
+    import logging
+
+    caplog.set_level(logging.DEBUG, logger="getstream")
     counter = Counter([httpx.Response(429, json=rate_limited_body())])
     client = async_client(counter)
     with pytest.raises(StreamRateLimitException):
         await client.get("/api/v2/app")
     assert counter.calls == 1
+    # A single, non-retried 429 is never logged as http.request.failed.
+    failed = [r for r in caplog.records if r.getMessage() == "http.request.failed"]
+    assert len(failed) == 0
     await client.aclose()
 
 
 @pytest.mark.asyncio
-async def test_async_enabled_get_retries(monkeypatch):
+async def test_async_enabled_get_retries(monkeypatch, caplog):
+    import logging
+
+    logger = logging.getLogger("test.retry.async.enabled")
+    caplog.set_level(logging.DEBUG, logger="test.retry.async.enabled")
     counter = Counter(
         [
             httpx.Response(429, json=rate_limited_body()),
             httpx.Response(200, json={}),
         ]
     )
-    client = async_client(counter, retry=ENABLED, monkeypatch=monkeypatch)
+    client = AsyncStream(
+        api_key="key",
+        api_secret="secret",
+        transport=httpx.MockTransport(counter),
+        retry=ENABLED,
+        logger=logger,
+    )
+
+    async def no_sleep(_s):
+        return None
+
+    monkeypatch.setattr("asyncio.sleep", no_sleep)
     await client.get("/api/v2/app")
     assert counter.calls == 2
+    failed = [r for r in caplog.records if r.getMessage() == "http.request.failed"]
+    assert len(failed) == 1
+    assert failed[0].levelno == logging.DEBUG
+    # Cross-SDK rule: a retried 429 must not carry error.type (transport-only enum).
+    assert not hasattr(failed[0], "error.type")
     await client.aclose()
 
 
@@ -280,36 +364,72 @@ async def test_async_post_never_retried(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_async_unrecoverable_never_retried(monkeypatch):
+async def test_async_unrecoverable_never_retried(monkeypatch, caplog):
+    import logging
+
+    caplog.set_level(logging.DEBUG, logger="getstream")
     counter = Counter([httpx.Response(429, json=rate_limited_body(unrecoverable=True))])
     client = async_client(counter, retry=ENABLED, monkeypatch=monkeypatch)
     with pytest.raises(StreamRateLimitException):
         await client.get("/api/v2/app")
     assert counter.calls == 1
+    # unrecoverable 429 is never retried, so http.request.failed never fires.
+    failed = [r for r in caplog.records if r.getMessage() == "http.request.failed"]
+    assert len(failed) == 0
     await client.aclose()
 
 
 @pytest.mark.asyncio
-async def test_async_transport_error_retried(monkeypatch):
+async def test_async_transport_error_retried(monkeypatch, caplog):
+    import logging
+
+    logger = logging.getLogger("test.retry.async.transport")
+    caplog.set_level(logging.DEBUG, logger="test.retry.async.transport")
     counter = Counter(
         [
             httpx.ConnectError("reset"),
             httpx.Response(200, json={}),
         ]
     )
-    client = async_client(counter, retry=ENABLED, monkeypatch=monkeypatch)
+    client = AsyncStream(
+        api_key="key",
+        api_secret="secret",
+        transport=httpx.MockTransport(counter),
+        retry=ENABLED,
+        logger=logger,
+    )
+
+    async def no_sleep(_s):
+        return None
+
+    monkeypatch.setattr("asyncio.sleep", no_sleep)
     await client.get("/api/v2/app")
     assert counter.calls == 2
+    failed = [r for r in caplog.records if r.getMessage() == "http.request.failed"]
+    assert len(failed) == 1
+    assert failed[0].levelno == logging.DEBUG
+    # Transport failures DO carry error.type (the closed transport-only enum).
+    assert hasattr(failed[0], "error.type")
+    assert getattr(failed[0], "error.type") != "rate_limited"
     await client.aclose()
 
 
 @pytest.mark.asyncio
-async def test_async_exhaustion_surfaces_last_error(monkeypatch):
+async def test_async_exhaustion_surfaces_last_error(monkeypatch, caplog):
+    import logging
+
+    caplog.set_level(logging.DEBUG, logger="getstream")
     counter = Counter([httpx.Response(429, json=rate_limited_body())] * 3)
     client = async_client(counter, retry=ENABLED, monkeypatch=monkeypatch)
     with pytest.raises(StreamRateLimitException):
         await client.get("/api/v2/app")
     assert counter.calls == 3
+    # The 2 retried attempts log at DEBUG; the terminal (exhausting) 429 is
+    # never logged as http.request.failed (its response was already
+    # captured via http.response.received).
+    failed = [r for r in caplog.records if r.getMessage() == "http.request.failed"]
+    assert len(failed) == 2
+    assert not any(r.levelno == logging.ERROR for r in failed)
     await client.aclose()
 
 

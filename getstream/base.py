@@ -420,8 +420,10 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
         ``http.response.received``)."""
         retry = getattr(self, "retry", None)
         log = _resolve_logger(self)
+        endpoint = self._endpoint_name(path)
         attempt = 0
         while True:
+            t0 = time.perf_counter()
             try:
                 return self._attempt_sync(
                     method,
@@ -432,14 +434,17 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
                     data_type=data_type,
                 )
             except (StreamRateLimitException, StreamTransportException) as exc:
+                duration_ms = int((time.perf_counter() - t0) * 1000)
                 if _retry_eligible(retry, exc, method, attempt):
                     delay = _retry_delay(retry, exc, attempt)
                     extra = {
                         "http.request.method": method,
                         "url.path": path,
+                        "stream.endpoint_name": endpoint,
                         "retry.attempt": attempt + 1,
                         "backoff_seconds": round(delay, 3),
                         "error.message": str(exc.__cause__ or exc),
+                        "duration_ms": duration_ms,
                     }
                     if isinstance(exc, StreamTransportException):
                         extra["error.type"] = exc.error_type
@@ -453,9 +458,11 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
                         extra={
                             "http.request.method": method,
                             "url.path": path,
+                            "stream.endpoint_name": endpoint,
                             "retry.attempt": attempt + 1,
                             "error.type": exc.error_type,
                             "error.message": str(exc.__cause__ or exc),
+                            "duration_ms": duration_ms,
                         },
                     )
                 raise
@@ -819,8 +826,10 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
         """Async twin of ``BaseClient._request_sync``; see that docstring."""
         retry = getattr(self, "retry", None)
         log = _resolve_logger(self)
+        endpoint = self._endpoint_name(path)
         attempt = 0
         while True:
+            t0 = time.perf_counter()
             try:
                 return await self._attempt_async(
                     method,
@@ -831,14 +840,17 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
                     data_type=data_type,
                 )
             except (StreamRateLimitException, StreamTransportException) as exc:
+                duration_ms = int((time.perf_counter() - t0) * 1000)
                 if _retry_eligible(retry, exc, method, attempt):
                     delay = _retry_delay(retry, exc, attempt)
                     extra = {
                         "http.request.method": method,
                         "url.path": path,
+                        "stream.endpoint_name": endpoint,
                         "retry.attempt": attempt + 1,
                         "backoff_seconds": round(delay, 3),
                         "error.message": str(exc.__cause__ or exc),
+                        "duration_ms": duration_ms,
                     }
                     if isinstance(exc, StreamTransportException):
                         extra["error.type"] = exc.error_type
@@ -852,9 +864,11 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
                         extra={
                             "http.request.method": method,
                             "url.path": path,
+                            "stream.endpoint_name": endpoint,
                             "retry.attempt": attempt + 1,
                             "error.type": exc.error_type,
                             "error.message": str(exc.__cause__ or exc),
+                            "duration_ms": duration_ms,
                         },
                     )
                 raise
