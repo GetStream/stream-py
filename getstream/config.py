@@ -1,4 +1,24 @@
+from dataclasses import dataclass
+
 from getstream.version import VERSION
+
+
+@dataclass(frozen=True)
+class RetryConfig:
+    """Opt-in auto-retry policy. Disabled by default: the client performs
+    exactly one attempt and surfaces errors unchanged. When enabled, only
+    GET/HEAD requests failing with HTTP 429 or a transport error are retried,
+    and never when the backend marked the error unrecoverable."""
+
+    enabled: bool = False
+    max_attempts: int = 3
+    max_backoff: float = 30.0
+
+    def __post_init__(self):
+        if self.max_attempts < 1:
+            raise ValueError("max_attempts must be >= 1")
+        if self.max_backoff < 0:
+            raise ValueError("max_backoff must be >= 0")
 
 
 class BaseConfig:

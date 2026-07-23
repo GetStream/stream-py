@@ -13,6 +13,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from getstream.base import _log_client_initialized, _resolve_logger
 from getstream.common import telemetry
+from getstream.config import RetryConfig
 from getstream.chat.client import ChatClient
 from getstream.chat.async_client import ChatClient as AsyncChatClient
 from getstream.common.async_client import CommonClient as AsyncCommonClient
@@ -95,6 +96,7 @@ class BaseStream:
         connect_timeout: Optional[float] = None,
         logger: Optional[logging.Logger] = None,
         log_bodies: bool = False,
+        retry: Optional[RetryConfig] = None,
     ):
         """Build a Stream client.
 
@@ -119,6 +121,7 @@ class BaseStream:
             connect_timeout: TCP + TLS handshake timeout in seconds. Default 10.0. Ignored when ``http_client`` is set.
             logger: Optional stdlib ``logging.Logger`` for the SDK's structured log events (``client.initialized``, ``http.request.sent``, ``http.response.received``, ``http.request.failed``). Defaults to ``logging.getLogger("getstream")``, which is a no-op until the caller attaches a handler.
             log_bodies: When ``True``, adds redacted request/response bodies to the request/response log events. Off by default. Emits one WARNING at construction when enabled.
+            retry: Optional ``RetryConfig`` enabling auto-retry of GET/HEAD requests on HTTP 429 or transport errors. Disabled by default (a single attempt; errors surface unchanged).
 
         Raises:
             ValueError: If both ``transport`` and ``http_client`` are set; if neither ``api_secret`` nor ``token`` can be resolved; if both are provided; if either is the empty string; if ``api_key`` is missing; or if ``request_timeout`` is not a positive number.
@@ -201,6 +204,11 @@ class BaseStream:
         # sub-clients in _apply_shared_client.
         self.log = logger
         self.log_bodies = log_bodies
+        # retry: same getattr(self, ...) plumbing as the pool knobs and log/
+        # log_bodies above, since the intermediate generated REST clients do
+        # not forward this kwarg either. Read by BaseClient/AsyncBaseClient's
+        # request loop and copied onto sub-clients in _apply_shared_client.
+        self.retry = retry
         # Pool knobs are read by BaseClient via getattr(self, ...) since the intermediate generated REST clients (CommonRestClient etc.) do not forward these kwargs. self.max_conns_per_host / idle_timeout / connect_timeout were set above before super().__init__().
         super().__init__(
             self.api_key, self.base_url, self.token, self.timeout, self.user_agent
@@ -259,6 +267,7 @@ class BaseStream:
         # through the caller's logger instead of silently falling back.
         sub_client.log = getattr(self, "log", None)
         sub_client.log_bodies = getattr(self, "log_bodies", False)
+        sub_client.retry = getattr(self, "retry", None)
         return sub_client
 
     def create_token(

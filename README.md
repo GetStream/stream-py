@@ -112,6 +112,18 @@ client = Stream(api_key="key", api_secret="secret", logger=logging.getLogger("my
 
 Each event carries structured fields via the standard `extra={}` mechanism (for example `http.response.status_code`, `duration_ms`, `stream.endpoint_name`). Query and body values for known secret keys (`api_key`, `api_secret`, `token`, `password`) are always redacted. Request/response bodies are omitted by default; pass `log_bodies=True` to include them (still redacted, and this emits one WARNING at construction since bodies can contain other sensitive data).
 
+### Retries
+
+By default the client makes exactly one attempt per request and surfaces errors unchanged. Pass a `RetryConfig` to opt in to auto-retry:
+
+```python
+from getstream import Stream, RetryConfig
+
+client = Stream(api_key=..., api_secret=..., retry=RetryConfig(enabled=True, max_attempts=3, max_backoff=30.0))
+```
+
+Only idempotent `GET`/`HEAD` requests are retried, and only on HTTP 429 (unless the backend marked it unrecoverable) or a transport-level failure (timeout, connection reset, DNS, TLS). A 429's `Retry-After` header is honored (clamped to `max_backoff`); otherwise the delay uses full jitter over an exponential backoff. A retried failure logs `http.request.failed` at DEBUG; a final, non-retried failure logs it at ERROR (or not at all for a final 429, since that's already covered by `http.response.received`).
+
 ### App configuration
 
 ```python
