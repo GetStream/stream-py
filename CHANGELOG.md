@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.2.0] - 2026-07-24
+
 ### Added
 
 - Standardized error hierarchy ([CHA-2958](https://linear.app/stream/issue/CHA-2958)).
