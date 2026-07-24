@@ -1,3 +1,4 @@
+import time
 import uuid
 from pathlib import Path
 
@@ -99,10 +100,19 @@ class TestChannelCRUD:
     def test_update_channel_partial(self, channel: Channel):
         """Partial update: set and unset fields."""
         channel.update_channel_partial(set={"color": "blue", "age": 30})
-        response = channel.update_channel_partial(set={"color": "red"}, unset=["age"])
-        assert response.data.channel is not None
-        assert response.data.channel.custom.get("color") == "red"
-        assert "age" not in (response.data.channel.custom or {})
+        channel.update_channel_partial(set={"color": "red"}, unset=["age"])
+
+        # The channel echoed in an update_channel_partial response can be hydrated
+        # from a read replica that lags the write, so verify via a re-read that
+        # retries until the state converges rather than trusting the write response.
+        custom = {}
+        for _ in range(10):
+            custom = channel.get_or_create().data.channel.custom or {}
+            if custom.get("color") == "red" and "age" not in custom:
+                break
+            time.sleep(0.5)
+        assert custom.get("color") == "red"
+        assert "age" not in custom
 
     def test_delete_channel(self, client: Stream, random_user):
         """Delete a channel and verify deleted_at is set."""
