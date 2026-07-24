@@ -1,6 +1,6 @@
 [project]
 name = "getstream"
-version = "4.1.0"
+version = "4.2.0"
 description = "GetStream Python SDK - Build scalable activity feeds, chat, and video calling applications"
 authors = [
     { name = "sachaarbonel", email = "sacha.arbonel@hotmail.fr" },
