@@ -2,6 +2,7 @@ import json
 import logging
 import mimetypes
 import os
+import random
 import time
 import uuid
 import warnings
@@ -10,6 +11,8 @@ from typing import Any, Dict, List, Optional, Tuple, Type, cast, get_origin
 
 from getstream.exceptions import (
     StreamApiException,
+    StreamRateLimitException,
+    StreamTransportException,
     build_api_exception,
     wrap_transport_error,
 )
@@ -42,6 +45,34 @@ DEFAULT_CONNECT_TIMEOUT = 10.0
 
 
 logger = logging.getLogger("getstream")
+
+
+# ── Retry policy (CHA-2959) ───────────────────────────────────────────
+def _retry_eligible(retry, exc, method: str, attempt: int) -> bool:
+    """Whether ``exc`` from the given 0-indexed ``attempt`` should be retried
+    under ``retry`` (a ``RetryConfig`` or ``None``). Only GET/HEAD, only HTTP
+    429 (unless marked unrecoverable) or a transport error, and only while
+    attempts remain."""
+    if retry is None or not retry.enabled:
+        return False
+    if method.upper() not in ("GET", "HEAD"):
+        return False
+    if attempt + 1 >= retry.max_attempts:
+        return False
+    if isinstance(exc, StreamRateLimitException):
+        return not bool(getattr(exc, "unrecoverable", False))
+    return isinstance(exc, StreamTransportException)
+
+
+def _retry_delay(retry, exc, attempt: int) -> float:
+    """Seconds to sleep before the next attempt: honors the server's
+    ``Retry-After`` when present (clamped to ``max_backoff``), else full
+    jitter over an exponential ceiling (``attempt`` is 0-indexed)."""
+    retry_after = getattr(exc, "retry_after", None)
+    if retry_after is not None and retry_after.total_seconds() > 0:
+        return min(retry_after.total_seconds(), retry.max_backoff)
+    ceil = min(retry.max_backoff, float(2**attempt))
+    return random.uniform(0.0, ceil) if ceil > 0 else 0.0
 
 
 def _resolve_pool_knobs(obj):
@@ -294,7 +325,7 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
         op = getattr(self, "_operation_name", None)
         return op or current_operation(self._normalize_endpoint_from_path(path)) or ""
 
-    def _request_sync(
+    def _attempt_sync(
         self,
         method: str,
         path: str,
@@ -334,19 +365,10 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
                     url_path, params=query_params, *args, **call_kwargs
                 )
             except httpx.RequestError as err:
-                exc = wrap_transport_error(err)
-                log.error(
-                    "http.request.failed",
-                    extra={
-                        "http.request.method": method,
-                        "url.path": path,
-                        "stream.endpoint_name": endpoint,
-                        "error.type": exc.error_type,
-                        "error.message": str(err),
-                        "duration_ms": int((time.perf_counter() - start) * 1000.0),
-                    },
-                )
-                raise exc from err
+                # No failed-log here: the retry loop (_request_sync) owns
+                # http.request.failed so it can log at DEBUG when retrying
+                # and ERROR only on a final failure.
+                raise wrap_transport_error(err) from err
             duration = parse_duration_from_body(response.content)
             if duration:
                 span.set_attribute("http.server.duration", duration)
@@ -378,6 +400,72 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
             )
             record_metrics(duration_ms, attributes=metric_attrs)
             return self._parse_response(response, data_type or Dict[str, Any])
+
+    def _request_sync(
+        self,
+        method: str,
+        path: str,
+        *,
+        query_params=None,
+        args=(),
+        kwargs=None,
+        data_type: Optional[Type[T]] = None,
+    ):
+        """Retry loop around ``_attempt_sync``. Disabled (default) retry
+        policy means exactly one attempt, errors surface unchanged. When
+        enabled, retries GET/HEAD on HTTP 429 / transport errors per
+        ``_retry_eligible``/``_retry_delay``, owning the ``http.request.failed``
+        log level so a retried failure logs at DEBUG and only a final
+        transport failure logs at ERROR (a final 429 is already covered by
+        ``http.response.received``)."""
+        retry = getattr(self, "retry", None)
+        log = _resolve_logger(self)
+        endpoint = self._endpoint_name(path)
+        attempt = 0
+        while True:
+            t0 = time.perf_counter()
+            try:
+                return self._attempt_sync(
+                    method,
+                    path,
+                    query_params=query_params,
+                    args=args,
+                    kwargs=kwargs,
+                    data_type=data_type,
+                )
+            except (StreamRateLimitException, StreamTransportException) as exc:
+                duration_ms = int((time.perf_counter() - t0) * 1000)
+                if _retry_eligible(retry, exc, method, attempt):
+                    delay = _retry_delay(retry, exc, attempt)
+                    extra = {
+                        "http.request.method": method,
+                        "url.path": path,
+                        "stream.endpoint_name": endpoint,
+                        "retry.attempt": attempt + 1,
+                        "backoff_seconds": round(delay, 3),
+                        "error.message": str(exc.__cause__ or exc),
+                        "duration_ms": duration_ms,
+                    }
+                    if isinstance(exc, StreamTransportException):
+                        extra["error.type"] = exc.error_type
+                    log.debug("http.request.failed", extra=extra)
+                    time.sleep(delay)
+                    attempt += 1
+                    continue
+                if isinstance(exc, StreamTransportException):
+                    log.error(
+                        "http.request.failed",
+                        extra={
+                            "http.request.method": method,
+                            "url.path": path,
+                            "stream.endpoint_name": endpoint,
+                            "retry.attempt": attempt + 1,
+                            "error.type": exc.error_type,
+                            "error.message": str(exc.__cause__ or exc),
+                            "duration_ms": duration_ms,
+                        },
+                    )
+                raise
 
     def patch(
         self,
@@ -637,7 +725,7 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
         op = getattr(self, "_operation_name", None)
         return op or current_operation(self._normalize_endpoint_from_path(path)) or ""
 
-    async def _request_async(
+    async def _attempt_async(
         self,
         method: str,
         path: str,
@@ -685,19 +773,10 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
                     url_path, params=query_params, *args, **call_kwargs
                 )
             except httpx.RequestError as err:
-                exc = wrap_transport_error(err)
-                log.error(
-                    "http.request.failed",
-                    extra={
-                        "http.request.method": method,
-                        "url.path": path,
-                        "stream.endpoint_name": endpoint,
-                        "error.type": exc.error_type,
-                        "error.message": str(err),
-                        "duration_ms": int((time.perf_counter() - start) * 1000.0),
-                    },
-                )
-                raise exc from err
+                # No failed-log here: the retry loop (_request_async) owns
+                # http.request.failed so it can log at DEBUG when retrying
+                # and ERROR only on a final failure.
+                raise wrap_transport_error(err) from err
             duration = parse_duration_from_body(response.content)
             if duration:
                 span.set_attribute("http.server.duration", duration)
@@ -733,6 +812,66 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
             return await asyncio.to_thread(
                 self._parse_response, response, data_type or Dict[str, Any]
             )
+
+    async def _request_async(
+        self,
+        method: str,
+        path: str,
+        *,
+        query_params=None,
+        args=(),
+        kwargs=None,
+        data_type: Optional[Type[T]] = None,
+    ):
+        """Async twin of ``BaseClient._request_sync``; see that docstring."""
+        retry = getattr(self, "retry", None)
+        log = _resolve_logger(self)
+        endpoint = self._endpoint_name(path)
+        attempt = 0
+        while True:
+            t0 = time.perf_counter()
+            try:
+                return await self._attempt_async(
+                    method,
+                    path,
+                    query_params=query_params,
+                    args=args,
+                    kwargs=kwargs,
+                    data_type=data_type,
+                )
+            except (StreamRateLimitException, StreamTransportException) as exc:
+                duration_ms = int((time.perf_counter() - t0) * 1000)
+                if _retry_eligible(retry, exc, method, attempt):
+                    delay = _retry_delay(retry, exc, attempt)
+                    extra = {
+                        "http.request.method": method,
+                        "url.path": path,
+                        "stream.endpoint_name": endpoint,
+                        "retry.attempt": attempt + 1,
+                        "backoff_seconds": round(delay, 3),
+                        "error.message": str(exc.__cause__ or exc),
+                        "duration_ms": duration_ms,
+                    }
+                    if isinstance(exc, StreamTransportException):
+                        extra["error.type"] = exc.error_type
+                    log.debug("http.request.failed", extra=extra)
+                    await asyncio.sleep(delay)
+                    attempt += 1
+                    continue
+                if isinstance(exc, StreamTransportException):
+                    log.error(
+                        "http.request.failed",
+                        extra={
+                            "http.request.method": method,
+                            "url.path": path,
+                            "stream.endpoint_name": endpoint,
+                            "retry.attempt": attempt + 1,
+                            "error.type": exc.error_type,
+                            "error.message": str(exc.__cause__ or exc),
+                            "duration_ms": duration_ms,
+                        },
+                    )
+                raise
 
     async def patch(
         self,
