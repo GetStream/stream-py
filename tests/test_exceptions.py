@@ -152,7 +152,10 @@ def test_api_exception_unparseable_body_falls_back_per_spec_6_3():
     exc = build_api_exception(response)
     assert exc.status_code == 500
     assert exc.code == 0
-    assert exc.message == "failed to parse error response"
+    assert (
+        exc.message
+        == "failed to parse error response: unexpected server response code 500"
+    )
     assert exc.exception_fields == {}
     assert exc.unrecoverable is False
     assert exc.raw_response_body == "<html>upstream barfed</html>"
