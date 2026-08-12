@@ -36,10 +36,10 @@ class StreamException(Exception):
 class StreamApiException(StreamException):
     """Raised on any HTTP 4xx/5xx response from the Stream API.
 
-    Raised with code=0 and message='failed to parse error response' when an
-    HTTP response was received but the body could not be parsed as an
-    APIError envelope; in that case ``__cause__`` carries the underlying
-    parse error.
+    Raised with code=0 and message='failed to parse error response: unexpected
+    server response code <status>' when an HTTP response was received but the
+    body could not be parsed as an APIError envelope; in that case ``__cause__``
+    carries the underlying parse error.
     """
 
     def __init__(
@@ -205,7 +205,7 @@ def _fields_from_response(
         {
             "status_code": response.status_code,
             "code": 0,
-            "message": "failed to parse error response",
+            "message": f"failed to parse error response: unexpected server response code {response.status_code}",
             "exception_fields": {},
             "unrecoverable": False,
             "raw_response_body": raw_body,
