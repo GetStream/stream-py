@@ -1401,3 +1401,14 @@ class VideoRestClient(BaseClient):
         return self.post(
             "/api/v2/video/stats", QueryAggregateCallStatsResponse, json=json
         )
+
+    @telemetry.operation_name("getstream.api.video.get_daily_digest")
+    def get_daily_digest(
+        self, date: Optional[str] = None, app_id: Optional[str] = None
+    ) -> StreamResponse[GetDailyDigestResponse]:
+        query_params = build_query_param(**{"date": date, "app_id": app_id})
+        return self.get(
+            "/api/v2/video/stats/daily_digest",
+            GetDailyDigestResponse,
+            query_params=query_params,
+        )

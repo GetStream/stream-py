@@ -684,19 +684,30 @@ class ModerationRestClient(AsyncBaseClient):
 
     @telemetry.operation_name("getstream.api.moderation.delete_moderation_rule")
     async def delete_moderation_rule(
-        self, user_id: Optional[str] = None
+        self, id: str, user_id: Optional[str] = None
     ) -> StreamResponse[DeleteModerationRuleResponse]:
         query_params = build_query_param(**{"user_id": user_id})
+        path_params = {
+            "id": id,
+        }
         return await self.delete(
             "/api/v2/moderation/moderation_rule/{id}",
             DeleteModerationRuleResponse,
             query_params=query_params,
+            path_params=path_params,
         )
 
     @telemetry.operation_name("getstream.api.moderation.get_moderation_rule")
-    async def get_moderation_rule(self) -> StreamResponse[GetModerationRuleResponse]:
+    async def get_moderation_rule(
+        self, id: str
+    ) -> StreamResponse[GetModerationRuleResponse]:
+        path_params = {
+            "id": id,
+        }
         return await self.get(
-            "/api/v2/moderation/moderation_rule/{id}", GetModerationRuleResponse
+            "/api/v2/moderation/moderation_rule/{id}",
+            GetModerationRuleResponse,
+            path_params=path_params,
         )
 
     @telemetry.operation_name("getstream.api.moderation.query_moderation_rules")
@@ -738,9 +749,87 @@ class ModerationRestClient(AsyncBaseClient):
         ).to_dict()
         return await self.post("/api/v2/moderation/mute", MuteResponse, json=json)
 
+    @telemetry.operation_name("getstream.api.moderation.get_policy_test_run")
+    async def get_policy_test_run(
+        self, id: str
+    ) -> StreamResponse[PolicyTestRunResponse]:
+        path_params = {
+            "id": id,
+        }
+        return await self.get(
+            "/api/v2/moderation/policy_tests/runs/{id}",
+            PolicyTestRunResponse,
+            path_params=path_params,
+        )
+
+    @telemetry.operation_name("getstream.api.moderation.list_policy_test_sets")
+    async def list_policy_test_sets(self) -> StreamResponse[PolicyTestSetListResponse]:
+        return await self.get(
+            "/api/v2/moderation/policy_tests/sets", PolicyTestSetListResponse
+        )
+
+    @telemetry.operation_name("getstream.api.moderation.create_policy_test_set")
+    async def create_policy_test_set(
+        self,
+        name: str,
+        config_key: Optional[str] = None,
+        mode: Optional[str] = None,
+        team: Optional[str] = None,
+        rows: Optional[List[PolicyTestRow]] = None,
+        seed: Optional[PolicyTestSeedSpec] = None,
+    ) -> StreamResponse[PolicyTestSetResponse]:
+        json = CreatePolicyTestSetRequest(
+            name=name, config_key=config_key, mode=mode, team=team, rows=rows, seed=seed
+        ).to_dict()
+        return await self.post(
+            "/api/v2/moderation/policy_tests/sets", PolicyTestSetResponse, json=json
+        )
+
+    @telemetry.operation_name("getstream.api.moderation.delete_policy_test_set")
+    async def delete_policy_test_set(self, id: str) -> StreamResponse[Response]:
+        path_params = {
+            "id": id,
+        }
+        return await self.delete(
+            "/api/v2/moderation/policy_tests/sets/{id}",
+            Response,
+            path_params=path_params,
+        )
+
+    @telemetry.operation_name("getstream.api.moderation.get_policy_test_set")
+    async def get_policy_test_set(
+        self, id: str
+    ) -> StreamResponse[PolicyTestSetResponse]:
+        path_params = {
+            "id": id,
+        }
+        return await self.get(
+            "/api/v2/moderation/policy_tests/sets/{id}",
+            PolicyTestSetResponse,
+            path_params=path_params,
+        )
+
+    @telemetry.operation_name("getstream.api.moderation.start_policy_test_run")
+    async def start_policy_test_run(
+        self, id: str
+    ) -> StreamResponse[PolicyTestRunResponse]:
+        path_params = {
+            "id": id,
+        }
+        return await self.post(
+            "/api/v2/moderation/policy_tests/sets/{id}/runs",
+            PolicyTestRunResponse,
+            path_params=path_params,
+        )
+
     @telemetry.operation_name("getstream.api.moderation.list_queues")
-    async def list_queues(self) -> StreamResponse[ListQueuesResponse]:
-        return await self.get("/api/v2/moderation/queues", ListQueuesResponse)
+    async def list_queues(
+        self, user_id: Optional[str] = None
+    ) -> StreamResponse[ListQueuesResponse]:
+        query_params = build_query_param(**{"user_id": user_id})
+        return await self.get(
+            "/api/v2/moderation/queues", ListQueuesResponse, query_params=query_params
+        )
 
     @telemetry.operation_name("getstream.api.moderation.create_queue")
     async def create_queue(
@@ -904,6 +993,7 @@ class ModerationRestClient(AsyncBaseClient):
         delete_message: Optional[DeleteMessageRequestPayload] = None,
         delete_reaction: Optional[DeleteReactionRequestPayload] = None,
         delete_user: Optional[DeleteUserRequestPayload] = None,
+        delete_user_messages: Optional[DeleteUserMessagesRequestPayload] = None,
         escalate: Optional[EscalatePayload] = None,
         flag: Optional[FlagRequest] = None,
         mark_reviewed: Optional[MarkReviewedRequestPayload] = None,
@@ -928,6 +1018,7 @@ class ModerationRestClient(AsyncBaseClient):
             delete_message=delete_message,
             delete_reaction=delete_reaction,
             delete_user=delete_user,
+            delete_user_messages=delete_user_messages,
             escalate=escalate,
             flag=flag,
             mark_reviewed=mark_reviewed,

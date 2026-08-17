@@ -142,6 +142,7 @@ from .models import (
     MessageUnblockedEvent,
     MessageUndeletedEvent,
     MessageUpdatedEvent,
+    ModerationAnalysisFailedEvent,
     ModerationCustomActionEvent,
     ModerationFlaggedEvent,
     ModerationImageAnalysisCompleteEvent,
@@ -319,6 +320,7 @@ EVENT_TYPE_MESSAGE_READ = "message.read"
 EVENT_TYPE_MESSAGE_UNBLOCKED = "message.unblocked"
 EVENT_TYPE_MESSAGE_UNDELETED = "message.undeleted"
 EVENT_TYPE_MESSAGE_UPDATED = "message.updated"
+EVENT_TYPE_MODERATION_ANALYSIS_FAILED = "moderation.analysis.failed"
 EVENT_TYPE_MODERATION_CUSTOM_ACTION = "moderation.custom_action"
 EVENT_TYPE_MODERATION_FLAGGED = "moderation.flagged"
 EVENT_TYPE_MODERATION_IMAGE_ANALYSIS_COMPLETE = "moderation.image_analysis.complete"
@@ -586,6 +588,7 @@ def _get_event_class(event_type: str):
         "message.unblocked": MessageUnblockedEvent,
         "message.undeleted": MessageUndeletedEvent,
         "message.updated": MessageUpdatedEvent,
+        "moderation.analysis.failed": ModerationAnalysisFailedEvent,
         "moderation.custom_action": ModerationCustomActionEvent,
         "moderation.flagged": ModerationFlaggedEvent,
         "moderation.image_analysis.complete": ModerationImageAnalysisCompleteEvent,

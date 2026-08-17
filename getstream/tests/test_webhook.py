@@ -906,6 +906,12 @@ class TestParseWebhookEvent:
             event = parse_webhook_event({"type": "message.updated"})
         assert type(event).__name__ == "MessageUpdatedEvent"
 
+    def test_parse_moderation_analysis_failed(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            event = parse_webhook_event({"type": "moderation.analysis.failed"})
+        assert type(event).__name__ == "ModerationAnalysisFailedEvent"
+
     def test_parse_moderation_custom_action(self):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", RuntimeWarning)

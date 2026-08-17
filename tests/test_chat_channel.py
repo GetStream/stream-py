@@ -154,11 +154,13 @@ class TestChannelCRUD:
 
     def test_freeze_unfreeze_channel(self, channel: Channel):
         """Freeze and unfreeze a channel."""
-        response = channel.update_channel_partial(set={"frozen": True})
-        assert response.data.channel.frozen is True
+        # The channel echoed in an update_channel_partial response can lag the write,
+        # so read the channel back instead of trusting the write response.
+        channel.update_channel_partial(set={"frozen": True})
+        assert channel.get_or_create().data.channel.frozen is True
 
-        response = channel.update_channel_partial(set={"frozen": False})
-        assert response.data.channel.frozen is False
+        channel.update_channel_partial(set={"frozen": False})
+        assert channel.get_or_create().data.channel.frozen is False
 
     def test_query_channels(self, client: Stream, random_users):
         """Query channels by member filter."""

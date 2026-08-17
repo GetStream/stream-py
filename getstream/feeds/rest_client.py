@@ -54,6 +54,7 @@ class FeedsRestClient(BaseClient):
         visibility_tag: Optional[str] = None,
         attachments: Optional[List[Attachment]] = None,
         collection_refs: Optional[List[str]] = None,
+        collections: Optional[List[CollectionRequest]] = None,
         filter_tags: Optional[List[str]] = None,
         interest_tags: Optional[List[str]] = None,
         mentioned_user_ids: Optional[List[str]] = None,
@@ -82,6 +83,7 @@ class FeedsRestClient(BaseClient):
             visibility_tag=visibility_tag,
             attachments=attachments,
             collection_refs=collection_refs,
+            collections=collections,
             filter_tags=filter_tags,
             interest_tags=interest_tags,
             mentioned_user_ids=mentioned_user_ids,
@@ -502,19 +504,19 @@ class FeedsRestClient(BaseClient):
     def get_activity(
         self,
         id: str,
-        language: Optional[str] = None,
-        translate_text: Optional[bool] = None,
         comment_sort: Optional[str] = None,
         comment_limit: Optional[int] = None,
         user_id: Optional[str] = None,
+        language: Optional[str] = None,
+        translate_text: Optional[bool] = None,
     ) -> StreamResponse[GetActivityResponse]:
         query_params = build_query_param(
             **{
-                "language": language,
-                "translate_text": translate_text,
                 "comment_sort": comment_sort,
                 "comment_limit": comment_limit,
                 "user_id": user_id,
+                "language": language,
+                "translate_text": translate_text,
             }
         )
         path_params = {
@@ -1079,15 +1081,15 @@ class FeedsRestClient(BaseClient):
     def get_comment(
         self,
         id: str,
+        user_id: Optional[str] = None,
         language: Optional[str] = None,
         translate_text: Optional[bool] = None,
-        user_id: Optional[str] = None,
     ) -> StreamResponse[GetCommentResponse]:
         query_params = build_query_param(
             **{
+                "user_id": user_id,
                 "language": language,
                 "translate_text": translate_text,
-                "user_id": user_id,
             }
         )
         path_params = {
@@ -2049,6 +2051,7 @@ class FeedsRestClient(BaseClient):
         android: Optional[bool] = None,
         ios: Optional[bool] = None,
         web: Optional[bool] = None,
+        unity: Optional[bool] = None,
         server_side: Optional[bool] = None,
     ) -> StreamResponse[GetFeedsRateLimitsResponse]:
         query_params = build_query_param(
@@ -2057,6 +2060,7 @@ class FeedsRestClient(BaseClient):
                 "android": android,
                 "ios": ios,
                 "web": web,
+                "unity": unity,
                 "server_side": server_side,
             }
         )
