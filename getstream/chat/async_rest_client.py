@@ -212,6 +212,7 @@ class ChatRestClient(AsyncBaseClient):
         predefined_filter: Optional[str] = None,
         state: Optional[bool] = None,
         user_id: Optional[str] = None,
+        member_custom_include: Optional[List[str]] = None,
         sort: Optional[List[SortParamRequest]] = None,
         filter_conditions: Optional[Dict[str, object]] = None,
         filter_values: Optional[Dict[str, object]] = None,
@@ -226,6 +227,7 @@ class ChatRestClient(AsyncBaseClient):
             predefined_filter=predefined_filter,
             state=state,
             user_id=user_id,
+            member_custom_include=member_custom_include,
             sort=sort,
             filter_conditions=filter_conditions,
             filter_values=filter_values,
@@ -313,6 +315,7 @@ class ChatRestClient(AsyncBaseClient):
         hide_for_creator: Optional[bool] = None,
         state: Optional[bool] = None,
         thread_unread_counts: Optional[bool] = None,
+        member_custom_include: Optional[List[str]] = None,
         data: Optional[ChannelInput] = None,
         members: Optional[PaginationParams] = None,
         messages: Optional[MessagePaginationParams] = None,
@@ -325,6 +328,7 @@ class ChatRestClient(AsyncBaseClient):
             hide_for_creator=hide_for_creator,
             state=state,
             thread_unread_counts=thread_unread_counts,
+            member_custom_include=member_custom_include,
             data=data,
             members=members,
             messages=messages,
@@ -362,6 +366,12 @@ class ChatRestClient(AsyncBaseClient):
         messages_limit: Optional[int] = None,
         members_limit: Optional[int] = None,
         watchers_limit: Optional[int] = None,
+        messages_id_lt: Optional[str] = None,
+        messages_id_lte: Optional[str] = None,
+        messages_id_gt: Optional[str] = None,
+        messages_id_gte: Optional[str] = None,
+        messages_id_around: Optional[str] = None,
+        user_id: Optional[str] = None,
     ) -> StreamResponse[ChannelStateResponse]:
         query_params = build_query_param(
             **{
@@ -369,6 +379,12 @@ class ChatRestClient(AsyncBaseClient):
                 "messages_limit": messages_limit,
                 "members_limit": members_limit,
                 "watchers_limit": watchers_limit,
+                "messages_id_lt": messages_id_lt,
+                "messages_id_lte": messages_id_lte,
+                "messages_id_gt": messages_id_gt,
+                "messages_id_gte": messages_id_gte,
+                "messages_id_around": messages_id_around,
+                "user_id": user_id,
             }
         )
         path_params = {
@@ -645,6 +661,8 @@ class ChatRestClient(AsyncBaseClient):
         id: str,
         message: MessageRequest,
         force_moderation: Optional[bool] = None,
+        include_channel_context: Optional[bool] = None,
+        include_mentioned_members: Optional[bool] = None,
         keep_channel_hidden: Optional[bool] = None,
         pending: Optional[bool] = None,
         skip_enrich_url: Optional[bool] = None,
@@ -658,6 +676,8 @@ class ChatRestClient(AsyncBaseClient):
         json = SendMessageRequest(
             message=message,
             force_moderation=force_moderation,
+            include_channel_context=include_channel_context,
+            include_mentioned_members=include_mentioned_members,
             keep_channel_hidden=keep_channel_hidden,
             pending=pending,
             skip_enrich_url=skip_enrich_url,
@@ -673,9 +693,15 @@ class ChatRestClient(AsyncBaseClient):
 
     @telemetry.operation_name("getstream.api.chat.get_many_messages")
     async def get_many_messages(
-        self, type: str, id: str, ids: List[str]
+        self,
+        type: str,
+        id: str,
+        ids: List[str],
+        member_custom_include: Optional[List[str]] = None,
     ) -> StreamResponse[GetManyMessagesResponse]:
-        query_params = build_query_param(**{"ids": ids})
+        query_params = build_query_param(
+            **{"ids": ids, "member_custom_include": member_custom_include}
+        )
         path_params = {
             "type": type,
             "id": id,
@@ -695,6 +721,7 @@ class ChatRestClient(AsyncBaseClient):
         hide_for_creator: Optional[bool] = None,
         state: Optional[bool] = None,
         thread_unread_counts: Optional[bool] = None,
+        member_custom_include: Optional[List[str]] = None,
         data: Optional[ChannelInput] = None,
         members: Optional[PaginationParams] = None,
         messages: Optional[MessagePaginationParams] = None,
@@ -708,6 +735,7 @@ class ChatRestClient(AsyncBaseClient):
             hide_for_creator=hide_for_creator,
             state=state,
             thread_unread_counts=thread_unread_counts,
+            member_custom_include=member_custom_include,
             data=data,
             members=members,
             messages=messages,
@@ -1105,17 +1133,21 @@ class ChatRestClient(AsyncBaseClient):
         channels: List[ChannelExport],
         clear_deleted_message_text: Optional[bool] = None,
         export_users: Optional[bool] = None,
+        format: Optional[str] = None,
         include_soft_deleted_channels: Optional[bool] = None,
         include_truncated_messages: Optional[bool] = None,
         version: Optional[str] = None,
+        include_fields: Optional[List[str]] = None,
     ) -> StreamResponse[ExportChannelsResponse]:
         json = ExportChannelsRequest(
             channels=channels,
             clear_deleted_message_text=clear_deleted_message_text,
             export_users=export_users,
+            format=format,
             include_soft_deleted_channels=include_soft_deleted_channels,
             include_truncated_messages=include_truncated_messages,
             version=version,
+            include_fields=include_fields,
         ).to_dict()
         return await self.post(
             "/api/v2/chat/export_channels", ExportChannelsResponse, json=json
@@ -1519,6 +1551,7 @@ class ChatRestClient(AsyncBaseClient):
         id_lt: Optional[str] = None,
         id_around: Optional[str] = None,
         sort: Optional[List[SortParamRequest]] = None,
+        member_custom_include: Optional[List[str]] = None,
     ) -> StreamResponse[GetRepliesResponse]:
         query_params = build_query_param(
             **{
@@ -1529,6 +1562,7 @@ class ChatRestClient(AsyncBaseClient):
                 "id_lt": id_lt,
                 "id_around": id_around,
                 "sort": sort,
+                "member_custom_include": member_custom_include,
             }
         )
         path_params = {

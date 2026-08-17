@@ -44,6 +44,7 @@ class CommonRestClient(AsyncBaseClient):
         before_message_send_hook_url: Optional[str] = None,
         cdn_expiration_seconds: Optional[int] = None,
         channel_hide_members_only: Optional[bool] = None,
+        chat_primary_use_case: Optional[str] = None,
         custom_action_handler_url: Optional[str] = None,
         disable_auth_checks: Optional[bool] = None,
         disable_permissions_checks: Optional[bool] = None,
@@ -55,6 +56,7 @@ class CommonRestClient(AsyncBaseClient):
         guest_user_creation_disabled: Optional[bool] = None,
         image_moderation_enabled: Optional[bool] = None,
         max_aggregated_activities_length: Optional[int] = None,
+        member_custom_on_messages_enabled: Optional[bool] = None,
         migrate_permissions_to_v2: Optional[bool] = None,
         moderation_analytics_enabled: Optional[bool] = None,
         moderation_enabled: Optional[bool] = None,
@@ -104,6 +106,7 @@ class CommonRestClient(AsyncBaseClient):
             before_message_send_hook_url=before_message_send_hook_url,
             cdn_expiration_seconds=cdn_expiration_seconds,
             channel_hide_members_only=channel_hide_members_only,
+            chat_primary_use_case=chat_primary_use_case,
             custom_action_handler_url=custom_action_handler_url,
             disable_auth_checks=disable_auth_checks,
             disable_permissions_checks=disable_permissions_checks,
@@ -115,6 +118,7 @@ class CommonRestClient(AsyncBaseClient):
             guest_user_creation_disabled=guest_user_creation_disabled,
             image_moderation_enabled=image_moderation_enabled,
             max_aggregated_activities_length=max_aggregated_activities_length,
+            member_custom_on_messages_enabled=member_custom_on_messages_enabled,
             migrate_permissions_to_v2=migrate_permissions_to_v2,
             moderation_analytics_enabled=moderation_analytics_enabled,
             moderation_enabled=moderation_enabled,
@@ -159,9 +163,14 @@ class CommonRestClient(AsyncBaseClient):
 
     @telemetry.operation_name("getstream.api.common.list_block_lists")
     async def list_block_lists(
-        self, team: Optional[str] = None
+        self,
+        team: Optional[str] = None,
+        cursor: Optional[str] = None,
+        limit: Optional[int] = None,
     ) -> StreamResponse[ListBlockListResponse]:
-        query_params = build_query_param(**{"team": team})
+        query_params = build_query_param(
+            **{"team": team, "cursor": cursor, "limit": limit}
+        )
         return await self.get(
             "/api/v2/blocklists", ListBlockListResponse, query_params=query_params
         )
@@ -177,6 +186,8 @@ class CommonRestClient(AsyncBaseClient):
         is_substring_matching_enabled: Optional[bool] = None,
         team: Optional[str] = None,
         type: Optional[str] = None,
+        user_id: Optional[str] = None,
+        user: Optional[UserRequest] = None,
     ) -> StreamResponse[CreateBlockListResponse]:
         json = CreateBlockListRequest(
             name=name,
@@ -187,14 +198,31 @@ class CommonRestClient(AsyncBaseClient):
             is_substring_matching_enabled=is_substring_matching_enabled,
             team=team,
             type=type,
+            user_id=user_id,
+            user=user,
         ).to_dict()
         return await self.post("/api/v2/blocklists", CreateBlockListResponse, json=json)
 
+    @telemetry.operation_name("getstream.api.common.import_block_list")
+    async def import_block_list(
+        self, id: str, items: List[str], chunk_size: Optional[int] = None
+    ) -> StreamResponse[ImportBlockListResponse]:
+        path_params = {
+            "id": id,
+        }
+        json = ImportBlockListRequest(items=items, chunk_size=chunk_size).to_dict()
+        return await self.post(
+            "/api/v2/blocklists/{id}/import",
+            ImportBlockListResponse,
+            path_params=path_params,
+            json=json,
+        )
+
     @telemetry.operation_name("getstream.api.common.delete_block_list")
     async def delete_block_list(
-        self, name: str, team: Optional[str] = None
+        self, name: str, team: Optional[str] = None, user_id: Optional[str] = None
     ) -> StreamResponse[Response]:
-        query_params = build_query_param(**{"team": team})
+        query_params = build_query_param(**{"team": team, "user_id": user_id})
         path_params = {
             "name": name,
         }
@@ -229,7 +257,9 @@ class CommonRestClient(AsyncBaseClient):
         is_plural_check_enabled: Optional[bool] = None,
         is_substring_matching_enabled: Optional[bool] = None,
         team: Optional[str] = None,
+        user_id: Optional[str] = None,
         words: Optional[List[str]] = None,
+        user: Optional[UserRequest] = None,
     ) -> StreamResponse[UpdateBlockListResponse]:
         path_params = {
             "name": name,
@@ -240,7 +270,9 @@ class CommonRestClient(AsyncBaseClient):
             is_plural_check_enabled=is_plural_check_enabled,
             is_substring_matching_enabled=is_substring_matching_enabled,
             team=team,
+            user_id=user_id,
             words=words,
+            user=user,
         ).to_dict()
         return await self.put(
             "/api/v2/blocklists/{name}",
@@ -502,9 +534,12 @@ class CommonRestClient(AsyncBaseClient):
 
     @telemetry.operation_name("getstream.api.common.upsert_importer_external_storage")
     async def upsert_importer_external_storage(
-        self, type: str, aws_s3: Optional[UpsertExternalStorageAWSS3Request] = None
+        self,
+        type: str,
+        aws_s3: Optional[UpsertExternalStorageAWSS3Request] = None,
+        gcs: Optional[UpsertExternalStorageGCSRequest] = None,
     ) -> StreamResponse[UpsertExternalStorageResponse]:
-        json = UpsertExternalStorageRequest(type=type, aws_s3=aws_s3).to_dict()
+        json = UpsertExternalStorageRequest(type=type, aws_s3=aws_s3, gcs=gcs).to_dict()
         return await self.put(
             "/api/v2/imports/v2/external-storage",
             UpsertExternalStorageResponse,
@@ -789,9 +824,8 @@ class CommonRestClient(AsyncBaseClient):
 
     @telemetry.operation_name("getstream.api.common.get_poll_option")
     async def get_poll_option(
-        self, poll_id: str, option_id: str, user_id: Optional[str] = None
+        self, poll_id: str, option_id: str
     ) -> StreamResponse[PollOptionResponse]:
-        query_params = build_query_param(**{"user_id": user_id})
         path_params = {
             "poll_id": poll_id,
             "option_id": option_id,
@@ -799,7 +833,6 @@ class CommonRestClient(AsyncBaseClient):
         return await self.get(
             "/api/v2/polls/{poll_id}/options/{option_id}",
             PollOptionResponse,
-            query_params=query_params,
             path_params=path_params,
         )
 
@@ -908,6 +941,7 @@ class CommonRestClient(AsyncBaseClient):
         android: Optional[bool] = None,
         ios: Optional[bool] = None,
         web: Optional[bool] = None,
+        unity: Optional[bool] = None,
         endpoints: Optional[str] = None,
     ) -> StreamResponse[GetRateLimitsResponse]:
         query_params = build_query_param(
@@ -916,6 +950,7 @@ class CommonRestClient(AsyncBaseClient):
                 "android": android,
                 "ios": ios,
                 "web": web,
+                "unity": unity,
                 "endpoints": endpoints,
             }
         )

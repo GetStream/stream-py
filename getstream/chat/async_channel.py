@@ -38,6 +38,12 @@ class Channel:
         messages_limit: Optional[int] = None,
         members_limit: Optional[int] = None,
         watchers_limit: Optional[int] = None,
+        messages_id_lt: Optional[str] = None,
+        messages_id_lte: Optional[str] = None,
+        messages_id_gt: Optional[str] = None,
+        messages_id_gte: Optional[str] = None,
+        messages_id_around: Optional[str] = None,
+        user_id: Optional[str] = None,
     ) -> StreamResponse[ChannelStateResponse]:
         response = await self.client.get_channel(
             type=self.channel_type,
@@ -46,6 +52,12 @@ class Channel:
             messages_limit=messages_limit,
             members_limit=members_limit,
             watchers_limit=watchers_limit,
+            messages_id_lt=messages_id_lt,
+            messages_id_lte=messages_id_lte,
+            messages_id_gt=messages_id_gt,
+            messages_id_gte=messages_id_gte,
+            messages_id_around=messages_id_around,
+            user_id=user_id,
         )
         self._sync_from_response(response.data)
         return response
@@ -236,6 +248,8 @@ class Channel:
         self,
         message: MessageRequest,
         force_moderation: Optional[bool] = None,
+        include_channel_context: Optional[bool] = None,
+        include_mentioned_members: Optional[bool] = None,
         keep_channel_hidden: Optional[bool] = None,
         pending: Optional[bool] = None,
         skip_enrich_url: Optional[bool] = None,
@@ -247,6 +261,8 @@ class Channel:
             id=self.channel_id,
             message=message,
             force_moderation=force_moderation,
+            include_channel_context=include_channel_context,
+            include_mentioned_members=include_mentioned_members,
             keep_channel_hidden=keep_channel_hidden,
             pending=pending,
             skip_enrich_url=skip_enrich_url,
@@ -258,10 +274,13 @@ class Channel:
 
     @attach_channel_cid_async
     async def get_many_messages(
-        self, ids: List[str]
+        self, ids: List[str], member_custom_include: Optional[List[str]] = None
     ) -> StreamResponse[GetManyMessagesResponse]:
         response = await self.client.get_many_messages(
-            type=self.channel_type, id=self.channel_id, ids=ids
+            type=self.channel_type,
+            id=self.channel_id,
+            ids=ids,
+            member_custom_include=member_custom_include,
         )
         self._sync_from_response(response.data)
         return response
@@ -272,6 +291,7 @@ class Channel:
         hide_for_creator: Optional[bool] = None,
         state: Optional[bool] = None,
         thread_unread_counts: Optional[bool] = None,
+        member_custom_include: Optional[List[str]] = None,
         data: Optional[ChannelInput] = None,
         members: Optional[PaginationParams] = None,
         messages: Optional[MessagePaginationParams] = None,
@@ -283,6 +303,7 @@ class Channel:
             hide_for_creator=hide_for_creator,
             state=state,
             thread_unread_counts=thread_unread_counts,
+            member_custom_include=member_custom_include,
             data=data,
             members=members,
             messages=messages,
