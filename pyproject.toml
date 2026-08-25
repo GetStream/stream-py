@@ -83,6 +83,7 @@ dev = [
     "torch>=2.7.0",  # Only for scripts/create_test_assets.py
     "torchaudio>=2.7.0",  # Only for scripts/create_test_assets.py
     "pytest-httpserver>=1.1.5",
+    "aiortc>=1.15.0",
 ]
 
 [tool.uv.workspace]
