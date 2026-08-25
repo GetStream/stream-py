@@ -11,10 +11,10 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Union
 
 import numpy as np
-from aiortc import MediaStreamTrack
-from aiortc.contrib.media import MediaRecorder
-from aiortc.mediastreams import AudioFrame as AiortcAudioFrame
+import av
 from pyee.asyncio import AsyncIOEventEmitter
+
+from getstream.video.rtc.media import MediaStreamError, MediaStreamTrack
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +83,65 @@ class VideoFrame(Frame):
 FrameType = Union[AudioFrame, VideoFrame]
 
 
+class PyAvMediaRecorder:
+    """Record a duck-typed MediaStreamTrack to a file with PyAV."""
+
+    def __init__(self, filename: str, kind: str):
+        self.filename = filename
+        self.kind = kind
+        self._track = None
+        self._container = None
+        self._stream = None
+        self._task: Optional[asyncio.Task] = None
+        self._stopped = asyncio.Event()
+
+    def addTrack(self, track):
+        self._track = track
+
+    async def start(self):
+        self._container = av.open(self.filename, mode="w")
+        if self.kind == "audio":
+            self._stream = self._container.add_stream("aac", rate=48000)
+        else:
+            self._stream = self._container.add_stream("libx264", rate=30)
+            self._stream.pix_fmt = "yuv420p"
+        self._task = asyncio.create_task(self._run())
+
+    async def _run(self):
+        try:
+            while not self._stopped.is_set():
+                try:
+                    frame = await asyncio.wait_for(self._track.recv(), timeout=0.5)
+                except asyncio.TimeoutError:
+                    continue
+                except MediaStreamError:
+                    break
+                except Exception:
+                    break
+                if frame is None:
+                    break
+                try:
+                    for packet in self._stream.encode(frame):
+                        self._container.mux(packet)
+                except Exception:
+                    logger.debug("PyAV encode failed", exc_info=True)
+        finally:
+            if self._stream is not None:
+                try:
+                    for packet in self._stream.encode(None):
+                        self._container.mux(packet)
+                except Exception:
+                    pass
+            if self._container is not None:
+                self._container.close()
+
+    async def stop(self):
+        self._stopped.set()
+        if self._task:
+            await self._task
+            self._task = None
+
+
 class TrackRecorder(AsyncIOEventEmitter):
     """Records a single track using MediaRecorder."""
 
@@ -104,7 +163,7 @@ class TrackRecorder(AsyncIOEventEmitter):
             recorder_id or f"{track_type.value}_recorder_{int(time.time() * 1000)}"
         )
         self.config = config or RecordingConfig()
-        self._recorder: Optional[MediaRecorder] = None
+        self._recorder: Optional[PyAvMediaRecorder] = None
         self._is_recording = False
         self._start_time: Optional[float] = None
 
@@ -142,7 +201,10 @@ class TrackRecorder(AsyncIOEventEmitter):
             os.makedirs(filepath.parent, exist_ok=True)
 
             # Create MediaRecorder
-            self._recorder = MediaRecorder(str(filepath))
+            self._recorder = PyAvMediaRecorder(
+                str(filepath),
+                "audio" if self.track_type == TrackType.AUDIO else "video",
+            )
             logger.info(
                 f"TrackRecorder {self.recorder_id}: Created MediaRecorder for {filepath}"
             )
@@ -319,7 +381,7 @@ class MixedAudioStreamTrack(MediaStreamTrack):
 
         logger.debug("Mixing loop stopped")
 
-    async def recv(self) -> AiortcAudioFrame:
+    async def recv(self) -> av.AudioFrame:
         """Receive mixed audio frame from buffer."""
         self._recv_call_count += 1
 
@@ -354,22 +416,22 @@ class MixedAudioStreamTrack(MediaStreamTrack):
             logger.error(f"Error in recv(): {e}")
             return self._create_silent_frame()
 
-    def _create_silent_frame(self) -> AiortcAudioFrame:
+    def _create_silent_frame(self) -> av.AudioFrame:
         """Create a silent audio frame."""
         samples_per_frame = int(
             self.config.audio_sample_rate * self.config.frame_duration
         )
+        layout = "mono" if self.config.audio_channels == 1 else "stereo"
         silent_samples = np.zeros(
-            (samples_per_frame, self.config.audio_channels), dtype=np.int16
+            (1, samples_per_frame * self.config.audio_channels), dtype=np.int16
         )
-
-        return AiortcAudioFrame(
-            format="s16",
-            layout="mono" if self.config.audio_channels == 1 else "stereo",
-            samples=silent_samples,
+        frame = av.AudioFrame.from_ndarray(
+            silent_samples, format="s16", layout=layout
         )
+        frame.sample_rate = self.config.audio_sample_rate
+        return frame
 
-    def _aiortc_frame_to_bytes(self, aiortc_frame: AiortcAudioFrame) -> Optional[bytes]:
+    def _aiortc_frame_to_bytes(self, aiortc_frame: av.AudioFrame) -> Optional[bytes]:
         """Convert aiortc AudioFrame to bytes, handling variable frame sizes."""
         try:
             if hasattr(aiortc_frame, "to_ndarray"):
@@ -391,7 +453,7 @@ class MixedAudioStreamTrack(MediaStreamTrack):
             logger.warning(f"Error converting aiortc frame to bytes: {e}")
             return None
 
-    def _bytes_to_aiortc_frame(self, audio_bytes: bytes) -> Optional[AiortcAudioFrame]:
+    def _bytes_to_aiortc_frame(self, audio_bytes: bytes) -> Optional[av.AudioFrame]:
         """Convert bytes back to aiortc AudioFrame with normalized frame size."""
         try:
             # Calculate expected frame size for consistent timing (20ms)
@@ -410,7 +472,7 @@ class MixedAudioStreamTrack(MediaStreamTrack):
             )
 
             # Create AudioFrame with consistent frame size
-            frame = AiortcAudioFrame(
+            frame = av.AudioFrame(
                 format="s16", layout=layout, samples=expected_samples
             )
 

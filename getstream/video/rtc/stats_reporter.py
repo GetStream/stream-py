@@ -5,57 +5,54 @@ Orchestrates stats collection and sending to SFU.
 import asyncio
 import json
 import logging
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, List, Optional
-
-import aiortc
 
 from getstream.version import VERSION
 from getstream.video.rtc.pb.stream.video.sfu.signal_rpc import signal_pb2
 from getstream.video.rtc.tracer import TraceSlice
-from getstream.video.rtc.stats_tracer import _sanitize_value
 
 if TYPE_CHECKING:
     from getstream.video.rtc.connection_manager import ConnectionManager
-    from getstream.video.rtc.stats_tracer import ComputedStats
 
 logger = logging.getLogger(__name__)
 
 
+def _sanitize_value(value: Any) -> Any:
+    if value is None:
+        return None
+    if isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, datetime):
+        return int(value.timestamp() * 1000)
+    if isinstance(value, dict):
+        return {str(k): _sanitize_value(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_sanitize_value(v) for v in value]
+    return str(value)
+
+
 def _flatten_stats(report) -> List[Any]:
-    """Flatten RTCStatsReport to an array of stats objects.
-
-    Matches the JS SDK's flatten() function which converts
-    RTCStatsReport (Map-like) to an array of RTCStats objects.
-
-    Args:
-        report: The RTCStatsReport from getStats()
-
-    Returns:
-        List of stats objects with sanitized values
-    """
+    """Flatten a stats snapshot to an array of stats objects."""
     if report is None:
         return []
 
-    stats = []
-    if hasattr(report, "items"):
-        # Dict-like report (aiortc RTCStatsReport)
+    if isinstance(report, dict):
+        if "id" in report or "type" in report:
+            return [_sanitize_value(report)]
+        stats = []
         for stat_id, stat in report.items():
-            stat_obj = {"id": stat_id}
-            if hasattr(stat, "__dict__"):
-                for key, value in vars(stat).items():
-                    stat_obj[key] = _sanitize_value(value)
-            elif isinstance(stat, dict):
-                for key, value in stat.items():
-                    stat_obj[key] = _sanitize_value(value)
-            stats.append(stat_obj)
-    elif hasattr(report, "__iter__"):
-        # List-like report
-        for stat in report:
-            if hasattr(stat, "__dict__"):
-                stat_obj = {k: _sanitize_value(v) for k, v in vars(stat).items()}
+            if isinstance(stat, dict):
+                stat_obj = {"id": stat_id, **{k: _sanitize_value(v) for k, v in stat.items()}}
                 stats.append(stat_obj)
+            else:
+                stats.append({"id": stat_id, "value": _sanitize_value(stat)})
+        return stats
 
-    return stats
+    if isinstance(report, list):
+        return [_sanitize_value(stat) for stat in report]
+
+    return [_sanitize_value(report)]
 
 
 # Default stats reporting interval in milliseconds
@@ -133,28 +130,22 @@ class SfuStatsReporter:
         Gets stats from publisher/subscriber peer connections,
         traces the stats, takes a snapshot of traces, and sends to SFU.
         """
-        pm = self._cm._peer_manager
         tracer = self._cm.tracer
+        session = self._cm._rtc_session
+        pub_stats = None
+        sub_stats = None
 
-        # Get stats from publisher/subscriber
-        pub_stats: Optional["ComputedStats"] = None
-        sub_stats: Optional["ComputedStats"] = None
-
-        if pm.publisher_pc and pm.publisher_stats:
+        if session is not None:
             try:
-                pub_stats = await pm.publisher_stats.get()
-                tracer.trace("getstats", self._cm.pc_id("pub"), pub_stats.delta)
+                snapshot = await session.stats()
+                if snapshot:
+                    pub_stats = snapshot.get("publisher")
+                    sub_stats = snapshot.get("subscriber")
+                    tracer.trace("getstats", self._cm.pc_id("pub"), pub_stats)
+                    tracer.trace("getstats", self._cm.pc_id("sub"), sub_stats)
             except Exception as e:
-                logger.debug(f"Failed to get publisher stats: {e}")
+                logger.debug(f"Failed to get RTC stats: {e}")
                 tracer.trace("getstatsOnFailure", self._cm.pc_id("pub"), str(e))
-
-        if pm.subscriber_pc and pm.subscriber_stats:
-            try:
-                sub_stats = await pm.subscriber_stats.get()
-                tracer.trace("getstats", self._cm.pc_id("sub"), sub_stats.delta)
-            except Exception as e:
-                logger.debug(f"Failed to get subscriber stats: {e}")
-                tracer.trace("getstatsOnFailure", self._cm.pc_id("sub"), str(e))
 
         # Take trace buffer snapshot
         trace_slice = tracer.take()
@@ -170,8 +161,8 @@ class SfuStatsReporter:
     async def _send_stats(
         self,
         trace_slice: TraceSlice,
-        pub_stats: Optional["ComputedStats"],
-        sub_stats: Optional["ComputedStats"],
+        pub_stats: Optional[Any],
+        sub_stats: Optional[Any],
     ) -> None:
         """Send stats to SFU via SendStats RPC.
 
@@ -191,25 +182,23 @@ class SfuStatsReporter:
         encode_stats: List[Any] = []
         decode_stats: List[Any] = []
 
-        if pub_stats and pub_stats.performance_stats:
-            encode_stats = pub_stats.performance_stats
-        if sub_stats and sub_stats.performance_stats:
-            decode_stats = sub_stats.performance_stats
+        try:
+            import getstream_rtc_core
 
-        # Get aiortc version
-        webrtc_version = getattr(aiortc, "__version__", "unknown")
+            webrtc_version = getstream_rtc_core.__version__
+        except Exception:
+            webrtc_version = "unknown"
 
         # Serialize traces to JSON - this is the core tracing data
         rtc_stats_json = json.dumps(trace_slice.snapshot, separators=(",", ":"))
 
         # Flatten raw stats to arrays (matching JS SDK format)
-        # JS SDK sends: subscriberStats: JSON.stringify(flatten(subscriberStats.stats))
         publisher_stats_json = json.dumps(
-            _flatten_stats(pub_stats.stats) if pub_stats else [],
+            _flatten_stats(pub_stats) if pub_stats else [],
             separators=(",", ":"),
         )
         subscriber_stats_json = json.dumps(
-            _flatten_stats(sub_stats.stats) if sub_stats else [],
+            _flatten_stats(sub_stats) if sub_stats else [],
             separators=(",", ":"),
         )
 
