@@ -9,7 +9,7 @@ class Channel:
         self,
         client,
         channel_type: str,
-        channel_id: str = None,
+        channel_id: str | None = None,
         custom_data: Dict = None,
     ):
         self.channel_id = channel_id
@@ -280,6 +280,47 @@ class Channel:
             type=self.channel_type,
             id=self.channel_id,
             ids=ids,
+            member_custom_include=member_custom_include,
+        )
+        self._sync_from_response(response.data)
+        return response
+
+    @attach_channel_cid
+    def get_pinned_messages(
+        self,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+        id_gte: Optional[str] = None,
+        id_gt: Optional[str] = None,
+        id_lte: Optional[str] = None,
+        id_lt: Optional[str] = None,
+        pinned_at_after_or_equal: Optional[datetime] = None,
+        pinned_at_after: Optional[datetime] = None,
+        pinned_at_before_or_equal: Optional[datetime] = None,
+        pinned_at_before: Optional[datetime] = None,
+        id_around: Optional[str] = None,
+        pinned_at_around: Optional[datetime] = None,
+        user_id: Optional[str] = None,
+        sort: Optional[List[SortParamRequest]] = None,
+        member_custom_include: Optional[List[str]] = None,
+    ) -> StreamResponse[GetPinnedMessagesResponse]:
+        response = self.client.get_pinned_messages(
+            type=self.channel_type,
+            id=self.channel_id,
+            limit=limit,
+            offset=offset,
+            id_gte=id_gte,
+            id_gt=id_gt,
+            id_lte=id_lte,
+            id_lt=id_lt,
+            pinned_at_after_or_equal=pinned_at_after_or_equal,
+            pinned_at_after=pinned_at_after,
+            pinned_at_before_or_equal=pinned_at_before_or_equal,
+            pinned_at_before=pinned_at_before,
+            id_around=id_around,
+            pinned_at_around=pinned_at_around,
+            user_id=user_id,
+            sort=sort,
             member_custom_include=member_custom_include,
         )
         self._sync_from_response(response.data)

@@ -13,7 +13,7 @@ class ModerationRestClient(AsyncBaseClient):
         base_url: str,
         timeout: float,
         token: str,
-        user_agent: str = None,
+        user_agent: str | None = None,
     ):
         """
         Initializes ModerationClient with BaseClient instance
@@ -41,13 +41,11 @@ class ModerationRestClient(AsyncBaseClient):
         user_id: Optional[str] = None,
     ) -> StreamResponse[GetActionConfigResponse]:
         query_params = build_query_param(
-            **{
-                "queue_type": queue_type,
-                "entity_type": entity_type,
-                "exclude_defaults": exclude_defaults,
-                "only_defaults": only_defaults,
-                "user_id": user_id,
-            }
+            queue_type=queue_type,
+            entity_type=entity_type,
+            exclude_defaults=exclude_defaults,
+            only_defaults=only_defaults,
+            user_id=user_id,
         )
         return await self.get(
             "/api/v2/moderation/action_config",
@@ -121,7 +119,7 @@ class ModerationRestClient(AsyncBaseClient):
     async def delete_action_config(
         self, id: str, user_id: Optional[str] = None
     ) -> StreamResponse[DeleteActionConfigResponse]:
-        query_params = build_query_param(**{"user_id": user_id})
+        query_params = build_query_param(user_id=user_id)
         path_params = {
             "id": id,
         }
@@ -418,7 +416,7 @@ class ModerationRestClient(AsyncBaseClient):
     async def delete_config(
         self, key: str, team: Optional[str] = None, user_id: Optional[str] = None
     ) -> StreamResponse[DeleteModerationConfigResponse]:
-        query_params = build_query_param(**{"team": team, "user_id": user_id})
+        query_params = build_query_param(team=team, user_id=user_id)
         path_params = {
             "key": key,
         }
@@ -433,7 +431,7 @@ class ModerationRestClient(AsyncBaseClient):
     async def get_config(
         self, key: str, team: Optional[str] = None
     ) -> StreamResponse[GetConfigResponse]:
-        query_params = build_query_param(**{"team": team})
+        query_params = build_query_param(team=team)
         path_params = {
             "key": key,
         }
@@ -686,7 +684,7 @@ class ModerationRestClient(AsyncBaseClient):
     async def delete_moderation_rule(
         self, id: str, user_id: Optional[str] = None
     ) -> StreamResponse[DeleteModerationRuleResponse]:
-        query_params = build_query_param(**{"user_id": user_id})
+        query_params = build_query_param(user_id=user_id)
         path_params = {
             "id": id,
         }
@@ -826,7 +824,7 @@ class ModerationRestClient(AsyncBaseClient):
     async def list_queues(
         self, user_id: Optional[str] = None
     ) -> StreamResponse[ListQueuesResponse]:
-        query_params = build_query_param(**{"user_id": user_id})
+        query_params = build_query_param(user_id=user_id)
         return await self.get(
             "/api/v2/moderation/queues", ListQueuesResponse, query_params=query_params
         )
@@ -857,7 +855,7 @@ class ModerationRestClient(AsyncBaseClient):
     async def get_queue(
         self, id: str, user_id: Optional[str] = None
     ) -> StreamResponse[QueueResponse]:
-        query_params = build_query_param(**{"user_id": user_id})
+        query_params = build_query_param(user_id=user_id)
         path_params = {
             "id": id,
         }
@@ -1073,11 +1071,9 @@ class ModerationRestClient(AsyncBaseClient):
         unbanned_by: Optional[UserRequest] = None,
     ) -> StreamResponse[UnbanResponse]:
         query_params = build_query_param(
-            **{
-                "target_user_id": target_user_id,
-                "channel_cid": channel_cid,
-                "created_by": created_by,
-            }
+            target_user_id=target_user_id,
+            channel_cid=channel_cid,
+            created_by=created_by,
         )
         json = UnbanRequest(
             unbanned_by_id=unbanned_by_id, unbanned_by=unbanned_by

@@ -174,6 +174,13 @@ class Feed:
         self._sync_from_response(response.data)
         return response
 
+    def get_feed_counts(self) -> StreamResponse[GetFeedCountsResponse]:
+        response = self.client.get_feed_counts(
+            feed_group_id=self.feed_group, feed_id=self.id
+        )
+        self._sync_from_response(response.data)
+        return response
+
     def update_feed_members(
         self,
         operation: str,
