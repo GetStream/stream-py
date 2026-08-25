@@ -1,0 +1,328 @@
+{
+  "metadata": {
+    "timestamp": "2026-08-25T01:16:36.981009+00:00",
+    "git_sha": "ad3165d7104a45bbb7cf2fdb02666012f4072cfd",
+    "python": "3.13.12",
+    "python_implementation": "CPython",
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "machine": "arm64",
+    "cpu": "Apple M4 Pro",
+    "cpu_count": 12,
+    "backend": "aiortc",
+    "library_versions": {
+      "getstream": "4.1.0",
+      "aiortc": "1.14.0",
+      "av": "16.1.0",
+      "numpy": "2.2.6",
+      "scipy": "1.15.3",
+      "soundfile": "0.13.1"
+    }
+  },
+  "benchmarks": [
+    {
+      "name": "pcm_resample_16k_to_48k",
+      "category": "local",
+      "unit": "samples_per_sec",
+      "higher_is_better": true,
+      "n": 7,
+      "samples": [
+        55700610.2386585,
+        72022544.67027451,
+        78996091.43706273,
+        74050196.0806006,
+        74245935.84786814,
+        76605972.2003966,
+        72544149.37959078
+      ],
+      "mean": 72023642.83635028,
+      "median": 74050196.0806006,
+      "p95": 78279055.66606289,
+      "min": 55700610.2386585,
+      "max": 78996091.43706273,
+      "input_samples": 48000
+    },
+    {
+      "name": "pcm_resample_48k_to_16k",
+      "category": "local",
+      "unit": "samples_per_sec",
+      "higher_is_better": true,
+      "n": 7,
+      "samples": [
+        89044608.64990275,
+        136725134.33316892,
+        186669454.68429267,
+        191584901.98739716,
+        208569616.64199114,
+        211764706.70024106,
+        200394110.32403824
+      ],
+      "mean": 174964647.6172903,
+      "median": 191584901.98739716,
+      "p95": 210806179.68276608,
+      "min": 89044608.64990275,
+      "max": 211764706.70024106,
+      "input_samples": 144000
+    },
+    {
+      "name": "pcm_resample_mono_to_stereo",
+      "category": "local",
+      "unit": "samples_per_sec",
+      "higher_is_better": true,
+      "n": 7,
+      "samples": [
+        125203788.820849,
+        159822059.54882252,
+        182307101.027077,
+        134894726.51760584,
+        54930406.62239374,
+        106735700.00495732,
+        118396614.28129834
+      ],
+      "mean": 126041485.26042911,
+      "median": 125203788.820849,
+      "p95": 175561588.58360064,
+      "min": 54930406.62239374,
+      "max": 182307101.027077,
+      "input_samples": 48000
+    },
+    {
+      "name": "audio_track_pacing_interval_ms",
+      "category": "local",
+      "unit": "ms",
+      "higher_is_better": false,
+      "n": 7,
+      "samples": [
+        20.02288944952722,
+        20.018772123505038,
+        20.022289979518675,
+        20.013387754502496,
+        20.025609694278742,
+        20.023627549989566,
+        20.02479846955144
+      ],
+      "mean": 20.02162500298188,
+      "median": 20.02288944952722,
+      "p95": 20.02536632686055,
+      "min": 20.013387754502496,
+      "max": 20.025609694278742,
+      "expected_ms": 20.0,
+      "frames_per_run": 50
+    },
+    {
+      "name": "audio_track_pacing_jitter_ms",
+      "category": "local",
+      "unit": "ms",
+      "higher_is_better": false,
+      "n": 7,
+      "samples": [
+        0.5320345466509728,
+        0.5252249541317895,
+        0.34670375900421363,
+        0.30991716757239923,
+        0.46614249140353853,
+        0.4270778715117934,
+        0.3129089600723303
+      ],
+      "mean": 0.4171442500495767,
+      "median": 0.4270778715117934,
+      "p95": 0.5299916688952179,
+      "min": 0.30991716757239923,
+      "max": 0.5320345466509728,
+      "frames_per_run": 50
+    },
+    {
+      "name": "video_passthrough_480p_fps",
+      "category": "local",
+      "unit": "fps",
+      "higher_is_better": true,
+      "n": 7,
+      "samples": [
+        14058.653605530651,
+        15407.331453040651,
+        14201.042233832686,
+        14877.107861282122,
+        14281.321072159639,
+        15950.553141479792,
+        13852.948342435342
+      ],
+      "mean": 14661.279672822984,
+      "median": 14281.321072159639,
+      "p95": 15787.58663494805,
+      "min": 13852.948342435342,
+      "max": 15950.553141479792,
+      "width": 640,
+      "height": 480,
+      "frames": 60
+    },
+    {
+      "name": "video_passthrough_720p_fps",
+      "category": "local",
+      "unit": "fps",
+      "higher_is_better": true,
+      "n": 7,
+      "samples": [
+        7184.911998168099,
+        7360.608458748831,
+        7453.49299885859,
+        7342.667693831163,
+        7350.57654502159,
+        7431.836148019713,
+        7095.518228816304
+      ],
+      "mean": 7317.0874387806125,
+      "median": 7350.57654502159,
+      "p95": 7446.995943606927,
+      "min": 7095.518228816304,
+      "max": 7453.49299885859,
+      "width": 1280,
+      "height": 720,
+      "frames": 60
+    },
+    {
+      "name": "h264_encode_480p_fps",
+      "category": "local",
+      "unit": "fps",
+      "higher_is_better": true,
+      "n": 7,
+      "samples": [
+        3127.21218966741,
+        3303.1767927516494,
+        3407.316397797342,
+        3280.809754826861,
+        3288.6475565564588,
+        3352.017856752631,
+        3401.907071349366
+      ],
+      "mean": 3308.726802814531,
+      "median": 3303.1767927516494,
+      "p95": 3405.693599862949,
+      "min": 3127.21218966741,
+      "max": 3407.316397797342,
+      "width": 640,
+      "height": 480,
+      "frames": 30,
+      "encoder": "StreamH264Encoder"
+    },
+    {
+      "name": "h264_encode_720p_fps",
+      "category": "local",
+      "unit": "fps",
+      "higher_is_better": true,
+      "n": 7,
+      "samples": [
+        1567.73263235136,
+        1614.4221719625866,
+        1589.2285876574333,
+        1583.2248265796536,
+        1596.045380430718,
+        1620.8878377896692,
+        1571.0028113757455
+      ],
+      "mean": 1591.792035449595,
+      "median": 1589.2285876574333,
+      "p95": 1618.9481380415443,
+      "min": 1567.73263235136,
+      "max": 1620.8878377896692,
+      "width": 1280,
+      "height": 720,
+      "frames": 30,
+      "encoder": "StreamH264Encoder"
+    },
+    {
+      "name": "vp8_encode_480p_fps",
+      "category": "local",
+      "unit": "fps",
+      "higher_is_better": true,
+      "n": 7,
+      "samples": [
+        1308.1395535424797,
+        1339.5199514829144,
+        1317.6001900242431,
+        1317.5013579007575,
+        1308.8552966105053,
+        1321.9644402657214,
+        1301.0998270485875
+      ],
+      "mean": 1316.382945267887,
+      "median": 1317.5013579007575,
+      "p95": 1334.2532981177565,
+      "min": 1301.0998270485875,
+      "max": 1339.5199514829144,
+      "width": 640,
+      "height": 480,
+      "frames": 30,
+      "encoder": "StreamVp8Encoder"
+    },
+    {
+      "name": "vp8_encode_720p_fps",
+      "category": "local",
+      "unit": "fps",
+      "higher_is_better": true,
+      "n": 7,
+      "samples": [
+        774.7942093478325,
+        800.5247809489532,
+        798.8283852892466,
+        806.013744553167,
+        794.7256710531016,
+        799.0553455465496,
+        806.9848953213545
+      ],
+      "mean": 797.275290294315,
+      "median": 799.0553455465496,
+      "p95": 806.6935500908983,
+      "min": 774.7942093478325,
+      "max": 806.9848953213545,
+      "width": 1280,
+      "height": 720,
+      "frames": 30,
+      "encoder": "StreamVp8Encoder"
+    },
+    {
+      "name": "opus_decode_samples_per_sec",
+      "category": "local",
+      "unit": "samples_per_sec",
+      "higher_is_better": true,
+      "n": 7,
+      "samples": [
+        9974544.149942886,
+        10043212.31240172,
+        9989247.65340109,
+        9716462.808177402,
+        9852104.181490464,
+        9890478.059148733,
+        9820832.562767463
+      ],
+      "mean": 9898125.96104711,
+      "median": 9890478.059148733,
+      "p95": 10027022.91470153,
+      "min": 9716462.808177402,
+      "max": 10043212.31240172,
+      "packets": 150,
+      "decoded_samples": 144000
+    }
+  ],
+  "skipped": [
+    {
+      "name": "live.join_latency_ms",
+      "reason": "STREAM_API_KEY / STREAM_API_SECRET not set"
+    },
+    {
+      "name": "live.audio_e2e_latency_ms",
+      "reason": "STREAM_API_KEY / STREAM_API_SECRET not set"
+    },
+    {
+      "name": "live.soak_cpu_percent",
+      "reason": "STREAM_API_KEY / STREAM_API_SECRET not set"
+    },
+    {
+      "name": "live.soak_rss_mb",
+      "reason": "STREAM_API_KEY / STREAM_API_SECRET not set"
+    },
+    {
+      "name": "live.reconnect_recovery_ms",
+      "reason": "STREAM_API_KEY / STREAM_API_SECRET not set"
+    }
+  ],
+  "errors": []
+}
