@@ -1,97 +1,106 @@
 """
-Manages WebRTC peer connections for video streaming.
+Manages WebRTC publishing and subscribing via the Rust RTC session.
 """
 
 import asyncio
 import logging
-from typing import Optional
+from typing import Any, Optional
 
-import aiortc
-import aiortc.sdp
-from aiortc.contrib.media import MediaRelay
-
-from getstream.common import telemetry
-from getstream.video.rtc.connection_utils import (
-    create_audio_track_info,
-    prepare_video_track_info,
+from getstream.video.rtc.media import (
+    MediaStreamError,
+    RemoteMediaTrack,
+    av_audio_to_pcm_bytes,
+    av_video_to_i420,
+    pcm_bytes_to_pcmdata,
 )
-from getstream.video.rtc.pb.stream.video.sfu.signal_rpc import signal_pb2
-from getstream.video.rtc.track_util import patch_sdp_offer
-from getstream.video.rtc.twirp_client_wrapper import SfuRpcError
-from getstream.video.rtc.pc import PublisherPeerConnection, SubscriberPeerConnection
-from getstream.video.rtc.stats_reporter import DEFAULT_STATS_INTERVAL_MS
-from getstream.video.rtc.stats_tracer import StatsTracer
+from getstream.video.rtc.track_util import PcmData
 
 logger = logging.getLogger(__name__)
 
 
+class _PeerStub:
+    """Stand-in for the historic publisher/subscriber RTCPeerConnection."""
+
+    def __init__(self, state: str = "connected") -> None:
+        self.connectionState = state
+        self.signalingState = "stable"
+        self.iceConnectionState = "connected"
+        self.iceGatheringState = "complete"
+        self._closed = False
+
+    async def close(self) -> None:
+        if self._closed:
+            return
+        self._closed = True
+        self.connectionState = "closed"
+        self.signalingState = "closed"
+
+    async def restartIce(self) -> None:
+        logger.debug("ICE restart is owned by the Rust session")
+
+    def removeListener(self, *args: Any, **kwargs: Any) -> None:
+        return None
+
+    def on(self, *args: Any, **kwargs: Any) -> None:
+        return None
+
+
+class _WsStub:
+    """Stand-in for the historic Python SFU WebSocket client."""
+
+    def __init__(self, edge_name: Optional[str] = None) -> None:
+        self.running = True
+        self.edge_name = edge_name
+        self.closed = False
+
+    def close(self) -> None:
+        self.running = False
+        self.closed = True
+
+    def on_event(self, *args: Any, **kwargs: Any) -> None:
+        return None
+
+    def on_wildcard(self, *args: Any, **kwargs: Any) -> None:
+        return None
+
+
 class PeerConnectionManager:
-    """Manages WebRTC peer connections for publishing and subscribing."""
+    """Publishes duck-typed recv() tracks and pumps inbound Rust media."""
 
     def __init__(self, connection_manager, drain_video_frames: bool = True):
         self.connection_manager = connection_manager
         self._drain_video_frames = drain_video_frames
-        self.publisher_pc: Optional[PublisherPeerConnection] = None
-        self.subscriber_pc: Optional[SubscriberPeerConnection] = None
+        self.publisher_pc: Optional[_PeerStub] = None
+        self.subscriber_pc: Optional[_PeerStub] = None
         self.publisher_negotiation_lock = asyncio.Lock()
         self.subscriber_negotiation_lock = asyncio.Lock()
-        # Stats tracers for getStats() delta compression
-        self.publisher_stats: Optional[StatsTracer] = None
-        self.subscriber_stats: Optional[StatsTracer] = None
+        self.publisher_stats = None
+        self.subscriber_stats = None
+        self._session = None
+        self._tasks: set[asyncio.Task] = set()
+        self._inbound_tracks: dict[str, RemoteMediaTrack] = {}
+
+    def attach_session(self, session) -> None:
+        self._session = session
+        self.publisher_pc = _PeerStub("connected")
+        self.subscriber_pc = _PeerStub("connected")
+        self._spawn(self._pump_inbound_tracks(), name="rtc-inbound-tracks")
+
+    def _spawn(self, coro, name: str) -> asyncio.Task:
+        task = asyncio.create_task(coro, name=name)
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
+        return task
 
     async def setup_subscriber(self):
-        """Setup subscriber peer connection."""
-        if not self.subscriber_pc or self.subscriber_pc.connectionState in [
+        """Kept for reconnect callers; the Rust session owns the subscriber PC."""
+        if self.subscriber_pc is None or self.subscriber_pc.connectionState in [
             "closed",
             "failed",
         ]:
-            self.subscriber_pc = SubscriberPeerConnection(
-                connection=self.connection_manager,
-                configuration=self._build_rtc_configuration(),
-                drain_video_frames=self._drain_video_frames,
-            )
+            self.subscriber_pc = _PeerStub("new")
 
-            # Trace create event
-            tracer = self.connection_manager.tracer
-            pc_id = self.connection_manager.pc_id("sub")
-            tracer.trace("create", pc_id, self._get_connection_config())
-
-            # Setup PC event tracing
-            self._setup_pc_tracing(self.subscriber_pc, pc_id)
-
-            # Create stats tracer
-            self.subscriber_stats = StatsTracer(
-                self.subscriber_pc, "subscriber", DEFAULT_STATS_INTERVAL_MS / 1000
-            )
-
-            @self.subscriber_pc.on("audio")
-            async def on_audio(pcm_data):
-                self.connection_manager.emit("audio", pcm_data)
-
-            @self.subscriber_pc.on("track_added")
-            async def on_track_added(track, user):
-                """Handle track events from MediaRelay subscribers"""
-                await self.connection_manager.recording_manager.on_track_received(
-                    track, user
-                )
-                self.connection_manager.emit(
-                    "track_added", track._source.id, track.kind, user
-                )
-
-            # Trace ontrack events for subscriber
-            @self.subscriber_pc.on("track")
-            def on_track_trace(track):
-                tracer.trace("ontrack", pc_id, f"{track.kind}:{track.id}")
-
-            logger.debug("Created new subscriber peer connection")
-        else:
-            logger.debug("Reusing existing subscriber peer connection")
-
-    async def add_tracks(
-        self,
-        audio: Optional[aiortc.mediastreams.MediaStreamTrack] = None,
-        video: Optional[aiortc.mediastreams.MediaStreamTrack] = None,
-    ):
+    async def add_tracks(self, audio=None, video=None):
         """Add multiple audio and video tracks in a single negotiation."""
         if not self.connection_manager.running:
             logger.error("Connection manager not running. Call connect() first.")
@@ -101,328 +110,217 @@ class PeerConnectionManager:
             logger.warning("No tracks provided to add_tracks")
             return
 
-        relayed_audio = None
-        relayed_video = None
-        audio_info = None
-        video_info = None
-        relayed_audio = None
-        relayed_video = None
-        track_infos = []
-        if audio:
-            audio_relay = MediaRelay()
-            relayed_audio = audio_relay.subscribe(audio)
-            audio_info = create_audio_track_info(relayed_audio)
-        if video:
-            video_relay = MediaRelay()
-            relayed_video = video_relay.subscribe(video)
-            video_info, relayed_video = await prepare_video_track_info(relayed_video)
+        session = self._session
+        if session is None:
+            logger.error("RTC session is not attached")
+            return
+
+        from getstream_rtc_core import LocalAudioTrack, LocalVideoTrack
 
         async with self.publisher_negotiation_lock:
-            logger.info(f"Adding tracks: {len(track_infos)} tracks")
-
-            tracer = self.connection_manager.tracer
-            pc_id = self.connection_manager.pc_id("pub")
-
             if self.publisher_pc is None:
-                self.publisher_pc = PublisherPeerConnection(
-                    manager=self.connection_manager,
-                    configuration=self._build_rtc_configuration(),
+                self.publisher_pc = _PeerStub("connecting")
+
+            if audio:
+                local_audio = LocalAudioTrack.opus()
+                await session.publish_audio(local_audio)
+                self._spawn(
+                    self._pump_outbound_audio(audio, local_audio),
+                    name="rtc-publish-audio",
                 )
-
-                # Trace create event
-                tracer.trace("create", pc_id, self._get_connection_config())
-
-                # Setup PC event tracing
-                self._setup_pc_tracing(self.publisher_pc, pc_id)
-
-                # Create stats tracer
-                self.publisher_stats = StatsTracer(
-                    self.publisher_pc, "publisher", DEFAULT_STATS_INTERVAL_MS / 1000
+                try:
+                    track_id = audio.id
+                except Exception:
+                    track_id = str(id(audio))
+                self.connection_manager.reconnector.reconnection_info.add_published_track(
+                    track_id, audio, None, None
                 )
+                logger.info("Published local audio track")
 
-            if audio and relayed_audio:
-                self.publisher_pc.addTrack(relayed_audio)
-                logger.info(f"Added relayed audio track {relayed_audio.id}")
-            if video and relayed_video:
-                self.publisher_pc.addTrack(relayed_video)
-                logger.info(f"Added relayed video track {relayed_video.id}")
-                # Set frame tracker for video stats (BufferedMediaTrack has frame tracking)
-                if self.publisher_stats:
-                    self.publisher_stats.set_frame_tracker(relayed_video)
-
-            # Trace createOffer
-            tracer.trace("createOffer", pc_id, [])
-            with telemetry.start_as_current_span(
-                "rtc.publisher_pc.create_offer"
-            ) as span:
+            if video:
+                local_video = LocalVideoTrack.vp8()
+                await session.publish_video(local_video)
+                self._spawn(
+                    self._pump_outbound_video(video, local_video),
+                    name="rtc-publish-video",
+                )
                 try:
-                    offer = await self.publisher_pc.createOffer()
-                    tracer.trace(
-                        "createOfferOnSuccess",
-                        pc_id,
-                        {"type": "offer", "sdp": offer.sdp},
-                    )
-                    span.set_attribute("sdp", offer.sdp)
-                except Exception as e:
-                    tracer.trace("createOfferOnFailure", pc_id, str(e))
-                    raise
+                    track_id = video.id
+                except Exception:
+                    track_id = str(id(video))
+                self.connection_manager.reconnector.reconnection_info.add_published_track(
+                    track_id, video, None, None
+                )
+                logger.info("Published local video track")
+                if self.connection_manager.stats_reporter:
+                    self.connection_manager.stats_reporter.schedule_one(3000)
 
-            # Trace setLocalDescription
-            tracer.trace(
-                "setLocalDescription", pc_id, [{"type": offer.type, "sdp": offer.sdp}]
-            )
-            with telemetry.start_as_current_span(
-                "rtc.publisher_pc.set_local_description"
-            ) as span:
-                span.set_attribute("sdp", offer.sdp)
-                try:
-                    await self.publisher_pc.setLocalDescription(offer)
-                    tracer.trace("setLocalDescriptionOnSuccess", pc_id, None)
-                except Exception as e:
-                    tracer.trace("setLocalDescriptionOnFailure", pc_id, str(e))
-                    raise
+            if self.publisher_pc:
+                self.publisher_pc.connectionState = "connected"
 
+    async def _pump_outbound_audio(self, source, local_audio) -> None:
+        while True:
             try:
-                patched_sdp = patch_sdp_offer(self.publisher_pc.localDescription.sdp)
-                parsed_sdp = aiortc.sdp.SessionDescription.parse(patched_sdp)
-                curr_mid = 0
-                for media in parsed_sdp.media:
-                    if (
-                        audio
-                        and audio_info
-                        and relayed_audio
-                        and media.kind == "audio"
-                        and relayed_audio.id == parsed_sdp.webrtc_track_id(media)
-                    ):
-                        audio_info.mid = str(curr_mid)
-                        track_infos.append(audio_info)
-                        curr_mid += 1
-                    if (
-                        video
-                        and video_info
-                        and relayed_video
-                        and media.kind == "video"
-                        and relayed_video.id == parsed_sdp.webrtc_track_id(media)
-                    ):
-                        video_info.mid = str(curr_mid)
-                        track_infos.append(video_info)
-                logger.debug(f"Patched SDP offer: {patched_sdp}")
-                logger.debug(f"Tracks: {track_infos}")
-                response = (
-                    await self.connection_manager.twirp_signaling_client.SetPublisher(
-                        ctx=self.connection_manager.twirp_context,
-                        request=signal_pb2.SetPublisherRequest(
-                            session_id=self.connection_manager.session_id,
-                            sdp=patched_sdp,
-                            tracks=track_infos,
-                        ),
-                        server_path_prefix="",
-                    )
-                )
-
-                # Trace setRemoteDescription
-                tracer.trace(
-                    "setRemoteDescription",
-                    pc_id,
-                    [{"type": "answer", "sdp": response.sdp}],
-                )
-                try:
-                    await self.publisher_pc.handle_answer(response)
-                    tracer.trace("setRemoteDescriptionOnSuccess", pc_id, None)
-                except Exception as e:
-                    tracer.trace("setRemoteDescriptionOnFailure", pc_id, str(e))
-                    raise
-                with telemetry.start_as_current_span(
-                    "rtc.publisher_pc.wait_for_connected"
-                ):
-                    await self.publisher_pc.wait_for_connected()
-            except SfuRpcError as e:
-                logger.error(f"Failed to set publisher: {e}")
+                frame = await source.recv()
+            except MediaStreamError:
+                break
+            except asyncio.CancelledError:
                 raise
+            except Exception:
+                logger.debug("Outbound audio track ended", exc_info=True)
+                break
+            try:
+                pcm_bytes, sample_rate, channels = av_audio_to_pcm_bytes(frame)
+                await local_audio.write_pcm(
+                    pcm_bytes, sample_rate=sample_rate, channels=channels
+                )
+            except Exception:
+                logger.exception("Failed to write outbound PCM")
 
-        # Register ORIGINAL tracks and their MediaRelay instances for reconnection
-        track_info_index = 0
-        if audio:
-            # Store original track info with its MediaRelay for reconnection
-            self.connection_manager.reconnector.reconnection_info.add_published_track(
-                audio.id,
-                audio,
-                track_infos[track_info_index],
-                relayed_audio,
+    async def _pump_outbound_video(self, source, local_video) -> None:
+        while True:
+            try:
+                frame = await source.recv()
+            except MediaStreamError:
+                break
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                logger.debug("Outbound video track ended", exc_info=True)
+                break
+            try:
+                data, width, height, duration_ms = av_video_to_i420(frame)
+                await local_video.write_i420(
+                    data, width, height, duration_ms=duration_ms
+                )
+            except Exception:
+                logger.exception("Failed to write outbound I420")
+
+    async def _pump_inbound_tracks(self) -> None:
+        session = self._session
+        if session is None:
+            return
+        while True:
+            try:
+                remote = await session.next_track()
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                logger.debug("Inbound track pump stopped", exc_info=True)
+                break
+            if remote is None:
+                break
+            user = self._user_for_remote(remote)
+            wrapper = RemoteMediaTrack(remote, user=user)
+            self._inbound_tracks[wrapper.id] = wrapper
+            self._spawn(
+                self._pump_remote_track(wrapper, user),
+                name=f"rtc-remote-{wrapper.kind}",
             )
-            track_info_index += 1
-        if video:
-            # Store original track info with its MediaRelay for reconnection
-            self.connection_manager.reconnector.reconnection_info.add_published_track(
-                video.id,
-                video,
-                track_infos[track_info_index],
-                relayed_video,
+            try:
+                await self.connection_manager.recording_manager.on_track_received(
+                    wrapper.subscribe(), user
+                )
+            except Exception:
+                logger.exception("recording_manager.on_track_received failed")
+            self.connection_manager.emit(
+                "track_added", wrapper.id, wrapper.kind, user
             )
 
-            # Schedule one-off stats send after video track is published
-            if self.connection_manager.stats_reporter:
-                self.connection_manager.stats_reporter.schedule_one(3000)
+    def _user_for_remote(self, remote) -> Any:
+        prefix = remote.track_lookup_prefix or remote.session_id
+        user = self.connection_manager.participants_state.get_user_from_track_id(
+            f"{prefix}:audio:0"
+        )
+        if user is None:
+            for participant in self.connection_manager.participants_state.get_participants():
+                if participant.session_id == remote.session_id:
+                    return participant
+        if user is None and remote.track_type in ("audio", "screenshare_audio"):
+            user = (
+                self.connection_manager._subscription_manager.get_next_expected_audio_user()
+            )
+        return user
+
+    async def _pump_remote_track(self, wrapper: RemoteMediaTrack, user) -> None:
+        while True:
+            decoded = await wrapper.next_decoded()
+            if decoded is None:
+                break
+            if wrapper.kind != "audio":
+                continue
+            pcm: PcmData = pcm_bytes_to_pcmdata(
+                bytes(decoded.samples),
+                decoded.sample_rate,
+                decoded.channels,
+                participant=user,
+            )
+            self.connection_manager.emit("audio", pcm)
 
     async def restore_published_tracks(self):
-        """Restore published tracks using their stored MediaRelay instances."""
-        track_ids = list(
-            self.connection_manager.reconnector.reconnection_info.published_tracks.keys()
-        )
-        logger.info(
-            f"Restoring {len(track_ids)} published tracks with MediaRelay - Track IDs: {track_ids}"
-        )
+        """Restore published tracks by republishing the original recv() sources."""
+        published = self.connection_manager.reconnector.reconnection_info.published_tracks
+        track_ids = list(published.keys())
+        logger.info(f"Restoring {len(track_ids)} published tracks")
 
-        # Collect all tracks to restore
         audio_tracks = []
         video_tracks = []
-
-        for (
-            track_id,
-            track_info,
-        ) in self.connection_manager.reconnector.reconnection_info.published_tracks.items():
-            original_track = track_info["track"]  # Original track
-
-            # Group tracks by type
-            if original_track.kind == "audio":
+        for track_info in published.values():
+            original_track = track_info["track"]
+            kind = None
+            try:
+                kind = original_track.kind
+            except Exception:
+                kind = None
+            if kind == "audio":
                 audio_tracks.append(original_track)
-            elif original_track.kind == "video":
+            elif kind == "video":
                 video_tracks.append(original_track)
 
-        # Restore tracks using the add_tracks method
-        # This ensures proper MediaRelay usage and peer connection management
         try:
-            # Restore first audio and video track together if available
             if audio_tracks or video_tracks:
                 await self.add_tracks(
                     audio=audio_tracks[0] if audio_tracks else None,
                     video=video_tracks[0] if video_tracks else None,
                 )
-                logger.info("Restored primary audio/video tracks")
-
-            # Restore additional audio tracks individually
             for i, track in enumerate(audio_tracks[1:], 1):
                 await self.add_tracks(audio=track)
-                logger.info(f"Restored additional audio track {i}: {track.id}")
-
-            # Restore additional video tracks individually
+                logger.info(f"Restored additional audio track {i}")
             for i, track in enumerate(video_tracks[1:], 1):
                 await self.add_tracks(video=track)
-                logger.info(f"Restored additional video track {i}: {track.id}")
-
-            logger.info(
-                f"Successfully restored all {len(track_ids)} tracks using stored MediaRelay instances"
-            )
-
+                logger.info(f"Restored additional video track {i}")
         except Exception as e:
             logger.error("Failed to restore published tracks", exc_info=e)
             raise
 
     async def close(self):
-        """Close all peer connections."""
-        cleanup_tasks = []
+        """Close all peer connections and background pumps."""
+        for task in list(self._tasks):
+            task.cancel()
+        if self._tasks:
+            await asyncio.gather(*self._tasks, return_exceptions=True)
+        self._tasks.clear()
+        self._inbound_tracks.clear()
 
+        cleanup_tasks = []
         if self.publisher_pc:
             cleanup_tasks.append(self.publisher_pc.close())
             self.publisher_pc = None
         if self.subscriber_pc:
             cleanup_tasks.append(self.subscriber_pc.close())
             self.subscriber_pc = None
-
-        # Clear stats tracers
         self.publisher_stats = None
         self.subscriber_stats = None
-
-        # Run peer connection cleanup concurrently
+        self._session = None
         if cleanup_tasks:
-            try:
-                await asyncio.gather(*cleanup_tasks, return_exceptions=True)
-            except Exception as e:
-                logger.debug(f"Error during peer connection cleanup: {e}")
+            await asyncio.gather(*cleanup_tasks, return_exceptions=True)
 
     async def cleanup_connections(self, publisher_pc=None, subscriber_pc=None):
         """Clean up specific peer connections."""
         cleanup_tasks = []
-
         if publisher_pc:
             cleanup_tasks.append(publisher_pc.close())
         if subscriber_pc:
             cleanup_tasks.append(subscriber_pc.close())
-
-        # Run peer connection cleanup concurrently
         if cleanup_tasks:
-            try:
-                await asyncio.gather(*cleanup_tasks, return_exceptions=True)
-            except Exception as e:
-                logger.debug(f"Error during peer connection cleanup: {e}")
-
-    def _build_rtc_configuration(self) -> aiortc.RTCConfiguration:
-        """Build RTCConfiguration from coordinator credentials.
-
-        Returns:
-            aiortc.RTCConfiguration with ICE servers from join response
-        """
-        credentials = self.connection_manager.join_response.credentials
-        ice_servers = [
-            aiortc.RTCIceServer(
-                urls=server.get("urls"),
-                username=server.get("username"),
-                credential=server.get("password") or server.get("credential"),
-            )
-            for server in credentials.ice_servers
-        ]
-        return aiortc.RTCConfiguration(
-            iceServers=ice_servers,
-            bundlePolicy=aiortc.RTCBundlePolicy.MAX_BUNDLE,
-        )
-
-    def _get_connection_config(self) -> dict:
-        """Get the connection configuration for tracing.
-
-        Returns:
-            Dict with ICE server configuration matching JS SDK format
-        """
-        credentials = self.connection_manager.join_response.credentials
-        ice_servers = [
-            {
-                "urls": server.get("urls"),
-                "username": server.get("username"),
-                "credential": server.get("password") or server.get("credential"),
-            }
-            for server in credentials.ice_servers
-        ]
-        return {
-            "url": credentials.server.edge_name,
-            "bundlePolicy": "max-bundle",
-            "iceServers": ice_servers,
-        }
-
-    def _setup_pc_tracing(self, pc, pc_id: str) -> None:
-        """Attach event listeners that trace PC events.
-
-        Args:
-            pc: The RTCPeerConnection to trace
-            pc_id: The PC ID for tracing (e.g., "0-pub", "0-sub")
-        """
-        tracer = self.connection_manager.tracer
-
-        @pc.on("signalingstatechange")
-        def on_signaling():
-            tracer.trace("signalingstatechange", pc_id, pc.signalingState)
-
-        @pc.on("iceconnectionstatechange")
-        def on_ice_conn():
-            tracer.trace("iceconnectionstatechange", pc_id, pc.iceConnectionState)
-
-        @pc.on("icegatheringstatechange")
-        def on_ice_gather():
-            tracer.trace("icegatheringstatechange", pc_id, pc.iceGatheringState)
-
-        @pc.on("connectionstatechange")
-        def on_conn():
-            tracer.trace("connectionstatechange", pc_id, pc.connectionState)
-
-        @pc.on("icecandidate")
-        def on_ice_candidate(candidate):
-            # Trace ICE candidate (may be None when gathering is complete)
-            tracer.trace("onicecandidate", pc_id, candidate)
+            await asyncio.gather(*cleanup_tasks, return_exceptions=True)

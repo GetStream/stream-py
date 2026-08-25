@@ -196,23 +196,33 @@ class ReconnectionManager:
         self.connection_manager.connection_state = ConnectionState.RECONNECTING
 
         try:
+            session = self.connection_manager._rtc_session
+            if session is not None and session.calling_state in (
+                "joined",
+                "reconnecting",
+                "migrating",
+            ):
+                for _ in range(50):
+                    state = session.calling_state
+                    if state == "joined":
+                        self.connection_manager.connection_state = ConnectionState.JOINED
+                        logger.info("FAST reconnection completed via Rust session")
+                        return
+                    if state in ("reconnecting_failed", "left", "idle"):
+                        break
+                    await asyncio.sleep(0.2)
+
             if (
                 self.connection_manager.ws_client
                 and self.connection_manager.ws_client.running
+                and self.connection_manager.publisher_pc
             ):
-                # Simple ICE restart if WebSocket is healthy
-                if self.connection_manager.publisher_pc:
-                    await self.connection_manager.publisher_pc.restartIce()
+                await self.connection_manager.publisher_pc.restartIce()
                 logger.info("ICE restart completed for healthy WebSocket")
             else:
-                # Full reconnection needed
                 self.connection_manager._connection_options.fast_reconnect = True
                 previous_ws_client = self.connection_manager.ws_client
 
-                # Use _connect_internal with existing connection info.
-                # `self.join_response` is already the unwrapped data payload
-                # (see ConnectionManager._connect_internal: it stores
-                # `join_response.data`), so credentials live at the top level.
                 await self.connection_manager._connect_internal(
                     region=self.connection_manager._connection_options.region,
                     token=self.connection_manager.join_response.credentials.token
@@ -224,11 +234,9 @@ class ReconnectionManager:
                     session_id=self.connection_manager.session_id,
                 )
 
-                # Clean up old WebSocket after successful connection
                 if previous_ws_client:
                     previous_ws_client.close()
 
-                # Restore published tracks with stored MediaRelay instances
                 await self.connection_manager._restore_published_tracks()
 
             self.connection_manager.connection_state = ConnectionState.JOINED
@@ -252,13 +260,21 @@ class ReconnectionManager:
         old_publisher = self.connection_manager.publisher_pc
         old_subscriber = self.connection_manager.subscriber_pc
         old_ws_client = self.connection_manager.ws_client
+        old_session = self.connection_manager._rtc_session
 
         # Clear the old connections so new ones can be created
         self.connection_manager.publisher_pc = None
         self.connection_manager.subscriber_pc = None
         self.connection_manager.ws_client = None
+        self.connection_manager._rtc_session = None
 
         try:
+            if old_session is not None:
+                try:
+                    await old_session.leave()
+                except Exception:
+                    logger.debug("Error leaving old RTC session", exc_info=True)
+
             # Close old connections efficiently
             await self.connection_manager._cleanup_connections(
                 old_ws_client, old_publisher, old_subscriber
@@ -289,10 +305,12 @@ class ReconnectionManager:
         current_ws_client = self.connection_manager.ws_client
         current_publisher = self.connection_manager.publisher_pc
         current_subscriber = self.connection_manager.subscriber_pc
+        current_session = self.connection_manager._rtc_session
 
         # Clear old references so _connect_internal creates fresh PCs
         self.connection_manager.publisher_pc = None
         self.connection_manager.subscriber_pc = None
+        self.connection_manager._rtc_session = None
 
         self.connection_manager.connection_state = ConnectionState.MIGRATING
 
@@ -326,6 +344,11 @@ class ReconnectionManager:
             logger.info("MIGRATE reconnection completed successfully")
 
         finally:
+            if current_session is not None:
+                try:
+                    await current_session.leave()
+                except Exception:
+                    logger.debug("Error leaving migrated RTC session", exc_info=True)
             # Clean up old connections
             await self.connection_manager._cleanup_connections(
                 current_ws_client, current_publisher, current_subscriber

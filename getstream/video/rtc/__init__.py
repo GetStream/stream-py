@@ -30,15 +30,15 @@ from getstream.video.rtc.track_util import (
 logger = logging.getLogger(__name__)
 
 try:
-    import aiortc
+    import getstream_rtc_core
 except ImportError:
-    # before throwing, suggest the user to install the `webrtc` optional dependency
     raise ImportError(
         "The `webrtc` optional dependency is required to use the `getstream.video.rtc` module. "
-        "Please install it using the following command: `pip install getstream[webrtc]`"
+        "Please install it using: `uv sync --extra webrtc` after installing getstream-rtc-core "
+        "(from stream-video-rust-release/bindings/python: `maturin develop --release`)."
     )
 
-logger.debug(f"loaded aiortc {aiortc.__version__} correctly")
+logger.debug(f"loaded getstream-rtc-core {getstream_rtc_core.__version__} correctly")
 
 
 async def discover_location():

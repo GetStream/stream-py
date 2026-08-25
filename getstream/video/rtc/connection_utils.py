@@ -19,8 +19,6 @@ from typing import TYPE_CHECKING, Any, Callable, Optional, Tuple
 if TYPE_CHECKING:
     from getstream.video.rtc.tracer import Tracer
 
-import aiortc
-
 from getstream.base import StreamResponse
 from getstream.models import CallRequest
 from getstream.utils import build_body_dict, build_query_param
@@ -232,12 +230,6 @@ async def create_join_request(token: str, session_id: str) -> events_pb2.JoinReq
         A JoinRequest protobuf message configured with data
     """
 
-    from getstream.video.rtc.pc import (
-        subscribe_codec_preferences,
-        publish_codec_preferences,
-    )
-
-    # Create a JoinRequest
     join_request = events_pb2.JoinRequest()
     join_request.token = token
     join_request.session_id = session_id
@@ -260,41 +252,17 @@ async def create_join_request(token: str, session_id: str) -> events_pb2.JoinReq
         )
     )
 
-    # Create generic SDPs for send and recv
-    temp_pub_pc = aiortc.RTCPeerConnection()
-    temp_sub_pc = aiortc.RTCPeerConnection()
-    temp_pub_pc.addTransceiver(direction="sendonly", trackOrKind="video")
-    temp_pub_pc.addTransceiver(direction="sendonly", trackOrKind="audio")
-    temp_sub_pc.addTransceiver(direction="recvonly", trackOrKind="video")
-    temp_sub_pc.addTransceiver(direction="recvonly", trackOrKind="audio")
-
-    for transceiver in temp_pub_pc.getTransceivers():
-        if transceiver.kind == "video":
-            transceiver.setCodecPreferences(publish_codec_preferences())
-
-    for transceiver in temp_sub_pc.getTransceivers():
-        if transceiver.kind == "video":
-            transceiver.setCodecPreferences(subscribe_codec_preferences())
-
-    pub_offer = await temp_pub_pc.createOffer()
-    sub_offer = await temp_sub_pc.createOffer()
-    join_request.publisher_sdp = pub_offer.sdp
-    join_request.subscriber_sdp = sub_offer.sdp
-
-    for transceiver in temp_pub_pc.getTransceivers():
-        await transceiver.stop()
-    for transceiver in temp_sub_pc.getTransceivers():
-        await transceiver.stop()
-
-    await temp_pub_pc.close()
-    await temp_sub_pc.close()
+    # SDP is produced by the Rust session; keep placeholders so this helper
+    # remains importable for tests that mock the WebSocket client.
+    join_request.publisher_sdp = ""
+    join_request.subscriber_sdp = ""
 
     return join_request
 
 
 async def prepare_video_track_info(
-    video: aiortc.mediastreams.MediaStreamTrack,
-) -> Tuple[TrackInfo, aiortc.mediastreams.MediaStreamTrack]:
+    video,
+) -> Tuple[TrackInfo, Any]:
     """Prepare video track info by detecting its properties.
 
     Args:
@@ -369,7 +337,7 @@ async def prepare_video_track_info(
         raise
 
 
-def create_audio_track_info(audio: aiortc.mediastreams.MediaStreamTrack) -> TrackInfo:
+def create_audio_track_info(audio) -> TrackInfo:
     """Create track info for an audio track.
 
     Args:

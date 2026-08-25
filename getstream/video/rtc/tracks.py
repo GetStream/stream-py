@@ -178,6 +178,32 @@ class SubscriptionManager(AsyncIOEventEmitter):
         async with self._lock:
             track_details = list(self._subscribed_track_details)
 
+        session = self.connection_manager._rtc_session
+        if session is not None:
+            if not track_details:
+                await session.update_subscriptions(
+                    audio=False, video=False, screen_share=False
+                )
+                return
+            targets = []
+            for detail in track_details:
+                track_type = {
+                    TrackType.TRACK_TYPE_AUDIO: "audio",
+                    TrackType.TRACK_TYPE_VIDEO: "video",
+                    TrackType.TRACK_TYPE_SCREEN_SHARE: "screenshare",
+                    TrackType.TRACK_TYPE_SCREEN_SHARE_AUDIO: "screenshare_audio",
+                }.get(detail.track_type, "audio")
+                width = None
+                height = None
+                try:
+                    width = detail.dimension.width
+                    height = detail.dimension.height
+                except Exception:
+                    pass
+                targets.append((detail.session_id, track_type, width, height))
+            await session.update_subscription_targets(targets)
+            return
+
         if not track_details or not self.connection_manager.twirp_signaling_client:
             return
 

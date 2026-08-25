@@ -1,20 +1,23 @@
-import json
 import asyncio
 import logging
 import uuid
 import functools
+import re
 from typing import Optional, Dict, Any
 
-import aioice
-import aiortc
+from getstream_rtc_core import (
+    IceServer,
+    RtcError,
+    RtcSession,
+    SfuCredentials,
+    StatsOptions,
+)
 
 from getstream.common import telemetry
 from getstream.utils import StreamAsyncIOEventEmitter
 from getstream.video.rtc.coordinator.ws import StreamAPIWS
 from getstream.video.rtc.pb.stream.video.sfu.event import events_pb2
-from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
-from getstream.video.rtc.pb.stream.video.sfu.signal_rpc import signal_pb2
-from getstream.video.rtc.twirp_client_wrapper import SfuRpcError, SignalClient, Context
+from getstream.video.rtc.twirp_client_wrapper import SignalClient, Context
 
 from getstream.video.async_call import Call
 from getstream.video.rtc.connection_utils import (
@@ -22,25 +25,20 @@ from getstream.video.rtc.connection_utils import (
     SfuConnectionError,
     SfuJoinError,
     ConnectionOptions,
-    connect_websocket,
     join_call,
     watch_call,
 )
 from getstream.video.rtc.coordinator.backoff import exp_backoff
-from getstream.video.rtc.track_util import (
-    fix_sdp_msid_semantic,
-    fix_sdp_rtcp_fb,
-    parse_track_stream_mapping,
-)
 from getstream.video.rtc.network_monitor import NetworkMonitor
 from getstream.video.rtc.recording import RecordingManager
 from getstream.video.rtc.participants import ParticipantsState
 from getstream.video.rtc.tracks import SubscriptionConfig, SubscriptionManager
 from getstream.video.rtc.reconnection import ReconnectionManager, ReconnectionStrategy
-from getstream.video.rtc.peer_connection import PeerConnectionManager
+from getstream.video.rtc.peer_connection import PeerConnectionManager, _WsStub
 from getstream.video.rtc.models import JoinCallResponse
 from getstream.video.rtc.tracer import Tracer
 from getstream.video.rtc.stats_reporter import SfuStatsReporter
+from getstream.video.rtc.sfu_bridge import dispatch_rust_event
 
 logger = logging.getLogger(__name__)
 
@@ -112,6 +110,8 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         self.twirp_signaling_client = None
         self.twirp_context: Optional[Context] = None
         self._coordinator_task: Optional[asyncio.Task] = None
+        self._rtc_session: Optional[RtcSession] = None
+        self._rtc_event_task: Optional[asyncio.Task] = None
 
         # Stats tracing: generation counter (increments on reconnect), tracer, and reporter
         self._sfu_client_tag: int = 0  # Generation counter, never resets during session
@@ -167,115 +167,12 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         return None
 
     async def _on_ice_trickle(self, event):
-        """Handle ICE trickle from SFU."""
-        logger.debug(f"Received ICE trickle for peer type {event.peer_type}")
-
-        with telemetry.start_as_current_span("rtc.on_ice_trickle") as span:
-            try:
-                ice_candidate = json.loads(event.ice_candidate)
-
-                candidate_sdp = ice_candidate.get("candidate")
-                span.set_attribute("candidate_sdp", candidate_sdp)
-                if not candidate_sdp:
-                    return
-
-                candidate = aiortc.rtcicetransport.candidate_from_aioice(
-                    aioice.Candidate.from_sdp(candidate_sdp)
-                )
-                candidate.sdpMid = ice_candidate.get("sdpMid")
-                candidate.sdpMLineIndex = ice_candidate.get("sdpMLineIndex")
-
-                if (
-                    event.peer_type == models_pb2.PEER_TYPE_SUBSCRIBER
-                    and self.subscriber_pc
-                ):
-                    await self.subscriber_pc.addIceCandidate(candidate)
-                elif self.publisher_pc:
-                    await self.publisher_pc.addIceCandidate(candidate)
-            except Exception as e:
-                logger.debug(f"Error handling ICE trickle: {e}")
+        """ICE trickle is handled inside the Rust session."""
+        logger.debug("Ignoring Python ICE trickle; Rust owns ICE")
 
     async def _on_subscriber_offer(self, event: events_pb2.SubscriberOffer):
-        logger.info("Subscriber offer received")
-
-        # Offers can arrive after the subscriber peer connection has been
-        # torn down (slow asyncio loop under load, SFU sending a late
-        # renegotiation). `setRemoteDescription` would raise
-        # `InvalidStateError: Cannot handle offer in signaling state "closed"`
-        # and the exception propagates through the pyee error path, killing
-        # the session. Drop the offer instead — there is nothing to
-        # negotiate with a closed connection.
-        if self.subscriber_pc is None or self.subscriber_pc.signalingState == "closed":
-            logger.debug("Subscriber offer arrived after PC closed; dropping")
-            return
-
-        with telemetry.start_as_current_span("rtc.on_subscriber_offer") as span:
-            await self.subscriber_negotiation_lock.acquire()
-
-            try:
-                # Fix any invalid msid-semantic format in the SDP
-                fixed_sdp = fix_sdp_msid_semantic(event.sdp)
-                # Fix any invalid rtcp-fb lines
-                fixed_sdp = fix_sdp_rtcp_fb(fixed_sdp)
-                span.set_attribute("sdp", fixed_sdp)
-                # Parse SDP to create track_id to stream_id mapping
-                self.participants_state.set_track_stream_mapping(
-                    parse_track_stream_mapping(fixed_sdp)
-                )
-                # The SDP offer from the SFU might already contain candidates (trickled)
-                # or have a different structure. We set it as the remote description.
-                # The aiortc library handles merging and interpretation.
-                remote_description = aiortc.RTCSessionDescription(
-                    type="offer", sdp=fixed_sdp
-                )
-                logger.debug(f"""Setting remote description with SDP:
-                {remote_description.sdp}""")
-                span.set_attribute("remote_description.sdp", fixed_sdp)
-
-                with telemetry.start_as_current_span(
-                    "rtc.on_subscriber_offer.set_remote_description"
-                ):
-                    await self.subscriber_pc.setRemoteDescription(remote_description)
-
-                # Create the answer based on the remote offer (which includes our candidates)
-                with telemetry.start_as_current_span(
-                    "rtc.on_subscriber_offer.create_answer"
-                ) as span:
-                    answer = await self.subscriber_pc.createAnswer()
-                    span.set_attribute("answer.sdp", answer.sdp)
-
-                # Set the local description. aiortc will manage the SDP content.
-                with telemetry.start_as_current_span(
-                    "rtc.on_subscriber_offer.set_local_description"
-                ) as span:
-                    await self.subscriber_pc.setLocalDescription(answer)
-
-                logger.debug(
-                    f"""Sending answer with local description:
-                {self.subscriber_pc.localDescription.sdp}"""
-                )
-
-                try:
-                    if self.twirp_signaling_client is None:
-                        raise ValueError("twirp_signaling_client is not initialized")
-                    await self.twirp_signaling_client.SendAnswer(
-                        ctx=self.twirp_context,
-                        request=signal_pb2.SendAnswerRequest(
-                            peer_type=models_pb2.PEER_TYPE_SUBSCRIBER,
-                            sdp=self.subscriber_pc.localDescription.sdp,
-                            session_id=self.session_id,
-                        ),
-                        server_path_prefix="",  # Note: Our wrapper doesn't need this, underlying client handles prefix
-                    )
-                    logger.debug("Subscriber answer sent successfully.")
-                except SfuRpcError as e:
-                    logger.error(f"Failed to send subscriber answer: {e}")
-                    # Decide how to handle: maybe close connection, notify user, etc.
-                    # For now, just log the error.
-                except Exception as e:
-                    logger.error(f"Unexpected error sending subscriber answer: {e}")
-            finally:
-                self.subscriber_negotiation_lock.release()
+        """Subscriber SDP is negotiated inside the Rust session."""
+        logger.debug("Ignoring Python subscriber offer; Rust owns signaling")
 
     async def _on_signaling_connection_lost(self, reason: str) -> None:
         """Reconnect when the signaling WebSocket drops unexpectedly.
@@ -399,85 +296,50 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
 
         await self._peer_manager.setup_subscriber()
 
-        # Step 3: Connect to WebSocket
-        if not token or not ws_url:
+        if self.join_response is None:
+            raise ValueError("join_response is not set")
+        credentials = self.join_response.credentials
+        if not credentials.token or not credentials.server.ws_endpoint:
             raise ValueError("token and ws_url are required for WebSocket connection")
+
         try:
-            with telemetry.start_as_current_span(
-                "sfu-signaling-ws-connect",
-            ) as span:
-                self._ws_client, sfu_event = await connect_websocket(
-                    token=token,
-                    ws_url=ws_url,
-                    session_id=current_session_id,
-                    options=self._connection_options,
-                    tracer=self.tracer,
-                    sfu_id_fn=self.sfu_id,
+            with telemetry.start_as_current_span("sfu-rtc-session-join"):
+                session = await self._join_rtc_session()
+                rust_session_id = await session.session_id()
+                if rust_session_id:
+                    self.session_id = rust_session_id
+                elif current_session_id:
+                    self.session_id = current_session_id
+
+                self._rtc_session = session
+                self._peer_manager.attach_session(session)
+                self._ws_client = _WsStub(edge_name=credentials.server.edge_name)
+                self._rtc_event_task = asyncio.create_task(
+                    self._pump_rtc_events(session), name="rtc-event-pump"
                 )
 
-                self._ws_client.on_wildcard("*", _log_event)
-                self._ws_client.on_event("ice_trickle", self._on_ice_trickle)
-
-            # Connect track subscription events to subscription manager
-            self._ws_client.on_event(
-                "participant_joined", self.participants_state._on_participant_joined
+            logger.debug(
+                f"Rust RTC session joined via {credentials.server.ws_endpoint}"
             )
-            self._ws_client.on_event(
-                "participant_left", self.participants_state._on_participant_left
-            )
-            self._ws_client.on_event(
-                "track_published", self._subscription_manager.handle_track_published
-            )
-            self._ws_client.on_event(
-                "track_unpublished", self._subscription_manager.handle_track_unpublished
-            )
-
-            # Connect subscriber offer event to handle SDP negotiation
-            self._ws_client.on_event("subscriber_offer", self._on_subscriber_offer)
-
-            # Drive reconnection when the signaling WS drops outside of an
-            # SFU-level error event (raw socket close, health-check timeout,
-            # transport-level exceptions). Without this handler the
-            # WebSocketClient just logs and stops; the session sits hanging
-            # until the frontend times out and tears it down.
-            self._ws_client.on_event(
-                "connection_lost", self._on_signaling_connection_lost
-            )
-
-            # Re-emit the events so they can be subscribed to on the ConnectionManager
-            self._ws_client.on_wildcard("*", self.emit)
-
-            if hasattr(sfu_event, "join_response"):
-                logger.debug(f"sfu join response: {sfu_event.join_response}")
-                # Populate participants state with existing participants
-                if hasattr(sfu_event.join_response, "call_state"):
-                    for participant in sfu_event.join_response.call_state.participants:
-                        self._participants_state._add_participant(participant)
-                # Update reconnection config
-                if hasattr(sfu_event.join_response, "fast_reconnect_deadline_seconds"):
-                    self._reconnector._fast_reconnect_deadline_seconds = (
-                        sfu_event.join_response.fast_reconnect_deadline_seconds
-                    )
-            else:
-                logger.exception(f"No join response from WebSocket: {sfu_event}")
-
-            logger.debug(f"WebSocket connected successfully to {ws_url}")
         except SfuJoinError:
             raise
+        except RtcError as e:
+            logger.exception(f"Failed to join SFU session: {e}")
+            raise self._rtc_error_to_sfu_error(e) from e
         except Exception as e:
-            logger.exception(f"Failed to connect WebSocket to {ws_url}: {e}")
+            logger.exception(
+                f"Failed to connect WebSocket to {credentials.server.ws_endpoint}: {e}"
+            )
             raise SfuConnectionError(f"WebSocket connection failed: {e}") from e
 
         # Step 5: Create SFU signaling client with tracer
-        if self.join_response is None:
-            raise ValueError("join_response is not set")
-        twirp_server_url = self.join_response.credentials.server.url
+        twirp_server_url = credentials.server.url
         self.twirp_signaling_client = SignalClient(
             address=twirp_server_url,
             tracer=self.tracer,
             sfu_id_fn=self.sfu_id,
         )
-        self.twirp_context = Context(headers={"authorization": token})
+        self.twirp_context = Context(headers={"authorization": credentials.token})
 
         # Start stats reporter
         self.stats_reporter = SfuStatsReporter(self)
@@ -489,6 +351,78 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         self._stop_event.clear()
 
         logger.info("Successfully connected to SFU")
+
+    async def _join_rtc_session(self) -> RtcSession:
+        if self.join_response is None or self.user_id is None:
+            raise ValueError("join_response and user_id are required")
+        stream = self.call.client.stream
+        user_token = (
+            stream.create_token(user_id=self.user_id)
+            if stream.has_api_secret
+            else stream.token
+        )
+        credentials = self.join_response.credentials
+        ice_servers = []
+        for server in credentials.ice_servers:
+            urls = server.get("urls") or []
+            if isinstance(urls, str):
+                urls = [urls]
+            ice_servers.append(
+                IceServer(
+                    urls=list(urls),
+                    username=server.get("username"),
+                    password=server.get("password") or server.get("credential"),
+                )
+            )
+        stats = self.join_response.stats_options or {}
+        try:
+            own_capabilities = [
+                str(capability)
+                for capability in self.join_response.call.own_capabilities
+            ]
+        except Exception:
+            own_capabilities = []
+        return await RtcSession.join(
+            stream.api_key,
+            user_token,
+            self.call.call_type,
+            self.call.id,
+            self.user_id,
+            SfuCredentials(
+                edge_name=credentials.server.edge_name,
+                url=credentials.server.url,
+                ws_endpoint=credentials.server.ws_endpoint,
+                token=credentials.token,
+                ice_servers=ice_servers,
+            ),
+            stats_options=StatsOptions(
+                reporting_interval_ms=int(stats.get("reporting_interval_ms") or 0),
+                enable_rtc_stats=bool(stats.get("enable_rtc_stats")),
+            ),
+            own_capabilities=own_capabilities,
+        )
+
+    def _rtc_error_to_sfu_error(self, error: RtcError) -> Exception:
+        message = str(error)
+        match = re.search(r"code (\d+)", message)
+        code = int(match.group(1)) if match else 0
+        if code in {700, 600, 301} or "should_retry" in message:
+            return SfuJoinError(message, error_code=code, should_retry=True)
+        return SfuConnectionError(f"WebSocket connection failed: {message}")
+
+    async def _pump_rtc_events(self, session: RtcSession) -> None:
+        try:
+            async for event in session.events():
+                try:
+                    await dispatch_rust_event(self, event)
+                except asyncio.CancelledError:
+                    raise
+                except Exception:
+                    logger.exception("Failed to dispatch RTC event")
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.debug("RTC event pump stopped", exc_info=True)
 
     @telemetry.with_span("connect")
     async def connect(self):
@@ -562,6 +496,10 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         if self._ws_client:
             self._ws_client.close()
             self._ws_client = None
+        session = self._rtc_session
+        self._rtc_session = None
+        if session is not None:
+            asyncio.create_task(session.leave())
         self.connection_state = ConnectionState.IDLE
 
     async def wait(self):
@@ -591,6 +529,20 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
 
         await self._recording_manager.cleanup()
         await self._network_monitor.stop_monitoring()
+        if self._rtc_event_task and not self._rtc_event_task.done():
+            self._rtc_event_task.cancel()
+            try:
+                await self._rtc_event_task
+            except asyncio.CancelledError:
+                pass
+            self._rtc_event_task = None
+        session = self._rtc_session
+        self._rtc_session = None
+        if session is not None:
+            try:
+                await session.leave()
+            except Exception:
+                logger.debug("Error leaving RTC session", exc_info=True)
         await self._peer_manager.close()
         if self._ws_client:
             self._ws_client.close()

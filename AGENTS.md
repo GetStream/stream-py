@@ -3,7 +3,7 @@
 1. This project uses `uv`,  `pyproject.toml` and venv to manage dependencies
 2. Never use pip directly, use `uv add` to add dependencies and `uv sync --dev --all-packages` to install the dependency
 3. Do not change code generated python code, `./generate.sh` is the script responsible of rebuilding all API endpoints and API models
-4. **WebRTC Dependencies**: All dependencies related to WebRTC, audio, video processing (like `aiortc`, `numpy`, `torch`, `torchaudio`, `soundfile`, `scipy`, `deepgram-sdk`, `elevenlabs`, etc.) are organized under the `webrtc` optional dependencies group. Plugins that work with audio, video, or WebRTC functionality should depend on `getstream[webrtc]` instead of just `getstream`.
+4. **WebRTC Dependencies**: All dependencies related to WebRTC, audio, video processing (like `getstream-rtc-core`, `numpy`, `torch`, `torchaudio`, `soundfile`, `scipy`, `deepgram-sdk`, `elevenlabs`, etc.) are organized under the `webrtc` optional dependencies group. Plugins that work with audio, video, or WebRTC functionality should depend on `getstream[webrtc]` instead of just `getstream`. Install the Rust wheel first from `stream-video-rust-release/bindings/python` with `maturin develop --release` (requires libvpx, cmake, and a C compiler).
 
 ## Python testing
 
