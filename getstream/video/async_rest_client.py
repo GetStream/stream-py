@@ -13,7 +13,7 @@ class VideoRestClient(AsyncBaseClient):
         base_url: str,
         timeout: float,
         token: str,
-        user_agent: str = None,
+        user_agent: str | None = None,
     ):
         """
         Initializes VideoClient with BaseClient instance
@@ -49,7 +49,7 @@ class VideoRestClient(AsyncBaseClient):
         sort: Optional[List[SortParamRequest]] = None,
         filter_conditions: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[QueryUserFeedbackResponse]:
-        query_params = build_query_param(**{"full": full})
+        query_params = build_query_param(full=full)
         json = QueryUserFeedbackRequest(
             limit=limit,
             next=next,
@@ -119,12 +119,7 @@ class VideoRestClient(AsyncBaseClient):
         video: Optional[bool] = None,
     ) -> StreamResponse[GetCallResponse]:
         query_params = build_query_param(
-            **{
-                "members_limit": members_limit,
-                "ring": ring,
-                "notify": notify,
-                "video": video,
-            }
+            members_limit=members_limit, ring=ring, notify=notify, video=video
         )
         path_params = {
             "type": type,
@@ -448,7 +443,7 @@ class VideoRestClient(AsyncBaseClient):
         limit: Optional[int] = None,
         filter_conditions: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[QueryCallParticipantsResponse]:
-        query_params = build_query_param(**{"limit": limit})
+        query_params = build_query_param(limit=limit)
         path_params = {
             "id": id,
             "type": type,
@@ -541,7 +536,7 @@ class VideoRestClient(AsyncBaseClient):
     async def get_call_report(
         self, type: str, id: str, session_id: Optional[str] = None
     ) -> StreamResponse[GetCallReportResponse]:
-        query_params = build_query_param(**{"session_id": session_id})
+        query_params = build_query_param(session_id=session_id)
         path_params = {
             "type": type,
             "id": id,
@@ -636,7 +631,7 @@ class VideoRestClient(AsyncBaseClient):
         since: Optional[datetime] = None,
         until: Optional[datetime] = None,
     ) -> StreamResponse[GetCallParticipantSessionMetricsResponse]:
-        query_params = build_query_param(**{"since": since, "until": until})
+        query_params = build_query_param(since=since, until=until)
         path_params = {
             "type": type,
             "id": id,
@@ -663,12 +658,7 @@ class VideoRestClient(AsyncBaseClient):
         filter_conditions: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[QueryCallParticipantSessionsResponse]:
         query_params = build_query_param(
-            **{
-                "limit": limit,
-                "prev": prev,
-                "next": next,
-                "filter_conditions": filter_conditions,
-            }
+            limit=limit, prev=prev, next=next, filter_conditions=filter_conditions
         )
         path_params = {
             "type": type,
@@ -1010,13 +1000,11 @@ class VideoRestClient(AsyncBaseClient):
         exclude_sfus: Optional[bool] = None,
     ) -> StreamResponse[QueryCallStatsMapResponse]:
         query_params = build_query_param(
-            **{
-                "start_time": start_time,
-                "end_time": end_time,
-                "exclude_publishers": exclude_publishers,
-                "exclude_subscribers": exclude_subscribers,
-                "exclude_sfus": exclude_sfus,
-            }
+            start_time=start_time,
+            end_time=end_time,
+            exclude_publishers=exclude_publishers,
+            exclude_subscribers=exclude_subscribers,
+            exclude_sfus=exclude_sfus,
         )
         path_params = {
             "call_type": call_type,
@@ -1045,7 +1033,7 @@ class VideoRestClient(AsyncBaseClient):
         max_points: Optional[int] = None,
     ) -> StreamResponse[GetCallSessionParticipantStatsDetailsResponse]:
         query_params = build_query_param(
-            **{"since": since, "until": until, "max_points": max_points}
+            since=since, until=until, max_points=max_points
         )
         path_params = {
             "call_type": call_type,
@@ -1076,13 +1064,11 @@ class VideoRestClient(AsyncBaseClient):
         filter_conditions: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[QueryCallSessionParticipantStatsResponse]:
         query_params = build_query_param(
-            **{
-                "limit": limit,
-                "prev": prev,
-                "next": next,
-                "sort": sort,
-                "filter_conditions": filter_conditions,
-            }
+            limit=limit,
+            prev=prev,
+            next=next,
+            sort=sort,
+            filter_conditions=filter_conditions,
         )
         path_params = {
             "call_type": call_type,
@@ -1111,7 +1097,7 @@ class VideoRestClient(AsyncBaseClient):
         severity: Optional[List[str]] = None,
     ) -> StreamResponse[QueryCallSessionParticipantStatsTimelineResponse]:
         query_params = build_query_param(
-            **{"start_time": start_time, "end_time": end_time, "severity": severity}
+            start_time=start_time, end_time=end_time, severity=severity
         )
         path_params = {
             "call_type": call_type,
@@ -1414,7 +1400,7 @@ class VideoRestClient(AsyncBaseClient):
     async def get_daily_digest(
         self, date: Optional[str] = None, app_id: Optional[str] = None
     ) -> StreamResponse[GetDailyDigestResponse]:
-        query_params = build_query_param(**{"date": date, "app_id": app_id})
+        query_params = build_query_param(date=date, app_id=app_id)
         return await self.get(
             "/api/v2/video/stats/daily_digest",
             GetDailyDigestResponse,

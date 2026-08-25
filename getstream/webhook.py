@@ -2,21 +2,43 @@
 
 import base64
 import gzip
-import hmac
 import hashlib
+import hmac
 import json
 import zlib
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, Optional, Union
+from typing import Any
+
 from .models import (
-    CustomEvent,
+    ActivityAddedEvent,
+    ActivityDeletedEvent,
+    ActivityFeedbackEvent,
+    ActivityMarkEvent,
+    ActivityPinnedEvent,
+    ActivityReactionAddedEvent,
+    ActivityReactionDeletedEvent,
+    ActivityReactionUpdatedEvent,
+    ActivityRemovedFromFeedEvent,
+    ActivityRestoredEvent,
+    ActivityUnpinnedEvent,
+    ActivityUpdatedEvent,
     AppealAcceptedEvent,
     AppealCreatedEvent,
     AppealRejectedEvent,
-    CallAcceptedEvent,
+    AsyncBulkImageModerationEvent,
+    AsyncExportChannelsEvent,
+    AsyncExportErrorEvent,
+    AsyncExportModerationLogsEvent,
+    AsyncExportReviewQueueEvent,
+    AsyncExportUsersEvent,
     BlockedUserEvent,
-    ClosedCaptionEvent,
+    BookmarkAddedEvent,
+    BookmarkDeletedEvent,
+    BookmarkFolderDeletedEvent,
+    BookmarkFolderUpdatedEvent,
+    BookmarkUpdatedEvent,
+    CallAcceptedEvent,
     CallClosedCaptionsFailedEvent,
     CallClosedCaptionsStartedEvent,
     CallClosedCaptionsStoppedEvent,
@@ -31,7 +53,6 @@ from .models import (
     CallHLSBroadcastingFailedEvent,
     CallHLSBroadcastingStartedEvent,
     CallHLSBroadcastingStoppedEvent,
-    KickedUserEvent,
     CallLiveStartedEvent,
     CallMemberAddedEvent,
     CallMemberRemovedEvent,
@@ -41,8 +62,6 @@ from .models import (
     CallModerationBlurEvent,
     CallModerationWarningEvent,
     CallNotificationEvent,
-    PermissionRequestEvent,
-    UpdatedCallPermissionsEvent,
     CallReactionEvent,
     CallRecordingFailedEvent,
     CallRecordingReadyEvent,
@@ -63,49 +82,24 @@ from .models import (
     CallTranscriptionReadyEvent,
     CallTranscriptionStartedEvent,
     CallTranscriptionStoppedEvent,
-    UnblockedUserEvent,
     CallUpdatedEvent,
     CallUserFeedbackSubmittedEvent,
     CallUserMutedEvent,
     CampaignCompletedEvent,
     CampaignStartedEvent,
+    ChannelBatchCompletedEvent,
+    ChannelBatchStartedEvent,
     ChannelCreatedEvent,
     ChannelDeletedEvent,
     ChannelFrozenEvent,
     ChannelHiddenEvent,
-    MaxStreakChangedEvent,
     ChannelMutedEvent,
     ChannelTruncatedEvent,
     ChannelUnFrozenEvent,
     ChannelUnmutedEvent,
     ChannelUpdatedEvent,
     ChannelVisibleEvent,
-    ChannelBatchCompletedEvent,
-    ChannelBatchStartedEvent,
-    CustomVideoEvent,
-    AsyncBulkImageModerationEvent,
-    AsyncExportChannelsEvent,
-    AsyncExportModerationLogsEvent,
-    AsyncExportReviewQueueEvent,
-    AsyncExportErrorEvent,
-    AsyncExportUsersEvent,
-    ActivityAddedEvent,
-    ActivityDeletedEvent,
-    ActivityFeedbackEvent,
-    ActivityMarkEvent,
-    ActivityPinnedEvent,
-    ActivityReactionAddedEvent,
-    ActivityReactionDeletedEvent,
-    ActivityReactionUpdatedEvent,
-    ActivityRemovedFromFeedEvent,
-    ActivityRestoredEvent,
-    ActivityUnpinnedEvent,
-    ActivityUpdatedEvent,
-    BookmarkAddedEvent,
-    BookmarkDeletedEvent,
-    BookmarkUpdatedEvent,
-    BookmarkFolderDeletedEvent,
-    BookmarkFolderUpdatedEvent,
+    ClosedCaptionEvent,
     CommentAddedEvent,
     CommentDeletedEvent,
     CommentReactionAddedEvent,
@@ -113,59 +107,71 @@ from .models import (
     CommentReactionUpdatedEvent,
     CommentRestoredEvent,
     CommentUpdatedEvent,
+    CustomEvent,
+    CustomVideoEvent,
     FeedCreatedEvent,
     FeedDeletedEvent,
-    FeedUpdatedEvent,
     FeedGroupChangedEvent,
     FeedGroupDeletedEvent,
     FeedGroupRestoredEvent,
     FeedMemberAddedEvent,
     FeedMemberRemovedEvent,
     FeedMemberUpdatedEvent,
+    FeedUpdatedEvent,
+    FlagUpdatedEvent,
     FollowCreatedEvent,
     FollowDeletedEvent,
     FollowUpdatedEvent,
-    NotificationFeedUpdatedEvent,
-    StoriesFeedUpdatedEvent,
-    FlagUpdatedEvent,
     IngressErrorEvent,
     IngressStartedEvent,
     IngressStoppedEvent,
+    KickedUserEvent,
+    MaxStreakChangedEvent,
     MemberAddedEvent,
     MemberRemovedEvent,
     MemberUpdatedEvent,
     MessageDeletedEvent,
     MessageFlaggedEvent,
     MessageNewEvent,
-    PendingMessageEvent,
     MessageReadEvent,
     MessageUnblockedEvent,
     MessageUndeletedEvent,
     MessageUpdatedEvent,
     ModerationAnalysisFailedEvent,
+    ModerationCheckCompletedEvent,
     ModerationCustomActionEvent,
     ModerationFlaggedEvent,
     ModerationImageAnalysisCompleteEvent,
     ModerationMarkReviewedEvent,
-    ModerationTextAnalysisCompleteEvent,
-    ModerationCheckCompletedEvent,
     ModerationRulesTriggeredEvent,
+    ModerationTextAnalysisCompleteEvent,
+    NotificationFeedUpdatedEvent,
     NotificationMarkUnreadEvent,
-    ReminderNotificationEvent,
     NotificationThreadMessageNewEvent,
+    PendingMessageEvent,
+    PermissionRequestEvent,
     ReactionDeletedEvent,
     ReactionNewEvent,
     ReactionUpdatedEvent,
     ReminderCreatedEvent,
     ReminderDeletedEvent,
+    ReminderNotificationEvent,
     ReminderUpdatedEvent,
     ReviewQueueItemNewEvent,
     ReviewQueueItemUpdatedEvent,
+    StoriesFeedUpdatedEvent,
     ThreadUpdatedEvent,
+    UnblockedUserEvent,
+    UpdatedCallPermissionsEvent,
     UserBannedEvent,
     UserDeactivatedEvent,
     UserDeletedEvent,
     UserFlaggedEvent,
+    UserGroupCreatedEvent,
+    UserGroupDeletedEvent,
+    UserGroupMemberAddedEvent,
+    UserGroupMemberRemovedEvent,
+    UserGroupUpdatedEvent,
     UserMessagesDeletedEvent,
     UserMutedEvent,
     UserReactivatedEvent,
@@ -173,13 +179,7 @@ from .models import (
     UserUnmutedEvent,
     UserUnreadReminderEvent,
     UserUpdatedEvent,
-    UserGroupCreatedEvent,
-    UserGroupDeletedEvent,
-    UserGroupMemberAddedEvent,
-    UserGroupMemberRemovedEvent,
-    UserGroupUpdatedEvent,
 )
-
 
 # Webhook event type constants
 EVENT_TYPE_WILDCARD = "*"
@@ -386,11 +386,11 @@ class UnknownEvent:
     """
 
     type: str
-    created_at: Optional[datetime] = None
-    raw: Dict[str, Any] = field(default_factory=dict)
+    created_at: datetime | None = None
+    raw: dict[str, Any] = field(default_factory=dict)
 
 
-def get_event_type(raw_event: Union[bytes, str, Dict[str, Any]]) -> str:
+def get_event_type(raw_event: bytes | str | dict[str, Any]) -> str:
     """
     Extract the event type from a raw webhook payload.
 
@@ -412,7 +412,7 @@ def get_event_type(raw_event: Union[bytes, str, Dict[str, Any]]) -> str:
         return ""
 
 
-def parse_webhook_event(raw_event: Union[bytes, str, Dict[str, Any]]) -> Any:
+def parse_webhook_event(raw_event: bytes | str | dict[str, Any]) -> Any:
     """
     Deserialize a raw webhook payload into a typed event object.
 
@@ -628,9 +628,7 @@ def _get_event_class(event_type: str):
     return event_map.get(event_type)
 
 
-def verify_webhook_signature(
-    body: Union[bytes, str], signature: str, secret: str
-) -> bool:
+def verify_webhook_signature(body: bytes | str, signature: str, secret: str) -> bool:
     """
     Verify the HMAC-SHA256 signature of a webhook payload.
 
@@ -795,9 +793,9 @@ def parse_event(payload: bytes) -> Any:
         ) from e
 
 
-def _build_unknown_event(event_type: str, data: Dict[str, Any]) -> UnknownEvent:
+def _build_unknown_event(event_type: str, data: dict[str, Any]) -> UnknownEvent:
     created_raw = data.get("created_at")
-    created: Optional[datetime] = None
+    created: datetime | None = None
     if isinstance(created_raw, str):
         try:
             # Accept "2026-05-08T00:00:00Z" and full ISO-8601 with offset.
