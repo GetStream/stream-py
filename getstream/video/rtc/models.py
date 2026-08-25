@@ -50,3 +50,6 @@ class JoinCallResponse(DataClassJsonMixin):
     credentials: Credentials = dc_field(metadata=dc_config(field_name="credentials"))
     stats_options: dict = dc_field(metadata=dc_config(field_name="stats_options"))
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    own_capabilities: Optional[List[str]] = dc_field(
+        default=None, metadata=dc_config(field_name="own_capabilities")
+    )

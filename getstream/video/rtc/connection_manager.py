@@ -375,13 +375,10 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                 )
             )
         stats = self.join_response.stats_options or {}
-        try:
-            own_capabilities = [
-                str(capability)
-                for capability in self.join_response.call.own_capabilities
-            ]
-        except Exception:
-            own_capabilities = []
+        own_capabilities = [
+            str(capability)
+            for capability in (self.join_response.own_capabilities or [])
+        ]
         return await RtcSession.join(
             stream.api_key,
             user_token,
