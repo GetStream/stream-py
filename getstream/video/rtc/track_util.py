@@ -20,13 +20,11 @@ from typing import (
     cast,
 )
 
-import aiortc
-import aiortc.sdp
 import av
 import numpy as np
-from aiortc import MediaStreamTrack
-from aiortc.mediastreams import MediaStreamError
 from numpy.typing import NDArray
+
+from getstream.video.rtc.media import MediaStreamError, MediaStreamTrack
 
 from getstream.video.rtc.g711 import (
     ALAW_DECODE_TABLE,
@@ -2048,54 +2046,10 @@ def patch_sdp_offer(sdp: str) -> str:
     """
     Patches an SDP offer to ensure consistent ICE and DTLS parameters across all media sections.
 
-    This function:
-    1. Ensures all media descriptions have the same ice-ufrag, ice-pwd, and fingerprint values
-       (using values from the first media section)
-    2. Sets all media descriptions' ports to match the first media description's port
-    3. Replaces all media descriptions' candidates with candidates from the first media description
-
-    Args:
-        sdp: The original SDP string.
-
-    Returns:
-        The modified SDP string with consistent parameters across all media sections.
+    The Rust publisher owns ICE/DTLS bundling, so this is a no-op kept for
+    callers that still pass SDP through the historic helper.
     """
-    # Parse the SDP
-    session = aiortc.sdp.SessionDescription.parse(sdp)
-
-    # If we have fewer than 2 media sections, nothing to patch
-    if len(session.media) < 2:
-        return sdp
-
-    # Get the values from the first media section
-    first_media = session.media[0]
-    reference_port = first_media.port
-    reference_ice = first_media.ice
-    reference_fingerprints = first_media.dtls.fingerprints if first_media.dtls else []
-    reference_candidates = first_media.ice_candidates
-
-    # Apply to all other media sections
-    for media in session.media[1:]:
-        # Update port
-        media.port = reference_port
-
-        # Update ICE parameters
-        if reference_ice and media.ice:
-            media.ice.usernameFragment = reference_ice.usernameFragment
-            media.ice.password = reference_ice.password
-            media.ice.iceLite = reference_ice.iceLite
-
-        # Update DTLS fingerprints
-        if media.dtls and reference_fingerprints:
-            media.dtls.fingerprints = reference_fingerprints.copy()
-
-        # Replace ICE candidates
-        media.ice_candidates = reference_candidates.copy()
-        if reference_candidates:
-            media.ice_candidates_complete = True
-
-    # Convert back to string
-    return str(session)
+    return sdp
 
 
 def fix_sdp_msid_semantic(sdp: str) -> str:
@@ -2148,7 +2102,7 @@ def parse_track_stream_mapping(sdp: str) -> dict:
     return mapping
 
 
-class BufferedMediaTrack(aiortc.mediastreams.MediaStreamTrack):
+class BufferedMediaTrack(MediaStreamTrack):
     """A wrapper for MediaStreamTrack that buffers one peeked frame.
 
     Also tracks video frame statistics when kind is 'video':
@@ -2259,11 +2213,11 @@ class BufferedMediaTrack(aiortc.mediastreams.MediaStreamTrack):
                     logger.error(f"Error stopping track: {e}")
 
 
-class VideoFrameTracker(aiortc.mediastreams.MediaStreamTrack):
+class VideoFrameTracker(MediaStreamTrack):
     """A transparent wrapper that tracks video frame statistics.
 
-    Used for subscriber video tracks to capture frame metrics that aiortc
-    doesn't provide natively (dimensions, frame count, decode time).
+    Used for subscriber video tracks to capture frame metrics that the
+    transport does not provide natively (dimensions, frame count, decode time).
     """
 
     kind = "video"
@@ -2332,7 +2286,7 @@ class VideoFrameTracker(aiortc.mediastreams.MediaStreamTrack):
 
 
 async def detect_video_properties(
-    video_track: aiortc.mediastreams.MediaStreamTrack,
+    video_track,
 ) -> Dict[str, Any]:
     """
     Detect video track properties by peeking at frames.
@@ -2491,7 +2445,7 @@ def _normalize_audio_format(
 
 class AudioTrackHandler:
     """
-    A helper to receive raw PCM data from an aiortc AudioStreamTrack
+    A helper to receive raw PCM data from an audio MediaStreamTrack
     and feed it into the provided callback.
     """
 

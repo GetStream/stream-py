@@ -2,19 +2,20 @@ import asyncio
 import fractions
 import logging
 import time
+import uuid
 from collections import deque
 
-import aiortc
 import av
 import numpy as np
 
+from .media import AUDIO_PTIME, MediaStreamError
 from .track_util import AudioFormat, AudioFormatType, FrameResampler, PcmData
 
 logger = logging.getLogger(__name__)
 
 
-class AudioStreamTrack(aiortc.mediastreams.MediaStreamTrack):
-    """aiortc audio track that streams buffered PCM into a WebRTC call.
+class AudioStreamTrack:
+    """Audio track that streams buffered PCM into a WebRTC call.
 
     `write()` accepts PcmData at any sample rate, channel layout, or format, and converts it to fixed 20ms packed-s16 frames at the track's output
     rate/layout and queues them (dropping the oldest once the queue exceeds
@@ -33,15 +34,16 @@ class AudioStreamTrack(aiortc.mediastreams.MediaStreamTrack):
         self,
         sample_rate: int = 48000,  # rate of emitted frames; 48kHz matches Opus (avoids a re-resample)
         channels: int = 1,  # output channel count (1=mono, 2=stereo)
-        format: AudioFormatType = AudioFormat.S16,  # output sample format; must be s16 (aiortc's Opus encoder requirement)
+        format: AudioFormatType = AudioFormat.S16,  # output sample format; must be s16
         audio_buffer_size_ms: int = 30000,  # max audio to hold before dropping oldest
     ):
-        super().__init__()
         if format != AudioFormat.S16:
             raise ValueError(
                 f"AudioStreamTrack output format must be 's16', got {format!r}; "
-                "aiortc's Opus encoder only accepts s16 frames."
+                "the Opus encoder only accepts s16 frames."
             )
+        self._id = str(uuid.uuid4())
+        self._readyState = "live"
         self.sample_rate = sample_rate
         self.channels = channels
         self.format = format
@@ -55,7 +57,7 @@ class AudioStreamTrack(aiortc.mediastreams.MediaStreamTrack):
 
         self._layout = "stereo" if channels == 2 else "mono"
         # Samples-per-channel in one 20ms frame (e.g. 0.02 * 48000 = 960).
-        self._samples_per_frame = int(aiortc.mediastreams.AUDIO_PTIME * sample_rate)
+        self._samples_per_frame = int(AUDIO_PTIME * sample_rate)
         # Cap in per-channel samples; beyond this, the oldest frames are dropped.
         self._max_samples = int((audio_buffer_size_ms / 1000) * sample_rate)
         # Pre-built zeros reused to synthesize a silence frame on starvation.
@@ -72,6 +74,17 @@ class AudioStreamTrack(aiortc.mediastreams.MediaStreamTrack):
             frame_size=self._samples_per_frame,
         )
         self._pacer = _FramePacer(sample_rate, self._samples_per_frame)
+
+    @property
+    def id(self) -> str:
+        return self._id
+
+    @property
+    def readyState(self) -> str:
+        return self._readyState
+
+    def stop(self) -> None:
+        self._readyState = "ended"
 
     async def write(self, pcm: PcmData, final: bool = False) -> None:
         """Write PCM data to the track.
@@ -112,9 +125,9 @@ class AudioStreamTrack(aiortc.mediastreams.MediaStreamTrack):
 
     async def recv(self) -> av.AudioFrame:
         """Return the next 20ms frame, synthesizing silence when starved."""
-        # aiortc calls recv() in a loop; once the track is stopped, signal EOF.
+        # The publisher pump calls recv() in a loop; once the track is stopped, signal EOF.
         if self.readyState != "live":
-            raise aiortc.mediastreams.MediaStreamError
+            raise MediaStreamError
 
         # Block until this frame is due, and get the pts to stamp on it.
         pts = await self._pacer.next_pts()
@@ -153,8 +166,9 @@ class AudioStreamTrack(aiortc.mediastreams.MediaStreamTrack):
 class _FramePacer:
     """Real-time clock for fixed-size frames.
 
-    aiortc sends whatever recv() returns immediately, so recv() must block until each
-    frame is due. next_pts() sleeps the right amount and returns the pts to stamp.
+    The publisher pump sends whatever recv() returns immediately, so recv() must
+    block until each frame is due. next_pts() sleeps the right amount and
+    returns the pts to stamp.
     """
 
     def __init__(self, sample_rate: int, samples_per_frame: int):
