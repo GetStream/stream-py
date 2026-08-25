@@ -97,10 +97,13 @@ def _resolve_video_encoders() -> list[tuple[str, Callable[[], Any]]]:
             return [("h264", StreamH264Encoder), ("vp8", StreamVp8Encoder)]
     except ImportError:
         pass
-    from aiortc.codecs.h264 import H264Encoder
-    from aiortc.codecs.vpx import Vp8Encoder
+    try:
+        from aiortc.codecs.h264 import H264Encoder
+        from aiortc.codecs.vpx import Vp8Encoder
 
-    return [("h264", H264Encoder), ("vp8", Vp8Encoder)]
+        return [("h264", H264Encoder), ("vp8", Vp8Encoder)]
+    except ImportError:
+        return []
 
 
 def _bench_pcm_resample(
