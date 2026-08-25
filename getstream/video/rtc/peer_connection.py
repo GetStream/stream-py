@@ -138,7 +138,7 @@ class PeerConnectionManager:
                 logger.info("Published local audio track")
 
             if video:
-                local_video = LocalVideoTrack.vp8()
+                local_video = LocalVideoTrack.vp9()
                 await session.publish_video(local_video)
                 self._spawn(
                     self._pump_outbound_video(video, local_video),
