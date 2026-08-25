@@ -16,7 +16,9 @@
       "numpy": "2.2.6",
       "scipy": "1.15.3",
       "soundfile": "0.13.1"
-    }
+    },
+    "live_timestamp": "2026-08-25T02:14:53.226792+00:00",
+    "live_git_sha": "40473e5ed7978007f54eed3c685ef86a775b6979"
   },
   "benchmarks": [
     {
@@ -300,29 +302,97 @@
       "max": 10043212.31240172,
       "packets": 150,
       "decoded_samples": 144000
-    }
-  ],
-  "skipped": [
+    },
     {
       "name": "live.join_latency_ms",
-      "reason": "STREAM_API_KEY / STREAM_API_SECRET not set"
+      "category": "live",
+      "unit": "ms",
+      "higher_is_better": false,
+      "n": 5,
+      "samples": [
+        1077.6993749896064,
+        990.6249999767169,
+        1014.7034170222469,
+        1196.6847910080105,
+        998.8402079907246
+      ],
+      "mean": 1055.710558197461,
+      "median": 1014.7034170222469,
+      "p95": 1172.8877078043297,
+      "min": 990.6249999767169,
+      "max": 1196.6847910080105
     },
     {
       "name": "live.audio_e2e_latency_ms",
-      "reason": "STREAM_API_KEY / STREAM_API_SECRET not set"
+      "category": "live",
+      "unit": "ms",
+      "higher_is_better": false,
+      "n": 5,
+      "samples": [
+        483.5435000131838,
+        225.449750025291,
+        223.64508302416652,
+        224.3871670216322,
+        417.822084040381
+      ],
+      "mean": 314.9695168249309,
+      "median": 225.449750025291,
+      "p95": 470.39921681862324,
+      "min": 223.64508302416652,
+      "max": 483.5435000131838,
+      "marker_freq_hz": 2500.0,
+      "marker_ms": 80
     },
     {
       "name": "live.soak_cpu_percent",
-      "reason": "STREAM_API_KEY / STREAM_API_SECRET not set"
+      "category": "live",
+      "unit": "percent",
+      "higher_is_better": false,
+      "n": 1,
+      "samples": [
+        14.557917813180927
+      ],
+      "mean": 14.557917813180927,
+      "median": 14.557917813180927,
+      "p95": 14.557917813180927,
+      "min": 14.557917813180927,
+      "max": 14.557917813180927,
+      "duration_s": 60.0
     },
     {
       "name": "live.soak_rss_mb",
-      "reason": "STREAM_API_KEY / STREAM_API_SECRET not set"
+      "category": "live",
+      "unit": "mb",
+      "higher_is_better": false,
+      "n": 1,
+      "samples": [
+        175.46875
+      ],
+      "mean": 175.46875,
+      "median": 175.46875,
+      "p95": 175.46875,
+      "min": 175.46875,
+      "max": 175.46875,
+      "duration_s": 60.0
     },
     {
       "name": "live.reconnect_recovery_ms",
-      "reason": "STREAM_API_KEY / STREAM_API_SECRET not set"
+      "category": "live",
+      "unit": "ms",
+      "higher_is_better": false,
+      "n": 3,
+      "samples": [
+        3400.2754589891993,
+        3230.383249989245,
+        3345.8077080431394
+      ],
+      "mean": 3325.4888056738614,
+      "median": 3345.8077080431394,
+      "p95": 3394.8286838945933,
+      "min": 3230.383249989245,
+      "max": 3400.2754589891993
     }
   ],
+  "skipped": [],
   "errors": []
 }
