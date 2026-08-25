@@ -38,7 +38,7 @@ from getstream.video.rtc.peer_connection import PeerConnectionManager, _WsStub
 from getstream.video.rtc.models import JoinCallResponse
 from getstream.video.rtc.tracer import Tracer
 from getstream.video.rtc.stats_reporter import SfuStatsReporter
-from getstream.video.rtc.sfu_bridge import dispatch_rust_event
+from getstream.video.rtc.sfu_bridge import dispatch_rust_event, participant_from_dict
 
 logger = logging.getLogger(__name__)
 
@@ -349,6 +349,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         self.running = True
         self.connection_state = ConnectionState.JOINED
         self._stop_event.clear()
+        self._seed_roster_from_session()
 
         logger.info("Successfully connected to SFU")
 
@@ -406,6 +407,23 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         if code in {700, 600, 301} or "should_retry" in message:
             return SfuJoinError(message, error_code=code, should_retry=True)
         return SfuConnectionError(f"WebSocket connection failed: {message}")
+
+    def _seed_roster_from_session(self) -> None:
+        """Copy the Rust join roster into ParticipantsState (JS/Swift parity)."""
+        session = self._rtc_session
+        if session is None:
+            return
+        for data in session.participants():
+            participant = participant_from_dict(data)
+            if participant.session_id == self.session_id:
+                continue
+            if not participant.track_lookup_prefix:
+                participant.track_lookup_prefix = (
+                    participant.session_id or participant.user_id
+                )
+            if not participant.track_lookup_prefix:
+                continue
+            self.participants_state._add_participant(participant)
 
     async def _pump_rtc_events(self, session: RtcSession) -> None:
         try:
