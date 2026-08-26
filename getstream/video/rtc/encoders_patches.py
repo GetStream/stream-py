@@ -7,8 +7,12 @@ import av
 from aiortc import RTCRtpCodecParameters
 from aiortc.codecs.h264 import MAX_FRAME_RATE as H264_MAX_FRAME_RATE
 from aiortc.codecs.h264 import H264Encoder
+from aiortc.codecs.opus import SAMPLE_RATE as OPUS_SAMPLE_RATE
+from aiortc.codecs.opus import SAMPLES_PER_FRAME as OPUS_SAMPLES_PER_FRAME
+from aiortc.codecs.opus import OpusEncoder
 from aiortc.codecs.vpx import Vp8Encoder
 from aiortc.rtcrtpsender import RTCEncodedFrame, RTCRtpSender
+from av import AudioResampler
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +21,13 @@ logger = logging.getLogger(__name__)
 STREAM_VIDEO_DEFAULT_BITRATE = 2_500_000  # 2.5 Mbps
 STREAM_VIDEO_MIN_BITRATE = 1_500_000  # 1.5 Mbps
 STREAM_VIDEO_MAX_BITRATE = 3_000_000  # 3 Mbps
+
+# Override hardcoded Opus defaults to reduce CPU usage. Lower than aiortc's 96 kbps stereo default; tuned for
+# voice. Both are configurable per StreamOpusEncoder() instance.
+STREAM_OPUS_DEFAULT_BITRATE = 64_000  # 96kbps -> 64kbps
+STREAM_OPUS_DEFAULT_LAYOUT = "mono"  # stereo -> mono
+# Compression level <= 7 reduces the CPU work for encoder with minimal quality impact at 64kbps
+STREAM_OPUS_DEFAULT_COMPRESSION_LEVEL = 7  # 10 -> 7
 
 
 # Check if the Stream bitrate patching is disabled via environment variable
@@ -36,6 +47,7 @@ STREAM_H264_PRESET = os.getenv("STREAM_PATCH_AIORTC_H264_PRESET", "ultrafast").s
 
 
 try:
+    # TODO: Implement a way to configure encoders per track.
     # Verify the name-mangled attributes we depend on still exist.
     assert hasattr(Vp8Encoder(), "_Vp8Encoder__target_bitrate")
     assert hasattr(H264Encoder(), "_H264Encoder__target_bitrate")
@@ -124,16 +136,38 @@ except Exception:
     StreamH264Encoder = None  # type: ignore[assignment, misc]
 
 
+class StreamOpusEncoder(OpusEncoder):
+    """OpusEncoder subclass with configurable bitrate and channel layout."""
+
+    def __init__(
+        self,
+        bitrate: int = STREAM_OPUS_DEFAULT_BITRATE,
+        layout: str = STREAM_OPUS_DEFAULT_LAYOUT,
+        compression_level: int = STREAM_OPUS_DEFAULT_COMPRESSION_LEVEL,
+    ) -> None:
+        super().__init__()
+        self.codec.bit_rate = bitrate
+        self.codec.layout = layout
+        self.codec.options = {
+            "application": "voip",
+            "compression_level": str(compression_level),
+        }
+        # Resampler layout must match codec layout; parent hard-codes stereo.
+        self.resampler = AudioResampler(
+            format="s16",
+            layout=layout,
+            rate=OPUS_SAMPLE_RATE,
+            frame_size=OPUS_SAMPLES_PER_FRAME,
+        )
+
+
 def patch_sender_encoder(sender: RTCRtpSender) -> None:
     """Patch a sender to use Stream's tuned encoders for the negotiated codec.
 
-    Works for video (VP8/H264) senders. If anything
+    Works for video (VP8/H264) and audio (Opus) senders. If anything
     goes wrong (e.g. aiortc internals changed), the sender is left untouched
     and will use the stock encoder via get_encoder().
     """
-    if StreamVp8Encoder is None or StreamH264Encoder is None:
-        return
-
     try:
         _orig_next = sender._next_encoded_frame
 
@@ -142,10 +176,12 @@ def patch_sender_encoder(sender: RTCRtpSender) -> None:
         ) -> Optional[RTCEncodedFrame]:
             if sender._RTCRtpSender__encoder is None:  # type: ignore[attr-defined]
                 mime = codec.mimeType.lower()
-                if mime == "video/vp8":
+                if mime == "video/vp8" and StreamVp8Encoder is not None:
                     sender._RTCRtpSender__encoder = StreamVp8Encoder()  # type: ignore[attr-defined]
-                elif mime == "video/h264":
+                elif mime == "video/h264" and StreamH264Encoder is not None:
                     sender._RTCRtpSender__encoder = StreamH264Encoder()  # type: ignore[attr-defined]
+                elif mime == "audio/opus":
+                    sender._RTCRtpSender__encoder = StreamOpusEncoder()  # type: ignore[attr-defined]
             return await _orig_next(codec)
 
         sender._next_encoded_frame = _next_with_stream_encoder  # type: ignore[method-assign]

@@ -3,13 +3,18 @@ from unittest.mock import MagicMock
 
 import pytest
 from aiortc.codecs.h264 import H264Encoder
+from aiortc.codecs.opus import OpusEncoder
 from aiortc.codecs.vpx import Vp8Encoder
 
 from getstream.video.rtc.encoders_patches import (
+    STREAM_OPUS_DEFAULT_BITRATE,
+    STREAM_OPUS_DEFAULT_COMPRESSION_LEVEL,
+    STREAM_OPUS_DEFAULT_LAYOUT,
     STREAM_VIDEO_DEFAULT_BITRATE,
     STREAM_VIDEO_MAX_BITRATE,
     STREAM_VIDEO_MIN_BITRATE,
     StreamH264Encoder,
+    StreamOpusEncoder,
     StreamVp8Encoder,
     patch_sender_encoder,
 )
@@ -66,6 +71,31 @@ class TestStreamH264Encoder:
         enc = StreamH264Encoder()
         enc.target_bitrate = 2_000_000
         assert enc.target_bitrate == 2_000_000
+
+
+class TestStreamOpusEncoder:
+    def test_defaults(self):
+        enc = StreamOpusEncoder()
+        assert enc.codec.bit_rate == STREAM_OPUS_DEFAULT_BITRATE
+        assert enc.codec.layout.name == STREAM_OPUS_DEFAULT_LAYOUT
+        assert enc.codec.options["compression_level"] == str(
+            STREAM_OPUS_DEFAULT_COMPRESSION_LEVEL
+        )
+        assert enc.codec.options["application"] == "voip"
+
+    def test_custom_bitrate(self):
+        enc = StreamOpusEncoder(bitrate=32_000)
+        assert enc.codec.bit_rate == 32_000
+
+    def test_custom_layout_updates_resampler(self):
+        """Resampler layout must track codec layout — encode() asserts on it."""
+        enc = StreamOpusEncoder(layout="stereo")
+        assert enc.codec.layout.name == "stereo"
+        assert enc.resampler.layout.name == "stereo"
+
+    def test_custom_compression_level(self):
+        enc = StreamOpusEncoder(compression_level=10)
+        assert enc.codec.options["compression_level"] == "10"
 
 
 class TestBitratePatchDisabled:
@@ -166,6 +196,25 @@ class TestPatchSenderEncoder:
         assert isinstance(sender._RTCRtpSender__encoder, H264Cls)
 
     @pytest.mark.asyncio
+    async def test_installs_opus_encoder(self):
+        sender = MagicMock()
+        sender._RTCRtpSender__encoder = None
+
+        async def _orig_coro(codec):
+            return None
+
+        sender._next_encoded_frame = _orig_coro
+        patch_sender_encoder(sender)
+
+        codec = MagicMock()
+        codec.mimeType = "audio/opus"
+        await sender._next_encoded_frame(codec)
+
+        from getstream.video.rtc.encoders_patches import StreamOpusEncoder as OpusCls
+
+        assert isinstance(sender._RTCRtpSender__encoder, OpusCls)
+
+    @pytest.mark.asyncio
     async def test_does_not_replace_existing_encoder(self):
         """Already-set encoder is not replaced."""
         sender = MagicMock()
@@ -183,15 +232,25 @@ class TestPatchSenderEncoder:
         await sender._next_encoded_frame(codec)
         assert sender._RTCRtpSender__encoder is existing_encoder
 
-    def test_noop_when_encoders_none(self, monkeypatch):
-        """patch_sender_encoder is a no-op when encoder classes failed to load."""
+    @pytest.mark.asyncio
+    async def test_skips_mime_when_encoder_class_is_none(self, monkeypatch):
+        """If a Stream* class failed to load, that mime branch leaves the encoder unset."""
         import getstream.video.rtc.encoders_patches as mod
 
         monkeypatch.setattr(mod, "StreamVp8Encoder", None)
         sender = MagicMock()
-        orig = sender._next_encoded_frame
+        sender._RTCRtpSender__encoder = None
+
+        async def _orig_coro(codec):
+            return None
+
+        sender._next_encoded_frame = _orig_coro
         mod.patch_sender_encoder(sender)
-        assert sender._next_encoded_frame is orig
+
+        codec = MagicMock()
+        codec.mimeType = "video/VP8"
+        await sender._next_encoded_frame(codec)
+        assert sender._RTCRtpSender__encoder is None
 
 
 class TestUpstreamAssumptions:
@@ -215,6 +274,11 @@ class TestUpstreamAssumptions:
         assert hasattr(h264, "_H264Encoder__target_bitrate"), (
             "H264Encoder name-mangled __target_bitrate changed"
         )
+
+        # OpusEncoder still exposes the public attrs StreamOpusEncoder overrides.
+        opus = OpusEncoder()
+        assert hasattr(opus, "codec"), "OpusEncoder lost codec"
+        assert hasattr(opus, "resampler"), "OpusEncoder lost resampler"
 
         # RTCRtpSender has _next_encoded_frame and uses __encoder
         import inspect
