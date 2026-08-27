@@ -595,6 +595,13 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         """Async context manager exit."""
         await self.leave()
 
+    async def stats(self) -> Optional[Dict[str, Any]]:
+        """Publisher/subscriber getStats snapshot, or None if disconnected."""
+        session = self._rtc_session
+        if session is None:
+            return None
+        return await session.stats()
+
     async def add_tracks(self, audio=None, video=None):
         """Add multiple audio and video tracks in a single negotiation."""
         with telemetry.start_as_current_span("rtc.add_tracks"):
