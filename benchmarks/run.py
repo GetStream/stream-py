@@ -123,6 +123,9 @@ async def _run(args: argparse.Namespace) -> dict[str, Any]:
             logger.warning("Skipping live SFU benches: %s", reason)
             for name in (
                 "live.join_latency_ms",
+                "live.join_token_mint_ms",
+                "live.join_coordinator_rest_ms",
+                "live.join_rtc_session_ms",
                 "live.audio_e2e_latency_ms",
                 "live.soak_cpu_percent",
                 "live.soak_rss_baseline_mb",

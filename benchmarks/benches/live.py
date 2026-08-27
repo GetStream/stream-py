@@ -7,7 +7,8 @@ import logging
 import statistics
 import time
 import uuid
-from typing import Any
+from contextlib import contextmanager
+from typing import Any, Iterator
 
 import numpy as np
 
@@ -91,15 +92,61 @@ async def _ensure_users(client: AsyncStream, *user_ids: str) -> None:
     await client.upsert_users(*[UserRequest(id=uid) for uid in user_ids])
 
 
-async def _join_latency_ms(client: AsyncStream) -> float:
+@contextmanager
+def _join_probes(client: AsyncStream, timings: dict[str, float]) -> Iterator[None]:
+    """Time token mint, coordinator REST, and RtcSession.join on the live path."""
+    import getstream.video.rtc.connection_manager as cm
+
+    orig_create_token = client.create_token
+    orig_join_call = cm.join_call
+    orig_join_rtc = cm.ConnectionManager._join_rtc_session
+
+    def timed_create_token(*args: Any, **kwargs: Any):
+        t0 = time.perf_counter()
+        result = orig_create_token(*args, **kwargs)
+        dt = (time.perf_counter() - t0) * 1000.0
+        if "token_mint_ms" not in timings:
+            timings["token_mint_ms"] = dt
+        return result
+
+    async def timed_join_call(*args: Any, **kwargs: Any):
+        t0 = time.perf_counter()
+        result = await orig_join_call(*args, **kwargs)
+        wall = (time.perf_counter() - t0) * 1000.0
+        token = timings.get("token_mint_ms", 0.0)
+        timings["coordinator_rest_ms"] = max(0.0, wall - token)
+        return result
+
+    async def timed_join_rtc_session(self):
+        t0 = time.perf_counter()
+        result = await orig_join_rtc(self)
+        timings["rtc_session_join_ms"] = (time.perf_counter() - t0) * 1000.0
+        return result
+
+    client.create_token = timed_create_token
+    cm.join_call = timed_join_call
+    cm.ConnectionManager._join_rtc_session = timed_join_rtc_session
+    try:
+        yield
+    finally:
+        client.create_token = orig_create_token
+        cm.join_call = orig_join_call
+        cm.ConnectionManager._join_rtc_session = orig_join_rtc
+
+
+async def _join_once(client: AsyncStream) -> dict[str, float]:
     call = client.video.call("default", f"bench-join-{uuid.uuid4().hex[:12]}")
     user_id = f"bench-join-{uuid.uuid4().hex[:8]}"
     await _ensure_users(client, user_id)
-    t0 = time.perf_counter()
-    async with await join(call, user_id) as connection:
-        latency_ms = (time.perf_counter() - t0) * 1000.0
-        await connection.leave()
-    return latency_ms
+    timings: dict[str, float] = {}
+    with _join_probes(client, timings):
+        t0 = time.perf_counter()
+        async with await join(call, user_id) as connection:
+            timings["total_ms"] = (time.perf_counter() - t0) * 1000.0
+            await connection.leave()
+    for key in ("token_mint_ms", "coordinator_rest_ms", "rtc_session_join_ms"):
+        timings.setdefault(key, 0.0)
+    return timings
 
 
 async def _audio_e2e_latency_ms(client: AsyncStream) -> float:
@@ -335,16 +382,36 @@ async def run_live_benches(
             logger.exception("live bench %s failed", name)
             errors.append({"name": name, "reason": str(exc)})
 
-    await _capture(
-        "live.join_latency_ms",
-        lambda: _repeat(
+    try:
+        join_runs: list[dict[str, float]] = []
+        for i in range(runs):
+            logger.info("live.join_latency_ms run %d/%d", i + 1, runs)
+            join_runs.append(await _join_once(client))
+        join_metrics = (
+            ("live.join_latency_ms", "total_ms"),
+            ("live.join_token_mint_ms", "token_mint_ms"),
+            ("live.join_coordinator_rest_ms", "coordinator_rest_ms"),
+            ("live.join_rtc_session_ms", "rtc_session_join_ms"),
+        )
+        for name, key in join_metrics:
+            results.append(
+                summarize(
+                    name,
+                    [run[key] for run in join_runs],
+                    category="live",
+                    unit="ms",
+                    higher_is_better=False,
+                )
+            )
+    except Exception as exc:
+        logger.exception("live bench live.join_latency_ms failed")
+        for name in (
             "live.join_latency_ms",
-            lambda: _join_latency_ms(client),
-            runs=runs,
-            unit="ms",
-            higher_is_better=False,
-        ),
-    )
+            "live.join_token_mint_ms",
+            "live.join_coordinator_rest_ms",
+            "live.join_rtc_session_ms",
+        ):
+            errors.append({"name": name, "reason": str(exc)})
     await _capture(
         "live.audio_e2e_latency_ms",
         lambda: _repeat(
