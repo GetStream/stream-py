@@ -148,13 +148,22 @@ class PeerConnectionManager:
                 logger.info("Published local audio track")
 
             if video:
-                codec = _publish_video_codec()
+                codec = (
+                    self.connection_manager._preferred_video_codec
+                    or _publish_video_codec()
+                )
+                track_options = {
+                    "allow_frame_skipping": self.connection_manager._video_allow_frame_skipping
+                }
+                target_bitrate = self.connection_manager._video_target_bitrate_bps
+                if target_bitrate is not None:
+                    track_options["target_bitrate_bps"] = target_bitrate
                 if codec == "vp8":
-                    local_video = LocalVideoTrack.vp8()
+                    local_video = LocalVideoTrack.vp8(**track_options)
                 elif codec == "h264":
-                    local_video = LocalVideoTrack.h264()
+                    local_video = LocalVideoTrack.h264(**track_options)
                 else:
-                    local_video = LocalVideoTrack.vp9()
+                    local_video = LocalVideoTrack.vp9(**track_options)
                 await session.publish_video(local_video)
                 self._spawn(
                     self._pump_outbound_video(video, local_video),

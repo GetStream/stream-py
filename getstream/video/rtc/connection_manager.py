@@ -58,6 +58,9 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         subscription_config: Optional[SubscriptionConfig] = None,
         max_join_retries: int = 3,
         drain_video_frames: bool = True,
+        preferred_video_codec: Optional[str] = None,
+        video_target_bitrate_bps: Optional[int] = None,
+        video_allow_frame_skipping: bool = True,
         **kwargs: Any,
     ):
         """
@@ -68,6 +71,11 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                 RTCRtpReceiver when no subscriber is consuming the track.
                 The drain is stopped once a real subscriber is added via
                 add_track_subscriber.
+            preferred_video_codec: Preferred camera-video codec for the next
+                SFU join.
+            video_target_bitrate_bps: Target bitrate for locally encoded video.
+            video_allow_frame_skipping: Whether the local encoder may drop
+                frames to maintain its target bitrate.
         """
         super().__init__()
 
@@ -82,7 +90,12 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         self.local_sfu: bool = False  # Local SFU flag for development
         if max_join_retries < 0:
             raise ValueError("max_join_retries must be >= 0")
+        if video_target_bitrate_bps is not None and video_target_bitrate_bps <= 0:
+            raise ValueError("video_target_bitrate_bps must be greater than zero")
         self._max_join_retries: int = max_join_retries
+        self._preferred_video_codec = preferred_video_codec
+        self._video_target_bitrate_bps = video_target_bitrate_bps
+        self._video_allow_frame_skipping = video_allow_frame_skipping
 
         # Private attributes
         self._connection_state: ConnectionState = ConnectionState.IDLE
@@ -402,6 +415,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             ),
             own_capabilities=own_capabilities,
             opus_dtx_enabled=opus_dtx_enabled,
+            preferred_video_codec=self._preferred_video_codec,
         )
 
     def _rtc_error_to_sfu_error(self, error: RtcError) -> Exception:

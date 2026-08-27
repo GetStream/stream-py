@@ -237,6 +237,19 @@ class TestConnectionManager:
         ):
             ConnectionManager(call=MagicMock(), user_id="user1", max_join_retries=-1)
 
+    def test_rejects_nonpositive_video_target_bitrate(self):
+        with (
+            patched_dependencies(),
+            pytest.raises(
+                ValueError, match="video_target_bitrate_bps must be greater than zero"
+            ),
+        ):
+            ConnectionManager(
+                call=MagicMock(),
+                user_id="user1",
+                video_target_bitrate_bps=0,
+            )
+
     @pytest.mark.asyncio
     async def test_signaling_connection_lost_triggers_fast_reconnect(
         self, connection_manager
