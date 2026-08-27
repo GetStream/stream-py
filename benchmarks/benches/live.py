@@ -10,7 +10,8 @@ from typing import Any
 
 import numpy as np
 
-from getstream.stream import Stream
+from getstream.models import UserRequest
+from getstream.stream import AsyncStream
 from getstream.video.rtc import AudioStreamTrack, PcmData, join
 from getstream.video.rtc.reconnection import ReconnectionStrategy
 from getstream.video.rtc.track_util import AudioFormat
@@ -76,13 +77,20 @@ def _contains_marker(pcm: PcmData, freq: float = MARKER_FREQ_HZ) -> bool:
     return neighbor > 0 and (target / neighbor) >= GOERTZEL_RATIO
 
 
-def _client() -> Stream:
-    return Stream(timeout=15.0)
+def _client() -> AsyncStream:
+    # Coordinator join uses `async with clone_for_token(...)`, which only
+    # AsyncStream supports. Sync Stream is not an async context manager.
+    return AsyncStream(timeout=15.0)
 
 
-async def _join_latency_ms(client: Stream) -> float:
+async def _ensure_users(client: AsyncStream, *user_ids: str) -> None:
+    await client.upsert_users(*[UserRequest(id=uid) for uid in user_ids])
+
+
+async def _join_latency_ms(client: AsyncStream) -> float:
     call = client.video.call("default", f"bench-join-{uuid.uuid4().hex[:12]}")
     user_id = f"bench-join-{uuid.uuid4().hex[:8]}"
+    await _ensure_users(client, user_id)
     t0 = time.perf_counter()
     async with await join(call, user_id) as connection:
         latency_ms = (time.perf_counter() - t0) * 1000.0
@@ -90,11 +98,12 @@ async def _join_latency_ms(client: Stream) -> float:
     return latency_ms
 
 
-async def _audio_e2e_latency_ms(client: Stream) -> float:
+async def _audio_e2e_latency_ms(client: AsyncStream) -> float:
     call_id = f"bench-e2e-{uuid.uuid4().hex[:12]}"
     call = client.video.call("default", call_id)
     pub_id = f"bench-pub-{uuid.uuid4().hex[:8]}"
     sub_id = f"bench-sub-{uuid.uuid4().hex[:8]}"
+    await _ensure_users(client, pub_id, sub_id)
     detected: asyncio.Event = asyncio.Event()
     recv_at: dict[str, float] = {}
 
@@ -128,7 +137,7 @@ async def _audio_e2e_latency_ms(client: Stream) -> float:
 
 
 async def _soak(
-    client: Stream, *, seconds: float
+    client: AsyncStream, *, seconds: float
 ) -> tuple[float, float]:
     """Publish + subscribe for `seconds`; return (cpu_percent, peak_rss_mb)."""
     import soundfile as sf
@@ -138,6 +147,7 @@ async def _soak(
     call = client.video.call("default", f"bench-soak-{uuid.uuid4().hex[:12]}")
     pub_id = f"bench-soak-pub-{uuid.uuid4().hex[:8]}"
     sub_id = f"bench-soak-sub-{uuid.uuid4().hex[:8]}"
+    await _ensure_users(client, pub_id, sub_id)
 
     rss_samples: list[int] = [current_rss_bytes()]
     cpu_start = time.process_time()
@@ -179,9 +189,10 @@ async def _soak(
     return cpu_percent, peak_rss_mb
 
 
-async def _reconnect_recovery_ms(client: Stream) -> float:
+async def _reconnect_recovery_ms(client: AsyncStream) -> float:
     call = client.video.call("default", f"bench-re-{uuid.uuid4().hex[:12]}")
     user_id = f"bench-re-{uuid.uuid4().hex[:8]}"
+    await _ensure_users(client, user_id)
     async with await join(call, user_id) as connection:
         await asyncio.sleep(1.5)
         done = asyncio.Event()
