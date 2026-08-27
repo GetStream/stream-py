@@ -60,8 +60,8 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--live-runs",
         type=int,
-        default=5,
-        help="Repeated runs for join / e2e-audio live benches (default: 5)",
+        default=30,
+        help="Repeated runs for join / e2e-audio live benches (default: 30)",
     )
     parser.add_argument(
         "--soak-seconds",
@@ -72,8 +72,8 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--reconnect-runs",
         type=int,
-        default=3,
-        help="Repeated runs for reconnect recovery (default: 3)",
+        default=15,
+        help="Repeated runs for reconnect recovery (default: 15)",
     )
     parser.add_argument(
         "-v",

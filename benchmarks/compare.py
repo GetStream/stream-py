@@ -13,6 +13,9 @@ import sys
 from pathlib import Path
 from typing import Any, Optional
 
+# p95 is the sample maximum until n is large enough to support a real tail.
+_P95_MIN_N = 20
+
 
 def _load(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text())
@@ -118,7 +121,10 @@ def compare(baseline: dict[str, Any], candidate: dict[str, Any]) -> int:
             rows.append([name, unit, "median", _fmt(base.get("median")), "missing", "-", "-"])
             continue
         rows.append(_row(name, unit, hib, base, cand, "median"))
-        rows.append(_row(name, unit, hib, base, cand, "p95"))
+        base_n = int(base.get("n") or 0)
+        cand_n = int(cand.get("n") or 0)
+        if min(base_n, cand_n) >= _P95_MIN_N:
+            rows.append(_row(name, unit, hib, base, cand, "p95"))
     _print_table(headers, rows)
 
     print()
