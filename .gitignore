@@ -22,5 +22,11 @@ build/
 __pycache__/
 *.py[cod]
 *$py.class
-\n+# Local protocol folder (handled by generate_webrtc.sh)
+
+# Local protocol folder (handled by generate_webrtc.sh)
 protocol/
+
+# Raw benchmark outputs remain local unless explicitly curated.
+/benchmarks/results/*.json
+/benchmarks/results/*.pdf
+/benchmarks/results/*.log

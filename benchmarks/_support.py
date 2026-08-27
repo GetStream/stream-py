@@ -59,6 +59,14 @@ def detect_backend() -> str:
     return "rust"
 
 
+def video_codec() -> str:
+    """Publish codec for the Rust stack. Default VP9; STREAM_BENCH_VIDEO_CODEC=vp8 for diagnostics."""
+    raw = os.environ.get("STREAM_BENCH_VIDEO_CODEC", "vp9").strip().lower()
+    if raw in {"vp8", "vp9", "h264"}:
+        return raw
+    return "vp9"
+
+
 def host_class() -> str:
     system = platform.system().lower()
     machine = platform.machine().lower()
@@ -144,10 +152,6 @@ def _rtc_core_native_hash() -> Optional[str]:
         return None
     target = max(files, key=lambda p: p.stat().st_size)
     return f"sha256:{_sha256_file(target)}"
-    try:
-        return metadata.version(name)
-    except metadata.PackageNotFoundError:
-        return None
 
 
 def _cpu_model() -> str:
@@ -197,8 +201,8 @@ def collect_metadata(*, netem_profile: str = "clean") -> dict[str, Any]:
         "cpu": _cpu_model(),
         "cpu_count": os.cpu_count(),
         "backend": detect_backend(),
+        "video_codec": video_codec(),
         "host_class": host_class(),
-        "hostname": platform.node(),
         "system": platform.system(),
         "canonical": host_class() == CANONICAL_HOST_CLASS,
         "netem_profile": netem_profile,
@@ -263,6 +267,30 @@ def current_rss_bytes() -> int:
             if line.startswith("VmRSS:"):
                 return int(line.split()[1]) * 1024
     raise RuntimeError("unable to read process RSS")
+
+
+def current_nthreads() -> int:
+    pid = os.getpid()
+    if sys.platform == "darwin":
+        out = subprocess.check_output(
+            ["ps", "-M", "-p", str(pid)], text=True
+        )
+        # Header plus one line per thread.
+        return max(len(out.strip().splitlines()) - 1, 1)
+    with open(f"/proc/{pid}/status", encoding="utf-8") as fh:
+        for line in fh:
+            if line.startswith("Threads:"):
+                return int(line.split()[1])
+    raise RuntimeError("unable to read thread count")
+
+
+def rusage_maxrss_bytes() -> int:
+    import resource
+
+    rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    if sys.platform == "darwin":
+        return int(rss)
+    return int(rss) * 1024
 
 
 STATS_POLL_HZ = 1.0

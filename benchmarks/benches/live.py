@@ -28,11 +28,14 @@ from getstream.video.rtc.track_util import AudioFormat
 from benchmarks._support import (
     SPEECH_48K,
     TONE_16K,
+    current_nthreads,
     current_rss_bytes,
     gap_metrics,
     outbound_rtp_totals,
     poll_stats,
+    rusage_maxrss_bytes,
     summarize,
+    video_codec,
 )
 
 try:
@@ -249,25 +252,92 @@ def _linear_slope(xs: list[float], ys: list[float]) -> float:
 
 async def _rss_sampler(
     stop: asyncio.Event, *, interval: float
-) -> list[tuple[float, int]]:
-    samples: list[tuple[float, int]] = []
+) -> list[tuple[float, int, int]]:
+    samples: list[tuple[float, int, int]] = []
     while not stop.is_set():
-        samples.append((time.monotonic(), current_rss_bytes()))
+        samples.append((time.monotonic(), current_rss_bytes(), current_nthreads()))
         try:
             await asyncio.wait_for(stop.wait(), timeout=interval)
         except asyncio.TimeoutError:
             pass
-    samples.append((time.monotonic(), current_rss_bytes()))
+    samples.append((time.monotonic(), current_rss_bytes(), current_nthreads()))
     return samples
 
 
-async def _soak(client: AsyncStream, *, seconds: float) -> dict[str, float]:
-    """Publish + subscribe for `seconds`; return soak CPU/RSS breakdown."""
+async def _join_for_soak(call, user_id: str, *, video: bool):
+    if not video:
+        return await join(call, user_id)
+    try:
+        from getstream.video.rtc.pb.stream.video.sfu.models.models_pb2 import (
+            TRACK_TYPE_AUDIO,
+            TRACK_TYPE_VIDEO,
+        )
+        from getstream.video.rtc.tracks import (
+            SubscriptionConfig,
+            TrackSubscriptionConfig,
+        )
+
+        config = SubscriptionConfig(
+            default=TrackSubscriptionConfig(
+                track_types=[TRACK_TYPE_AUDIO, TRACK_TYPE_VIDEO]
+            )
+        )
+        return await join(call, user_id, subscription_config=config)
+    except TypeError:
+        return await join(call, user_id)
+
+
+def _resource_metrics(
+    *,
+    cpu_start: float,
+    wall_start: float,
+    cpu_armed: bool,
+    joined_at: float,
+    warmup_s: float,
+    rss_import: int,
+    rss_baseline: int,
+    series: list[tuple[float, int, int]],
+) -> dict[str, float]:
+    wall = (time.monotonic() - wall_start) if cpu_armed else 0.0
+    cpu_percent = (
+        ((time.process_time() - cpu_start) / wall) * 100.0 if wall > 0 else 0.0
+    )
+    post_join = [row for row in series if row[0] >= joined_at] or series
+    peak_rss_mb = (
+        max(rss for _, rss, _ in post_join) / BYTES_PER_MB if post_join else 0.0
+    )
+    warmup_until = joined_at + warmup_s
+    steady = [row for row in post_join if row[0] >= warmup_until] or post_join
+    steady_mb = [rss / BYTES_PER_MB for _, rss, _ in steady]
+    threads = [n for _, _, n in steady]
+    slope = _linear_slope(
+        [t - warmup_until for t, _, _ in steady],
+        steady_mb,
+    )
+    return {
+        "cpu_percent": cpu_percent,
+        "rss_import_mb": rss_import / BYTES_PER_MB,
+        "rss_baseline_mb": rss_baseline / BYTES_PER_MB,
+        "rss_steady_median_mb": float(statistics.median(steady_mb)) if steady_mb else 0.0,
+        "rss_peak_mb": peak_rss_mb,
+        "rss_maxrss_mb": rusage_maxrss_bytes() / BYTES_PER_MB,
+        "rss_growth_slope_mb_per_s": slope,
+        "nthreads_median": float(statistics.median(threads)) if threads else 0.0,
+        "warmup_s": warmup_s,
+    }
+
+
+async def _soak(
+    client: AsyncStream, *, seconds: float, video: bool = False
+) -> dict[str, float]:
+    """Publish + subscribe for `seconds` in a process that has not just done 30 joins."""
     import soundfile as sf
 
+    rss_import = current_rss_bytes()
     data, sample_rate = sf.read(str(TONE_16K), dtype="int16")
     source = np.asarray(data).ravel()
-    call = client.video.call("default", f"bench-soak-{uuid.uuid4().hex[:12]}")
+    kind = "video" if video else "audio"
+    call = client.video.call("default", f"bench-soak-{kind}-{uuid.uuid4().hex[:12]}")
     pub_id = f"bench-soak-pub-{uuid.uuid4().hex[:8]}"
     sub_id = f"bench-soak-sub-{uuid.uuid4().hex[:8]}"
     await _ensure_users(client, pub_id, sub_id)
@@ -275,28 +345,29 @@ async def _soak(client: AsyncStream, *, seconds: float) -> dict[str, float]:
     warmup_s = _warmup_seconds(seconds)
     baseline_rss = current_rss_bytes()
     stop_sampler = asyncio.Event()
-    sampler_task: asyncio.Task[list[tuple[float, int]]] | None = None
+    sampler_task: asyncio.Task[list[tuple[float, int, int]]] | None = None
     cpu_armed = False
     cpu_start = 0.0
     wall_start = 0.0
     joined_at = 0.0
-    rss_series: list[tuple[float, int]] = []
+    series: list[tuple[float, int, int]] = []
 
     try:
-        async with await join(call, sub_id) as subscriber:
+        async with await _join_for_soak(call, sub_id, video=video) as subscriber:
 
             @subscriber.on("audio")
             def _on_audio(pcm: PcmData, *args: Any) -> None:
                 return
 
-            async with await join(call, pub_id) as publisher:
+            async with await _join_for_soak(call, pub_id, video=video) as publisher:
                 joined_at = time.monotonic()
                 sampler_task = asyncio.create_task(
                     _rss_sampler(stop_sampler, interval=RSS_SAMPLE_INTERVAL_S),
                     name="soak-rss-sampler",
                 )
-                track = AudioStreamTrack(sample_rate=48000, channels=1, format="s16")
-                await publisher.add_tracks(audio=track)
+                audio = AudioStreamTrack(sample_rate=48000, channels=1, format="s16")
+                video_track = _I420VideoTrack() if video else None
+                await publisher.add_tracks(audio=audio, video=video_track)
                 await asyncio.sleep(1.0)
                 chunk = int(sample_rate * 0.1)
                 offset = 0
@@ -322,39 +393,27 @@ async def _soak(client: AsyncStream, *, seconds: float) -> dict[str, float]:
                         format=AudioFormat.S16,
                         channels=1,
                     )
-                    await track.write(pcm)
+                    await audio.write(pcm)
                     offset = end
                     await asyncio.sleep(0.05)
-                track.stop()
+                audio.stop()
+                if video_track is not None:
+                    video_track.stop()
     finally:
         stop_sampler.set()
         if sampler_task is not None:
-            rss_series = await sampler_task
+            series = await sampler_task
 
-    wall = (time.monotonic() - wall_start) if cpu_armed else 0.0
-    cpu_percent = (
-        ((time.process_time() - cpu_start) / wall) * 100.0 if wall > 0 else 0.0
+    return _resource_metrics(
+        cpu_start=cpu_start,
+        wall_start=wall_start,
+        cpu_armed=cpu_armed,
+        joined_at=joined_at,
+        warmup_s=warmup_s,
+        rss_import=rss_import,
+        rss_baseline=baseline_rss,
+        series=series,
     )
-    post_join = [(t, rss) for t, rss in rss_series if t >= joined_at] or rss_series
-    peak_rss_mb = (
-        max(rss for _, rss in post_join) / BYTES_PER_MB if post_join else 0.0
-    )
-    warmup_until = joined_at + warmup_s
-    steady = [(t, rss) for t, rss in post_join if t >= warmup_until] or post_join
-    steady_mb = [rss / BYTES_PER_MB for _, rss in steady]
-    steady_median_mb = float(statistics.median(steady_mb)) if steady_mb else 0.0
-    slope = _linear_slope(
-        [t - warmup_until for t, _ in steady],
-        steady_mb,
-    )
-    return {
-        "cpu_percent": cpu_percent,
-        "rss_baseline_mb": baseline_rss / BYTES_PER_MB,
-        "rss_steady_median_mb": steady_median_mb,
-        "rss_peak_mb": peak_rss_mb,
-        "rss_growth_slope_mb_per_s": slope,
-        "warmup_s": warmup_s,
-    }
 
 
 async def _reconnect_recovery_ms(client: AsyncStream) -> float:
@@ -479,7 +538,7 @@ async def _video_publish_720p30(client: AsyncStream) -> dict[str, Any]:
     await _ensure_users(client, pub_id, sub_id)
     stop = asyncio.Event()
     samples: list[dict[str, Any]] = []
-    async with await join(call, sub_id) as subscriber:
+    async with await join(call, sub_id):
         async with await join(call, pub_id) as publisher:
             await _require_stats(publisher)
             track = _I420VideoTrack()
@@ -607,8 +666,82 @@ async def _repeat(
     )
 
 
+SOAK_RESOURCE_METRICS = (
+    ("cpu_percent", "percent"),
+    ("rss_import_mb", "mb"),
+    ("rss_baseline_mb", "mb"),
+    ("rss_steady_median_mb", "mb"),
+    ("rss_peak_mb", "mb"),
+    ("rss_maxrss_mb", "mb"),
+    ("rss_growth_slope_mb_per_s", "mb_per_s"),
+    ("nthreads_median", "count"),
+)
+
+
+async def run_resource_benches(
+    *, soak_seconds: float, soak_repeats: int = SOAK_REPEATS
+) -> tuple[list[dict[str, Any]], list[dict[str, str]], list[dict[str, str]]]:
+    """CPU/RSS soaks in this process. Call from a fresh interpreter."""
+    results: list[dict[str, Any]] = []
+    skipped: list[dict[str, str]] = []
+    errors: list[dict[str, str]] = []
+    client = _client()
+
+    async def _run_kind(prefix: str, *, video: bool) -> None:
+        soak_runs: list[dict[str, float]] = []
+        soak_failures = 0
+        for i in range(soak_repeats):
+            logger.info(
+                "%s soak %d/%d for %.1fs", prefix, i + 1, soak_repeats, soak_seconds
+            )
+            try:
+                soak_runs.append(await _soak(client, seconds=soak_seconds, video=video))
+            except Exception:
+                soak_failures += 1
+                logger.exception("%s soak %d/%d failed", prefix, i + 1, soak_repeats)
+        if not soak_runs:
+            raise RuntimeError(
+                f"{prefix} soak produced no samples ({soak_failures} failed repeats)"
+            )
+        extra = {
+            "duration_s": soak_seconds,
+            "repeats": soak_repeats,
+            "warmup_s": soak_runs[0]["warmup_s"],
+            "rss_sample_interval_s": RSS_SAMPLE_INTERVAL_S,
+            "failed_runs": soak_failures,
+            "isolated_process": True,
+            "video": video,
+            "video_codec": video_codec() if video else "opus",
+        }
+        for key, unit in SOAK_RESOURCE_METRICS:
+            results.append(
+                summarize(
+                    f"live.{prefix}_{key}",
+                    [run[key] for run in soak_runs],
+                    category="live",
+                    unit=unit,
+                    higher_is_better=False,
+                    extra=extra,
+                )
+            )
+
+    try:
+        await _run_kind("soak", video=False)
+    except Exception as exc:
+        logger.exception("audio resource soak failed")
+        for key, _unit in SOAK_RESOURCE_METRICS:
+            errors.append({"name": f"live.soak_{key}", "reason": str(exc)})
+    try:
+        await _run_kind("video_soak", video=True)
+    except Exception as exc:
+        logger.exception("video resource soak failed")
+        for key, _unit in SOAK_RESOURCE_METRICS:
+            errors.append({"name": f"live.video_soak_{key}", "reason": str(exc)})
+    return results, skipped, errors
+
+
 async def run_live_benches(
-    *, runs: int, soak_seconds: float, reconnect_runs: int
+    *, runs: int, reconnect_runs: int
 ) -> tuple[list[dict[str, Any]], list[dict[str, str]], list[dict[str, str]]]:
     results: list[dict[str, Any]] = []
     skipped: list[dict[str, str]] = []
@@ -682,52 +815,6 @@ async def run_live_benches(
             extra={"marker_freq_hz": MARKER_FREQ_HZ, "marker_ms": MARKER_MS},
         ),
     )
-
-    soak_metrics = (
-        ("live.soak_cpu_percent", "cpu_percent", "percent"),
-        ("live.soak_rss_baseline_mb", "rss_baseline_mb", "mb"),
-        ("live.soak_rss_steady_median_mb", "rss_steady_median_mb", "mb"),
-        ("live.soak_rss_peak_mb", "rss_peak_mb", "mb"),
-        ("live.soak_rss_growth_slope_mb_per_s", "rss_growth_slope_mb_per_s", "mb_per_s"),
-    )
-    try:
-        soak_runs: list[dict[str, float]] = []
-        soak_failures = 0
-        for i in range(SOAK_REPEATS):
-            logger.info(
-                "live soak %d/%d for %.1fs", i + 1, SOAK_REPEATS, soak_seconds
-            )
-            try:
-                soak_runs.append(await _soak(client, seconds=soak_seconds))
-            except Exception:
-                soak_failures += 1
-                logger.exception("live soak %d/%d failed", i + 1, SOAK_REPEATS)
-        if not soak_runs:
-            raise RuntimeError(
-                f"live soak produced no samples ({soak_failures} failed repeats)"
-            )
-        extra = {
-            "duration_s": soak_seconds,
-            "repeats": SOAK_REPEATS,
-            "warmup_s": soak_runs[0]["warmup_s"],
-            "rss_sample_interval_s": RSS_SAMPLE_INTERVAL_S,
-            "failed_runs": soak_failures,
-        }
-        for name, key, unit in soak_metrics:
-            results.append(
-                summarize(
-                    name,
-                    [run[key] for run in soak_runs],
-                    category="live",
-                    unit=unit,
-                    higher_is_better=False,
-                    extra=extra,
-                )
-            )
-    except Exception as exc:
-        logger.exception("live soak failed")
-        for name, _key, _unit in soak_metrics:
-            errors.append({"name": name, "reason": str(exc)})
 
     await _capture(
         "live.reconnect_recovery_ms",
