@@ -14,22 +14,35 @@ from typing import Any, Iterator
 import av
 import numpy as np
 
-from getstream.models import UserRequest
+from getstream.models import (
+    AudioSettingsRequest,
+    CallRequest,
+    CallSettingsRequest,
+    UserRequest,
+)
 from getstream.stream import AsyncStream
 from getstream.video.rtc import AudioStreamTrack, PcmData, join
-from getstream.video.rtc.media import MediaStreamError
 from getstream.video.rtc.reconnection import ReconnectionStrategy
 from getstream.video.rtc.track_util import AudioFormat
 
 from benchmarks._support import (
     SPEECH_48K,
     TONE_16K,
-    classify_rtc_stats,
     current_rss_bytes,
+    gap_metrics,
     outbound_rtp_totals,
     poll_stats,
     summarize,
 )
+
+try:
+    from getstream.video.rtc.media import MediaStreamError
+except ImportError:
+    from aiortc.mediastreams import MediaStreamError
+
+
+class _StatsUnavailable(RuntimeError):
+    """Raised when this RTC stack has no ConnectionManager.stats()."""
 
 logger = logging.getLogger("benchmarks.live")
 
@@ -44,6 +57,16 @@ VIDEO_HEIGHT = 720
 VIDEO_FPS = 30.0
 VIDEO_SECONDS = 15.0
 DTX_SECONDS = 15.0
+# DTX bench asks the coordinator for Opus DTX so the join response actually
+# has opus_dtx_enabled=True even if the app's default call type leaves it off.
+_DTX_CALL_DATA = CallRequest(
+    settings_override=CallSettingsRequest(
+        audio=AudioSettingsRequest(
+            default_device="speaker",
+            opus_dtx_enabled=True,
+        )
+    )
+)
 
 
 def _sine_pcm(freq: float, sample_rate: int, duration_ms: int, amplitude: int = 18000) -> PcmData:
@@ -115,7 +138,11 @@ def _join_probes(client: AsyncStream, timings: dict[str, float]) -> Iterator[Non
 
     orig_create_token = client.create_token
     orig_join_call = cm.join_call
-    orig_join_rtc = cm.ConnectionManager._join_rtc_session
+    orig_join_rtc = None
+    try:
+        orig_join_rtc = cm.ConnectionManager._join_rtc_session
+    except AttributeError:
+        logger.info("RtcSession.join probe unavailable on this RTC stack")
 
     def timed_create_token(*args: Any, **kwargs: Any):
         t0 = time.perf_counter()
@@ -141,13 +168,15 @@ def _join_probes(client: AsyncStream, timings: dict[str, float]) -> Iterator[Non
 
     client.create_token = timed_create_token
     cm.join_call = timed_join_call
-    cm.ConnectionManager._join_rtc_session = timed_join_rtc_session
+    if orig_join_rtc is not None:
+        cm.ConnectionManager._join_rtc_session = timed_join_rtc_session
     try:
         yield
     finally:
         client.create_token = orig_create_token
         cm.join_call = orig_join_call
-        cm.ConnectionManager._join_rtc_session = orig_join_rtc
+        if orig_join_rtc is not None:
+            cm.ConnectionManager._join_rtc_session = orig_join_rtc
 
 
 async def _join_once(client: AsyncStream) -> dict[str, float]:
@@ -160,8 +189,6 @@ async def _join_once(client: AsyncStream) -> dict[str, float]:
         async with await join(call, user_id) as connection:
             timings["total_ms"] = (time.perf_counter() - t0) * 1000.0
             await connection.leave()
-    for key in ("token_mint_ms", "coordinator_rest_ms", "rtc_session_join_ms"):
-        timings.setdefault(key, 0.0)
     return timings
 
 
@@ -436,6 +463,15 @@ def _last_snapshot(samples: list[dict[str, Any]]) -> Any:
     return None
 
 
+async def _require_stats(connection: Any) -> None:
+    try:
+        await connection.stats()
+    except AttributeError as exc:
+        raise _StatsUnavailable(
+            "ConnectionManager.stats() is not available on this RTC stack"
+        ) from exc
+
+
 async def _video_publish_720p30(client: AsyncStream) -> dict[str, Any]:
     call = client.video.call("default", f"bench-video-{uuid.uuid4().hex[:12]}")
     pub_id = f"bench-vpub-{uuid.uuid4().hex[:8]}"
@@ -445,6 +481,7 @@ async def _video_publish_720p30(client: AsyncStream) -> dict[str, Any]:
     samples: list[dict[str, Any]] = []
     async with await join(call, sub_id) as subscriber:
         async with await join(call, pub_id) as publisher:
+            await _require_stats(publisher)
             track = _I420VideoTrack()
             await publisher.add_tracks(video=track)
             poller = asyncio.create_task(
@@ -460,13 +497,19 @@ async def _video_publish_720p30(client: AsyncStream) -> dict[str, Any]:
     totals = outbound_rtp_totals(snapshot, kind="video")
     if totals["packetsSent"] == 0.0 and totals["bytesSent"] == 0.0:
         totals = outbound_rtp_totals(snapshot)
+    metrics = gap_metrics(snapshot, kind="video")
     return {
         "bytes_sent": totals["bytesSent"],
         "packets_sent": totals["packetsSent"],
         "nack_count": totals["nackCount"],
         "pli_count": totals["pliCount"],
         "fir_count": totals["firCount"],
-        "stats_gap": classify_rtc_stats(snapshot),
+        "packets_lost": metrics["packetsLost"],
+        "fraction_lost": metrics["fractionLost"],
+        "round_trip_time": metrics["roundTripTime"],
+        "available_outgoing_bitrate": metrics["availableOutgoingBitrate"],
+        "stats_gap": metrics["stats_gap"],
+        "gap_metrics": metrics,
         "polls": len(samples),
     }
 
@@ -488,13 +531,18 @@ async def _dtx_bytes_sent(client: AsyncStream, *, speech: bool) -> dict[str, Any
     await _ensure_users(client, pub_id, sub_id)
     stop = asyncio.Event()
     samples: list[dict[str, Any]] = []
-    async with await join(call, sub_id) as subscriber:
+    opus_dtx_enabled = False
+    async with await join(call, sub_id, data=_DTX_CALL_DATA) as subscriber:
 
         @subscriber.on("audio")
         def _on_audio(pcm: PcmData, *args: Any) -> None:
             return
 
         async with await join(call, pub_id) as publisher:
+            await _require_stats(publisher)
+            opus_dtx_enabled = (
+                publisher.join_response.call.settings.audio.opus_dtx_enabled
+            )
             track = AudioStreamTrack(sample_rate=48000, channels=1, format="s16")
             await publisher.add_tracks(audio=track)
             poller = asyncio.create_task(
@@ -510,12 +558,20 @@ async def _dtx_bytes_sent(client: AsyncStream, *, speech: bool) -> dict[str, Any
     totals = outbound_rtp_totals(snapshot, kind="audio")
     if totals["packetsSent"] == 0.0 and totals["bytesSent"] == 0.0:
         totals = outbound_rtp_totals(snapshot)
+    metrics = gap_metrics(snapshot, kind="audio")
     return {
         "bytes_sent": totals["bytesSent"],
         "packets_sent": totals["packetsSent"],
-        "stats_gap": classify_rtc_stats(snapshot),
+        "nack_count": totals["nackCount"],
+        "packets_lost": metrics["packetsLost"],
+        "fraction_lost": metrics["fractionLost"],
+        "round_trip_time": metrics["roundTripTime"],
+        "available_outgoing_bitrate": metrics["availableOutgoingBitrate"],
+        "stats_gap": metrics["stats_gap"],
+        "gap_metrics": metrics,
         "polls": len(samples),
         "kind": label,
+        "opus_dtx_enabled": opus_dtx_enabled,
     }
 
 
@@ -529,16 +585,25 @@ async def _repeat(
     extra: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     samples: list[float] = []
+    failed_runs = 0
     for i in range(runs):
         logger.info("%s run %d/%d", name, i + 1, runs)
-        samples.append(float(await fn()))
+        try:
+            samples.append(float(await fn()))
+        except Exception:
+            failed_runs += 1
+            logger.exception("%s run %d/%d failed", name, i + 1, runs)
+    if not samples:
+        raise RuntimeError(f"{name} produced no samples ({failed_runs} failed runs)")
+    payload = dict(extra or {})
+    payload["failed_runs"] = failed_runs
     return summarize(
         name,
         samples,
         category="live",
         unit=unit,
         higher_is_better=higher_is_better,
-        extra=extra,
+        extra=payload,
     )
 
 
@@ -559,9 +624,18 @@ async def run_live_benches(
 
     try:
         join_runs: list[dict[str, float]] = []
+        join_failures = 0
         for i in range(runs):
             logger.info("live.join_latency_ms run %d/%d", i + 1, runs)
-            join_runs.append(await _join_once(client))
+            try:
+                join_runs.append(await _join_once(client))
+            except Exception:
+                join_failures += 1
+                logger.exception("live.join_latency_ms run %d/%d failed", i + 1, runs)
+        if not join_runs:
+            raise RuntimeError(
+                f"live.join_latency_ms produced no samples ({join_failures} failed runs)"
+            )
         join_metrics = (
             ("live.join_latency_ms", "total_ms"),
             ("live.join_token_mint_ms", "token_mint_ms"),
@@ -569,13 +643,23 @@ async def run_live_benches(
             ("live.join_rtc_session_ms", "rtc_session_join_ms"),
         )
         for name, key in join_metrics:
+            samples = [run[key] for run in join_runs if key in run]
+            if len(samples) != len(join_runs):
+                skipped.append(
+                    {
+                        "name": name,
+                        "reason": "join probe not available on this RTC stack",
+                    }
+                )
+                continue
             results.append(
                 summarize(
                     name,
-                    [run[key] for run in join_runs],
+                    samples,
                     category="live",
                     unit="ms",
                     higher_is_better=False,
+                    extra={"failed_runs": join_failures},
                 )
             )
     except Exception as exc:
@@ -608,16 +692,26 @@ async def run_live_benches(
     )
     try:
         soak_runs: list[dict[str, float]] = []
+        soak_failures = 0
         for i in range(SOAK_REPEATS):
             logger.info(
                 "live soak %d/%d for %.1fs", i + 1, SOAK_REPEATS, soak_seconds
             )
-            soak_runs.append(await _soak(client, seconds=soak_seconds))
+            try:
+                soak_runs.append(await _soak(client, seconds=soak_seconds))
+            except Exception:
+                soak_failures += 1
+                logger.exception("live soak %d/%d failed", i + 1, SOAK_REPEATS)
+        if not soak_runs:
+            raise RuntimeError(
+                f"live soak produced no samples ({soak_failures} failed repeats)"
+            )
         extra = {
             "duration_s": soak_seconds,
             "repeats": SOAK_REPEATS,
             "warmup_s": soak_runs[0]["warmup_s"],
             "rss_sample_interval_s": RSS_SAMPLE_INTERVAL_S,
+            "failed_runs": soak_failures,
         }
         for name, key, unit in soak_metrics:
             results.append(
@@ -659,8 +753,13 @@ async def run_live_benches(
             "nack_count": video["nack_count"],
             "pli_count": video["pli_count"],
             "fir_count": video["fir_count"],
+            "packets_lost": video["packets_lost"],
+            "fraction_lost": video["fraction_lost"],
+            "round_trip_time": video["round_trip_time"],
+            "available_outgoing_bitrate": video["available_outgoing_bitrate"],
             "polls": video["polls"],
             "stats_gap": video["stats_gap"],
+            "gap_metrics": video["gap_metrics"],
         }
         results.append(
             summarize(
@@ -681,6 +780,15 @@ async def run_live_benches(
                 higher_is_better=False,
                 extra=extra,
             )
+        )
+    except _StatsUnavailable as exc:
+        logger.info("skipping video publish bench: %s", exc)
+        skipped.append({"name": video_name, "reason": str(exc)})
+        skipped.append(
+            {
+                "name": "live.video_publish_720p30_packets_sent",
+                "reason": str(exc),
+            }
         )
     except Exception as exc:
         logger.exception("live video publish bench failed")
@@ -706,9 +814,23 @@ async def run_live_benches(
             "duration_s": DTX_SECONDS,
             "silence_packets_sent": silence["packets_sent"],
             "speech_packets_sent": speech["packets_sent"],
+            "silence_nack_count": silence["nack_count"],
+            "speech_nack_count": speech["nack_count"],
+            "silence_packets_lost": silence["packets_lost"],
+            "speech_packets_lost": speech["packets_lost"],
+            "silence_round_trip_time": silence["round_trip_time"],
+            "speech_round_trip_time": speech["round_trip_time"],
+            "silence_available_outgoing_bitrate": silence["available_outgoing_bitrate"],
+            "speech_available_outgoing_bitrate": speech["available_outgoing_bitrate"],
             "bytes_ratio_silence_over_speech": ratio,
             "silence_stats_gap": silence["stats_gap"],
             "speech_stats_gap": speech["stats_gap"],
+            "silence_gap_metrics": silence["gap_metrics"],
+            "speech_gap_metrics": speech["gap_metrics"],
+            "opus_dtx_enabled": silence["opus_dtx_enabled"]
+            and speech["opus_dtx_enabled"],
+            "silence_opus_dtx_enabled": silence["opus_dtx_enabled"],
+            "speech_opus_dtx_enabled": speech["opus_dtx_enabled"],
         }
         results.append(
             summarize(
@@ -730,6 +852,10 @@ async def run_live_benches(
                 extra=dtx_extra,
             )
         )
+    except _StatsUnavailable as exc:
+        logger.info("skipping DTX bench: %s", exc)
+        for name in dtx_names:
+            skipped.append({"name": name, "reason": str(exc)})
     except Exception as exc:
         logger.exception("live DTX bench failed")
         for name in dtx_names:

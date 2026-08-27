@@ -380,6 +380,9 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             str(capability)
             for capability in (self.join_response.own_capabilities or [])
         ]
+        opus_dtx_enabled = (
+            self.join_response.call.settings.audio.opus_dtx_enabled
+        )
         return await RtcSession.join(
             stream.api_key,
             user_token,
@@ -398,6 +401,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                 enable_rtc_stats=bool(stats.get("enable_rtc_stats")),
             ),
             own_capabilities=own_capabilities,
+            opus_dtx_enabled=opus_dtx_enabled,
         )
 
     def _rtc_error_to_sfu_error(self, error: RtcError) -> Exception:
