@@ -120,24 +120,26 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _is_native_lib(path: Path) -> bool:
+    if not path.is_file():
+        return False
+    name = path.name
+    return path.suffix in {".so", ".dylib", ".pyd"} or ".so" in name
+
+
 def _rtc_core_native_hash() -> Optional[str]:
     try:
         import getstream_rtc_core
     except ImportError:
         return None
     origin = Path(getstream_rtc_core.__file__).resolve()
-    parent = origin.parent if origin.suffix == ".py" else origin.parent
+    parent = origin.parent
     candidates: list[Path] = []
-    if ".so" in origin.name or origin.suffix in {".so", ".dylib", ".pyd"}:
+    if _is_native_lib(origin):
         candidates.append(origin)
-    for pattern in (
-        "getstream_rtc_core*.so",
-        "getstream_rtc_core*.dylib",
-        "getstream_rtc_core*.pyd",
-        "_getstream_rtc_core*",
-    ):
+    for pattern in ("*.so", "*.dylib", "*.pyd", "_native*"):
         candidates.extend(parent.glob(pattern))
-    files = [p for p in candidates if p.is_file()]
+    files = [p for p in candidates if _is_native_lib(p)]
     if not files:
         return None
     target = max(files, key=lambda p: p.stat().st_size)
