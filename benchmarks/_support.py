@@ -337,6 +337,86 @@ def outbound_rtp_totals(
     return totals
 
 
+def remote_inbound_rtp_summary(
+    snapshot: Any, *, kind: Optional[str] = None
+) -> dict[str, Any]:
+    summary: dict[str, Any] = {
+        "packetsLost": 0.0,
+        "fractionLost": 0.0,
+        "roundTripTime": None,
+        "present": 0.0,
+    }
+    rtts: list[float] = []
+    fractions: list[float] = []
+    found = False
+    for rec in iter_stat_records(snapshot, side="publisher"):
+        rec_type = rec.get("type")
+        if rec_type not in {"remote-inbound-rtp", "remote_inbound_rtp"}:
+            continue
+        media = stat_get(rec, "kind", "mediaType")
+        if kind is not None and media is not None and media != kind:
+            continue
+        found = True
+        lost = stat_get(rec, "packetsLost")
+        if lost is not None:
+            summary["packetsLost"] += float(lost)
+        frac = stat_get(rec, "fractionLost")
+        if frac is not None:
+            fractions.append(float(frac))
+        rtt = stat_get(rec, "roundTripTime")
+        if rtt is not None:
+            rtts.append(float(rtt))
+    summary["present"] = 1.0 if found else 0.0
+    if fractions:
+        summary["fractionLost"] = max(fractions)
+    if rtts:
+        summary["roundTripTime"] = rtts[-1]
+    return summary
+
+
+def candidate_pair_summary(snapshot: Any) -> dict[str, Any]:
+    best_bitrate: Optional[float] = None
+    found = False
+    for rec in iter_stat_records(snapshot, side="publisher"):
+        rec_type = rec.get("type")
+        if rec_type not in {"candidate-pair", "candidate_pair"}:
+            continue
+        found = True
+        bitrate = stat_get(rec, "availableOutgoingBitrate")
+        if bitrate is None:
+            continue
+        bitrate_f = float(bitrate)
+        nominated = stat_get(rec, "nominated")
+        state = stat_get(rec, "state")
+        preferred = nominated or state in {"succeeded", "in-progress"}
+        if preferred and (best_bitrate is None or bitrate_f > best_bitrate):
+            best_bitrate = bitrate_f
+        elif best_bitrate is None:
+            best_bitrate = bitrate_f
+    return {
+        "availableOutgoingBitrate": best_bitrate,
+        "present": 1.0 if found else 0.0,
+    }
+
+
+def gap_metrics(snapshot: Any, *, kind: Optional[str] = None) -> dict[str, Any]:
+    outbound = outbound_rtp_totals(snapshot, kind=kind)
+    inbound = remote_inbound_rtp_summary(snapshot, kind=kind)
+    pair = candidate_pair_summary(snapshot)
+    return {
+        "packetsSent": outbound["packetsSent"],
+        "bytesSent": outbound["bytesSent"],
+        "nackCount": outbound["nackCount"],
+        "pliCount": outbound["pliCount"],
+        "firCount": outbound["firCount"],
+        "packetsLost": inbound["packetsLost"],
+        "fractionLost": inbound["fractionLost"],
+        "roundTripTime": inbound["roundTripTime"],
+        "availableOutgoingBitrate": pair["availableOutgoingBitrate"],
+        "stats_gap": classify_rtc_stats(snapshot),
+    }
+
+
 def classify_rtc_stats(snapshot: Any) -> dict[str, Any]:
     records = iter_stat_records(snapshot, side="publisher")
     records.extend(iter_stat_records(snapshot, side="subscriber"))
