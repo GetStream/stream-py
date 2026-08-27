@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import logging
 import os
@@ -9,6 +10,7 @@ import platform
 import statistics
 import subprocess
 import sys
+import time
 from datetime import datetime, timezone
 from importlib import metadata
 from pathlib import Path
@@ -257,3 +259,137 @@ def current_rss_bytes() -> int:
             if line.startswith("VmRSS:"):
                 return int(line.split()[1]) * 1024
     raise RuntimeError("unable to read process RSS")
+
+
+STATS_POLL_HZ = 1.0
+
+_OUTBOUND_RTP_FIELDS = ("packetsSent", "bytesSent", "nackCount", "pliCount", "firCount")
+_REMOTE_INBOUND_RTP_FIELDS = ("packetsLost", "fractionLost", "roundTripTime")
+_CANDIDATE_PAIR_FIELDS = ("availableOutgoingBitrate",)
+UNMEASURABLE_UPSTREAM_FIELDS = (
+    "retransmittedPacketsSent",
+    "targetBitrate",
+    "framesEncoded",
+    "keyFramesEncoded",
+    "jitter",
+)
+
+
+def _snake(name: str) -> str:
+    out = []
+    for ch in name:
+        if ch.isupper():
+            out.append("_")
+            out.append(ch.lower())
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def stat_get(record: dict[str, Any], *names: str) -> Any:
+    for name in names:
+        if name in record and record[name] is not None:
+            return record[name]
+        snake = _snake(name)
+        if snake in record and record[snake] is not None:
+            return record[snake]
+    return None
+
+
+def iter_stat_records(snapshot: Any, *, side: str = "publisher") -> list[dict[str, Any]]:
+    if snapshot is None:
+        return []
+    payload = snapshot.get(side) if isinstance(snapshot, dict) else snapshot
+    if isinstance(payload, dict):
+        if "type" in payload or "id" in payload:
+            records = [payload]
+        else:
+            records = [v for v in payload.values() if isinstance(v, dict)]
+    elif isinstance(payload, list):
+        records = [v for v in payload if isinstance(v, dict)]
+    else:
+        return []
+    return records
+
+
+def outbound_rtp_totals(
+    snapshot: Any, *, kind: Optional[str] = None
+) -> dict[str, float]:
+    totals = {field: 0.0 for field in _OUTBOUND_RTP_FIELDS}
+    found = False
+    for rec in iter_stat_records(snapshot, side="publisher"):
+        rec_type = rec.get("type")
+        if rec_type not in {"outbound-rtp", "outbound_rtp"}:
+            continue
+        media = stat_get(rec, "kind", "mediaType")
+        if kind is not None and media is not None and media != kind:
+            continue
+        found = True
+        for field in _OUTBOUND_RTP_FIELDS:
+            value = stat_get(rec, field)
+            if value is not None:
+                totals[field] += float(value)
+    totals["present"] = 1.0 if found else 0.0
+    return totals
+
+
+def classify_rtc_stats(snapshot: Any) -> dict[str, Any]:
+    records = iter_stat_records(snapshot, side="publisher")
+    records.extend(iter_stat_records(snapshot, side="subscriber"))
+    expected = {
+        "outbound-rtp": list(_OUTBOUND_RTP_FIELDS),
+        "remote-inbound-rtp": list(_REMOTE_INBOUND_RTP_FIELDS),
+        "candidate-pair": list(_CANDIDATE_PAIR_FIELDS),
+    }
+    populated = {key: [] for key in expected}
+    missing = {key: list(fields) for key, fields in expected.items()}
+    types_seen: list[str] = []
+    unmeasurable_present: list[str] = []
+    for rec in records:
+        rec_type = rec.get("type")
+        if rec_type and rec_type not in types_seen:
+            types_seen.append(rec_type)
+        for field in UNMEASURABLE_UPSTREAM_FIELDS:
+            if stat_get(rec, field) is not None and field not in unmeasurable_present:
+                unmeasurable_present.append(field)
+        expected_type = rec_type
+        if rec_type == "outbound_rtp":
+            expected_type = "outbound-rtp"
+        elif rec_type == "remote_inbound_rtp":
+            expected_type = "remote-inbound-rtp"
+        elif rec_type == "candidate_pair":
+            expected_type = "candidate-pair"
+        fields = expected.get(expected_type)
+        if not fields:
+            continue
+        for field in fields:
+            if stat_get(rec, field) is None:
+                continue
+            if field not in populated[expected_type]:
+                populated[expected_type].append(field)
+            if field in missing[expected_type]:
+                missing[expected_type].remove(field)
+    return {
+        "populated": populated,
+        "missing_expected": missing,
+        "unmeasurable_upstream": list(UNMEASURABLE_UPSTREAM_FIELDS),
+        "unmeasurable_actually_present": unmeasurable_present,
+        "types_seen": types_seen,
+    }
+
+
+async def poll_stats(
+    connection: Any, stop: asyncio.Event, *, interval: float = STATS_POLL_HZ
+) -> list[dict[str, Any]]:
+    """Poll ConnectionManager.stats() until `stop` is set (default 1 Hz)."""
+    samples: list[dict[str, Any]] = []
+    while not stop.is_set():
+        snapshot = await connection.stats()
+        samples.append({"t": time.monotonic(), "stats": snapshot})
+        try:
+            await asyncio.wait_for(stop.wait(), timeout=interval)
+        except asyncio.TimeoutError:
+            pass
+    snapshot = await connection.stats()
+    samples.append({"t": time.monotonic(), "stats": snapshot})
+    return samples

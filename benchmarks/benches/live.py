@@ -8,17 +8,28 @@ import statistics
 import time
 import uuid
 from contextlib import contextmanager
+from fractions import Fraction
 from typing import Any, Iterator
 
+import av
 import numpy as np
 
 from getstream.models import UserRequest
 from getstream.stream import AsyncStream
 from getstream.video.rtc import AudioStreamTrack, PcmData, join
+from getstream.video.rtc.media import MediaStreamError
 from getstream.video.rtc.reconnection import ReconnectionStrategy
 from getstream.video.rtc.track_util import AudioFormat
 
-from benchmarks._support import TONE_16K, current_rss_bytes, summarize
+from benchmarks._support import (
+    SPEECH_48K,
+    TONE_16K,
+    classify_rtc_stats,
+    current_rss_bytes,
+    outbound_rtp_totals,
+    poll_stats,
+    summarize,
+)
 
 logger = logging.getLogger("benchmarks.live")
 
@@ -28,6 +39,11 @@ GOERTZEL_RATIO = 8.0
 SOAK_REPEATS = 3
 RSS_SAMPLE_INTERVAL_S = 0.2
 BYTES_PER_MB = 1024 * 1024
+VIDEO_WIDTH = 1280
+VIDEO_HEIGHT = 720
+VIDEO_FPS = 30.0
+VIDEO_SECONDS = 15.0
+DTX_SECONDS = 15.0
 
 
 def _sine_pcm(freq: float, sample_rate: int, duration_ms: int, amplitude: int = 18000) -> PcmData:
@@ -344,6 +360,165 @@ async def _reconnect_recovery_ms(client: AsyncStream) -> float:
         return elapsed_ms
 
 
+class _I420VideoTrack:
+    """Duck-typed 720p30 I420 source fed through LocalVideoTrack via add_tracks."""
+
+    kind = "video"
+
+    def __init__(
+        self,
+        width: int = VIDEO_WIDTH,
+        height: int = VIDEO_HEIGHT,
+        fps: float = VIDEO_FPS,
+    ) -> None:
+        self._id = str(uuid.uuid4())
+        self._ready_state = "live"
+        self.width = width
+        self.height = height
+        self._interval = 1.0 / fps
+        self._time_base = Fraction(1, int(fps))
+        self._pts = 0
+        y = np.full((height, width), 41, dtype=np.uint8)
+        u = np.full((height // 4, width), 240, dtype=np.uint8)
+        v = np.full((height // 4, width), 110, dtype=np.uint8)
+        self._i420 = np.concatenate([y, u, v], axis=0)
+
+    @property
+    def id(self) -> str:
+        return self._id
+
+    @property
+    def readyState(self) -> str:
+        return self._ready_state
+
+    def stop(self) -> None:
+        self._ready_state = "ended"
+
+    async def recv(self):
+        if self._ready_state != "live":
+            raise MediaStreamError("Track is ended")
+        await asyncio.sleep(self._interval)
+        frame = av.VideoFrame.from_ndarray(self._i420, format="yuv420p")
+        frame.pts = self._pts
+        frame.duration = 1
+        frame.time_base = self._time_base
+        self._pts += 1
+        return frame
+
+
+async def _write_pcm_for(
+    track: AudioStreamTrack, source: np.ndarray, sample_rate: int, seconds: float
+) -> None:
+    chunk_s = 0.02
+    chunk = max(int(sample_rate * chunk_s), 1)
+    offset = 0
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline and track.readyState == "live":
+        end = offset + chunk
+        if end > source.size:
+            offset = 0
+            end = min(chunk, source.size)
+        pcm = PcmData(
+            samples=source[offset:end],
+            sample_rate=int(sample_rate),
+            format=AudioFormat.S16,
+            channels=1,
+        )
+        await track.write(pcm)
+        offset = end
+        await asyncio.sleep(chunk_s)
+
+
+def _last_snapshot(samples: list[dict[str, Any]]) -> Any:
+    for item in reversed(samples):
+        if item.get("stats") is not None:
+            return item["stats"]
+    return None
+
+
+async def _video_publish_720p30(client: AsyncStream) -> dict[str, Any]:
+    call = client.video.call("default", f"bench-video-{uuid.uuid4().hex[:12]}")
+    pub_id = f"bench-vpub-{uuid.uuid4().hex[:8]}"
+    sub_id = f"bench-vsub-{uuid.uuid4().hex[:8]}"
+    await _ensure_users(client, pub_id, sub_id)
+    stop = asyncio.Event()
+    samples: list[dict[str, Any]] = []
+    async with await join(call, sub_id) as subscriber:
+        async with await join(call, pub_id) as publisher:
+            track = _I420VideoTrack()
+            await publisher.add_tracks(video=track)
+            poller = asyncio.create_task(
+                poll_stats(publisher, stop), name="video-stats-poll"
+            )
+            try:
+                await asyncio.sleep(VIDEO_SECONDS)
+            finally:
+                stop.set()
+                samples = await poller
+                track.stop()
+    snapshot = _last_snapshot(samples)
+    totals = outbound_rtp_totals(snapshot, kind="video")
+    if totals["packetsSent"] == 0.0 and totals["bytesSent"] == 0.0:
+        totals = outbound_rtp_totals(snapshot)
+    return {
+        "bytes_sent": totals["bytesSent"],
+        "packets_sent": totals["packetsSent"],
+        "nack_count": totals["nackCount"],
+        "pli_count": totals["pliCount"],
+        "fir_count": totals["firCount"],
+        "stats_gap": classify_rtc_stats(snapshot),
+        "polls": len(samples),
+    }
+
+
+async def _dtx_bytes_sent(client: AsyncStream, *, speech: bool) -> dict[str, Any]:
+    import soundfile as sf
+
+    if speech:
+        data, sample_rate = sf.read(str(SPEECH_48K), dtype="int16")
+        source = np.asarray(data).ravel()
+        label = "speech"
+    else:
+        sample_rate = 48000
+        source = np.zeros(int(sample_rate * DTX_SECONDS), dtype=np.int16)
+        label = "silence"
+    call = client.video.call("default", f"bench-dtx-{label}-{uuid.uuid4().hex[:12]}")
+    pub_id = f"bench-dtx-pub-{uuid.uuid4().hex[:8]}"
+    sub_id = f"bench-dtx-sub-{uuid.uuid4().hex[:8]}"
+    await _ensure_users(client, pub_id, sub_id)
+    stop = asyncio.Event()
+    samples: list[dict[str, Any]] = []
+    async with await join(call, sub_id) as subscriber:
+
+        @subscriber.on("audio")
+        def _on_audio(pcm: PcmData, *args: Any) -> None:
+            return
+
+        async with await join(call, pub_id) as publisher:
+            track = AudioStreamTrack(sample_rate=48000, channels=1, format="s16")
+            await publisher.add_tracks(audio=track)
+            poller = asyncio.create_task(
+                poll_stats(publisher, stop), name=f"dtx-{label}-stats-poll"
+            )
+            try:
+                await _write_pcm_for(track, source, int(sample_rate), DTX_SECONDS)
+            finally:
+                stop.set()
+                samples = await poller
+                track.stop()
+    snapshot = _last_snapshot(samples)
+    totals = outbound_rtp_totals(snapshot, kind="audio")
+    if totals["packetsSent"] == 0.0 and totals["bytesSent"] == 0.0:
+        totals = outbound_rtp_totals(snapshot)
+    return {
+        "bytes_sent": totals["bytesSent"],
+        "packets_sent": totals["packetsSent"],
+        "stats_gap": classify_rtc_stats(snapshot),
+        "polls": len(samples),
+        "kind": label,
+    }
+
+
 async def _repeat(
     name: str,
     fn,
@@ -470,4 +645,94 @@ async def run_live_benches(
             higher_is_better=False,
         ),
     )
+
+    video_name = "live.video_publish_720p30_bytes_sent"
+    try:
+        logger.info("live 720p30 video publish for %.1fs", VIDEO_SECONDS)
+        video = await _video_publish_720p30(client)
+        extra = {
+            "width": VIDEO_WIDTH,
+            "height": VIDEO_HEIGHT,
+            "fps": VIDEO_FPS,
+            "duration_s": VIDEO_SECONDS,
+            "packets_sent": video["packets_sent"],
+            "nack_count": video["nack_count"],
+            "pli_count": video["pli_count"],
+            "fir_count": video["fir_count"],
+            "polls": video["polls"],
+            "stats_gap": video["stats_gap"],
+        }
+        results.append(
+            summarize(
+                video_name,
+                [video["bytes_sent"]],
+                category="live",
+                unit="bytes",
+                higher_is_better=False,
+                extra=extra,
+            )
+        )
+        results.append(
+            summarize(
+                "live.video_publish_720p30_packets_sent",
+                [video["packets_sent"]],
+                category="live",
+                unit="packets",
+                higher_is_better=False,
+                extra=extra,
+            )
+        )
+    except Exception as exc:
+        logger.exception("live video publish bench failed")
+        errors.append({"name": video_name, "reason": str(exc)})
+        errors.append(
+            {"name": "live.video_publish_720p30_packets_sent", "reason": str(exc)}
+        )
+
+    dtx_names = (
+        "live.dtx_silence_bytes_sent",
+        "live.dtx_speech_bytes_sent",
+    )
+    try:
+        logger.info("live DTX silence vs speech for %.1fs each", DTX_SECONDS)
+        silence = await _dtx_bytes_sent(client, speech=False)
+        speech = await _dtx_bytes_sent(client, speech=True)
+        ratio = (
+            silence["bytes_sent"] / speech["bytes_sent"]
+            if speech["bytes_sent"]
+            else None
+        )
+        dtx_extra = {
+            "duration_s": DTX_SECONDS,
+            "silence_packets_sent": silence["packets_sent"],
+            "speech_packets_sent": speech["packets_sent"],
+            "bytes_ratio_silence_over_speech": ratio,
+            "silence_stats_gap": silence["stats_gap"],
+            "speech_stats_gap": speech["stats_gap"],
+        }
+        results.append(
+            summarize(
+                dtx_names[0],
+                [silence["bytes_sent"]],
+                category="live",
+                unit="bytes",
+                higher_is_better=False,
+                extra=dtx_extra,
+            )
+        )
+        results.append(
+            summarize(
+                dtx_names[1],
+                [speech["bytes_sent"]],
+                category="live",
+                unit="bytes",
+                higher_is_better=False,
+                extra=dtx_extra,
+            )
+        )
+    except Exception as exc:
+        logger.exception("live DTX bench failed")
+        for name in dtx_names:
+            errors.append({"name": name, "reason": str(exc)})
+
     return results, skipped, errors

@@ -133,6 +133,10 @@ async def _run(args: argparse.Namespace) -> dict[str, Any]:
                 "live.soak_rss_peak_mb",
                 "live.soak_rss_growth_slope_mb_per_s",
                 "live.reconnect_recovery_ms",
+                "live.video_publish_720p30_bytes_sent",
+                "live.video_publish_720p30_packets_sent",
+                "live.dtx_silence_bytes_sent",
+                "live.dtx_speech_bytes_sent",
             ):
                 skipped.append({"name": name, "reason": reason})
 
