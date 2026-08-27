@@ -31,6 +31,7 @@ logger = logging.getLogger("benchmarks")
 CANONICAL_HOST_CLASS = "canonical-linux-x86_64"
 WARN_LOAD_PER_CPU = 0.25
 ABORT_LOAD_PER_CPU = 0.75
+NETEM_PROFILES = ("clean", "loss-1pct", "loss-5pct", "cap-1mbps", "rtt-200ms")
 
 
 class LoadGuardError(RuntimeError):
@@ -174,7 +175,7 @@ def _git_sha() -> Optional[str]:
         return None
 
 
-def collect_metadata() -> dict[str, Any]:
+def collect_metadata(*, netem_profile: str = "clean") -> dict[str, Any]:
     versions = {
         "getstream": _package_version("getstream"),
         "aiortc": _package_version("aiortc"),
@@ -198,6 +199,7 @@ def collect_metadata() -> dict[str, Any]:
         "hostname": platform.node(),
         "system": platform.system(),
         "canonical": host_class() == CANONICAL_HOST_CLASS,
+        "netem_profile": netem_profile,
         "load": load_snapshot(),
         "getstream_rtc_core_version": _package_version("getstream-rtc-core"),
         "getstream_rtc_core_native_hash": _rtc_core_native_hash(),

@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Any
 
 from benchmarks._support import (
+    NETEM_PROFILES,
     LoadGuardError,
     check_load_guard,
     collect_metadata,
@@ -79,6 +80,15 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         type=int,
         default=15,
         help="Repeated runs for reconnect recovery (default: 15)",
+    )
+    parser.add_argument(
+        "--profile",
+        choices=NETEM_PROFILES,
+        default="clean",
+        help=(
+            "Netem impairment profile recorded in metadata. Apply on Linux with "
+            "sudo benchmarks/netem/apply.sh <profile> (default: clean)"
+        ),
     )
     parser.add_argument(
         "-v",
@@ -141,7 +151,7 @@ async def _run(args: argparse.Namespace) -> dict[str, Any]:
                 skipped.append({"name": name, "reason": reason})
 
     return {
-        "metadata": collect_metadata(),
+        "metadata": collect_metadata(netem_profile=args.profile),
         "benchmarks": benchmarks,
         "skipped": skipped,
         "errors": errors,
