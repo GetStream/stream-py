@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import statistics
 import time
 import uuid
 from typing import Any
@@ -23,6 +24,9 @@ logger = logging.getLogger("benchmarks.live")
 MARKER_FREQ_HZ = 2500.0
 MARKER_MS = 80
 GOERTZEL_RATIO = 8.0
+SOAK_REPEATS = 3
+RSS_SAMPLE_INTERVAL_S = 0.2
+BYTES_PER_MB = 1024 * 1024
 
 
 def _sine_pcm(freq: float, sample_rate: int, duration_ms: int, amplitude: int = 18000) -> PcmData:
@@ -136,10 +140,39 @@ async def _audio_e2e_latency_ms(client: AsyncStream) -> float:
             return (recv_at["t"] - send_at) * 1000.0
 
 
-async def _soak(
-    client: AsyncStream, *, seconds: float
-) -> tuple[float, float]:
-    """Publish + subscribe for `seconds`; return (cpu_percent, peak_rss_mb)."""
+def _warmup_seconds(soak_seconds: float) -> float:
+    return min(10.0, max(0.0, soak_seconds * 0.2))
+
+
+def _linear_slope(xs: list[float], ys: list[float]) -> float:
+    n = len(xs)
+    if n < 2:
+        return 0.0
+    x_mean = sum(xs) / n
+    y_mean = sum(ys) / n
+    num = sum((x - x_mean) * (y - y_mean) for x, y in zip(xs, ys))
+    den = sum((x - x_mean) ** 2 for x in xs)
+    if den == 0.0:
+        return 0.0
+    return num / den
+
+
+async def _rss_sampler(
+    stop: asyncio.Event, *, interval: float
+) -> list[tuple[float, int]]:
+    samples: list[tuple[float, int]] = []
+    while not stop.is_set():
+        samples.append((time.monotonic(), current_rss_bytes()))
+        try:
+            await asyncio.wait_for(stop.wait(), timeout=interval)
+        except asyncio.TimeoutError:
+            pass
+    samples.append((time.monotonic(), current_rss_bytes()))
+    return samples
+
+
+async def _soak(client: AsyncStream, *, seconds: float) -> dict[str, float]:
+    """Publish + subscribe for `seconds`; return soak CPU/RSS breakdown."""
     import soundfile as sf
 
     data, sample_rate = sf.read(str(TONE_16K), dtype="int16")
@@ -149,44 +182,89 @@ async def _soak(
     sub_id = f"bench-soak-sub-{uuid.uuid4().hex[:8]}"
     await _ensure_users(client, pub_id, sub_id)
 
-    rss_samples: list[int] = [current_rss_bytes()]
-    cpu_start = time.process_time()
-    wall_start = time.monotonic()
+    warmup_s = _warmup_seconds(seconds)
+    baseline_rss = current_rss_bytes()
+    stop_sampler = asyncio.Event()
+    sampler_task: asyncio.Task[list[tuple[float, int]]] | None = None
+    cpu_armed = False
+    cpu_start = 0.0
+    wall_start = 0.0
+    joined_at = 0.0
+    rss_series: list[tuple[float, int]] = []
 
-    async with await join(call, sub_id) as subscriber:
+    try:
+        async with await join(call, sub_id) as subscriber:
 
-        @subscriber.on("audio")
-        def _on_audio(pcm: PcmData, *args: Any) -> None:
-            return
+            @subscriber.on("audio")
+            def _on_audio(pcm: PcmData, *args: Any) -> None:
+                return
 
-        async with await join(call, pub_id) as publisher:
-            track = AudioStreamTrack(sample_rate=48000, channels=1, format="s16")
-            await publisher.add_tracks(audio=track)
-            await asyncio.sleep(1.0)
-            chunk = int(sample_rate * 0.1)
-            offset = 0
-            deadline = time.monotonic() + seconds
-            while time.monotonic() < deadline:
-                end = offset + chunk
-                if end > source.size:
-                    offset = 0
-                    end = chunk
-                pcm = PcmData(
-                    samples=source[offset:end],
-                    sample_rate=int(sample_rate),
-                    format=AudioFormat.S16,
-                    channels=1,
+            async with await join(call, pub_id) as publisher:
+                joined_at = time.monotonic()
+                sampler_task = asyncio.create_task(
+                    _rss_sampler(stop_sampler, interval=RSS_SAMPLE_INTERVAL_S),
+                    name="soak-rss-sampler",
                 )
-                await track.write(pcm)
-                offset = end
-                rss_samples.append(current_rss_bytes())
-                await asyncio.sleep(0.05)
-            track.stop()
+                track = AudioStreamTrack(sample_rate=48000, channels=1, format="s16")
+                await publisher.add_tracks(audio=track)
+                await asyncio.sleep(1.0)
+                chunk = int(sample_rate * 0.1)
+                offset = 0
+                deadline = time.monotonic() + seconds
+                warmup_until = joined_at + warmup_s
+                cpu_armed = warmup_s <= 0.0
+                if cpu_armed:
+                    cpu_start = time.process_time()
+                    wall_start = time.monotonic()
+                while time.monotonic() < deadline:
+                    now = time.monotonic()
+                    if not cpu_armed and now >= warmup_until:
+                        cpu_start = time.process_time()
+                        wall_start = now
+                        cpu_armed = True
+                    end = offset + chunk
+                    if end > source.size:
+                        offset = 0
+                        end = chunk
+                    pcm = PcmData(
+                        samples=source[offset:end],
+                        sample_rate=int(sample_rate),
+                        format=AudioFormat.S16,
+                        channels=1,
+                    )
+                    await track.write(pcm)
+                    offset = end
+                    await asyncio.sleep(0.05)
+                track.stop()
+    finally:
+        stop_sampler.set()
+        if sampler_task is not None:
+            rss_series = await sampler_task
 
-    wall = time.monotonic() - wall_start
-    cpu_percent = ((time.process_time() - cpu_start) / wall) * 100.0 if wall > 0 else 0.0
-    peak_rss_mb = max(rss_samples) / (1024 * 1024)
-    return cpu_percent, peak_rss_mb
+    wall = (time.monotonic() - wall_start) if cpu_armed else 0.0
+    cpu_percent = (
+        ((time.process_time() - cpu_start) / wall) * 100.0 if wall > 0 else 0.0
+    )
+    post_join = [(t, rss) for t, rss in rss_series if t >= joined_at] or rss_series
+    peak_rss_mb = (
+        max(rss for _, rss in post_join) / BYTES_PER_MB if post_join else 0.0
+    )
+    warmup_until = joined_at + warmup_s
+    steady = [(t, rss) for t, rss in post_join if t >= warmup_until] or post_join
+    steady_mb = [rss / BYTES_PER_MB for _, rss in steady]
+    steady_median_mb = float(statistics.median(steady_mb)) if steady_mb else 0.0
+    slope = _linear_slope(
+        [t - warmup_until for t, _ in steady],
+        steady_mb,
+    )
+    return {
+        "cpu_percent": cpu_percent,
+        "rss_baseline_mb": baseline_rss / BYTES_PER_MB,
+        "rss_steady_median_mb": steady_median_mb,
+        "rss_peak_mb": peak_rss_mb,
+        "rss_growth_slope_mb_per_s": slope,
+        "warmup_s": warmup_s,
+    }
 
 
 async def _reconnect_recovery_ms(client: AsyncStream) -> float:
@@ -279,36 +357,41 @@ async def run_live_benches(
         ),
     )
 
-    soak_name_cpu = "live.soak_cpu_percent"
-    soak_name_rss = "live.soak_rss_mb"
+    soak_metrics = (
+        ("live.soak_cpu_percent", "cpu_percent", "percent"),
+        ("live.soak_rss_baseline_mb", "rss_baseline_mb", "mb"),
+        ("live.soak_rss_steady_median_mb", "rss_steady_median_mb", "mb"),
+        ("live.soak_rss_peak_mb", "rss_peak_mb", "mb"),
+        ("live.soak_rss_growth_slope_mb_per_s", "rss_growth_slope_mb_per_s", "mb_per_s"),
+    )
     try:
-        logger.info("live soak for %.1fs", soak_seconds)
-        cpu_percent, rss_mb = await _soak(client, seconds=soak_seconds)
-        extra = {"duration_s": soak_seconds}
-        results.append(
-            summarize(
-                soak_name_cpu,
-                [cpu_percent],
-                category="live",
-                unit="percent",
-                higher_is_better=False,
-                extra=extra,
+        soak_runs: list[dict[str, float]] = []
+        for i in range(SOAK_REPEATS):
+            logger.info(
+                "live soak %d/%d for %.1fs", i + 1, SOAK_REPEATS, soak_seconds
             )
-        )
-        results.append(
-            summarize(
-                soak_name_rss,
-                [rss_mb],
-                category="live",
-                unit="mb",
-                higher_is_better=False,
-                extra=extra,
+            soak_runs.append(await _soak(client, seconds=soak_seconds))
+        extra = {
+            "duration_s": soak_seconds,
+            "repeats": SOAK_REPEATS,
+            "warmup_s": soak_runs[0]["warmup_s"],
+            "rss_sample_interval_s": RSS_SAMPLE_INTERVAL_S,
+        }
+        for name, key, unit in soak_metrics:
+            results.append(
+                summarize(
+                    name,
+                    [run[key] for run in soak_runs],
+                    category="live",
+                    unit=unit,
+                    higher_is_better=False,
+                    extra=extra,
+                )
             )
-        )
     except Exception as exc:
         logger.exception("live soak failed")
-        errors.append({"name": soak_name_cpu, "reason": str(exc)})
-        errors.append({"name": soak_name_rss, "reason": str(exc)})
+        for name, _key, _unit in soak_metrics:
+            errors.append({"name": name, "reason": str(exc)})
 
     await _capture(
         "live.reconnect_recovery_ms",

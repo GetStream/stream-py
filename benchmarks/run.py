@@ -120,7 +120,10 @@ async def _run(args: argparse.Namespace) -> dict[str, Any]:
                 "live.join_latency_ms",
                 "live.audio_e2e_latency_ms",
                 "live.soak_cpu_percent",
-                "live.soak_rss_mb",
+                "live.soak_rss_baseline_mb",
+                "live.soak_rss_steady_median_mb",
+                "live.soak_rss_peak_mb",
+                "live.soak_rss_growth_slope_mb_per_s",
                 "live.reconnect_recovery_ms",
             ):
                 skipped.append({"name": name, "reason": reason})
