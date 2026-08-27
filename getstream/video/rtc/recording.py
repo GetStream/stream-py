@@ -978,14 +978,17 @@ class RecordingManager(AsyncIOEventEmitter):
         if track.kind == "audio":
             # Add to composite recorder if it exists
             if self._composite_audio_recorder:
-                self._composite_audio_recorder.add_user_track(user_id, track)
+                self._composite_audio_recorder.add_user_track(
+                    user_id, track.subscribe()
+                )
 
         # Start track recording if enabled (both audio and video)
         if RecordingType.TRACK in self._recording_types:
-            await self._start_user_track_recording(user_id, track)
+            await self._start_user_track_recording(user_id, track.subscribe())
 
         # Cache track so that we can start recording later if recording is not
-        # yet enabled.
+        # yet enabled. Store the source track (not a subscribed consumer) so
+        # idle video holds no decoded-frame queues.
         if RecordingType.TRACK not in self._recording_types:
             self._pending_tracks[track.id] = (user_id, track)
 
@@ -1387,7 +1390,7 @@ class RecordingManager(AsyncIOEventEmitter):
 
                 # Start individual track recording if requested
                 if RecordingType.TRACK in self._recording_types:
-                    await self._start_user_track_recording(user_id, track)
+                    await self._start_user_track_recording(user_id, track.subscribe())
 
                 # Add to composite recorder if requested and audio track
                 if (
@@ -1395,7 +1398,9 @@ class RecordingManager(AsyncIOEventEmitter):
                     and track.kind == "audio"
                     and self._composite_audio_recorder is not None
                 ):
-                    self._composite_audio_recorder.add_user_track(user_id, track)
+                    self._composite_audio_recorder.add_user_track(
+                        user_id, track.subscribe()
+                    )
 
                 # Remove from pending once handled
                 del self._pending_tracks[track_id]

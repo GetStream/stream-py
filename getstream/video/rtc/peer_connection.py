@@ -4,6 +4,7 @@ Manages WebRTC publishing and subscribing via the Rust RTC session.
 
 import asyncio
 import logging
+import os
 from typing import Any, Optional
 
 from getstream.video.rtc.media import (
@@ -16,6 +17,15 @@ from getstream.video.rtc.media import (
 from getstream.video.rtc.track_util import PcmData
 
 logger = logging.getLogger(__name__)
+
+_BENCH_VIDEO_CODECS = {"vp8", "vp9", "h264"}
+
+
+def _publish_video_codec() -> str:
+    raw = os.environ.get("STREAM_BENCH_VIDEO_CODEC", "vp9").strip().lower()
+    if raw in _BENCH_VIDEO_CODECS:
+        return raw
+    return "vp9"
 
 
 class _PeerStub:
@@ -138,7 +148,13 @@ class PeerConnectionManager:
                 logger.info("Published local audio track")
 
             if video:
-                local_video = LocalVideoTrack.vp9()
+                codec = _publish_video_codec()
+                if codec == "vp8":
+                    local_video = LocalVideoTrack.vp8()
+                elif codec == "h264":
+                    local_video = LocalVideoTrack.h264()
+                else:
+                    local_video = LocalVideoTrack.vp9()
                 await session.publish_video(local_video)
                 self._spawn(
                     self._pump_outbound_video(video, local_video),
@@ -151,7 +167,7 @@ class PeerConnectionManager:
                 self.connection_manager.reconnector.reconnection_info.add_published_track(
                     track_id, video, None, None
                 )
-                logger.info("Published local video track")
+                logger.info("Published local video track (%s)", codec)
                 if self.connection_manager.stats_reporter:
                     self.connection_manager.stats_reporter.schedule_one(3000)
 
@@ -219,7 +235,7 @@ class PeerConnectionManager:
             )
             try:
                 await self.connection_manager.recording_manager.on_track_received(
-                    wrapper.subscribe(), user
+                    wrapper, user
                 )
             except Exception:
                 logger.exception("recording_manager.on_track_received failed")
@@ -244,18 +260,27 @@ class PeerConnectionManager:
 
     async def _pump_remote_track(self, wrapper: RemoteMediaTrack, user) -> None:
         while True:
-            decoded = await wrapper.next_decoded()
-            if decoded is None:
-                break
-            if wrapper.kind != "audio":
+            if wrapper.kind == "audio":
+                decoded = await wrapper.next_decoded()
+                if decoded is None:
+                    break
+                pcm: PcmData = pcm_bytes_to_pcmdata(
+                    bytes(decoded.samples),
+                    decoded.sample_rate,
+                    decoded.channels,
+                    participant=user,
+                )
+                self.connection_manager.emit("audio", pcm)
                 continue
-            pcm: PcmData = pcm_bytes_to_pcmdata(
-                bytes(decoded.samples),
-                decoded.sample_rate,
-                decoded.channels,
-                participant=user,
-            )
-            self.connection_manager.emit("audio", pcm)
+
+            if wrapper.wants_decoded_frames():
+                decoded = await wrapper.next_decoded()
+                if decoded is None:
+                    break
+                continue
+
+            if not await wrapper.drain_rtp():
+                break
 
     async def restore_published_tracks(self):
         """Restore published tracks by republishing the original recv() sources."""

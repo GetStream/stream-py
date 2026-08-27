@@ -47,6 +47,9 @@ class MediaStreamTrack:
     def stop(self) -> None:
         self._readyState = "ended"
 
+    def subscribe(self, maxsize: int = 32):
+        return self
+
     async def recv(self):
         raise MediaStreamError("Track has no recv implementation")
 
@@ -83,6 +86,9 @@ class FrameRelay:
         queue: asyncio.Queue = asyncio.Queue(maxsize=maxsize)
         self._queues.append(queue)
         return QueueTrack(self.kind, self.track_id, queue)
+
+    def has_subscribers(self) -> bool:
+        return bool(self._queues)
 
     async def push(self, frame: Any) -> None:
         if self._ended:
@@ -188,16 +194,31 @@ class RemoteMediaTrack(MediaStreamTrack):
         self._remote = remote_track
         self.user = user
         self._relay = FrameRelay(self.kind, self._id)
-        self._primary = self._relay.subscribe()
+        self._primary = None
         self._ended = False
 
-    def subscribe(self) -> QueueTrack:
-        return self._relay.subscribe()
+    def wants_decoded_frames(self) -> bool:
+        return self._relay.has_subscribers()
+
+    def subscribe(self, maxsize: int = 32) -> QueueTrack:
+        return self._relay.subscribe(maxsize=maxsize)
 
     async def recv(self):
         if self.readyState != "live":
             raise MediaStreamError("Track is ended")
+        if self._primary is None:
+            self._primary = self._relay.subscribe()
         return await self._primary.recv()
+
+    async def drain_rtp(self) -> bool:
+        if self._ended or self.readyState != "live":
+            return False
+        alive = await self._remote.drain_rtp()
+        if not alive:
+            self._ended = True
+            self.stop()
+            self._relay.close()
+        return alive
 
     async def next_decoded(self) -> Optional[Any]:
         if self._ended or self.readyState != "live":
@@ -209,10 +230,11 @@ class RemoteMediaTrack(MediaStreamTrack):
                 self.stop()
                 self._relay.close()
                 return None
-            av_frame = pcm_bytes_to_av_frame(
-                bytes(frame.samples), frame.sample_rate, frame.channels
-            )
-            await self._relay.push(av_frame)
+            if self._relay.has_subscribers():
+                av_frame = pcm_bytes_to_av_frame(
+                    bytes(frame.samples), frame.sample_rate, frame.channels
+                )
+                await self._relay.push(av_frame)
             return frame
         frame = await self._remote.next_video_frame()
         if frame is None:
