@@ -22,7 +22,12 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from benchmarks._support import collect_metadata, has_stream_credentials
+from benchmarks._support import (
+    LoadGuardError,
+    check_load_guard,
+    collect_metadata,
+    has_stream_credentials,
+)
 
 logger = logging.getLogger("benchmarks")
 
@@ -145,6 +150,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.local_only and args.live_only:
         logger.error("Choose at most one of --local-only / --live-only")
         return 2
+
+    try:
+        check_load_guard()
+    except LoadGuardError as exc:
+        logger.error("%s", exc)
+        return 3
 
     payload = asyncio.run(_run(args))
     args.output.parent.mkdir(parents=True, exist_ok=True)

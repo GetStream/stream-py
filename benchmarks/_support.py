@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import logging
 import os
 import platform
 import statistics
@@ -21,6 +23,17 @@ SPEECH_16K = ASSETS_DIR / "formant_speech_16k.wav"
 SPEECH_48K = ASSETS_DIR / "formant_speech_48k.wav"
 TONE_16K = ASSETS_DIR / "speech_tone.wav"
 
+logger = logging.getLogger("benchmarks")
+
+# Canonical results come from idle Linux x86_64 (the production agent target).
+CANONICAL_HOST_CLASS = "canonical-linux-x86_64"
+WARN_LOAD_PER_CPU = 0.25
+ABORT_LOAD_PER_CPU = 0.75
+
+
+class LoadGuardError(RuntimeError):
+    """Raised when 1-minute loadavg is too high for a canonical bench run."""
+
 
 def load_env() -> None:
     load_dotenv(REPO_ROOT / ".env")
@@ -39,11 +52,93 @@ def detect_backend() -> str:
     try:
         import getstream_rtc_core  # noqa: F401
     except ImportError:
-        return "aiortc"
+        return "unavailable"
     return "rust"
 
 
+def host_class() -> str:
+    system = platform.system().lower()
+    machine = platform.machine().lower()
+    if system == "linux" and machine in {"x86_64", "amd64"}:
+        return CANONICAL_HOST_CLASS
+    return "non-canonical"
+
+
+def load_snapshot() -> dict[str, Any]:
+    load1, load5, load15 = os.getloadavg()
+    cpus = os.cpu_count() or 1
+    return {
+        "loadavg_1": load1,
+        "loadavg_5": load5,
+        "loadavg_15": load15,
+        "cpu_count": cpus,
+        "load_per_cpu": load1 / cpus,
+    }
+
+
+def check_load_guard() -> dict[str, Any]:
+    """Warn or abort when the host is too busy for a trustworthy run."""
+    snap = load_snapshot()
+    load_per_cpu = float(snap["load_per_cpu"])
+    allow = os.environ.get("STREAM_BENCH_ALLOW_LOAD", "").strip() in {"1", "true", "yes"}
+    if load_per_cpu >= ABORT_LOAD_PER_CPU:
+        message = (
+            f"loadavg {snap['loadavg_1']:.2f} on {snap['cpu_count']} CPUs "
+            f"({load_per_cpu:.2f}/CPU) exceeds abort threshold {ABORT_LOAD_PER_CPU:.2f}/CPU"
+        )
+        if allow:
+            logger.warning("Load guard abort skipped via STREAM_BENCH_ALLOW_LOAD: %s", message)
+        else:
+            raise LoadGuardError(
+                message + "; rerun on an idle host or set STREAM_BENCH_ALLOW_LOAD=1"
+            )
+    elif load_per_cpu >= WARN_LOAD_PER_CPU:
+        logger.warning(
+            "Host is busy: loadavg %.2f (%.2f/CPU). Canonical numbers need an idle machine.",
+            snap["loadavg_1"],
+            load_per_cpu,
+        )
+    snap["canonical"] = host_class() == CANONICAL_HOST_CLASS and load_per_cpu < WARN_LOAD_PER_CPU
+    return snap
+
+
 def _package_version(name: str) -> Optional[str]:
+    try:
+        return metadata.version(name)
+    except metadata.PackageNotFoundError:
+        return None
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _rtc_core_native_hash() -> Optional[str]:
+    try:
+        import getstream_rtc_core
+    except ImportError:
+        return None
+    origin = Path(getstream_rtc_core.__file__).resolve()
+    parent = origin.parent if origin.suffix == ".py" else origin.parent
+    candidates: list[Path] = []
+    if ".so" in origin.name or origin.suffix in {".so", ".dylib", ".pyd"}:
+        candidates.append(origin)
+    for pattern in (
+        "getstream_rtc_core*.so",
+        "getstream_rtc_core*.dylib",
+        "getstream_rtc_core*.pyd",
+        "_getstream_rtc_core*",
+    ):
+        candidates.extend(parent.glob(pattern))
+    files = [p for p in candidates if p.is_file()]
+    if not files:
+        return None
+    target = max(files, key=lambda p: p.stat().st_size)
+    return f"sha256:{_sha256_file(target)}"
     try:
         return metadata.version(name)
     except metadata.PackageNotFoundError:
@@ -97,6 +192,13 @@ def collect_metadata() -> dict[str, Any]:
         "cpu": _cpu_model(),
         "cpu_count": os.cpu_count(),
         "backend": detect_backend(),
+        "host_class": host_class(),
+        "hostname": platform.node(),
+        "system": platform.system(),
+        "canonical": host_class() == CANONICAL_HOST_CLASS,
+        "load": load_snapshot(),
+        "getstream_rtc_core_version": _package_version("getstream-rtc-core"),
+        "getstream_rtc_core_native_hash": _rtc_core_native_hash(),
         "library_versions": {k: v for k, v in versions.items() if v is not None},
     }
 
