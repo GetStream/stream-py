@@ -1,4 +1,5 @@
 import json
+from typing import List, Optional
 
 from getstream.chat.channel import Channel
 from getstream.chat.rest_client import ChatRestClient
@@ -32,7 +33,7 @@ class ChatClient(ChatRestClient):
         type: str,
         id: str,
         file: str,
-        user: OnlyUserID | None = None,
+        user: Optional[OnlyUserID] = None,
     ) -> StreamResponse[UploadChannelFileResponse]:
         form_fields = []
         if user is not None:
@@ -48,11 +49,11 @@ class ChatClient(ChatRestClient):
     @telemetry.operation_name("getstream.api.chat.upload_channel_image")
     def upload_channel_image(
         self,
-        channel_type: str | None = None,
-        id: str | None = None,
-        file: str | None = None,
-        upload_sizes: list[ImageSize] | None = None,
-        user: OnlyUserID | None = None,
+        channel_type: Optional[str] = None,
+        id: Optional[str] = None,
+        file: Optional[str] = None,
+        upload_sizes: Optional[List[ImageSize]] = None,
+        user: Optional[OnlyUserID] = None,
         **kwargs,
     ) -> StreamResponse[UploadChannelResponse]:
         # Backward compatibility for generated wrappers passing `type=...`.

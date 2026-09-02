@@ -1,5 +1,5 @@
-from getstream.video.call import Call
 from getstream.video.rest_client import VideoRestClient
+from getstream.video.call import Call
 
 
 class VideoClient(VideoRestClient):

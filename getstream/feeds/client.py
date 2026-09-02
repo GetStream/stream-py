@@ -1,6 +1,6 @@
-
-from getstream.feeds.feeds import Feed
 from getstream.feeds.rest_client import FeedsRestClient
+from getstream.feeds.feeds import Feed
+from typing import Optional, Dict
 
 
 class FeedsClient(FeedsRestClient):
@@ -15,7 +15,7 @@ class FeedsClient(FeedsRestClient):
         self.stream = stream
 
     def feed(
-        self, feed_type: str, feed_id: str, custom_data: dict | None = None
+        self, feed_type: str, feed_id: str, custom_data: Optional[Dict] = None
     ) -> Feed:
         """
         Create a Feed instance for the given feed type and ID.

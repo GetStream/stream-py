@@ -1,30 +1,32 @@
 from __future__ import annotations
 
-import logging
-import time
 from contextlib import AsyncExitStack
 from functools import cached_property
+import logging
+import time
+from typing import List, Optional
 from uuid import uuid4
 
 import httpx
 import jwt
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing_extensions import deprecated
 
 from getstream.base import _log_client_initialized, _resolve_logger
-from getstream.chat.async_client import ChatClient as AsyncChatClient
-from getstream.chat.client import ChatClient
 from getstream.common import telemetry
+from getstream.config import RetryConfig
+from getstream.chat.client import ChatClient
+from getstream.chat.async_client import ChatClient as AsyncChatClient
 from getstream.common.async_client import CommonClient as AsyncCommonClient
 from getstream.common.client import CommonClient
-from getstream.config import RetryConfig
 from getstream.feeds.client import FeedsClient
 from getstream.models import FullUserResponse, UserRequest
-from getstream.moderation.async_client import ModerationClient as AsyncModerationClient
 from getstream.moderation.client import ModerationClient
+from getstream.moderation.async_client import ModerationClient as AsyncModerationClient
 from getstream.utils import validate_and_clean_url
-from getstream.video.async_client import VideoClient as AsyncVideoClient
 from getstream.video.client import VideoClient
+from getstream.video.async_client import VideoClient as AsyncVideoClient
+from typing_extensions import deprecated
+
 
 BASE_URL = "https://chat.stream-io-api.com/"
 
@@ -42,11 +44,11 @@ DEFAULT_CONNECT_TIMEOUT = 10.0
 class Settings(BaseSettings):
     # Env names: STREAM_API_KEY, STREAM_API_SECRET, STREAM_BASE_URL, STREAM_TIMEOUT, STREAM_REQUEST_TIMEOUT, STREAM_MAX_CONNS_PER_HOST, STREAM_IDLE_TIMEOUT, STREAM_CONNECT_TIMEOUT
     api_key: str
-    api_secret: str | None = None
-    base_url: str | None = None
+    api_secret: Optional[str] = None
+    base_url: Optional[str] = None
     # `timeout` kept as alias for `request_timeout` for backward compat.
     timeout: float = DEFAULT_REQUEST_TIMEOUT
-    request_timeout: float | None = None
+    request_timeout: Optional[float] = None
     max_conns_per_host: int = DEFAULT_MAX_CONNS_PER_HOST
     idle_timeout: float = DEFAULT_IDLE_TIMEOUT
     connect_timeout: float = DEFAULT_CONNECT_TIMEOUT
@@ -67,7 +69,7 @@ class _PoolSettings(BaseSettings):
     """
 
     timeout: float = DEFAULT_REQUEST_TIMEOUT
-    request_timeout: float | None = None
+    request_timeout: Optional[float] = None
     max_conns_per_host: int = DEFAULT_MAX_CONNS_PER_HOST
     idle_timeout: float = DEFAULT_IDLE_TIMEOUT
     connect_timeout: float = DEFAULT_CONNECT_TIMEOUT
@@ -80,21 +82,21 @@ class _PoolSettings(BaseSettings):
 class BaseStream:
     def __init__(
         self,
-        api_key: str | None = None,
-        api_secret: str | None = None,
-        timeout: float | None = None,
-        base_url: str | None = BASE_URL,
-        user_agent: str | None = None,
+        api_key: Optional[str] = None,
+        api_secret: Optional[str] = None,
+        timeout: Optional[float] = None,
+        base_url: Optional[str] = BASE_URL,
+        user_agent: Optional[str] = None,
         transport=None,
         http_client=None,
-        token: str | None = None,
-        request_timeout: float | None = None,
-        max_conns_per_host: int | None = None,
-        idle_timeout: float | None = None,
-        connect_timeout: float | None = None,
-        logger: logging.Logger | None = None,
+        token: Optional[str] = None,
+        request_timeout: Optional[float] = None,
+        max_conns_per_host: Optional[int] = None,
+        idle_timeout: Optional[float] = None,
+        connect_timeout: Optional[float] = None,
+        logger: Optional[logging.Logger] = None,
         log_bodies: bool = False,
-        retry: RetryConfig | None = None,
+        retry: Optional[RetryConfig] = None,
     ):
         """Build a Stream client.
 
@@ -145,7 +147,7 @@ class BaseStream:
         # _PoolSettings (not Settings) is used here so missing STREAM_API_KEY
         # in the environment does not crash construction when api_key was
         # passed explicitly. It reads the same STREAM_* env vars.
-        s_for_pool: _PoolSettings | None = None
+        s_for_pool: Optional[_PoolSettings] = None
 
         def _settings() -> _PoolSettings:
             nonlocal s_for_pool
@@ -323,7 +325,7 @@ class BaseStream:
     def create_call_token(
         self,
         user_id: str,
-        call_cids: list[str] = None,
+        call_cids: List[str] = None,
         role: str = None,
         expiration: int = None,
     ):
@@ -338,8 +340,8 @@ class BaseStream:
     def _create_token(
         self,
         user_id: str = None,
-        channel_cids: list[str] = None,
-        call_cids: list[str] = None,
+        channel_cids: List[str] = None,
+        call_cids: List[str] = None,
         role: str = None,
         expiration=None,
         iat: int = None,
@@ -548,7 +550,7 @@ class Stream(BaseStream, CommonClient):
 
     @classmethod
     @deprecated("from_env is deprecated, use __init__ instead")
-    def from_env(cls, timeout: float | None = None) -> Stream:
+    def from_env(cls, timeout: Optional[float] = None) -> Stream:
         """
         Construct a StreamClient by loading its credentials and base_url
         from environment variables (via our pydantic Settings).
@@ -566,7 +568,7 @@ class Stream(BaseStream, CommonClient):
             timeout=timeout,
         )
 
-    def as_async(self) -> AsyncStream:
+    def as_async(self) -> "AsyncStream":
         return AsyncStream(
             api_key=self.api_key,
             api_secret=self._api_secret,
