@@ -1,5 +1,5 @@
-from typing import Any, Dict, Optional, Generic
 import typing
+from typing import Any, Generic
 
 import httpx
 
@@ -16,18 +16,18 @@ class StreamResponse(Generic[T]):
         self.__rate_limit = extract_rate_limit(response)
 
         self.__data: T = data
-        super(StreamResponse, self).__init__()
+        super().__init__()
 
     @property
     def data(self) -> T:
         """Returns the encapsulated data of provided type."""
         return self.__data
 
-    def rate_limit(self) -> Optional[RateLimitInfo]:
+    def rate_limit(self) -> RateLimitInfo | None:
         """Returns the ratelimit info of your API operation."""
         return self.__rate_limit
 
-    def headers(self) -> Dict[str, Any]:
+    def headers(self) -> dict[str, Any]:
         """Returns the headers of the response."""
         return dict(self.__headers)
 

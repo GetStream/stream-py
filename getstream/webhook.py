@@ -226,9 +226,7 @@ EVENT_TYPE_CALL_RTMP_BROADCAST_FAILED = "call.rtmp_broadcast_failed"
 EVENT_TYPE_CALL_RTMP_BROADCAST_STARTED = "call.rtmp_broadcast_started"
 EVENT_TYPE_CALL_RTMP_BROADCAST_STOPPED = "call.rtmp_broadcast_stopped"
 EVENT_TYPE_CALL_SESSION_ENDED = "call.session_ended"
-EVENT_TYPE_CALL_SESSION_PARTICIPANT_COUNT_UPDATED = (
-    "call.session_participant_count_updated"
-)
+EVENT_TYPE_CALL_SESSION_PARTICIPANT_COUNT_UPDATED = "call.session_participant_count_updated"
 EVENT_TYPE_CALL_SESSION_PARTICIPANT_JOINED = "call.session_participant_joined"
 EVENT_TYPE_CALL_SESSION_PARTICIPANT_LEFT = "call.session_participant_left"
 EVENT_TYPE_CALL_SESSION_STARTED = "call.session_started"
@@ -401,15 +399,15 @@ def get_event_type(raw_event: bytes | str | dict[str, Any]) -> str:
         The event type string (e.g., "message.new"), or empty string if parsing fails
     """
     if isinstance(raw_event, dict):
-        return raw_event.get("type", "")
+        return raw_event.get('type', '')
 
     try:
         if isinstance(raw_event, bytes):
-            raw_event = raw_event.decode("utf-8")
+            raw_event = raw_event.decode('utf-8')
         data = json.loads(raw_event)
-        return data.get("type", "")
+        return data.get('type', '')
     except (json.JSONDecodeError, UnicodeDecodeError, AttributeError):
-        return ""
+        return ''
 
 
 def parse_webhook_event(raw_event: bytes | str | dict[str, Any]) -> Any:
@@ -429,13 +427,13 @@ def parse_webhook_event(raw_event: bytes | str | dict[str, Any]) -> Any:
         if isinstance(raw_event, dict):
             data = raw_event
         elif isinstance(raw_event, bytes):
-            data = json.loads(raw_event.decode("utf-8"))
+            data = json.loads(raw_event.decode('utf-8'))
         else:
             data = json.loads(raw_event)
     except (json.JSONDecodeError, UnicodeDecodeError) as e:
         raise ValueError(f"Failed to parse webhook payload: {e}") from e
 
-    event_type = data.get("type")
+    event_type = data.get('type')
     if not event_type:
         raise ValueError("Webhook payload missing 'type' field")
 
@@ -641,9 +639,9 @@ def verify_webhook_signature(body: bytes | str, signature: str, secret: str) -> 
         True if the signature is valid, False otherwise
     """
     if isinstance(body, str):
-        body = body.encode("utf-8")
+        body = body.encode('utf-8')
 
-    h = hmac.new(secret.encode("utf-8"), body, hashlib.sha256)
+    h = hmac.new(secret.encode('utf-8'), body, hashlib.sha256)
     expected = h.hexdigest()
     return hmac.compare_digest(signature, expected)
 
@@ -667,9 +665,7 @@ def gunzip_payload(body: bytes) -> bytes:
     every "looks like gzip but isn't" failure mode surfaces as InvalidWebhookError.
     """
     if not isinstance(body, (bytes, bytearray)):
-        raise InvalidWebhookError(
-            InvalidWebhookError.INVALID_JSON + ": body must be bytes"
-        )
+        raise InvalidWebhookError(InvalidWebhookError.INVALID_JSON + ": body must be bytes")
     if len(body) < 2 or bytes(body[:2]) != _GZIP_MAGIC:
         return bytes(body)
     try:
@@ -692,9 +688,7 @@ def decode_sqs_payload(message_body: str) -> bytes:
     formats: no caller code change, no flag, no header.
     """
     if not isinstance(message_body, str):
-        raise InvalidWebhookError(
-            InvalidWebhookError.INVALID_JSON + ": message_body must be str"
-        )
+        raise InvalidWebhookError(InvalidWebhookError.INVALID_JSON + ": message_body must be str")
     try:
         decoded = base64.b64decode(message_body, validate=True)
     except ValueError:
@@ -736,9 +730,7 @@ def decode_sns_payload(notification_body: str) -> bytes:
     :func:`decode_sqs_payload`.
     """
     if not isinstance(notification_body, str):
-        raise InvalidWebhookError(
-            InvalidWebhookError.INVALID_JSON + ": notification_body must be str"
-        )
+        raise InvalidWebhookError(InvalidWebhookError.INVALID_JSON + ": notification_body must be str")
     inner = _unwrap_sns_notification_body(notification_body)
     return decode_sqs_payload(inner)
 
@@ -759,27 +751,18 @@ def parse_event(payload: bytes) -> Any:
     or any deserialization failure on a known type.
     """
     if not isinstance(payload, (bytes, bytearray)):
-        raise InvalidWebhookError(
-            InvalidWebhookError.INVALID_JSON + ": payload must be bytes"
-        )
+        raise InvalidWebhookError(InvalidWebhookError.INVALID_JSON + ": payload must be bytes")
     try:
         data = json.loads(payload)
     except json.JSONDecodeError as e:
         # json.loads handles bytes natively since Python 3.6; no UnicodeDecodeError path.
-        raise InvalidWebhookError(
-            f"{InvalidWebhookError.INVALID_JSON}: failed to parse webhook payload: {e}"
-        ) from e
+        raise InvalidWebhookError(f"{InvalidWebhookError.INVALID_JSON}: failed to parse webhook payload: {e}") from e
     if not isinstance(data, dict):
-        raise InvalidWebhookError(
-            InvalidWebhookError.INVALID_JSON + ": webhook payload must be a JSON object"
-        )
+        raise InvalidWebhookError(InvalidWebhookError.INVALID_JSON + ": webhook payload must be a JSON object")
 
     event_type = data.get("type")
     if not isinstance(event_type, str) or event_type == "":
-        raise InvalidWebhookError(
-            InvalidWebhookError.INVALID_JSON
-            + ": webhook payload missing 'type' string field"
-        )
+        raise InvalidWebhookError(InvalidWebhookError.INVALID_JSON + ": webhook payload missing 'type' string field")
 
     event_class = _get_event_class(event_type)
     if event_class is None:
@@ -788,9 +771,7 @@ def parse_event(payload: bytes) -> Any:
     try:
         return event_class.from_dict(data, infer_missing=True)
     except Exception as e:
-        raise InvalidWebhookError(
-            f"{InvalidWebhookError.INVALID_JSON}: failed to deserialize event: {e}"
-        ) from e
+        raise InvalidWebhookError(f"{InvalidWebhookError.INVALID_JSON}: failed to deserialize event: {e}") from e
 
 
 def _build_unknown_event(event_type: str, data: dict[str, Any]) -> UnknownEvent:

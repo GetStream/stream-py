@@ -1,14 +1,13 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
 
 from dataclasses import dataclass
-from typing import Optional, Dict, Union
+from typing import TYPE_CHECKING, Dict, Optional, Union
 
 from getstream.models import CallResponse
 
 if TYPE_CHECKING:
-    from getstream.video.client import VideoClient
     from getstream.video.async_client import VideoClient as AsyncVideoClient
+    from getstream.video.client import VideoClient
 
 
 @dataclass
@@ -19,16 +18,16 @@ class SRTCredentials:
 class BaseCall:
     def __init__(
         self,
-        client: Union[VideoClient | AsyncVideoClient],
+        client: VideoClient | AsyncVideoClient,
         call_type: str,
-        call_id: Optional[str] = None,
-        custom_data: Optional[Dict] = None,
+        call_id: str | None = None,
+        custom_data: dict | None = None,
     ):
         self.id = call_id
         self.call_type = call_type
         self.client = client
         self.custom_data = custom_data or {}
-        self._data: Optional[CallResponse] = None
+        self._data: CallResponse | None = None
 
     def _sync_from_response(self, data):
         if hasattr(data, "call") and isinstance(data.call, CallResponse):
@@ -38,7 +37,7 @@ class BaseCall:
     def connect_openai(
         self, openai_api_key, agent_user_id, model="gpt-4o-realtime-preview"
     ):
-        from .openai import get_openai_realtime_client, ConnectionManagerWrapper
+        from .openai import ConnectionManagerWrapper, get_openai_realtime_client
 
         client = get_openai_realtime_client(openai_api_key, self.client.base_url or "")
         token = self.client.stream.create_token(agent_user_id)

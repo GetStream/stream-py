@@ -1,5 +1,4 @@
 import json
-from typing import List, Optional
 
 from getstream.common import telemetry
 from getstream.common.async_rest_client import CommonRestClient
@@ -24,7 +23,7 @@ class CommonClient(CommonRestClient):
 
     @telemetry.operation_name("getstream.api.common.upload_file")
     async def upload_file(
-        self, file: str, user: Optional[OnlyUserID] = None
+        self, file: str, user: OnlyUserID | None = None
     ) -> StreamResponse[FileUploadResponse]:
         form_fields = []
         if user is not None:
@@ -40,8 +39,8 @@ class CommonClient(CommonRestClient):
     async def upload_image(
         self,
         file: str,
-        upload_sizes: Optional[List[ImageSize]] = None,
-        user: Optional[OnlyUserID] = None,
+        upload_sizes: list[ImageSize] | None = None,
+        user: OnlyUserID | None = None,
     ) -> StreamResponse[ImageUploadResponse]:
         form_fields = []
         if user is not None:
