@@ -13,7 +13,7 @@ class ModerationRestClient(AsyncBaseClient):
         base_url: str,
         timeout: float,
         token: str,
-        user_agent: str | None = None,
+        user_agent: str = None,
     ):
         """
         Initializes ModerationClient with BaseClient instance
@@ -368,7 +368,7 @@ class ModerationRestClient(AsyncBaseClient):
         ai_audio_config: Optional[AIAudioConfigRequest] = None,
         ai_image_config: Optional[AIImageConfig] = None,
         ai_text_config: Optional[AITextConfig] = None,
-        ai_video_config: Optional[AIVideoConfig] = None,
+        ai_video_config: Optional[AIVideoConfigRequest] = None,
         automod_platform_circumvention_config: Optional[
             AutomodPlatformCircumventionConfig
         ] = None,

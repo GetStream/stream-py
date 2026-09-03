@@ -13,7 +13,7 @@ class CommonRestClient(AsyncBaseClient):
         base_url: str,
         timeout: float,
         token: str,
-        user_agent: str | None = None,
+        user_agent: str = None,
     ):
         """
         Initializes CommonClient with BaseClient instance
@@ -56,7 +56,9 @@ class CommonRestClient(AsyncBaseClient):
         guest_user_creation_disabled: Optional[bool] = None,
         image_moderation_enabled: Optional[bool] = None,
         max_aggregated_activities_length: Optional[int] = None,
+        member_custom_on_mentioned_users_enabled: Optional[bool] = None,
         member_custom_on_messages_enabled: Optional[bool] = None,
+        member_custom_on_typing_events_enabled: Optional[bool] = None,
         migrate_permissions_to_v2: Optional[bool] = None,
         moderation_analytics_enabled: Optional[bool] = None,
         moderation_enabled: Optional[bool] = None,
@@ -118,7 +120,9 @@ class CommonRestClient(AsyncBaseClient):
             guest_user_creation_disabled=guest_user_creation_disabled,
             image_moderation_enabled=image_moderation_enabled,
             max_aggregated_activities_length=max_aggregated_activities_length,
+            member_custom_on_mentioned_users_enabled=member_custom_on_mentioned_users_enabled,
             member_custom_on_messages_enabled=member_custom_on_messages_enabled,
+            member_custom_on_typing_events_enabled=member_custom_on_typing_events_enabled,
             migrate_permissions_to_v2=migrate_permissions_to_v2,
             moderation_analytics_enabled=moderation_analytics_enabled,
             moderation_enabled=moderation_enabled,

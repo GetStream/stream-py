@@ -9,7 +9,7 @@ class Channel:
         self,
         client,
         channel_type: str,
-        channel_id: str | None = None,
+        channel_id: str = None,
         custom_data: Dict = None,
     ):
         self.channel_id = channel_id

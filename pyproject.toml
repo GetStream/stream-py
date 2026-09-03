@@ -130,5 +130,10 @@ exclude = [
 [tool.ruff.lint]
 ignore = ["F405", "F403"]
 
+[tool.ruff.lint.per-file-ignores]
+# dataclasses_json resolves the generated string annotations at runtime, so these
+# typing names are live even though they read as unused.
+"getstream/models/__init__.py" = ["F401", "UP035"]
+
 [tool.hatch.metadata]
 allow-direct-references = true

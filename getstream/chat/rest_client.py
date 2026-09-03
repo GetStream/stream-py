@@ -13,7 +13,7 @@ class ChatRestClient(BaseClient):
         base_url: str,
         timeout: float,
         token: str,
-        user_agent: str | None = None,
+        user_agent: str = None,
     ):
         """
         Initializes ChatClient with BaseClient instance
@@ -239,11 +239,18 @@ class ChatRestClient(BaseClient):
         self,
         operation: str,
         filter: Dict[str, object],
+        custom_unset: Optional[List[str]] = None,
         members: Optional[List[ChannelBatchMemberRequest]] = None,
+        custom_set: Optional[Dict[str, object]] = None,
         data: Optional[ChannelDataUpdate] = None,
     ) -> StreamResponse[ChannelBatchUpdateResponse]:
         json = ChannelBatchUpdateRequest(
-            operation=operation, filter=filter, members=members, data=data
+            operation=operation,
+            filter=filter,
+            custom_unset=custom_unset,
+            members=members,
+            custom_set=custom_set,
+            data=data,
         ).to_dict()
         return self.put(
             "/api/v2/chat/channels/batch", ChannelBatchUpdateResponse, json=json
@@ -1453,14 +1460,14 @@ class ChatRestClient(BaseClient):
     @telemetry.operation_name("getstream.api.chat.translate_message")
     def translate_message(
         self, id: str, language: str
-    ) -> StreamResponse[MessageActionResponse]:
+    ) -> StreamResponse[TranslateMessageResponse]:
         path_params = {
             "id": id,
         }
         json = TranslateMessageRequest(language=language).to_dict()
         return self.post(
             "/api/v2/chat/messages/{id}/translate",
-            MessageActionResponse,
+            TranslateMessageResponse,
             path_params=path_params,
             json=json,
         )
@@ -1561,7 +1568,7 @@ class ChatRestClient(BaseClient):
         remind_at: Optional[datetime] = None,
         user_id: Optional[str] = None,
         user: Optional[UserRequest] = None,
-    ) -> StreamResponse[ReminderResponseData]:
+    ) -> StreamResponse[CreateReminderResponse]:
         path_params = {
             "message_id": message_id,
         }
@@ -1570,7 +1577,7 @@ class ChatRestClient(BaseClient):
         ).to_dict()
         return self.post(
             "/api/v2/chat/messages/{message_id}/reminders",
-            ReminderResponseData,
+            CreateReminderResponse,
             path_params=path_params,
             json=json,
         )

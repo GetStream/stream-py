@@ -13,7 +13,7 @@ class VideoRestClient(AsyncBaseClient):
         base_url: str,
         timeout: float,
         token: str,
-        user_agent: str | None = None,
+        user_agent: str = None,
     ):
         """
         Initializes VideoClient with BaseClient instance
@@ -1398,9 +1398,9 @@ class VideoRestClient(AsyncBaseClient):
 
     @telemetry.operation_name("getstream.api.video.get_daily_digest")
     async def get_daily_digest(
-        self, date: Optional[str] = None, app_id: Optional[str] = None
+        self, date: Optional[str] = None, target_app_id: Optional[str] = None
     ) -> StreamResponse[GetDailyDigestResponse]:
-        query_params = build_query_param(date=date, app_id=app_id)
+        query_params = build_query_param(date=date, target_app_id=target_app_id)
         return await self.get(
             "/api/v2/video/stats/daily_digest",
             GetDailyDigestResponse,

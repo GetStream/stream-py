@@ -13,7 +13,7 @@ class FeedsRestClient(BaseClient):
         base_url: str,
         timeout: float,
         token: str,
-        user_agent: str | None = None,
+        user_agent: str = None,
     ):
         """
         Initializes FeedsClient with BaseClient instance
@@ -1323,10 +1323,12 @@ class FeedsRestClient(BaseClient):
     def create_feed_group(
         self,
         id: str,
+        default_follower_role: Optional[str] = None,
         default_visibility: Optional[str] = None,
         activity_processors: Optional[List[ActivityProcessorConfig]] = None,
         activity_selectors: Optional[List[ActivitySelectorConfig]] = None,
         activity_filter: Optional[ActivityFilterConfig] = None,
+        activity_processing: Optional[ActivityProcessingConfig] = None,
         aggregation: Optional[AggregationConfig] = None,
         custom: Optional[Dict[str, object]] = None,
         notification: Optional[NotificationConfig] = None,
@@ -1336,10 +1338,12 @@ class FeedsRestClient(BaseClient):
     ) -> StreamResponse[CreateFeedGroupResponse]:
         json = CreateFeedGroupRequest(
             id=id,
+            default_follower_role=default_follower_role,
             default_visibility=default_visibility,
             activity_processors=activity_processors,
             activity_selectors=activity_selectors,
             activity_filter=activity_filter,
+            activity_processing=activity_processing,
             aggregation=aggregation,
             custom=custom,
             notification=notification,
@@ -1779,10 +1783,12 @@ class FeedsRestClient(BaseClient):
     def get_or_create_feed_group(
         self,
         id: str,
+        default_follower_role: Optional[str] = None,
         default_visibility: Optional[str] = None,
         activity_processors: Optional[List[ActivityProcessorConfig]] = None,
         activity_selectors: Optional[List[ActivitySelectorConfig]] = None,
         activity_filter: Optional[ActivityFilterConfig] = None,
+        activity_processing: Optional[ActivityProcessingConfig] = None,
         aggregation: Optional[AggregationConfig] = None,
         custom: Optional[Dict[str, object]] = None,
         notification: Optional[NotificationConfig] = None,
@@ -1794,10 +1800,12 @@ class FeedsRestClient(BaseClient):
             "id": id,
         }
         json = GetOrCreateFeedGroupRequest(
+            default_follower_role=default_follower_role,
             default_visibility=default_visibility,
             activity_processors=activity_processors,
             activity_selectors=activity_selectors,
             activity_filter=activity_filter,
+            activity_processing=activity_processing,
             aggregation=aggregation,
             custom=custom,
             notification=notification,
@@ -1816,10 +1824,12 @@ class FeedsRestClient(BaseClient):
     def update_feed_group(
         self,
         id: str,
+        default_follower_role: Optional[str] = None,
         default_visibility: Optional[str] = None,
         activity_processors: Optional[List[ActivityProcessorConfig]] = None,
         activity_selectors: Optional[List[ActivitySelectorConfig]] = None,
         activity_filter: Optional[ActivityFilterConfig] = None,
+        activity_processing: Optional[ActivityProcessingConfig] = None,
         aggregation: Optional[AggregationConfig] = None,
         custom: Optional[Dict[str, object]] = None,
         notification: Optional[NotificationConfig] = None,
@@ -1831,10 +1841,12 @@ class FeedsRestClient(BaseClient):
             "id": id,
         }
         json = UpdateFeedGroupRequest(
+            default_follower_role=default_follower_role,
             default_visibility=default_visibility,
             activity_processors=activity_processors,
             activity_selectors=activity_selectors,
             activity_filter=activity_filter,
+            activity_processing=activity_processing,
             aggregation=aggregation,
             custom=custom,
             notification=notification,
@@ -1971,10 +1983,13 @@ class FeedsRestClient(BaseClient):
 
     @telemetry.operation_name("getstream.api.feeds.create_feeds_batch")
     def create_feeds_batch(
-        self, feeds: List[FeedRequest], enrich_own_fields: Optional[bool] = None
+        self,
+        feeds: List[FeedRequest],
+        create_users: Optional[bool] = None,
+        enrich_own_fields: Optional[bool] = None,
     ) -> StreamResponse[CreateFeedsBatchResponse]:
         json = CreateFeedsBatchRequest(
-            feeds=feeds, enrich_own_fields=enrich_own_fields
+            feeds=feeds, create_users=create_users, enrich_own_fields=enrich_own_fields
         ).to_dict()
         return self.post(
             "/api/v2/feeds/feeds/batch", CreateFeedsBatchResponse, json=json

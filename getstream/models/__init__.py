@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 from dataclasses import field as dc_field
 from datetime import datetime
-from typing import Dict, Final, List, NewType, Optional  # noqa: F401, UP035
+from typing import Dict, Final, List, NewType, Optional
 
 from dataclasses_json import DataClassJsonMixin
 from dataclasses_json import config as dc_config
@@ -73,9 +73,30 @@ class AIVideoConfig(DataClassJsonMixin):
     enabled: bool | None = dc_field(
         default=None, metadata=dc_config(field_name="enabled")
     )
+    provider: str | None = dc_field(
+        default=None, metadata=dc_config(field_name="provider")
+    )
     rules: "list[AWSRekognitionRule] | None" = dc_field(
         default=None, metadata=dc_config(field_name="rules")
     )
+
+
+@dataclass
+class AIVideoConfigRequest(DataClassJsonMixin):
+    _async: bool | None = dc_field(default=None, metadata=dc_config(field_name="async"))
+    enabled: bool | None = dc_field(
+        default=None, metadata=dc_config(field_name="enabled")
+    )
+    rules: "list[AWSRekognitionRule] | None" = dc_field(
+        default=None, metadata=dc_config(field_name="rules")
+    )
+
+
+@dataclass
+class AIVideoConfigResponse(DataClassJsonMixin):
+    enabled: bool = dc_field(metadata=dc_config(field_name="enabled"))
+    rules: "list[AWSRekognitionRule]" = dc_field(metadata=dc_config(field_name="rules"))
+    _async: bool | None = dc_field(default=None, metadata=dc_config(field_name="async"))
 
 
 @dataclass
@@ -229,7 +250,7 @@ class AcceptFollowRequest(DataClassJsonMixin):
     source: str = dc_field(metadata=dc_config(field_name="source"))
     # Fully qualified ID of the target feed
     target: str = dc_field(metadata=dc_config(field_name="target"))
-    # Optional role for the follower in the follow relationship
+    # Optional role for the follower in the follow relationship. Server-side only. Either a built-in ('feed_follower' (the default) or 'feed_member_viewer') or any role your app has defined; grants are not inspected.
     follower_role: str | None = dc_field(
         default=None, metadata=dc_config(field_name="follower_role")
     )
@@ -646,6 +667,18 @@ class ActivityPinnedEvent(DataClassJsonMixin):
     )
     user: "UserResponseCommonFields | None" = dc_field(
         default=None, metadata=dc_config(field_name="user")
+    )
+
+
+@dataclass
+class ActivityProcessingConfig(DataClassJsonMixin):
+    # When set, the LLM activity processors may only write interest tags from this list. Tags are matched literally after lower-casing and trimming, so a generic vocabulary matches more often than in-house terms. Mutually exclusive with blocked_tags.
+    allowed_tags: list[str] | None = dc_field(
+        default=None, metadata=dc_config(field_name="allowed_tags")
+    )
+    # Interest tags the LLM activity processors are never allowed to write. Mutually exclusive with allowed_tags.
+    blocked_tags: list[str] | None = dc_field(
+        default=None, metadata=dc_config(field_name="blocked_tags")
     )
 
 
@@ -1830,7 +1863,7 @@ class AnalyzeRequest(DataClassJsonMixin):
 @dataclass
 class AnalyzeResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
-    # Always `complete` — /analyze is sync-only and the full verdict is in the response.
+    # `complete` (all fields screened), `partial` (mix of verdicts and per-field errors), or `pending` (async).
     status: str = dc_field(metadata=dc_config(field_name="status"))
     # Per-image moderation verdicts keyed by caller label.
     images: "dict[str, AnalyzeImageField] | None" = dc_field(
@@ -1904,14 +1937,23 @@ class AppResponseFields(DataClassJsonMixin):
     max_aggregated_activities_length: int = dc_field(
         metadata=dc_config(field_name="max_aggregated_activities_length")
     )
+    member_custom_on_mentioned_users_enabled: bool = dc_field(
+        metadata=dc_config(field_name="member_custom_on_mentioned_users_enabled")
+    )
     member_custom_on_messages_enabled: bool = dc_field(
         metadata=dc_config(field_name="member_custom_on_messages_enabled")
+    )
+    member_custom_on_typing_events_enabled: bool = dc_field(
+        metadata=dc_config(field_name="member_custom_on_typing_events_enabled")
     )
     moderation_audio_call_moderation_enabled: bool = dc_field(
         metadata=dc_config(field_name="moderation_audio_call_moderation_enabled")
     )
     moderation_enabled: bool = dc_field(
         metadata=dc_config(field_name="moderation_enabled")
+    )
+    moderation_keyframe_video_enabled: bool = dc_field(
+        metadata=dc_config(field_name="moderation_keyframe_video_enabled")
     )
     moderation_llm_configurability_enabled: bool = dc_field(
         metadata=dc_config(field_name="moderation_llm_configurability_enabled")
@@ -2357,7 +2399,8 @@ class AsyncExportErrorEvent(DataClassJsonMixin):
     task_id: str = dc_field(metadata=dc_config(field_name="task_id"))
     custom: dict[str, object] = dc_field(metadata=dc_config(field_name="custom"))
     type: str = dc_field(
-        default="export.channels.error", metadata=dc_config(field_name="type")
+        default="export.bulk_image_moderation.error",
+        metadata=dc_config(field_name="type"),
     )
     received_at: datetime | None = dc_field(
         default=None,
@@ -6075,8 +6118,16 @@ class ChannelBatchUpdateRequest(DataClassJsonMixin):
     operation: str = dc_field(metadata=dc_config(field_name="operation"))
     # Filter to apply to the query
     filter: dict[str, object] = dc_field(metadata=dc_config(field_name="filter"))
+    # `updateData` only. Deletes these keys from each channel's existing custom object, leaving every other custom key untouched. Keys are dot-paths; deleting a key that does not exist is a no-op. Cannot be combined with `data.custom`
+    custom_unset: list[str] | None = dc_field(
+        default=None, metadata=dc_config(field_name="custom_unset")
+    )
     members: "list[ChannelBatchMemberRequest] | None" = dc_field(
         default=None, metadata=dc_config(field_name="members")
+    )
+    # `updateData` only. Merges these keys into each channel's existing custom object, leaving every other custom key untouched. Keys are dot-paths, so `a.b` sets key `b` inside object `a` (the parent object must already exist). Cannot be combined with `data.custom`
+    custom_set: dict[str, object] | None = dc_field(
+        default=None, metadata=dc_config(field_name="custom_set")
     )
     data: "ChannelDataUpdate | None" = dc_field(
         default=None, metadata=dc_config(field_name="data")
@@ -6726,16 +6777,17 @@ class ChannelMemberPartialResponse(DataClassJsonMixin):
 
 @dataclass
 class ChannelMemberRequest(DataClassJsonMixin):
-    user_id: str = dc_field(metadata=dc_config(field_name="user_id"))
     # Role of the member in the channel
     channel_role: str | None = dc_field(
         default=None, metadata=dc_config(field_name="channel_role")
     )
+    user_id: str | None = dc_field(
+        default=None, metadata=dc_config(field_name="user_id")
+    )
     custom: dict[str, object] | None = dc_field(
         default=None, metadata=dc_config(field_name="custom")
     )
-    # User response object
-    user: "UserResponse | None" = dc_field(
+    user: "MemberUserRequest | None" = dc_field(
         default=None, metadata=dc_config(field_name="user")
     )
 
@@ -9143,7 +9195,7 @@ class ConfigResponse(DataClassJsonMixin):
     ai_text_config: "AITextConfig | None" = dc_field(
         default=None, metadata=dc_config(field_name="ai_text_config")
     )
-    ai_video_config: "AIVideoConfig | None" = dc_field(
+    ai_video_config: "AIVideoConfigResponse | None" = dc_field(
         default=None, metadata=dc_config(field_name="ai_video_config")
     )
     automod_platform_circumvention_config: "AutomodPlatformCircumventionConfig | None" = dc_field(
@@ -9718,6 +9770,10 @@ class CreateExternalStorageResponse(DataClassJsonMixin):
 class CreateFeedGroupRequest(DataClassJsonMixin):
     # Unique identifier for the feed group
     id: str = dc_field(metadata=dc_config(field_name="id"))
+    # Role new followers of feeds in this group are given. Either a built-in (feed_follower, feed_member_viewer) or any role your app has defined. Empty means feed_follower. Applied when the follow is accepted, so a follow that starts pending picks it up on approval
+    default_follower_role: str | None = dc_field(
+        default=None, metadata=dc_config(field_name="default_follower_role")
+    )
     # Default visibility for the feed group, can be 'public', 'visible', 'followers', 'members', or 'private'. Defaults to 'visible' if not provided.
     default_visibility: str | None = dc_field(
         default=None, metadata=dc_config(field_name="default_visibility")
@@ -9732,6 +9788,9 @@ class CreateFeedGroupRequest(DataClassJsonMixin):
     )
     activity_filter: "ActivityFilterConfig | None" = dc_field(
         default=None, metadata=dc_config(field_name="activity_filter")
+    )
+    activity_processing: "ActivityProcessingConfig | None" = dc_field(
+        default=None, metadata=dc_config(field_name="activity_processing")
     )
     aggregation: "AggregationConfig | None" = dc_field(
         default=None, metadata=dc_config(field_name="aggregation")
@@ -9788,6 +9847,10 @@ class CreateFeedViewResponse(DataClassJsonMixin):
 class CreateFeedsBatchRequest(DataClassJsonMixin):
     # List of feeds to create
     feeds: "list[FeedRequest]" = dc_field(metadata=dc_config(field_name="feeds"))
+    # Server-side only. If true, auto-creates users referenced by feeds[].created_by_id that don't already exist. Default: false.
+    create_users: bool | None = dc_field(
+        default=None, metadata=dc_config(field_name="create_users")
+    )
     # If true, enriches the created feeds with own_* fields (own_follows, own_followings, own_capabilities, own_membership). Defaults to false for performance.
     enrich_own_fields: bool | None = dc_field(
         default=None, metadata=dc_config(field_name="enrich_own_fields")
@@ -10098,6 +10161,15 @@ class CreateReminderRequest(DataClassJsonMixin):
     # User request object
     user: "UserRequest | None" = dc_field(
         default=None, metadata=dc_config(field_name="user")
+    )
+
+
+@dataclass
+class CreateReminderResponse(DataClassJsonMixin):
+    # Duration of the request in milliseconds
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    reminder: "ReminderResponseData" = dc_field(
+        metadata=dc_config(field_name="reminder")
     )
 
 
@@ -11919,6 +11991,9 @@ class FeedGroup(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         )
     )
+    default_follower_role: str = dc_field(
+        metadata=dc_config(field_name="default_follower_role")
+    )
     default_visibility: str = dc_field(
         metadata=dc_config(field_name="default_visibility")
     )
@@ -12068,6 +12143,10 @@ class FeedGroupResponse(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         )
     )
+    # Role new followers of feeds in this group are given. Either a built-in (feed_follower, feed_member_viewer) or any role your app has defined. Empty means feed_follower. Applied when the follow is accepted, so a follow that starts pending picks it up on approval
+    default_follower_role: str | None = dc_field(
+        default=None, metadata=dc_config(field_name="default_follower_role")
+    )
     # Default visibility for activities. One of: public, visible, followers, members, private
     default_visibility: str | None = dc_field(
         default=None, metadata=dc_config(field_name="default_visibility")
@@ -12091,6 +12170,9 @@ class FeedGroupResponse(DataClassJsonMixin):
     )
     activity_filter: "ActivityFilterConfig | None" = dc_field(
         default=None, metadata=dc_config(field_name="activity_filter")
+    )
+    activity_processing: "ActivityProcessingConfig | None" = dc_field(
+        default=None, metadata=dc_config(field_name="activity_processing")
     )
     aggregation: "AggregationConfig | None" = dc_field(
         default=None, metadata=dc_config(field_name="aggregation")
@@ -13775,7 +13857,7 @@ class FollowResponse(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         )
     )
-    # Role of the follower (source user) in the follow relationship
+    # Role of the follower (source user) in the follow relationship, as stored. A reserved name, or a role your app no longer defines, is reported as stored but evaluated as 'feed_follower'.
     follower_role: str = dc_field(metadata=dc_config(field_name="follower_role"))
     # Push preference for notifications. One of: all, none
     push_preference: str = dc_field(metadata=dc_config(field_name="push_preference"))
@@ -14801,6 +14883,10 @@ class GetOrCreateCallResponse(DataClassJsonMixin):
 
 @dataclass
 class GetOrCreateFeedGroupRequest(DataClassJsonMixin):
+    # Role new followers of feeds in this group are given. Either a built-in (feed_follower, feed_member_viewer) or any role your app has defined. Empty means feed_follower. Applied when the follow is accepted, so a follow that starts pending picks it up on approval
+    default_follower_role: str | None = dc_field(
+        default=None, metadata=dc_config(field_name="default_follower_role")
+    )
     # Default visibility for the feed group, can be 'public', 'visible', 'followers', 'members', or 'private'. Defaults to 'visible' if not provided.
     default_visibility: str | None = dc_field(
         default=None, metadata=dc_config(field_name="default_visibility")
@@ -14815,6 +14901,9 @@ class GetOrCreateFeedGroupRequest(DataClassJsonMixin):
     )
     activity_filter: "ActivityFilterConfig | None" = dc_field(
         default=None, metadata=dc_config(field_name="activity_filter")
+    )
+    activity_processing: "ActivityProcessingConfig | None" = dc_field(
+        default=None, metadata=dc_config(field_name="activity_processing")
     )
     aggregation: "AggregationConfig | None" = dc_field(
         default=None, metadata=dc_config(field_name="aggregation")
@@ -16931,6 +17020,32 @@ class MemberUpdatedEvent(DataClassJsonMixin):
 
 
 @dataclass
+class MemberUserRequest(DataClassJsonMixin):
+    id: str = dc_field(metadata=dc_config(field_name="id"))
+    image: str | None = dc_field(default=None, metadata=dc_config(field_name="image"))
+    invisible: bool | None = dc_field(
+        default=None, metadata=dc_config(field_name="invisible")
+    )
+    language: str | None = dc_field(
+        default=None, metadata=dc_config(field_name="language")
+    )
+    name: str | None = dc_field(default=None, metadata=dc_config(field_name="name"))
+    role: str | None = dc_field(default=None, metadata=dc_config(field_name="role"))
+    teams: list[str] | None = dc_field(
+        default=None, metadata=dc_config(field_name="teams")
+    )
+    custom: dict[str, object] | None = dc_field(
+        default=None, metadata=dc_config(field_name="custom")
+    )
+    privacy_settings: "PrivacySettingsResponse | None" = dc_field(
+        default=None, metadata=dc_config(field_name="privacy_settings")
+    )
+    teams_role: "dict[str, str] | None" = dc_field(
+        default=None, metadata=dc_config(field_name="teams_role")
+    )
+
+
+@dataclass
 class MembersResponse(DataClassJsonMixin):
     # Duration of the request in milliseconds
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
@@ -17786,6 +17901,12 @@ class MessageResponse(DataClassJsonMixin):
     member: "ChannelMemberPartialResponse | None" = dc_field(
         default=None, metadata=dc_config(field_name="member")
     )
+    # Channel member data for the users mentioned in the message, keyed by user id. Only present when the app has member custom on mentioned users enabled, and only for the first two mentioned users of each message
+    mentioned_channel_members: "dict[str, ChannelMemberPartialResponse] | None" = (
+        dc_field(
+            default=None, metadata=dc_config(field_name="mentioned_channel_members")
+        )
+    )
     moderation: "ModerationV2Response | None" = dc_field(
         default=None, metadata=dc_config(field_name="moderation")
     )
@@ -18147,6 +18268,12 @@ class MessageWithChannelResponse(DataClassJsonMixin):
     )
     member: "ChannelMemberPartialResponse | None" = dc_field(
         default=None, metadata=dc_config(field_name="member")
+    )
+    # Channel member data for the users mentioned in the message, keyed by user id. Only present when the app has member custom on mentioned users enabled, and only for the first two mentioned users of each message
+    mentioned_channel_members: "dict[str, ChannelMemberPartialResponse] | None" = (
+        dc_field(
+            default=None, metadata=dc_config(field_name="mentioned_channel_members")
+        )
     )
     moderation: "ModerationV2Response | None" = dc_field(
         default=None, metadata=dc_config(field_name="moderation")
@@ -18585,6 +18712,15 @@ class ModerationFlagResponse(DataClassJsonMixin):
     user_id: str = dc_field(metadata=dc_config(field_name="user_id"))
     result: "list[dict[str, object]]" = dc_field(
         metadata=dc_config(field_name="result")
+    )
+    content_published_at: datetime | None = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="content_published_at",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
     )
     entity_creator_id: str | None = dc_field(
         default=None, metadata=dc_config(field_name="entity_creator_id")
@@ -20556,6 +20692,7 @@ class PollResponseData(DataClassJsonMixin):
         )
     )
     vote_count: int = dc_field(metadata=dc_config(field_name="vote_count"))
+    # Voting visibility of the poll
     voting_visibility: str = dc_field(
         metadata=dc_config(field_name="voting_visibility")
     )
@@ -22329,10 +22466,6 @@ class QueryLabelResultsResponse(DataClassJsonMixin):
 @dataclass
 class QueryMembersPayload(DataClassJsonMixin):
     type: str = dc_field(metadata=dc_config(field_name="type"))
-    # Filter conditions to apply to the query
-    filter_conditions: dict[str, object] = dc_field(
-        metadata=dc_config(field_name="filter_conditions")
-    )
     id: str | None = dc_field(default=None, metadata=dc_config(field_name="id"))
     limit: int | None = dc_field(default=None, metadata=dc_config(field_name="limit"))
     offset: int | None = dc_field(default=None, metadata=dc_config(field_name="offset"))
@@ -22345,6 +22478,10 @@ class QueryMembersPayload(DataClassJsonMixin):
     # Array of sort parameters
     sort: "list[SortParamRequest] | None" = dc_field(
         default=None, metadata=dc_config(field_name="sort")
+    )
+    # Filter conditions to apply to the query
+    filter_conditions: dict[str, object] | None = dc_field(
+        default=None, metadata=dc_config(field_name="filter_conditions")
     )
     # User request object
     user: "UserRequest | None" = dc_field(
@@ -23701,6 +23838,9 @@ class ReminderCreatedEvent(DataClassJsonMixin):
     # The ID of the user for whom the reminder was created
     user_id: str = dc_field(metadata=dc_config(field_name="user_id"))
     custom: dict[str, object] = dc_field(metadata=dc_config(field_name="custom"))
+    reminder: "ReminderResponseData" = dc_field(
+        metadata=dc_config(field_name="reminder")
+    )
     # The type of event: "reminder.created" in this case
     type: str = dc_field(
         default="reminder.created", metadata=dc_config(field_name="type")
@@ -23717,9 +23857,6 @@ class ReminderCreatedEvent(DataClassJsonMixin):
             decoder=datetime_from_unix_ns,
             mm_field=fields.DateTime(format="iso"),
         ),
-    )
-    reminder: "ReminderResponseData | None" = dc_field(
-        default=None, metadata=dc_config(field_name="reminder")
     )
 
 
@@ -23741,6 +23878,9 @@ class ReminderDeletedEvent(DataClassJsonMixin):
     # The ID of the user for whom the reminder was created
     user_id: str = dc_field(metadata=dc_config(field_name="user_id"))
     custom: dict[str, object] = dc_field(metadata=dc_config(field_name="custom"))
+    reminder: "ReminderResponseData" = dc_field(
+        metadata=dc_config(field_name="reminder")
+    )
     # The type of event: "reminder.deleted" in this case
     type: str = dc_field(
         default="reminder.deleted", metadata=dc_config(field_name="type")
@@ -23757,9 +23897,6 @@ class ReminderDeletedEvent(DataClassJsonMixin):
             decoder=datetime_from_unix_ns,
             mm_field=fields.DateTime(format="iso"),
         ),
-    )
-    reminder: "ReminderResponseData | None" = dc_field(
-        default=None, metadata=dc_config(field_name="reminder")
     )
 
 
@@ -23781,6 +23918,9 @@ class ReminderNotificationEvent(DataClassJsonMixin):
     # The ID of the user for whom the reminder was created
     user_id: str = dc_field(metadata=dc_config(field_name="user_id"))
     custom: dict[str, object] = dc_field(metadata=dc_config(field_name="custom"))
+    reminder: "ReminderResponseData" = dc_field(
+        metadata=dc_config(field_name="reminder")
+    )
     # The type of event: "notification.reminder_due" in this case
     type: str = dc_field(
         default="notification.reminder_due", metadata=dc_config(field_name="type")
@@ -23796,9 +23936,6 @@ class ReminderNotificationEvent(DataClassJsonMixin):
             decoder=datetime_from_unix_ns,
             mm_field=fields.DateTime(format="iso"),
         ),
-    )
-    reminder: "ReminderResponseData | None" = dc_field(
-        default=None, metadata=dc_config(field_name="reminder")
     )
 
 
@@ -23864,6 +24001,9 @@ class ReminderUpdatedEvent(DataClassJsonMixin):
     # The ID of the user for whom the reminder was created
     user_id: str = dc_field(metadata=dc_config(field_name="user_id"))
     custom: dict[str, object] = dc_field(metadata=dc_config(field_name="custom"))
+    reminder: "ReminderResponseData" = dc_field(
+        metadata=dc_config(field_name="reminder")
+    )
     # The type of event: "reminder.updated" in this case
     type: str = dc_field(
         default="reminder.updated", metadata=dc_config(field_name="type")
@@ -23880,9 +24020,6 @@ class ReminderUpdatedEvent(DataClassJsonMixin):
             decoder=datetime_from_unix_ns,
             mm_field=fields.DateTime(format="iso"),
         ),
-    )
-    reminder: "ReminderResponseData | None" = dc_field(
-        default=None, metadata=dc_config(field_name="reminder")
     )
 
 
@@ -25224,6 +25361,11 @@ class SearchResultMessage(DataClassJsonMixin):
     )
     member: "ChannelMemberPartialResponse | None" = dc_field(
         default=None, metadata=dc_config(field_name="member")
+    )
+    mentioned_channel_members: "dict[str, ChannelMemberPartialResponse] | None" = (
+        dc_field(
+            default=None, metadata=dc_config(field_name="mentioned_channel_members")
+        )
     )
     moderation: "ModerationV2Response | None" = dc_field(
         default=None, metadata=dc_config(field_name="moderation")
@@ -27105,6 +27247,14 @@ class TranslateMessageRequest(DataClassJsonMixin):
 
 
 @dataclass
+class TranslateMessageResponse(DataClassJsonMixin):
+    # Duration of the request in milliseconds
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    # Represents any chat message
+    message: "MessageResponse" = dc_field(metadata=dc_config(field_name="message"))
+
+
+@dataclass
 class TranslationSettings(DataClassJsonMixin):
     enabled: bool | None = dc_field(
         default=None, metadata=dc_config(field_name="enabled")
@@ -27213,7 +27363,8 @@ class UnbanActionRequestPayload(DataClassJsonMixin):
 
 @dataclass
 class UnbanRequest(DataClassJsonMixin):
-    # ID of the user performing the unban
+    # ID of the user performing the unban Deprecated: not used by the unban flow
+    # Deprecated
     unbanned_by_id: str | None = dc_field(
         default=None, metadata=dc_config(field_name="unbanned_by_id")
     )
@@ -27731,8 +27882,16 @@ class UpdateAppRequest(DataClassJsonMixin):
     max_aggregated_activities_length: int | None = dc_field(
         default=None, metadata=dc_config(field_name="max_aggregated_activities_length")
     )
+    member_custom_on_mentioned_users_enabled: bool | None = dc_field(
+        default=None,
+        metadata=dc_config(field_name="member_custom_on_mentioned_users_enabled"),
+    )
     member_custom_on_messages_enabled: bool | None = dc_field(
         default=None, metadata=dc_config(field_name="member_custom_on_messages_enabled")
+    )
+    member_custom_on_typing_events_enabled: bool | None = dc_field(
+        default=None,
+        metadata=dc_config(field_name="member_custom_on_typing_events_enabled"),
     )
     migrate_permissions_to_v2: bool | None = dc_field(
         default=None, metadata=dc_config(field_name="migrate_permissions_to_v2")
@@ -28646,6 +28805,11 @@ class UpdateExternalStorageResponse(DataClassJsonMixin):
 
 @dataclass
 class UpdateFeedGroupRequest(DataClassJsonMixin):
+    # Role new followers of feeds in this group are given. Either a built-in (feed_follower, feed_member_viewer) or any role your app has defined. Empty means feed_follower. Applied when the follow is accepted, so a follow that starts pending picks it up on approval
+    default_follower_role: str | None = dc_field(
+        default=None, metadata=dc_config(field_name="default_follower_role")
+    )
+    # Default visibility for the feed group. One of: public, visible, followers, members, private
     default_visibility: str | None = dc_field(
         default=None, metadata=dc_config(field_name="default_visibility")
     )
@@ -28659,6 +28823,9 @@ class UpdateFeedGroupRequest(DataClassJsonMixin):
     )
     activity_filter: "ActivityFilterConfig | None" = dc_field(
         default=None, metadata=dc_config(field_name="activity_filter")
+    )
+    activity_processing: "ActivityProcessingConfig | None" = dc_field(
+        default=None, metadata=dc_config(field_name="activity_processing")
     )
     aggregation: "AggregationConfig | None" = dc_field(
         default=None, metadata=dc_config(field_name="aggregation")
@@ -28815,6 +28982,7 @@ class UpdateFollowRequest(DataClassJsonMixin):
     enrich_own_fields: bool | None = dc_field(
         default=None, metadata=dc_config(field_name="enrich_own_fields")
     )
+    # Optional role for the follower in the follow relationship. Server-side only. Either a built-in ('feed_follower' (the default) or 'feed_member_viewer') or any role your app has defined; grants are not inspected.
     follower_role: str | None = dc_field(
         default=None, metadata=dc_config(field_name="follower_role")
     )
@@ -29541,7 +29709,7 @@ class UpsertConfigRequest(DataClassJsonMixin):
     ai_text_config: "AITextConfig | None" = dc_field(
         default=None, metadata=dc_config(field_name="ai_text_config")
     )
-    ai_video_config: "AIVideoConfig | None" = dc_field(
+    ai_video_config: "AIVideoConfigRequest | None" = dc_field(
         default=None, metadata=dc_config(field_name="ai_video_config")
     )
     automod_platform_circumvention_config: "AutomodPlatformCircumventionConfig | None" = dc_field(
