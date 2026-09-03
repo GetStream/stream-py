@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 from dataclasses import field as dc_field
 from datetime import datetime
-from typing import Dict, Final, List, NewType, Optional
+from typing import Dict, Final, List, NewType, Optional  # noqa: F401, UP035
 
 from dataclasses_json import DataClassJsonMixin
 from dataclasses_json import config as dc_config
