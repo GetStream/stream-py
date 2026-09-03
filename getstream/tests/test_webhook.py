@@ -30,20 +30,36 @@ class TestVerifyWebhookSignature:
         ).hexdigest()
 
     def test_valid_signature(self):
-        assert verify_webhook_signature(self.body, self.valid_signature, self.secret) is True
+        assert (
+            verify_webhook_signature(self.body, self.valid_signature, self.secret)
+            is True
+        )
 
     def test_wrong_signature(self):
-        assert verify_webhook_signature(self.body, "invalidsignature", self.secret) is False
+        assert (
+            verify_webhook_signature(self.body, "invalidsignature", self.secret)
+            is False
+        )
 
     def test_tampered_body(self):
-        assert verify_webhook_signature(b'{"type":"tampered"}', self.valid_signature, self.secret) is False
+        assert (
+            verify_webhook_signature(
+                b'{"type":"tampered"}', self.valid_signature, self.secret
+            )
+            is False
+        )
 
     def test_wrong_secret(self):
-        assert verify_webhook_signature(self.body, self.valid_signature, "wrong-secret") is False
+        assert (
+            verify_webhook_signature(self.body, self.valid_signature, "wrong-secret")
+            is False
+        )
 
     def test_string_body(self):
         body_str = '{"type":"test.event"}'
-        sig = hmac.new(self.secret.encode("utf-8"), body_str.encode("utf-8"), hashlib.sha256).hexdigest()
+        sig = hmac.new(
+            self.secret.encode("utf-8"), body_str.encode("utf-8"), hashlib.sha256
+        ).hexdigest()
         assert verify_webhook_signature(body_str, sig, self.secret) is True
 
 
@@ -335,7 +351,9 @@ class TestParseWebhookEvent:
     def test_parse_call_session_participant_count_updated(self):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", RuntimeWarning)
-            event = parse_webhook_event({"type": "call.session_participant_count_updated"})
+            event = parse_webhook_event(
+                {"type": "call.session_participant_count_updated"}
+            )
         assert type(event).__name__ == "CallSessionParticipantCountsUpdatedEvent"
 
     def test_parse_call_session_participant_joined(self):
@@ -515,7 +533,9 @@ class TestParseWebhookEvent:
     def test_parse_export_bulk_image_moderation_success(self):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", RuntimeWarning)
-            event = parse_webhook_event({"type": "export.bulk_image_moderation.success"})
+            event = parse_webhook_event(
+                {"type": "export.bulk_image_moderation.success"}
+            )
         assert type(event).__name__ == "AsyncBulkImageModerationEvent"
 
     def test_parse_export_channels_error(self):
@@ -1127,7 +1147,9 @@ CANONICAL_TEST_SECRET = "test_secret_do_not_use_in_production"
 def _fixture_event_dirs():
     if not FIXTURE_ROOT.exists():
         return []
-    return sorted(d for d in FIXTURE_ROOT.iterdir() if d.is_dir() and d.name != "_invalid")
+    return sorted(
+        d for d in FIXTURE_ROOT.iterdir() if d.is_dir() and d.name != "_invalid"
+    )
 
 
 def _read_bytes(p: Path) -> bytes:
@@ -1143,7 +1165,9 @@ class TestWebhookConformanceHappy:
     @pytest.fixture(autouse=True)
     def _skip_if_no_fixtures(self):
         if not FIXTURE_ROOT.exists():
-            pytest.skip("conformance fixtures not present (run generate.sh to populate)")
+            pytest.skip(
+                "conformance fixtures not present (run generate.sh to populate)"
+            )
 
     def test_parse_event(self, fixture_dir):
         body = _read_bytes(fixture_dir / "body.json")
@@ -1195,13 +1219,17 @@ class TestWebhookConformanceNegative:
     @pytest.fixture(autouse=True)
     def _skip_if_no_fixtures(self):
         if not FIXTURE_ROOT.exists():
-            pytest.skip("conformance fixtures not present (run generate.sh to populate)")
+            pytest.skip(
+                "conformance fixtures not present (run generate.sh to populate)"
+            )
 
     def test_tampered_body(self):
         body = _read_bytes(self._neg("tampered_body") / "body.json")
         sig = _read_str(self._neg("tampered_body") / "signature.txt")
         # Single-arm catch on the unified InvalidWebhookError; message identifies the mode.
-        with pytest.raises(InvalidWebhookError, match=InvalidWebhookError.SIGNATURE_MISMATCH):
+        with pytest.raises(
+            InvalidWebhookError, match=InvalidWebhookError.SIGNATURE_MISMATCH
+        ):
             verify_and_parse_webhook(body, sig, CANONICAL_TEST_SECRET)
 
     def test_unknown_type_returns_unknown_event(self):
@@ -1217,7 +1245,9 @@ class TestWebhookConformanceNegative:
 
     def test_malformed_json(self):
         body = _read_bytes(self._neg("malformed_json") / "body.json")
-        with pytest.raises(InvalidWebhookError, match="failed to parse webhook payload"):
+        with pytest.raises(
+            InvalidWebhookError, match="failed to parse webhook payload"
+        ):
             parse_event(body)
 
     def test_empty_body(self):
