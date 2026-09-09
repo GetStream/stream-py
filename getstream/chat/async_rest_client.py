@@ -243,6 +243,7 @@ class ChatRestClient(AsyncBaseClient):
         self,
         operation: str,
         filter: Dict[str, object],
+        hide_history_before: Optional[datetime] = None,
         custom_unset: Optional[List[str]] = None,
         members: Optional[List[ChannelBatchMemberRequest]] = None,
         custom_set: Optional[Dict[str, object]] = None,
@@ -251,6 +252,7 @@ class ChatRestClient(AsyncBaseClient):
         json = ChannelBatchUpdateRequest(
             operation=operation,
             filter=filter,
+            hide_history_before=hide_history_before,
             custom_unset=custom_unset,
             members=members,
             custom_set=custom_set,
@@ -262,9 +264,14 @@ class ChatRestClient(AsyncBaseClient):
 
     @telemetry.operation_name("getstream.api.chat.delete_channels")
     async def delete_channels(
-        self, cids: List[str], hard_delete: Optional[bool] = None
+        self,
+        cids: List[str],
+        hard_delete: Optional[bool] = None,
+        skip_truncate: Optional[bool] = None,
     ) -> StreamResponse[DeleteChannelsResponse]:
-        json = DeleteChannelsRequest(cids=cids, hard_delete=hard_delete).to_dict()
+        json = DeleteChannelsRequest(
+            cids=cids, hard_delete=hard_delete, skip_truncate=skip_truncate
+        ).to_dict()
         return await self.post(
             "/api/v2/chat/channels/delete", DeleteChannelsResponse, json=json
         )
@@ -350,9 +357,15 @@ class ChatRestClient(AsyncBaseClient):
 
     @telemetry.operation_name("getstream.api.chat.delete_channel")
     async def delete_channel(
-        self, type: str, id: str, hard_delete: Optional[bool] = None
+        self,
+        type: str,
+        id: str,
+        hard_delete: Optional[bool] = None,
+        skip_truncate: Optional[bool] = None,
     ) -> StreamResponse[DeleteChannelResponse]:
-        query_params = build_query_param(hard_delete=hard_delete)
+        query_params = build_query_param(
+            hard_delete=hard_delete, skip_truncate=skip_truncate
+        )
         path_params = {
             "type": type,
             "id": id,

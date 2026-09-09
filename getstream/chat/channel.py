@@ -23,10 +23,13 @@ class Channel:
 
     @attach_channel_cid
     def delete(
-        self, hard_delete: Optional[bool] = None
+        self, hard_delete: Optional[bool] = None, skip_truncate: Optional[bool] = None
     ) -> StreamResponse[DeleteChannelResponse]:
         response = self.client.delete_channel(
-            type=self.channel_type, id=self.channel_id, hard_delete=hard_delete
+            type=self.channel_type,
+            id=self.channel_id,
+            hard_delete=hard_delete,
+            skip_truncate=skip_truncate,
         )
         self._sync_from_response(response.data)
         return response
