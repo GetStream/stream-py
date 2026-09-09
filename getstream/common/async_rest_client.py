@@ -998,6 +998,8 @@ class CommonRestClient(AsyncBaseClient):
         ios: Optional[bool] = None,
         web: Optional[bool] = None,
         unity: Optional[bool] = None,
+        unity_desktop: Optional[bool] = None,
+        unity_console: Optional[bool] = None,
         endpoints: Optional[str] = None,
     ) -> StreamResponse[GetRateLimitsResponse]:
         query_params = build_query_param(
@@ -1006,6 +1008,8 @@ class CommonRestClient(AsyncBaseClient):
             ios=ios,
             web=web,
             unity=unity,
+            unity_desktop=unity_desktop,
+            unity_console=unity_console,
             endpoints=endpoints,
         )
         return await self.get(

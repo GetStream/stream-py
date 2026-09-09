@@ -606,6 +606,18 @@ class ActivityMarkEvent(DataClassJsonMixin):
 
 
 @dataclass
+class ActivityMarksConfig(DataClassJsonMixin):
+    # Whether to return per-activity read status on content feeds
+    track_read: bool | None = dc_field(
+        default=None, metadata=dc_config(field_name="track_read")
+    )
+    # Whether to return per-activity seen status on content feeds
+    track_seen: bool | None = dc_field(
+        default=None, metadata=dc_config(field_name="track_seen")
+    )
+
+
+@dataclass
 class ActivityPinResponse(DataClassJsonMixin):
     # When the pin was created
     created_at: datetime = dc_field(
@@ -672,7 +684,11 @@ class ActivityPinnedEvent(DataClassJsonMixin):
 
 @dataclass
 class ActivityProcessingConfig(DataClassJsonMixin):
-    # When set, the LLM activity processors may only write interest tags from this list. Tags are matched literally after lower-casing and trimming, so a generic vocabulary matches more often than in-house terms. Mutually exclusive with blocked_tags.
+    # When true, this feed group's allowed_tags is given to the model as a constrained vocabulary so it maps its own wording onto a configured tag instead of that output being discarded. Improves how often a tag is produced, at the cost of sending the list on every request. Scoped to this group's own list: leaving it false keeps this group's tags out of the request even when another feed group on the same activity sets it true. Requires allowed_tags. Off by default.
+    send_allowed_tags_to_ai: bool | None = dc_field(
+        default=None, metadata=dc_config(field_name="send_allowed_tags_to_ai")
+    )
+    # When set, the LLM activity processors may only write interest tags from this list. By default the model is not told about the list, so a tag is only written when the model happens to produce that exact word after lower-casing and trimming, which for any vocabulary is often not the case; set send_allowed_tags_to_ai to have the model choose from the list instead. Mutually exclusive with blocked_tags.
     allowed_tags: list[str] | None = dc_field(
         default=None, metadata=dc_config(field_name="allowed_tags")
     )
@@ -1179,6 +1195,9 @@ class ActivitySelectorConfig(DataClassJsonMixin):
     sort: "list[SortParamRequest] | None" = dc_field(
         default=None, metadata=dc_config(field_name="sort")
     )
+    feed_groups: "FeedGroupScope | None" = dc_field(
+        default=None, metadata=dc_config(field_name="feed_groups")
+    )
     # Filter for activity selection
     filter: dict[str, object] | None = dc_field(
         default=None, metadata=dc_config(field_name="filter")
@@ -1213,6 +1232,9 @@ class ActivitySelectorConfigResponse(DataClassJsonMixin):
     # Sort parameters for activity selection
     sort: "list[SortParamRequest] | None" = dc_field(
         default=None, metadata=dc_config(field_name="sort")
+    )
+    feed_groups: "FeedGroupScope | None" = dc_field(
+        default=None, metadata=dc_config(field_name="feed_groups")
     )
     # Filter for activity selection
     filter: dict[str, object] | None = dc_field(
@@ -2399,8 +2421,7 @@ class AsyncExportErrorEvent(DataClassJsonMixin):
     task_id: str = dc_field(metadata=dc_config(field_name="task_id"))
     custom: dict[str, object] = dc_field(metadata=dc_config(field_name="custom"))
     type: str = dc_field(
-        default="export.bulk_image_moderation.error",
-        metadata=dc_config(field_name="type"),
+        default="export.users.error", metadata=dc_config(field_name="type")
     )
     received_at: datetime | None = dc_field(
         default=None,
@@ -6118,6 +6139,16 @@ class ChannelBatchUpdateRequest(DataClassJsonMixin):
     operation: str = dc_field(metadata=dc_config(field_name="operation"))
     # Filter to apply to the query
     filter: dict[str, object] = dc_field(metadata=dc_config(field_name="filter"))
+    # Required with the `addMembersHideHistory` operation, and rejected with every other operation including `addMembers`. Hides each matched channel's history before this time from the members the operation adds. Members that already belong to a matched channel are never affected. Must be in RFC3339 format (e.g., "2024-01-01T10:00:00Z") and in the past.
+    hide_history_before: datetime | None = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="hide_history_before",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+    )
     # `updateData` only. Deletes these keys from each channel's existing custom object, leaving every other custom key untouched. Keys are dot-paths; deleting a key that does not exist is a no-op. Cannot be combined with `data.custom`
     custom_unset: list[str] | None = dc_field(
         default=None, metadata=dc_config(field_name="custom_unset")
@@ -9789,6 +9820,9 @@ class CreateFeedGroupRequest(DataClassJsonMixin):
     activity_filter: "ActivityFilterConfig | None" = dc_field(
         default=None, metadata=dc_config(field_name="activity_filter")
     )
+    activity_marks: "ActivityMarksConfig | None" = dc_field(
+        default=None, metadata=dc_config(field_name="activity_marks")
+    )
     activity_processing: "ActivityProcessingConfig | None" = dc_field(
         default=None, metadata=dc_config(field_name="activity_processing")
     )
@@ -10656,9 +10690,13 @@ class DeleteChannelResponse(DataClassJsonMixin):
 class DeleteChannelsRequest(DataClassJsonMixin):
     # All channels that should be deleted
     cids: list[str] = dc_field(metadata=dc_config(field_name="cids"))
-    # Specify if channels and all ressources should be hard deleted
+    # Server-side only. When true, the channels and all their resources are permanently deleted instead of soft-deleted.
     hard_delete: bool | None = dc_field(
         default=None, metadata=dc_config(field_name="hard_delete")
+    )
+    # Server-side only. When true, the soft delete preserves message history instead of hiding it, so a later recreation of any of these channel IDs restores the full history. Only supported for distinct channels. Cannot be combined with hard_delete.
+    skip_truncate: bool | None = dc_field(
+        default=None, metadata=dc_config(field_name="skip_truncate")
     )
 
 
@@ -12171,6 +12209,9 @@ class FeedGroupResponse(DataClassJsonMixin):
     activity_filter: "ActivityFilterConfig | None" = dc_field(
         default=None, metadata=dc_config(field_name="activity_filter")
     )
+    activity_marks: "ActivityMarksConfig | None" = dc_field(
+        default=None, metadata=dc_config(field_name="activity_marks")
+    )
     activity_processing: "ActivityProcessingConfig | None" = dc_field(
         default=None, metadata=dc_config(field_name="activity_processing")
     )
@@ -12225,6 +12266,18 @@ class FeedGroupRestoredEvent(DataClassJsonMixin):
             decoder=datetime_from_unix_ns,
             mm_field=fields.DateTime(format="iso"),
         ),
+    )
+
+
+@dataclass
+class FeedGroupScope(DataClassJsonMixin):
+    # Select activities from every feed group except these. An activity cross-posted to an excluded and a non-excluded group is still selected. Mutually exclusive with include
+    exclude: list[str] | None = dc_field(
+        default=None, metadata=dc_config(field_name="exclude")
+    )
+    # Select only activities that live in a feed belonging to one of these feed groups. Mutually exclusive with exclude
+    include: list[str] | None = dc_field(
+        default=None, metadata=dc_config(field_name="include")
     )
 
 
@@ -14673,6 +14726,14 @@ class GetFeedsRateLimitsResponse(DataClassJsonMixin):
     unity: "dict[str, LimitInfoResponse] | None" = dc_field(
         default=None, metadata=dc_config(field_name="unity")
     )
+    # Rate limits for Unity console platform (endpoint name -> limit info)
+    unity_console: "dict[str, LimitInfoResponse] | None" = dc_field(
+        default=None, metadata=dc_config(field_name="unity_console")
+    )
+    # Rate limits for Unity desktop platform (endpoint name -> limit info)
+    unity_desktop: "dict[str, LimitInfoResponse] | None" = dc_field(
+        default=None, metadata=dc_config(field_name="unity_desktop")
+    )
     # Rate limits for Web platform (endpoint name -> limit info)
     web: "dict[str, LimitInfoResponse] | None" = dc_field(
         default=None, metadata=dc_config(field_name="web")
@@ -14901,6 +14962,9 @@ class GetOrCreateFeedGroupRequest(DataClassJsonMixin):
     )
     activity_filter: "ActivityFilterConfig | None" = dc_field(
         default=None, metadata=dc_config(field_name="activity_filter")
+    )
+    activity_marks: "ActivityMarksConfig | None" = dc_field(
+        default=None, metadata=dc_config(field_name="activity_marks")
     )
     activity_processing: "ActivityProcessingConfig | None" = dc_field(
         default=None, metadata=dc_config(field_name="activity_processing")
@@ -15137,6 +15201,14 @@ class GetRateLimitsResponse(DataClassJsonMixin):
     # Map of endpoint rate limits for the Unity platform
     unity: "dict[str, LimitInfoResponse] | None" = dc_field(
         default=None, metadata=dc_config(field_name="unity")
+    )
+    # Map of endpoint rate limits for the Unity console platform
+    unity_console: "dict[str, LimitInfoResponse] | None" = dc_field(
+        default=None, metadata=dc_config(field_name="unity_console")
+    )
+    # Map of endpoint rate limits for the Unity desktop platform
+    unity_desktop: "dict[str, LimitInfoResponse] | None" = dc_field(
+        default=None, metadata=dc_config(field_name="unity_desktop")
     )
     # Map of endpoint rate limits for the web platform
     web: "dict[str, LimitInfoResponse] | None" = dc_field(
@@ -18659,6 +18731,9 @@ class ModerationDashboardPreferences(DataClassJsonMixin):
     disable_flagging_reviewed_entity: bool | None = dc_field(
         default=None, metadata=dc_config(field_name="disable_flagging_reviewed_entity")
     )
+    enforce_shadow_server_side: bool | None = dc_field(
+        default=None, metadata=dc_config(field_name="enforce_shadow_server_side")
+    )
     escalation_queue_enabled: bool | None = dc_field(
         default=None, metadata=dc_config(field_name="escalation_queue_enabled")
     )
@@ -19923,6 +19998,10 @@ class PagerResponse(DataClassJsonMixin):
 
 @dataclass
 class PaginationParams(DataClassJsonMixin):
+    id_gt: int | None = dc_field(default=None, metadata=dc_config(field_name="id_gt"))
+    id_gte: int | None = dc_field(default=None, metadata=dc_config(field_name="id_gte"))
+    id_lt: int | None = dc_field(default=None, metadata=dc_config(field_name="id_lt"))
+    id_lte: int | None = dc_field(default=None, metadata=dc_config(field_name="id_lte"))
     limit: int | None = dc_field(default=None, metadata=dc_config(field_name="limit"))
     offset: int | None = dc_field(default=None, metadata=dc_config(field_name="offset"))
 
@@ -21652,6 +21731,42 @@ class QueryBannedUsersPayload(DataClassJsonMixin):
     filter_conditions: dict[str, object] = dc_field(
         metadata=dc_config(field_name="filter_conditions")
     )
+    created_at_after: datetime | None = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="created_at_after",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+    )
+    created_at_after_or_equal: datetime | None = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="created_at_after_or_equal",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+    )
+    created_at_before: datetime | None = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="created_at_before",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+    )
+    created_at_before_or_equal: datetime | None = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="created_at_before_or_equal",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+    )
     # Whether to exclude expired bans or not
     exclude_expired_bans: bool | None = dc_field(
         default=None, metadata=dc_config(field_name="exclude_expired_bans")
@@ -22393,6 +22508,42 @@ class QueryFollowsResponse(DataClassJsonMixin):
 
 @dataclass
 class QueryFutureChannelBansPayload(DataClassJsonMixin):
+    created_at_after: datetime | None = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="created_at_after",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+    )
+    created_at_after_or_equal: datetime | None = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="created_at_after_or_equal",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+    )
+    created_at_before: datetime | None = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="created_at_before",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+    )
+    created_at_before_or_equal: datetime | None = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="created_at_before_or_equal",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+    )
     # Whether to exclude expired bans or not
     exclude_expired_bans: bool | None = dc_field(
         default=None, metadata=dc_config(field_name="exclude_expired_bans")
@@ -22466,11 +22617,59 @@ class QueryLabelResultsResponse(DataClassJsonMixin):
 @dataclass
 class QueryMembersPayload(DataClassJsonMixin):
     type: str = dc_field(metadata=dc_config(field_name="type"))
+    created_at_after: datetime | None = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="created_at_after",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+    )
+    created_at_after_or_equal: datetime | None = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="created_at_after_or_equal",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+    )
+    created_at_before: datetime | None = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="created_at_before",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+    )
+    created_at_before_or_equal: datetime | None = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="created_at_before_or_equal",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+    )
     id: str | None = dc_field(default=None, metadata=dc_config(field_name="id"))
     limit: int | None = dc_field(default=None, metadata=dc_config(field_name="limit"))
     offset: int | None = dc_field(default=None, metadata=dc_config(field_name="offset"))
     user_id: str | None = dc_field(
         default=None, metadata=dc_config(field_name="user_id")
+    )
+    user_id_gt: str | None = dc_field(
+        default=None, metadata=dc_config(field_name="user_id_gt")
+    )
+    user_id_gte: str | None = dc_field(
+        default=None, metadata=dc_config(field_name="user_id_gte")
+    )
+    user_id_lt: str | None = dc_field(
+        default=None, metadata=dc_config(field_name="user_id_lt")
+    )
+    user_id_lte: str | None = dc_field(
+        default=None, metadata=dc_config(field_name="user_id_lte")
     )
     members: "list[ChannelMemberRequest] | None" = dc_field(
         default=None, metadata=dc_config(field_name="members")
@@ -23125,6 +23324,10 @@ class QueryUsersPayload(DataClassJsonMixin):
     filter_conditions: dict[str, object] = dc_field(
         metadata=dc_config(field_name="filter_conditions")
     )
+    id_gt: str | None = dc_field(default=None, metadata=dc_config(field_name="id_gt"))
+    id_gte: str | None = dc_field(default=None, metadata=dc_config(field_name="id_gte"))
+    id_lt: str | None = dc_field(default=None, metadata=dc_config(field_name="id_lt"))
+    id_lte: str | None = dc_field(default=None, metadata=dc_config(field_name="id_lte"))
     include_deactivated_users: bool | None = dc_field(
         default=None, metadata=dc_config(field_name="include_deactivated_users")
     )
@@ -24371,6 +24574,10 @@ class ReviewQueueItemResponse(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         ),
     )
+    # Highest per-label confidence (0-1) any provider reported across the item's flags; absent when no flag carried one
+    confidence_score: float | None = dc_field(
+        default=None, metadata=dc_config(field_name="confidence_score")
+    )
     config_key: str | None = dc_field(
         default=None, metadata=dc_config(field_name="config_key")
     )
@@ -24695,6 +24902,9 @@ class RuleBuilderCondition(DataClassJsonMixin):
         default=None,
         metadata=dc_config(field_name="user_identical_content_count_params"),
     )
+    user_reaction_count_params: "UserReactionCountRuleParameters | None" = dc_field(
+        default=None, metadata=dc_config(field_name="user_reaction_count_params")
+    )
     user_role_params: "UserRoleParameters | None" = dc_field(
         default=None, metadata=dc_config(field_name="user_role_params")
     )
@@ -24749,6 +24959,9 @@ class RuleBuilderRule(DataClassJsonMixin):
 
 @dataclass
 class RunStats(DataClassJsonMixin):
+    activities_deleted: int | None = dc_field(
+        default=None, metadata=dc_config(field_name="activities_deleted")
+    )
     channels_deleted: int | None = dc_field(
         default=None, metadata=dc_config(field_name="channels_deleted")
     )
@@ -28824,6 +29037,9 @@ class UpdateFeedGroupRequest(DataClassJsonMixin):
     activity_filter: "ActivityFilterConfig | None" = dc_field(
         default=None, metadata=dc_config(field_name="activity_filter")
     )
+    activity_marks: "ActivityMarksConfig | None" = dc_field(
+        default=None, metadata=dc_config(field_name="activity_marks")
+    )
     activity_processing: "ActivityProcessingConfig | None" = dc_field(
         default=None, metadata=dc_config(field_name="activity_processing")
     )
@@ -29492,6 +29708,8 @@ class UpdateUsersRequest(DataClassJsonMixin):
 class UpdateUsersResponse(DataClassJsonMixin):
     # Duration of the request in milliseconds
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    # Deprecated: always empty. Removing a user from a team no longer deletes their memberships in that team's channels, so there is no task to poll
+    # Deprecated
     membership_deletion_task_id: str = dc_field(
         metadata=dc_config(field_name="membership_deletion_task_id")
     )
@@ -30630,6 +30848,16 @@ class UserRatingReportResponse(DataClassJsonMixin):
 
 
 @dataclass
+class UserReactionCountRuleParameters(DataClassJsonMixin):
+    threshold: int | None = dc_field(
+        default=None, metadata=dc_config(field_name="threshold")
+    )
+    time_window: str | None = dc_field(
+        default=None, metadata=dc_config(field_name="time_window")
+    )
+
+
+@dataclass
 class UserReactivatedEvent(DataClassJsonMixin):
     # Date/time of creation
     created_at: datetime = dc_field(
@@ -31462,6 +31690,24 @@ class WebhookFailoverConfig(DataClassJsonMixin):
     )
     gcs_path: str | None = dc_field(
         default=None, metadata=dc_config(field_name="gcs_path")
+    )
+    s3_api_key: str | None = dc_field(
+        default=None, metadata=dc_config(field_name="s3_api_key")
+    )
+    s3_bucket: str | None = dc_field(
+        default=None, metadata=dc_config(field_name="s3_bucket")
+    )
+    s3_path: str | None = dc_field(
+        default=None, metadata=dc_config(field_name="s3_path")
+    )
+    s3_region: str | None = dc_field(
+        default=None, metadata=dc_config(field_name="s3_region")
+    )
+    s3_role_arn: str | None = dc_field(
+        default=None, metadata=dc_config(field_name="s3_role_arn")
+    )
+    s3_secret: str | None = dc_field(
+        default=None, metadata=dc_config(field_name="s3_secret")
     )
     type: str | None = dc_field(default=None, metadata=dc_config(field_name="type"))
 
