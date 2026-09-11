@@ -269,10 +269,11 @@ Releases are driven by [release-please](https://github.com/googleapis/release-pl
   `uv.lock` and `CHANGELOG.md`. It is opened by `github-actions[bot]`, so approve it and
   run its held checks like any other PR.
 - Merging the Release PR runs lint, type-check and the unit and integration matrix on
-  the commit that is about to be tagged. Only if that is green does the workflow create
-  the tag and the GitHub Release and publish to PyPI via Trusted Publishing (OIDC). The
-  order matters: a tag and a GitHub Release cannot be withdrawn, a failed publish can be
-  retried.
+  that merge commit, which is the commit the tag will point at. Only if that is green
+  does the workflow create the tag and the GitHub Release and publish to PyPI via
+  Trusted Publishing (OIDC). The order matters: a tag and a GitHub Release cannot be
+  withdrawn, a failed publish can be retried. If a later dispatch would tag a commit
+  this run did not test, it fails rather than tagging it.
 
 To retry a publish that failed after the release was tagged, use "Re-run failed jobs" on
 that workflow run. Once GitHub has retired the run, dispatch `Release` from `main` with

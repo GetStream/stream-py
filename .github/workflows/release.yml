@@ -81,7 +81,6 @@ jobs:
     uses: ./.github/workflows/run_tests.yml
     with:
       marker: 'not integration'
-      ref: ${{ needs.detect.outputs.sha }}
     secrets: inherit
 
   test-integration:
@@ -91,7 +90,6 @@ jobs:
     uses: ./.github/workflows/run_tests.yml
     with:
       marker: 'integration'
-      ref: ${{ needs.detect.outputs.sha }}
     secrets: inherit
 
   # Irreversible half.
@@ -109,6 +107,23 @@ jobs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
+      # The suite ran against this workflow's own commit, while the tag lands on the
+      # merged Release PR's merge commit. They are the same commit on the path that
+      # gets here, a push of that merge. They diverge on a dispatch after the branch
+      # has moved, which would tag a tree nothing tested, so refuse instead. Recovery
+      # is "Re-run failed jobs" on the run for the merge itself.
+      - name: Refuse to tag a commit the suite did not run on
+        env:
+          TESTED: ${{ github.sha }}
+          PENDING: ${{ needs.detect.outputs.sha }}
+        run: |
+          if [ "$TESTED" != "$PENDING" ]; then
+            echo "::error::The pending release is tagged at $PENDING but this run tested $TESTED."
+            echo "::error::Re-run the workflow run for $PENDING instead of dispatching from the branch tip."
+            exit 1
+          fi
+          echo "Tagging $PENDING, which is the commit the suite ran on."
+
       - uses: googleapis/release-please-action@v4
         id: release
         with:
