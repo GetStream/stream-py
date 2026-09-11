@@ -6,6 +6,11 @@ on:
         description: 'pytest -m expression (e.g., `not integration` or `integration`)'
         required: true
         type: string
+      ref:
+        description: 'Git ref to check out. Empty means the default for the triggering event.'
+        required: false
+        type: string
+        default: ''
     secrets: { }
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.marker }}
@@ -25,6 +30,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref }}
       - name: Install dependencies
         uses: ./.github/actions/python-uv-setup
       - name: Run linter
@@ -36,6 +43,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref }}
       - name: Install dependencies
         uses: ./.github/actions/python-uv-setup
       - name: Run type checker
@@ -57,6 +66,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref }}
       - name: Install dependencies
         uses: ./.github/actions/python-uv-setup
         with:
@@ -83,6 +94,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref }}
       - name: Install dependencies
         uses: ./.github/actions/python-uv-setup
         with:

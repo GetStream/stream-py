@@ -6,68 +6,148 @@ on:
       - main
       - '*.x'
   workflow_dispatch:
+    inputs:
+      publish_tag:
+        description: 'Existing tag to (re)publish to PyPI, e.g. v6.1.1. Leave empty for a normal release run.'
+        required: false
+        default: ''
 
 permissions:
-  contents: write
-  issues: write
-  pull-requests: write
+  contents: read
 
 concurrency:
   group: release-${{ github.ref_name }}
   cancel-in-progress: false
 
 jobs:
-  release:
-    name: 🚀 Release
+  # Reversible half: keep the Release PR current. Never gated.
+  release-pr:
+    name: Release PR
+    if: >-
+      (github.event_name == 'push' || inputs.publish_tag == '') &&
+      (github.ref_name == 'main' || endsWith(github.ref_name, '.x'))
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+          target-branch: ${{ github.ref_name }}
+          skip-github-release: true
+
+  # Tagging and the GitHub Release are irreversible, so the suite has to run before
+  # them, which means knowing a release is pending before the suite starts. The tag
+  # lands on the merged Release PR's merge commit, not on this branch's tip, so that
+  # commit is also what gets tested.
+  detect:
+    name: Detect pending release
+    if: >-
+      (github.event_name == 'push' || inputs.publish_tag == '') &&
+      (github.ref_name == 'main' || endsWith(github.ref_name, '.x'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      pending: ${{ steps.find.outputs.pending }}
+      sha: ${{ steps.find.outputs.sha }}
+    steps:
+      - name: Find a merged Release PR waiting to be tagged
+        id: find
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha="$(gh api "repos/${GITHUB_REPOSITORY}/pulls?state=closed&base=${GITHUB_REF_NAME}&sort=updated&direction=desc&per_page=50" \
+            --jq '[.[] | select(.merged_at != null and ([.labels[].name] | index("autorelease: pending")))] | .[0].merge_commit_sha // empty')"
+          if [ -z "$sha" ]; then
+            echo "No pending release."
+            echo "pending=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Pending release will be tagged at $sha."
+          echo "pending=true" >> "$GITHUB_OUTPUT"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+  test-unit:
+    name: Test (unit)
+    needs: detect
+    if: needs.detect.outputs.pending == 'true'
+    uses: ./.github/workflows/run_tests.yml
+    with:
+      marker: 'not integration'
+      ref: ${{ needs.detect.outputs.sha }}
+    secrets: inherit
+
+  test-integration:
+    name: Test (integration)
+    needs: detect
+    if: needs.detect.outputs.pending == 'true'
+    uses: ./.github/workflows/run_tests.yml
+    with:
+      marker: 'integration'
+      ref: ${{ needs.detect.outputs.sha }}
+    secrets: inherit
+
+  # Irreversible half.
+  release:
+    name: 🚀 Tag and release
+    needs: [detect, test-unit, test-integration]
+    if: needs.detect.outputs.pending == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
-      version: ${{ steps.release.outputs.version }}
     steps:
-      # Keeps the Release PR current; when a merged Release PR is pending, creates the tag
-      # and the GitHub Release at its merge commit.
       - uses: googleapis/release-please-action@v4
         id: release
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
           target-branch: ${{ github.ref_name }}
+          skip-github-pull-request: true
 
-  # The GitHub Release above is created with GITHUB_TOKEN, which never starts another
-  # workflow run, so publishing chains here instead of on a release event.
-  test-unit:
-    name: Test (unit)
-    needs: release
-    if: needs.release.outputs.release_created == 'true'
-    uses: ./.github/workflows/run_tests.yml
-    with:
-      marker: 'not integration'
-    secrets: inherit
-
-  test-integration:
-    name: Test (integration)
-    needs: release
-    if: needs.release.outputs.release_created == 'true'
-    uses: ./.github/workflows/run_tests.yml
-    with:
-      marker: 'integration'
-    secrets: inherit
-
+  # Chained rather than triggered on the release event, because a GitHub Release
+  # created with GITHUB_TOKEN starts no new workflow run. Also reachable on its own
+  # through workflow_dispatch with publish_tag, which is the recovery path once
+  # GitHub has retired the original run and "Re-run failed jobs" is gone.
   publish:
     name: 📦 Publish to PyPI
-    needs: [release, test-unit, test-integration]
-    if: needs.release.outputs.release_created == 'true'
+    needs: release
+    if: >-
+      !cancelled() &&
+      (inputs.publish_tag != '' || needs.release.outputs.release_created == 'true')
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     # PyPI Trusted Publishing is bound to this workflow file name and this environment.
     environment: pypi
     permissions:
       contents: read
       id-token: write
     steps:
+      - name: Resolve tag
+        id: target
+        env:
+          PUBLISH_TAG: ${{ inputs.publish_tag }}
+          RELEASE_TAG: ${{ needs.release.outputs.tag_name }}
+        run: |
+          tag="${PUBLISH_TAG:-$RELEASE_TAG}"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+
       - uses: actions/checkout@v5
         with:
-          ref: ${{ needs.release.outputs.tag_name }}
+          ref: ${{ steps.target.outputs.tag }}
           # uv build and uv publish execute project and dependency code, and nothing
           # here writes to the repository, so do not leave GITHUB_TOKEN in .git/config.
           persist-credentials: false
@@ -75,7 +155,7 @@ jobs:
       - uses: ./.github/actions/python-uv-setup
 
       - name: Build distributions
-        run: rm -rf dist && uv build
+        run: uv build
 
       - name: Publish to PyPI (Trusted Publishing)
         run: uv publish
@@ -84,5 +164,5 @@ jobs:
         env:
           UV_NO_SOURCES: "1"
         run: |
-          uv pip install "getstream==${{ needs.release.outputs.version }}" || \
+          uv pip install "getstream==${{ steps.target.outputs.version }}" || \
             echo "WARNING: pip install verification failed (PyPI index may need a moment to propagate)"

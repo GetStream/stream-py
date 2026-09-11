@@ -1,7 +1,10 @@
 name: CI (unit)
 on:
+  # main and *.x are excluded: release.yml runs the same reusable workflow on those
+  # branches as the gate before tagging, and both firing on one push would double the
+  # live legs against the Stream app several SDK repos share.
   push:
-    branches: [ "**" ]
+    branches-ignore: [ main, "*.x" ]
   pull_request:
     branches: [ "**" ]
 
