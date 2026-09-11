@@ -257,20 +257,13 @@ uv run pytest tests/test_video.py::test_specific_function -v
 
 ## Releases
 
-Releases use two paths:
+Releases are driven by [release-please](https://github.com/googleapis/release-please).
 
-- **Default**: automatic release when a PR is merged to `main`. The PR title (and body) drives the semver bump.
-- **Fallback**: manual release via the `Release` workflow's `workflow_dispatch` (admin use). Select a `version_bump` (`patch`/`minor`/`major`). `use_current_version=true` skips the bump and publishes whatever is already in `pyproject.toml`.
+- Merge PRs to `main` with conventional-commit titles. The PR title becomes the squash commit subject and decides the next version: `feat:` is a minor, `fix:` and `perf:` are a patch, `feat!:` or `<type>(scope)!:` is a major. Other types (`chore`, `ci`, `docs`, `test`, `refactor`) ship nothing.
+- release-please keeps a Release PR open with the version bump in `pyproject.toml`, `uv.lock` and `CHANGELOG.md`. It is opened by `github-actions[bot]`, so approve it and run its held checks like any other PR.
+- Merging the Release PR creates the tag and the GitHub Release, runs lint, type-check and the unit and integration matrix on the tagged commit, then publishes to PyPI via Trusted Publishing (OIDC). A failed publish is retried with "Re-run failed jobs" on that workflow run.
 
-Automatic semver bump rules:
-
-- `feat:` -> minor
-- `fix:` (or `bug:`) -> patch
-- `feat!:`, `<type>(scope)!:`, or `BREAKING CHANGE` in the PR body/title -> major
-
-PRs with any other prefix do not trigger a release.
-
-The release pipeline runs lint, type-check, and the full test matrix (unit + integration, across all supported Python versions) on the merged commit before publishing to PyPI via Trusted Publishing (OIDC). Each step in the publish job is idempotent: a failed run can be re-dispatched from the Actions UI.
+To force a specific version, type `Release-As: X.Y.Z` in the commit message box of the squash dialog when merging a PR; the PR description is not copied there. To hotfix while `main` carries unreleased work, branch `N.x` from the last tag, cherry-pick the fix, and merge the Release PR that release-please opens against that branch.
 
 ## License
 
