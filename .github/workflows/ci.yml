@@ -1,10 +1,9 @@
 name: CI (unit)
+# pull_request only. A push trigger alongside it ran the whole suite twice on the same
+# SHA, and the duplicate legs raced each other against the Stream app several SDK repos
+# share. main and *.x are covered by release.yml, which runs this same reusable workflow
+# as the gate before tagging.
 on:
-  # main and *.x are excluded: release.yml runs the same reusable workflow on those
-  # branches as the gate before tagging, and both firing on one push would double the
-  # live legs against the Stream app several SDK repos share.
-  push:
-    branches-ignore: [ main, "*.x" ]
   pull_request:
     branches: [ "**" ]
 
