@@ -17,6 +17,7 @@ from getstream.models import (
     QueryFutureChannelBansPayload,
     SortParamRequest,
 )
+from tests.base import cleanup_channel_types, retry_on_transient_error
 
 
 def test_get_app_settings(client: Stream):
@@ -389,6 +390,8 @@ def test_query_future_channel_bans(client: Stream, random_users):
             pass
 
 
+@retry_on_transient_error()
+@cleanup_channel_types
 def test_create_channel_type(client: Stream):
     """Create a channel type with custom settings."""
     type_name = f"testtype{uuid.uuid4().hex[:8]}"
@@ -413,6 +416,8 @@ def test_create_channel_type(client: Stream):
             pass
 
 
+@retry_on_transient_error()
+@cleanup_channel_types
 def test_update_channel_type_mark_messages_pending(client: Stream):
     """Update a channel type with mark_messages_pending=True."""
     type_name = f"testtype{uuid.uuid4().hex[:8]}"
@@ -445,6 +450,8 @@ def test_update_channel_type_mark_messages_pending(client: Stream):
             pass
 
 
+@retry_on_transient_error()
+@cleanup_channel_types
 def test_update_channel_type_push_notifications(client: Stream):
     """Update a channel type with push_notifications=False."""
     type_name = f"testtype{uuid.uuid4().hex[:8]}"
@@ -477,6 +484,8 @@ def test_update_channel_type_push_notifications(client: Stream):
             pass
 
 
+@retry_on_transient_error()
+@cleanup_channel_types
 def test_delete_channel_type(client: Stream):
     """Create and delete a channel type with retry."""
     type_name = f"testdeltype{uuid.uuid4().hex[:8]}"
@@ -540,6 +549,7 @@ def test_get_rate_limits_specific_endpoints(client: Stream):
         assert info.remaining >= 0
 
 
+@retry_on_transient_error()
 def test_event_hooks_sqs_sns(client: Stream):
     """Test setting SQS, SNS, and pending_message event hooks."""
     # Save original hooks to restore later
