@@ -26,7 +26,15 @@ jobs:
   release-pr:
     name: Release PR
     needs: detect
-    if: needs.detect.outputs.pending != 'true'
+    # No status function of its own would mean an implicit success(), so one transient
+    # gh api error inside detect would stop the reversible half too. Its own event and
+    # ref guard still has to be repeated here, because detect is skipped on the
+    # publish_tag path and this job must skip with it.
+    if: >-
+      !cancelled() &&
+      (github.event_name == 'push' || inputs.publish_tag == '') &&
+      (github.ref_name == 'main' || endsWith(github.ref_name, '.x')) &&
+      needs.detect.outputs.pending != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -56,6 +64,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
+      issues: read
     outputs:
       pending: ${{ steps.find.outputs.pending }}
       ready: ${{ steps.find.outputs.ready }}
@@ -70,20 +79,30 @@ jobs:
           pending=false
           ready=false
 
-          # Query the label directly. Listing closed PRs and filtering client-side loses
-          # a release that has slipped past the first page, which reads as "nothing to
-          # release" and passes. Filter before picking, too: a hotfix branch can hold
-          # its own pending release, and taking the newest label match would drop this
-          # branch's release on every run until the other one clears.
-          nums="$(gh api "repos/${GITHUB_REPOSITORY}/issues" \
-            -X GET -f state=closed -f labels='autorelease: pending' -f per_page=20 \
-            --jq '.[] | select(.pull_request != null) | .number')"
+          # Query the label directly, and page: release-please applies the label when it
+          # opens the Release PR, not when it merges, so every Release PR closed without
+          # merging keeps it forever and holds a slot in this listing. One page would
+          # eventually stop containing the genuinely pending release, which reads as
+          # "nothing to release" and passes. merged_at comes back in the listing, so
+          # filtering on it here keeps the per-PR lookups below to real candidates.
+          nums="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/issues" \
+            -X GET -f state=closed -f labels='autorelease: pending' -f per_page=100 \
+            --jq '.[] | select(.pull_request.merged_at != null) | .number')"
 
+          # The base branch is not in that listing, so each candidate still needs a
+          # lookup: a hotfix branch can hold its own pending release, and taking the
+          # newest label match would drop this branch's release until the other clears.
           num=""
           sha=""
           for n in $nums; do
-            sha="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${n}" \
-              --jq 'select(.merged_at != null and .base.ref == env.BASE) | .merge_commit_sha // empty')"
+            # Under `bash -e` an unguarded assignment from a non-2xx would abort the
+            # step, which would fail detect and skip release-pr with it.
+            if ! sha="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${n}" \
+              --jq 'select(.base.ref == env.BASE) | .merge_commit_sha // empty')"; then
+              echo "::warning::Could not read PR #${n}; skipping it."
+              sha=""
+              continue
+            fi
             if [ -n "$sha" ]; then
               num="$n"
               break
@@ -98,6 +117,13 @@ jobs:
             # would redden every later push, so stand down and say why.
             pending=true
             echo "::warning::Release PR #${num} is still pending at ${sha}, which is not this run's commit ${HEAD_SHA}. Re-run the workflow run for ${sha} to finish that release."
+            {
+              echo "### Release stuck"
+              echo
+              echo "Release PR #${num} merged at \`${sha}\` and was never tagged, so no Release PR will be opened or refreshed until it clears."
+              echo
+              echo "Re-run the \`Release\` run for \`${sha}\`. If that commit is genuinely broken, remove the \`autorelease: pending\` label from #${num} by hand and release forward."
+            } >> "$GITHUB_STEP_SUMMARY"
           else
             pending=true
             ready=true
