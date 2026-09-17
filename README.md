@@ -272,8 +272,15 @@ Releases are driven by [release-please](https://github.com/googleapis/release-pl
   that merge commit, which is the commit the tag will point at. Only if that is green
   does the workflow create the tag and the GitHub Release and publish to PyPI via
   Trusted Publishing (OIDC). The order matters: a tag and a GitHub Release cannot be
-  withdrawn, a failed publish can be retried. If a later dispatch would tag a commit
-  this run did not test, it fails rather than tagging it.
+  withdrawn, a failed publish can be retried. If the commit waiting to be tagged is not
+  the one this run tested, the workflow stands down instead of tagging it, and says so in
+  the run summary.
+
+While a merged Release PR is waiting to be tagged, no new Release PR is opened or
+refreshed, so that release-please has a release commit to stop its walk at. If the suite
+failed on that merge commit, use "Re-run failed jobs" on its `Release` run. If the commit
+is genuinely broken, remove the `autorelease: pending` label from the merged Release PR
+by hand, then release forward; nothing clears that state automatically.
 
 To retry a publish that failed after the release was tagged, use "Re-run failed jobs" on
 that workflow run. Once GitHub has retired the run, dispatch `Release` from `main` with
