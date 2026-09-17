@@ -145,7 +145,7 @@ jobs:
                 echo
                 echo "Re-run the \`Release\` run for \`${sha}\`. If that commit is genuinely broken, remove the \`autorelease: pending\` label here by hand and release forward."
               } > "${RUNNER_TEMP}/release-stuck.md"
-              gh pr comment "$num" --body-file "${RUNNER_TEMP}/release-stuck.md" \
+              gh pr comment "$num" --repo "$GITHUB_REPOSITORY" --body-file "${RUNNER_TEMP}/release-stuck.md" \
                 || echo "::warning::Could not comment on #${num}."
             fi
           else
