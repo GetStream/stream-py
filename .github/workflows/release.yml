@@ -26,15 +26,10 @@ jobs:
   release-pr:
     name: Release PR
     needs: detect
-    # No status function of its own would mean an implicit success(), so one transient
-    # gh api error inside detect would stop the reversible half too. Its own event and
-    # ref guard still has to be repeated here, because detect is skipped on the
-    # publish_tag path and this job must skip with it.
-    if: >-
-      !cancelled() &&
-      (github.event_name == 'push' || inputs.publish_tag == '') &&
-      (github.ref_name == 'main' || endsWith(github.ref_name, '.x')) &&
-      needs.detect.outputs.pending != 'true'
+    # Gate on the explicit value. If detect fails or is skipped the output is empty, and
+    # anything short of a definite "nothing pending" has to hold this job back, or it
+    # proposes a second Release PR on top of one that may still be untagged.
+    if: needs.detect.outputs.pending == 'false'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -63,7 +58,9 @@ jobs:
     timeout-minutes: 5
     permissions:
       contents: read
-      pull-requests: read
+      # write, not read: a stuck release is announced on its own Release PR, because
+      # nothing else reaches a person without them opening the run first.
+      pull-requests: write
       issues: read
     outputs:
       pending: ${{ steps.find.outputs.pending }}
@@ -78,6 +75,7 @@ jobs:
         run: |
           pending=false
           ready=false
+          lookup_failed=false
 
           # Query the label directly, and page: release-please applies the label when it
           # opens the Release PR, not when it merges, so every Release PR closed without
@@ -85,9 +83,15 @@ jobs:
           # eventually stop containing the genuinely pending release, which reads as
           # "nothing to release" and passes. merged_at comes back in the listing, so
           # filtering on it here keeps the per-PR lookups below to real candidates.
-          nums="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/issues" \
+          # --paginate makes this N requests, so guard it too, and remember that a failure
+          # here means "unknown", never "nothing to release".
+          if ! nums="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/issues" \
             -X GET -f state=closed -f labels='autorelease: pending' -f per_page=100 \
-            --jq '.[] | select(.pull_request.merged_at != null) | .number')"
+            --jq '.[] | select(.pull_request.merged_at != null) | .number')"; then
+            echo "::warning::Could not list pending releases."
+            nums=""
+            lookup_failed=true
+          fi
 
           # The base branch is not in that listing, so each candidate still needs a
           # lookup: a hotfix branch can hold its own pending release, and taking the
@@ -98,9 +102,10 @@ jobs:
             # Under `bash -e` an unguarded assignment from a non-2xx would abort the
             # step, which would fail detect and skip release-pr with it.
             if ! sha="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${n}" \
-              --jq 'select(.base.ref == env.BASE) | .merge_commit_sha // empty')"; then
+              --jq 'select(.merged_at != null and .base.ref == env.BASE) | .merge_commit_sha // empty')"; then
               echo "::warning::Could not read PR #${n}; skipping it."
               sha=""
+              lookup_failed=true
               continue
             fi
             if [ -n "$sha" ]; then
@@ -109,7 +114,12 @@ jobs:
             fi
           done
 
-          if [ -z "$sha" ]; then
+          if [ -z "$sha" ] && [ "$lookup_failed" = true ]; then
+            # Unknown is not the same as nothing. Releasing on a guess is how a second
+            # Release PR lands on top of one that was never tagged.
+            pending=true
+            echo "::warning::Could not determine whether a release is pending on ${BASE}; standing down."
+          elif [ -z "$sha" ]; then
             echo "No pending release on ${BASE}."
           elif [ "$sha" != "$HEAD_SHA" ]; then
             # Reached when an earlier release run failed after the Release PR merged.
@@ -124,6 +134,20 @@ jobs:
               echo
               echo "Re-run the \`Release\` run for \`${sha}\`. If that commit is genuinely broken, remove the \`autorelease: pending\` label from #${num} by hand and release forward."
             } >> "$GITHUB_STEP_SUMMARY"
+            # A warning annotation and a step summary are both only visible to someone who
+            # already opened the run. Tell the Release PR's subscribers once per stuck sha.
+            marker="<!-- release-stuck:${sha} -->"
+            seen="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${num}/comments" --paginate --jq '.[].body' || echo "")"
+            if ! printf '%s' "$seen" | grep -qF "$marker"; then
+              {
+                echo "$marker"
+                echo "This release is stuck: #${num} merged at \`${sha}\` and was never tagged, so no Release PR is opened or refreshed until it clears."
+                echo
+                echo "Re-run the \`Release\` run for \`${sha}\`. If that commit is genuinely broken, remove the \`autorelease: pending\` label here by hand and release forward."
+              } > "${RUNNER_TEMP}/release-stuck.md"
+              gh pr comment "$num" --repo "$GITHUB_REPOSITORY" --body-file "${RUNNER_TEMP}/release-stuck.md" \
+                || echo "::warning::Could not comment on #${num}."
+            fi
           else
             pending=true
             ready=true
