@@ -18,12 +18,19 @@ env:
 permissions:
   contents: read
 
-# Release PRs only bump the version and rewrite the changelog, and every commit in one
-# already passed this suite on its own PR. The guard sits on each job, not on the caller,
-# so a skipped job still reports success to a required status check.
+# Every job below skips on a Release PR. release-please only bumps the version and rewrites
+# the changelog, and every source commit in one already passed this suite on the PR it came
+# from. The guard sits on each job rather than on the calling job in ci.yml, because a job
+# skipped by `if:` reports success and satisfies a required status check, while a reusable
+# workflow that is never called produces no check at all. It tests the author as well as the
+# branch name: on its own, the name would let any PR, a fork's included, call its branch
+# release-please--x and skip every required check, which branch protection counts as met.
 jobs:
   ruff:
-    if: ${{ !startsWith(github.head_ref, 'release-please--') }}
+    if: >-
+      ${{ !(github.event.pull_request.user.login == 'github-actions[bot]'
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && startsWith(github.head_ref, 'release-please--')) }}
     name: Ruff
     runs-on: ubuntu-latest
     steps:
@@ -35,7 +42,10 @@ jobs:
         run: make lint
 
   typecheck:
-    if: ${{ !startsWith(github.head_ref, 'release-please--') }}
+    if: >-
+      ${{ !(github.event.pull_request.user.login == 'github-actions[bot]'
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && startsWith(github.head_ref, 'release-please--')) }}
     name: Type Check (ty)
     runs-on: ubuntu-latest
     steps:
@@ -50,7 +60,10 @@ jobs:
   # Uses STREAM_CHAT_* credentials which do NOT have video enabled.
   # Video paths and manual test paths are defined in the Makefile.
   test-non-video:
-    if: ${{ !startsWith(github.head_ref, 'release-please--') }}
+    if: >-
+      ${{ !(github.event.pull_request.user.login == 'github-actions[bot]'
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && startsWith(github.head_ref, 'release-please--')) }}
     name: Non-video tests (${{ matrix.python-version }})
     environment:
       name: ci
@@ -77,7 +90,10 @@ jobs:
   # ── Video tests (video-enabled credentials) ─────────────────────
   # Uses STREAM_* credentials which have video enabled.
   test-video:
-    if: ${{ !startsWith(github.head_ref, 'release-please--') }}
+    if: >-
+      ${{ !(github.event.pull_request.user.login == 'github-actions[bot]'
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && startsWith(github.head_ref, 'release-please--')) }}
     name: Video tests (${{ matrix.python-version }})
     environment:
       name: ci
