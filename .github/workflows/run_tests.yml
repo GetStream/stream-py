@@ -25,10 +25,14 @@ permissions:
 # workflow that is never called produces no check at all. It tests the author as well as the
 # branch name: on its own, the name would let any PR, a fork's included, call its branch
 # release-please--x and skip every required check, which branch protection counts as met.
+# github.actor is the third clause, and it is the pusher rather than the PR author, so a
+# human commit pushed onto the Release PR to fix a conflict or a changelog entry is tested
+# like any other commit instead of riding the skip into main untested.
 jobs:
   ruff:
     if: >-
-      ${{ !(github.event.pull_request.user.login == 'github-actions[bot]'
+      ${{ !(github.actor == 'github-actions[bot]'
+      && github.event.pull_request.user.login == 'github-actions[bot]'
       && github.event.pull_request.head.repo.full_name == github.repository
       && startsWith(github.head_ref, 'release-please--')) }}
     name: Ruff
@@ -43,7 +47,8 @@ jobs:
 
   typecheck:
     if: >-
-      ${{ !(github.event.pull_request.user.login == 'github-actions[bot]'
+      ${{ !(github.actor == 'github-actions[bot]'
+      && github.event.pull_request.user.login == 'github-actions[bot]'
       && github.event.pull_request.head.repo.full_name == github.repository
       && startsWith(github.head_ref, 'release-please--')) }}
     name: Type Check (ty)
@@ -61,7 +66,8 @@ jobs:
   # Video paths and manual test paths are defined in the Makefile.
   test-non-video:
     if: >-
-      ${{ !(github.event.pull_request.user.login == 'github-actions[bot]'
+      ${{ !(github.actor == 'github-actions[bot]'
+      && github.event.pull_request.user.login == 'github-actions[bot]'
       && github.event.pull_request.head.repo.full_name == github.repository
       && startsWith(github.head_ref, 'release-please--')) }}
     name: Non-video tests (${{ matrix.python-version }})
@@ -91,7 +97,8 @@ jobs:
   # Uses STREAM_* credentials which have video enabled.
   test-video:
     if: >-
-      ${{ !(github.event.pull_request.user.login == 'github-actions[bot]'
+      ${{ !(github.actor == 'github-actions[bot]'
+      && github.event.pull_request.user.login == 'github-actions[bot]'
       && github.event.pull_request.head.repo.full_name == github.repository
       && startsWith(github.head_ref, 'release-please--')) }}
     name: Video tests (${{ matrix.python-version }})
