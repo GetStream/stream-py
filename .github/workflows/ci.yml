@@ -3,6 +3,11 @@ name: CI (unit)
 # SHA, and the duplicate legs raced each other against the Stream app several SDK repos
 # share. main and *.x are covered by release.yml, which runs this same reusable workflow
 # as the gate before tagging.
+#
+# Only the unit tests gate a pull request. The integration suite runs daily in
+# scheduled_test.yml and again in release.yml before a tag, and is never a merge gate:
+# it exercises a live app five SDK repos share, where another repo's run or a backend
+# regression reddens it with nothing wrong in this one.
 on:
   pull_request:
     branches: [ "**" ]
@@ -17,6 +22,26 @@ jobs:
     with:
       marker: 'not integration'
     secrets: inherit
+
+  # The one required status check on main. It carries no matrix, so it always publishes
+  # under this exact name: a matrix job skipped by `if:` publishes a single check run with
+  # the template unexpanded, which means per-leg contexts can never be satisfied on a
+  # Release PR. `always()` plus accepting `skipped` is what lets a Release PR through in
+  # seconds while a feature PR still has to go green.
+  tests-passed:
+    name: 🧪 Tests
+    needs: unit
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the unit suite
+        env:
+          RESULT: ${{ needs.unit.result }}
+        run: |
+          case "$RESULT" in
+            success|skipped) echo "unit suite: $RESULT" ;;
+            *) echo "::error::unit suite reported $RESULT"; exit 1 ;;
+          esac
 
 # Cancel in-flight runs for the same branch/PR when new commits arrive
 concurrency:

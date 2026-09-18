@@ -36,6 +36,22 @@ make test-jaeger       # requires local Jaeger (docker run ... jaegertracing/all
 make test-prometheus   # requires getstream[telemetry] deps
 ```
 
+### What CI runs
+
+| Trigger | What runs | Gates a merge? |
+| --- | --- | --- |
+| Pull request | ruff, ty, unit tests on five Python versions | yes, `🧪 Tests` is the required check |
+| Daily at 09:00 UTC | the same jobs with `-m integration` | no |
+| Push to `main` with a release pending | unit, then integration | no merge, but both gate the tag |
+
+Integration never gates a pull request. It runs against a live Stream app that five SDK
+repos share, so another repo's run or a backend regression can redden it with nothing
+wrong here. Fix a red daily run, do not route around it.
+
+A Release PR skips the suite: every job in `run_tests.yml` is guarded, `🧪 Tests` reports
+`skipped`, and branch protection accepts that. The merge commit is still tested in full
+before it is tagged, so nothing untested reaches PyPI.
+
 ### Linting and type checking
 
 ```

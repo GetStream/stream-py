@@ -1,0 +1,19 @@
+name: Scheduled tests
+# The integration suite's home. It runs here every day and in release.yml before a tag,
+# and nowhere else: it is advisory, never a merge gate. The suite is live against a
+# Stream app that five SDK repos share, so a red run here is as often the app or the
+# backend as this SDK, and that must not be able to block a pull request.
+on:
+  schedule:
+    - cron: "0 9 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  integration:
+    uses: ./.github/workflows/run_tests.yml
+    with:
+      marker: 'integration'
+    secrets: inherit
