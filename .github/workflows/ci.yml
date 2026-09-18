@@ -33,7 +33,6 @@ jobs:
       && github.event.pull_request.head.repo.full_name == github.repository
       && startsWith(github.head_ref, 'release-please--')) }}
     uses: ./.github/workflows/run_tests.yml
-    secrets: inherit
 
   # The one required status check on main. It carries no matrix, so it always publishes
   # under this exact name: a matrix job skipped by `if:` publishes a single check run with

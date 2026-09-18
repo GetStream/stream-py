@@ -23,11 +23,33 @@ permissions:
 # to a live Stream app that five SDK repos share, so another repo's run or a backend
 # regression can redden it with nothing wrong here.
 #
-# Only the video half is here on purpose. Every `@pytest.mark.integration` in the repo is
-# under tests/rtc or in the two *_manual.py files, and `make test` ignores both, so a
-# non-video leg would collect nothing and the Makefile would report that as success. Add
-# the leg back the day the chat and feeds suites carry the marker.
+# Both halves run here, on the two credential sets: the non-video leg uses the chat app and
+# the video leg the video-enabled one, the same split the unit lane uses.
 jobs:
+  integration-non-video:
+    name: 🧪 Non-video integration (${{ matrix.python-version }})
+    environment:
+      name: ci
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Install dependencies
+        uses: ./.github/actions/python-uv-setup
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Run integration tests
+        env:
+          STREAM_API_KEY: ${{ vars.STREAM_CHAT_API_KEY }}
+          STREAM_API_SECRET: ${{ secrets.STREAM_CHAT_API_SECRET }}
+          STREAM_BASE_URL: ${{ vars.STREAM_CHAT_BASE_URL }}
+        run: make test MARKER="integration"
+
   integration-video:
     name: 🧪 Video integration (${{ matrix.python-version }})
     environment:

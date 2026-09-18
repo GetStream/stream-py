@@ -17,6 +17,11 @@ from getstream.stream import Stream
 from tests.conftest import skip_on_rate_limit
 
 
+# Every test in this module talks to a live Stream app, so it is integration, not unit.
+# The pull-request gate runs `-m "not integration"`; these run daily and before a release.
+pytestmark = pytest.mark.integration
+
+
 @pytest.mark.asyncio
 async def test_simple_connection_debug():
     """Simple test to debug websocket server handler signature."""

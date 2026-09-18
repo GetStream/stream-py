@@ -14,6 +14,11 @@ from getstream.models import (
 )
 
 
+# Every test in this module talks to a live Stream app, so it is integration, not unit.
+# The pull-request gate runs `-m "not integration"`; these run daily and before a release.
+pytestmark = pytest.mark.integration
+
+
 def _create_draft(channel, text, user_id, parent_id=None):
     """Create a draft via raw HTTP (endpoint is client-side-only, not in generated SDK)."""
     message = {"text": text, "user_id": user_id}

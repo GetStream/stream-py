@@ -20,6 +20,12 @@ CALL_ID = os.getenv("CALL_ID")
 
 
 # Shared function for process setup and error handling
+
+# Every test in this module talks to a live Stream app, so it is integration, not unit.
+# The pull-request gate runs `-m "not integration"`; these run daily and before a release.
+pytestmark = pytest.mark.integration
+
+
 def run_process_with_stream_client(
     process_type: str,
     call_id: str,

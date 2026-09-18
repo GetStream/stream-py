@@ -33,6 +33,11 @@ CALL_TYPE_NAME = f"calltype{uuid.uuid4()}"
 EXTERNAL_STORAGE_NAME = f"storage{uuid.uuid4()}"
 
 
+# Every test in this module talks to a live Stream app, so it is integration, not unit.
+# The pull-request gate runs `-m "not integration"`; these run daily and before a release.
+pytestmark = pytest.mark.integration
+
+
 def get_openai_api_key_or_skip():
     """
     Get the OpenAI API key from environment variables or skip the test.

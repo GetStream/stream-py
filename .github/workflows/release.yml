@@ -164,8 +164,12 @@ jobs:
     needs: detect
     if: needs.detect.outputs.ready == 'true'
     uses: ./.github/workflows/run_tests.yml
-    secrets: inherit
 
+  # Advisory, exactly as on a pull request. It is deliberately absent from `release`'s
+  # `needs`: a flaky shared-app failure here would skip tagging, and the Release PR is
+  # already merged carrying `autorelease: pending`, so every later push would find a
+  # pending release at a different sha and stand down. Releases would stay wedged until
+  # someone re-ran one run or stripped the label by hand. The unit lane still gates.
   test-integration:
     name: Test (integration)
     needs: detect
@@ -176,7 +180,7 @@ jobs:
   # Irreversible half.
   release:
     name: 🚀 Tag and release
-    needs: [detect, test-unit, test-integration]
+    needs: [detect, test-unit]
     if: needs.detect.outputs.ready == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 5

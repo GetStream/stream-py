@@ -19,6 +19,11 @@ from getstream.models import (
 )
 
 
+# Every test in this module talks to a live Stream app, so it is integration, not unit.
+# The pull-request gate runs `-m "not integration"`; these run daily and before a release.
+pytestmark = pytest.mark.integration
+
+
 def test_get_app_settings(client: Stream):
     """Get application settings."""
     response = client.get_app()

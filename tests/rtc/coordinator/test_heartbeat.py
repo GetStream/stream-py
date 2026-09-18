@@ -17,6 +17,11 @@ from getstream.video.rtc.coordinator.errors import (
 from getstream import Stream
 
 
+# Every test in this module talks to a live Stream app, so it is integration, not unit.
+# The pull-request gate runs `-m "not integration"`; these run daily and before a release.
+pytestmark = pytest.mark.integration
+
+
 @pytest.mark.asyncio
 async def test_heartbeat_sent_periodically(client: Stream):
     """Test that heartbeat messages are sent at regular intervals."""

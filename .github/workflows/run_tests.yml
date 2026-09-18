@@ -13,10 +13,15 @@ env:
 permissions:
   contents: read
 
-# The unit lane. Every job here runs offline-capable checks plus the chat, feeds and video
-# suites with pytest's default marker expression, `not integration`. The `integration`
-# marker lives in run_integration.yml, which only the daily schedule and release.yml's
-# pre-tag gate call, so a live RTC failure can never block a merge.
+# The unit lane, and it is offline. Every test that talks to a live Stream app carries
+# `@pytest.mark.integration`, and pytest's default expression here is `not integration`, so
+# these jobs declare no environment and receive no credentials. That is deliberate and it is
+# load-bearing twice over: a pull request from a fork, which gets no secrets, still goes
+# green, and a live test added without the marker fails loudly here instead of quietly
+# passing on someone else's credentials.
+#
+# The `integration` marker lives in run_integration.yml, which only the daily schedule and
+# release.yml call, so a shared-app failure can never block a merge.
 #
 # There is no Release PR guard in this file. It sits on the calling job in ci.yml, which is
 # the only caller that can see a pull request at all, and ci.yml's `🧪 Tests` job publishes
@@ -49,8 +54,6 @@ jobs:
   # Video paths and manual test paths are defined in the Makefile.
   test-non-video:
     name: 🧪 Non-video tests (${{ matrix.python-version }})
-    environment:
-      name: ci
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -65,18 +68,12 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Run tests
-        env:
-          STREAM_API_KEY: ${{ vars.STREAM_CHAT_API_KEY }}
-          STREAM_API_SECRET: ${{ secrets.STREAM_CHAT_API_SECRET }}
-          STREAM_BASE_URL: ${{ vars.STREAM_CHAT_BASE_URL }}
         run: make test
 
   # ── Video tests (video-enabled credentials) ─────────────────────
   # Uses STREAM_* credentials which have video enabled.
   test-video:
     name: 🧪 Video tests (${{ matrix.python-version }})
-    environment:
-      name: ci
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -91,8 +88,4 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Run tests
-        env:
-          STREAM_API_KEY: ${{ vars.STREAM_API_KEY }}
-          STREAM_API_SECRET: ${{ secrets.STREAM_API_SECRET }}
-          STREAM_BASE_URL: ${{ vars.STREAM_BASE_URL }}
         run: make test-video

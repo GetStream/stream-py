@@ -8,6 +8,12 @@ from getstream.models import (
     PollOptionInput,
     VoteData,
 )
+import pytest
+
+
+# Every test in this module talks to a live Stream app, so it is integration, not unit.
+# The pull-request gate runs `-m "not integration"`; these run daily and before a release.
+pytestmark = pytest.mark.integration
 
 
 def test_create_get_update_delete_poll(client: Stream, random_user):
