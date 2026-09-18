@@ -1,14 +1,9 @@
 name: _run-tests
 on:
   workflow_call:
-    inputs:
-      marker:
-        description: 'pytest -m expression (e.g., `not integration` or `integration`)'
-        required: true
-        type: string
     secrets: { }
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.marker }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -18,31 +13,16 @@ env:
 permissions:
   contents: read
 
-# The caller decides what runs where. ci.yml passes `not integration`, so a pull request is
-# gated on the unit tests alone. The `integration` marker reaches this workflow only from
-# scheduled_test.yml and from release.yml's pre-tag gate, because the integration suite runs
-# against a live Stream app that five SDK repos share: another repo's run, or a backend
-# regression, can redden it with nothing wrong here, and that must never block a merge.
+# The unit lane. Every job here runs offline-capable checks plus the chat, feeds and video
+# suites with pytest's default marker expression, `not integration`. The `integration`
+# marker lives in run_integration.yml, which only the daily schedule and release.yml's
+# pre-tag gate call, so a live RTC failure can never block a merge.
 #
-# Every job below skips on a Release PR. release-please only bumps the version and rewrites
-# the changelog, and every source commit in one already passed this suite on the PR it came
-# from. The guard sits on each job rather than on the calling job in ci.yml, because a job
-# skipped by `if:` reports success and satisfies a required status check, while a reusable
-# workflow that is never called produces no check at all. It tests the author as well as the
-# branch name: on its own, the name would let any PR, a fork's included, call its branch
-# release-please--x and skip every required check, which branch protection counts as met.
-# It deliberately leaves out github.actor. That is the pusher, and clicking Update branch
-# attributes the resulting merge commit to whoever clicked, so keying on it would stop the
-# skip firing on the normal release path. The cost is that a human commit pushed onto a
-# Release PR is untested there; release.yml runs this suite on the merge commit before it
-# tags. On a schedule or a push there is no pull request, every github.event.pull_request.*
-# clause is empty, and the guard lets the job run.
+# There is no Release PR guard in this file. It sits on the calling job in ci.yml, which is
+# the only caller that can see a pull request at all, and ci.yml's `🧪 Tests` job publishes
+# the required status check whether or not this workflow ran.
 jobs:
   ruff:
-    if: >-
-      ${{ !(github.event.pull_request.user.login == 'github-actions[bot]'
-      && github.event.pull_request.head.repo.full_name == github.repository
-      && startsWith(github.head_ref, 'release-please--')) }}
     name: 🧪 Ruff
     runs-on: ubuntu-latest
     steps:
@@ -54,10 +34,6 @@ jobs:
         run: make lint
 
   typecheck:
-    if: >-
-      ${{ !(github.event.pull_request.user.login == 'github-actions[bot]'
-      && github.event.pull_request.head.repo.full_name == github.repository
-      && startsWith(github.head_ref, 'release-please--')) }}
     name: 🧪 Type Check (ty)
     runs-on: ubuntu-latest
     steps:
@@ -72,10 +48,6 @@ jobs:
   # Uses STREAM_CHAT_* credentials which do NOT have video enabled.
   # Video paths and manual test paths are defined in the Makefile.
   test-non-video:
-    if: >-
-      ${{ !(github.event.pull_request.user.login == 'github-actions[bot]'
-      && github.event.pull_request.head.repo.full_name == github.repository
-      && startsWith(github.head_ref, 'release-please--')) }}
     name: 🧪 Non-video tests (${{ matrix.python-version }})
     environment:
       name: ci
@@ -97,15 +69,11 @@ jobs:
           STREAM_API_KEY: ${{ vars.STREAM_CHAT_API_KEY }}
           STREAM_API_SECRET: ${{ secrets.STREAM_CHAT_API_SECRET }}
           STREAM_BASE_URL: ${{ vars.STREAM_CHAT_BASE_URL }}
-        run: make test MARKER="${{ inputs.marker }}"
+        run: make test
 
   # ── Video tests (video-enabled credentials) ─────────────────────
   # Uses STREAM_* credentials which have video enabled.
   test-video:
-    if: >-
-      ${{ !(github.event.pull_request.user.login == 'github-actions[bot]'
-      && github.event.pull_request.head.repo.full_name == github.repository
-      && startsWith(github.head_ref, 'release-please--')) }}
     name: 🧪 Video tests (${{ matrix.python-version }})
     environment:
       name: ci
@@ -127,4 +95,4 @@ jobs:
           STREAM_API_KEY: ${{ vars.STREAM_API_KEY }}
           STREAM_API_SECRET: ${{ secrets.STREAM_API_SECRET }}
           STREAM_BASE_URL: ${{ vars.STREAM_BASE_URL }}
-        run: make test-video MARKER="${{ inputs.marker }}"
+        run: make test-video

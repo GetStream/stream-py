@@ -1,8 +1,8 @@
 name: Scheduled tests
-# The integration suite's home. It runs here every day and in release.yml before a tag,
-# and nowhere else: it is advisory, never a merge gate. The suite is live against a
-# Stream app that five SDK repos share, so a red run here is as often the app or the
-# backend as this SDK, and that must not be able to block a pull request.
+# The integration lane's home. It runs here every day and in release.yml before a tag, and
+# nowhere else: integration is advisory and never a status check on a pull request. The
+# suite talks to a live Stream app five SDK repos share, so a red run here is as often the
+# app or the backend as this SDK, and that must not be able to block a merge.
 on:
   schedule:
     - cron: "0 9 * * *"
@@ -13,7 +13,35 @@ permissions:
 
 jobs:
   integration:
-    uses: ./.github/workflows/run_tests.yml
-    with:
-      marker: 'integration'
+    uses: ./.github/workflows/run_integration.yml
     secrets: inherit
+
+  # A daily run nobody is told about is the same as no daily run: a failure here lands on no
+  # PR, and GitHub emails scheduled-workflow failures only to whoever last edited the cron.
+  # One open issue per red streak, a comment per later failure, closed by hand once green.
+  report:
+    name: Report a red run
+    needs: integration
+    if: failure()
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Open or update the tracking issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: Daily integration run is red
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          num="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "in:title \"$TITLE\"" \
+            --json number,title --jq "map(select(.title == \"$TITLE\")) | .[0].number // empty")"
+          if [ -n "$num" ]; then
+            gh issue comment "$num" --repo "$GITHUB_REPOSITORY" --body "Still red: $RUN_URL"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --body \
+              "The daily \`-m integration\` run failed: $RUN_URL
+
+          Integration is advisory, so nothing is blocked by this. It still has to be read: the suite
+          runs against a live Stream app shared by five SDK repos, so decide whether this is the app,
+          the backend, or this SDK, and close the issue once a daily run is green again."
+          fi

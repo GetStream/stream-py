@@ -164,17 +164,13 @@ jobs:
     needs: detect
     if: needs.detect.outputs.ready == 'true'
     uses: ./.github/workflows/run_tests.yml
-    with:
-      marker: 'not integration'
     secrets: inherit
 
   test-integration:
     name: Test (integration)
     needs: detect
     if: needs.detect.outputs.ready == 'true'
-    uses: ./.github/workflows/run_tests.yml
-    with:
-      marker: 'integration'
+    uses: ./.github/workflows/run_integration.yml
     secrets: inherit
 
   # Irreversible half.

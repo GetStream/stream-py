@@ -40,17 +40,23 @@ make test-prometheus   # requires getstream[telemetry] deps
 
 | Trigger | What runs | Gates a merge? |
 | --- | --- | --- |
-| Pull request | ruff, ty, unit tests on five Python versions | yes, `🧪 Tests` is the required check |
-| Daily at 09:00 UTC | the same jobs with `-m integration` | no |
-| Push to `main` with a release pending | unit, then integration | no merge, but both gate the tag |
+| Pull request | `run_tests.yml`: ruff, ty, and the non-video and video suites on five Python versions | yes, `🧪 Tests` is the required check |
+| Daily at 09:00 UTC | `run_integration.yml`: the video suite with `-m integration` | no |
+| Push to `main` with a release pending | both, in that order | no merge, but both gate the tag |
 
 Integration never gates a pull request. It runs against a live Stream app that five SDK
 repos share, so another repo's run or a backend regression can redden it with nothing
-wrong here. Fix a red daily run, do not route around it.
+wrong here. A red daily run opens an issue titled "Daily integration run is red"; fix it,
+do not route around it.
 
-A Release PR skips the suite: every job in `run_tests.yml` is guarded, `🧪 Tests` reports
-`skipped`, and branch protection accepts that. The merge commit is still tested in full
-before it is tagged, so nothing untested reaches PyPI.
+Note what the `integration` marker means here. It is not "talks to the API": every
+`@pytest.mark.integration` in the repo is under `tests/rtc/` or in the two `*_manual.py`
+files, so it selects the WebRTC tests. The chat and feeds suites carry no marker and do
+call the live API, which means the pull-request gate is not offline today.
+
+A Release PR skips the suite: `ci.yml`'s `unit` job is guarded, `🧪 Tests` passes in
+seconds on a `skipped` unit result, and branch protection accepts that. The merge commit
+is still tested in full before it is tagged, so nothing untested reaches PyPI.
 
 ### Linting and type checking
 
