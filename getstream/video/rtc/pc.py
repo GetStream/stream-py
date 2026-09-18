@@ -80,8 +80,8 @@ class PublisherPeerConnection(aiortc.RTCPeerConnection):
                 if transceiver.sender is sender:
                     transceiver.setCodecPreferences(publish_codec_preferences())
                     break
-            if not BITRATE_PATCH_DISABLED:
-                patch_sender_encoder(sender)
+        if not BITRATE_PATCH_DISABLED:
+            patch_sender_encoder(sender)
         return sender
 
     async def handle_answer(self, response):
