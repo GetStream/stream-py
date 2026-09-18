@@ -20,6 +20,10 @@ CALL_ID = os.getenv("CALL_ID")
 
 
 # Shared function for process setup and error handling
+
+pytestmark = pytest.mark.integration
+
+
 def run_process_with_stream_client(
     process_type: str,
     call_id: str,

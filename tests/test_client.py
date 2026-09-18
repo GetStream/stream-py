@@ -40,6 +40,7 @@ def test_incorrect_client_throws_exception(monkeypatch):
         Stream(api_key="xxx", api_secret="xxx", base_url="ftp://example.com")
 
 
+@pytest.mark.integration
 def test_client_does_not_raise_exception_without_tracer(client: Stream, monkeypatch):
     # Monkey patch _get_tracer to always return None
     from getstream.common import telemetry
@@ -50,6 +51,7 @@ def test_client_does_not_raise_exception_without_tracer(client: Stream, monkeypa
     assert response.data is not None
 
 
+@pytest.mark.integration
 def test_client_works_with_no_otel(client: Stream, monkeypatch):
     # Monkey patch _get_tracer to always return None
     from getstream.common import telemetry

@@ -12,11 +12,54 @@ permissions:
   pull-requests: read
 
 jobs:
+  # Skipped on a Release PR: it only bumps the version and rewrites the changelog. Not
+  # keyed on github.actor, which is the pusher: clicking Update branch reattributes the
+  # merge commit to whoever clicked, and the skip would stop firing on the normal release
+  # path. A human commit pushed onto a Release PR is therefore untested until release.yml
+  # runs the lane on the merge commit.
   unit:
+    if: >-
+      ${{ !(github.event.pull_request.user.login == 'github-actions[bot]'
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && startsWith(github.head_ref, 'release-please--')) }}
     uses: ./.github/workflows/run_tests.yml
-    with:
-      marker: 'not integration'
-    secrets: inherit
+
+  # The one required status check on main, and it carries no matrix on purpose: a matrix job
+  # skipped by `if:` publishes a single check run with the template unexpanded, so per-leg
+  # contexts could never be satisfied on a Release PR. `skipped` is accepted only when the
+  # condition above holds, repeated here because Actions cannot share an expression; if the
+  # two drift this fails, which is the safe direction.
+  tests-passed:
+    name: 🧪 Tests
+    needs: unit
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the unit lane
+        env:
+          RESULT: ${{ needs.unit.result }}
+          RELEASE_PR: >-
+            ${{ github.event.pull_request.user.login == 'github-actions[bot]'
+            && github.event.pull_request.head.repo.full_name == github.repository
+            && startsWith(github.head_ref, 'release-please--') }}
+        run: |
+          case "$RESULT" in
+            success)
+              echo "unit lane passed"
+              ;;
+            skipped)
+              if [ "$RELEASE_PR" = "true" ]; then
+                echo "release pr: unit lane skipped by design"
+              else
+                echo "::error::the unit lane was skipped on a PR that is not a Release PR"
+                exit 1
+              fi
+              ;;
+            *)
+              echo "::error::unit lane reported $RESULT"
+              exit 1
+              ;;
+          esac
 
 # Cancel in-flight runs for the same branch/PR when new commits arrive
 concurrency:

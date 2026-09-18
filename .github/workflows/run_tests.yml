@@ -1,14 +1,9 @@
 name: _run-tests
 on:
   workflow_call:
-    inputs:
-      marker:
-        description: 'pytest -m expression (e.g., `not integration` or `integration`)'
-        required: true
-        type: string
     secrets: { }
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.marker }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -18,24 +13,12 @@ env:
 permissions:
   contents: read
 
-# Every job below skips on a Release PR. release-please only bumps the version and rewrites
-# the changelog, and every source commit in one already passed this suite on the PR it came
-# from. The guard sits on each job rather than on the calling job in ci.yml, because a job
-# skipped by `if:` reports success and satisfies a required status check, while a reusable
-# workflow that is never called produces no check at all. It tests the author as well as the
-# branch name: on its own, the name would let any PR, a fork's included, call its branch
-# release-please--x and skip every required check, which branch protection counts as met.
-# github.actor is the third clause, and it is the pusher rather than the PR author, so a
-# human commit pushed onto the Release PR to fix a conflict or a changelog entry is tested
-# like any other commit instead of riding the skip into main untested.
+# The unit lane runs `-m "not integration"`, so it declares no environment and receives no
+# credentials. Keep it that way: a fork PR gets no secrets and still goes green, and a live
+# test added without the marker fails here instead of passing on someone else's.
 jobs:
   ruff:
-    if: >-
-      ${{ !(github.actor == 'github-actions[bot]'
-      && github.event.pull_request.user.login == 'github-actions[bot]'
-      && github.event.pull_request.head.repo.full_name == github.repository
-      && startsWith(github.head_ref, 'release-please--')) }}
-    name: Ruff
+    name: 🧪 Ruff
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -46,12 +29,7 @@ jobs:
         run: make lint
 
   typecheck:
-    if: >-
-      ${{ !(github.actor == 'github-actions[bot]'
-      && github.event.pull_request.user.login == 'github-actions[bot]'
-      && github.event.pull_request.head.repo.full_name == github.repository
-      && startsWith(github.head_ref, 'release-please--')) }}
-    name: Type Check (ty)
+    name: 🧪 Type Check (ty)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -65,14 +43,7 @@ jobs:
   # Uses STREAM_CHAT_* credentials which do NOT have video enabled.
   # Video paths and manual test paths are defined in the Makefile.
   test-non-video:
-    if: >-
-      ${{ !(github.actor == 'github-actions[bot]'
-      && github.event.pull_request.user.login == 'github-actions[bot]'
-      && github.event.pull_request.head.repo.full_name == github.repository
-      && startsWith(github.head_ref, 'release-please--')) }}
-    name: Non-video tests (${{ matrix.python-version }})
-    environment:
-      name: ci
+    name: 🧪 Non-video tests (${{ matrix.python-version }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -87,23 +58,12 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Run tests
-        env:
-          STREAM_API_KEY: ${{ vars.STREAM_CHAT_API_KEY }}
-          STREAM_API_SECRET: ${{ secrets.STREAM_CHAT_API_SECRET }}
-          STREAM_BASE_URL: ${{ vars.STREAM_CHAT_BASE_URL }}
-        run: make test MARKER="${{ inputs.marker }}"
+        run: make test
 
   # ── Video tests (video-enabled credentials) ─────────────────────
   # Uses STREAM_* credentials which have video enabled.
   test-video:
-    if: >-
-      ${{ !(github.actor == 'github-actions[bot]'
-      && github.event.pull_request.user.login == 'github-actions[bot]'
-      && github.event.pull_request.head.repo.full_name == github.repository
-      && startsWith(github.head_ref, 'release-please--')) }}
-    name: Video tests (${{ matrix.python-version }})
-    environment:
-      name: ci
+    name: 🧪 Video tests (${{ matrix.python-version }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -118,8 +78,4 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Run tests
-        env:
-          STREAM_API_KEY: ${{ vars.STREAM_API_KEY }}
-          STREAM_API_SECRET: ${{ secrets.STREAM_API_SECRET }}
-          STREAM_BASE_URL: ${{ vars.STREAM_BASE_URL }}
-        run: make test-video MARKER="${{ inputs.marker }}"
+        run: make test-video

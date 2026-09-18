@@ -10,6 +10,10 @@ from getstream.models import (
     QueryBannedUsersPayload,
     QueryMessageFlagsPayload,
 )
+import pytest
+
+
+pytestmark = pytest.mark.integration
 
 
 def test_ban_user(client: Stream, random_user, server_user):

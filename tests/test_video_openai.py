@@ -29,6 +29,9 @@ from getstream.video.openai import (
 )
 
 
+pytestmark = pytest.mark.integration
+
+
 class TestOpenAIPatching:
     """Tests for the OpenAI patching functionality."""
 

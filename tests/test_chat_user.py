@@ -14,6 +14,10 @@ from getstream.models import (
     UpdateUserPartialRequest,
     UserRequest,
 )
+import pytest
+
+
+pytestmark = pytest.mark.integration
 
 
 def test_upsert_users(client: Stream):

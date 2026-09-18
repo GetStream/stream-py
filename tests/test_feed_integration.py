@@ -36,6 +36,9 @@ from getstream.models import (
 from getstream.stream_response import StreamResponse
 
 
+pytestmark = pytest.mark.integration
+
+
 class TestFeedIntegration:
     """
     Systematic Integration tests for Feed operations

@@ -12,6 +12,7 @@ from getstream import Stream, AsyncStream
 import warnings
 
 
+@pytest.mark.integration
 def test_upsert_users(client: Stream):
     users = {}
     user_id = str(uuid.uuid4())
@@ -22,11 +23,13 @@ def test_upsert_users(client: Stream):
     client.update_users(users=users)
 
 
+@pytest.mark.integration
 def test_query_users(client: Stream):
     response = client.query_users(QueryUsersPayload(filter_conditions={}))
     assert response.data.users is not None
 
 
+@pytest.mark.integration
 def test_update_users_partial(client: Stream):
     user_id = str(uuid.uuid4())
     users = {
@@ -50,6 +53,7 @@ def test_update_users_partial(client: Stream):
     assert response.data.users[user_id].custom["color"] == "blue"
 
 
+@pytest.mark.integration
 def test_deactivate_and_reactivate_users(client: Stream):
     user_id = str(uuid.uuid4())
     users = {
@@ -66,6 +70,7 @@ def test_deactivate_and_reactivate_users(client: Stream):
     assert response.data.task_id is not None
 
 
+@pytest.mark.integration
 def test_delete_user(client: Stream):
     user_id = str(uuid.uuid4())
     users = {
@@ -81,6 +86,7 @@ def test_delete_user(client: Stream):
     assert user_id not in user_ids
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_send_message(async_client: AsyncStream):
     channel = async_client.chat.channel("messaging", str(uuid.uuid4()))
@@ -92,8 +98,14 @@ async def test_send_message(async_client: AsyncStream):
     )
 
 
-def test_from_env():
+def test_from_env(monkeypatch):
+    # Set them rather than reading the ambient environment: CI runs this lane with none.
+    monkeypatch.setenv("STREAM_API_KEY", "key-from-env")
+    monkeypatch.setenv("STREAM_API_SECRET", "secret-from-env")
+
     # Suppress the deprecation warning for this explicit compatibility check
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", category=DeprecationWarning)
-        Stream.from_env()
+        client = Stream.from_env()
+
+    assert client.api_key == "key-from-env"

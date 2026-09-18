@@ -22,7 +22,9 @@ make test-all      # both of the above
 ```
 
 Non-video and video tests are split because they require different Stream credentials.
-The `MARKER` variable defaults to `"not integration"`. Override it for integration tests:
+The `MARKER` variable defaults to `"not integration"`, which is every test that does not
+touch a live Stream app, so the default needs no credentials. Override it to run the ones
+that do:
 
 ```
 make test-integration              # runs both groups with -m "integration"
@@ -35,6 +37,27 @@ Two manual tests exist for local telemetry inspection (excluded from CI):
 make test-jaeger       # requires local Jaeger (docker run ... jaegertracing/all-in-one)
 make test-prometheus   # requires getstream[telemetry] deps
 ```
+
+### What CI runs
+
+| Trigger | What runs | Gates anything? |
+| --- | --- | --- |
+| Pull request | `run_tests.yml`: ruff, ty, and `-m "not integration"` on five Python versions | yes, `🧪 Tests` is the required check |
+| Daily at 09:00 UTC | `run_integration.yml`: `-m integration`, both credential sets | no |
+| Push to `main` with a release pending | both; only the unit lane gates the tag | unit yes, integration no |
+
+`@pytest.mark.integration` means one thing: the test talks to a live Stream app. The unit
+lane therefore runs with no credentials, no `environment:` and no `STREAM_*`. Keep it that
+way. A fork PR gets no secrets and still goes green, and a live test added without the
+marker fails in CI instead of quietly passing on someone else's credentials.
+
+Integration gates nothing, anywhere. It runs against an app five SDK repos share, so
+another repo's run or a backend regression can redden it with nothing wrong here, and a red
+pre-tag run used to wedge every later release behind `autorelease: pending`. A red daily run
+opens an issue titled "Daily integration run is red". Fix it, do not route around it.
+
+A Release PR skips the lane and `🧪 Tests` passes in seconds on a `skipped` result. The
+merge commit still runs it before the tag.
 
 ### Linting and type checking
 

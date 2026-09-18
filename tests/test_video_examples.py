@@ -20,6 +20,9 @@ from datetime import datetime, timezone, timedelta
 from tests.test_video_integration import get_openai_api_key_or_skip
 
 
+pytestmark = pytest.mark.integration
+
+
 def test_setup_client():
     from getstream import Stream
 

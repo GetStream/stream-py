@@ -17,6 +17,9 @@ from getstream.video.rtc.coordinator.errors import (
 from getstream import Stream
 
 
+pytestmark = pytest.mark.integration
+
+
 @pytest.mark.asyncio
 async def test_heartbeat_sent_periodically(client: Stream):
     """Test that heartbeat messages are sent at regular intervals."""

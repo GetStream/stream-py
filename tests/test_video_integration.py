@@ -33,6 +33,9 @@ CALL_TYPE_NAME = f"calltype{uuid.uuid4()}"
 EXTERNAL_STORAGE_NAME = f"storage{uuid.uuid4()}"
 
 
+pytestmark = pytest.mark.integration
+
+
 def get_openai_api_key_or_skip():
     """
     Get the OpenAI API key from environment variables or skip the test.

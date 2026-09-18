@@ -8,6 +8,10 @@ from getstream.models import (
     PollOptionInput,
     VoteData,
 )
+import pytest
+
+
+pytestmark = pytest.mark.integration
 
 
 def test_create_get_update_delete_poll(client: Stream, random_user):

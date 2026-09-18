@@ -19,6 +19,9 @@ from getstream.models import (
 from tests.base import retry_on_transient_error
 
 
+pytestmark = pytest.mark.integration
+
+
 def test_send_message(channel: Channel, random_user):
     """Send a message with skip_push option."""
     response = channel.send_message(
