@@ -3,11 +3,9 @@ on:
   workflow_call:
     secrets: { }
 
-# Serialize every integration run on a branch instead of cancelling: the daily schedule and
-# release.yml's pre-tag gate both target main, and `github.workflow` inside a reusable
-# workflow resolves to the *caller's* name, so keying the group on it would put them in
-# separate lanes and fire two suites at the shared Stream app at once. cancel-in-progress
-# stays false so a scheduled run can never cancel the gate a release is waiting on.
+# A constant, not `github.workflow`, which inside a reusable workflow resolves to the
+# caller's name: the daily run and the pre-tag run would land in separate lanes and hit the
+# shared app at once. Queue rather than cancel, so the schedule cannot kill a release gate.
 concurrency:
   group: run-integration-${{ github.ref }}
   cancel-in-progress: false
@@ -18,13 +16,8 @@ env:
 permissions:
   contents: read
 
-# The integration lane, and the only place `-m integration` runs. It is advisory: it runs
-# daily and again before a tag, never as a status check on a pull request. The suite talks
-# to a live Stream app that five SDK repos share, so another repo's run or a backend
-# regression can redden it with nothing wrong here.
-#
-# Both halves run here, on the two credential sets: the non-video leg uses the chat app and
-# the video leg the video-enabled one, the same split the unit lane uses.
+# The only place `-m integration` runs: daily and before a tag, never as a status check on a
+# pull request. See DEVELOPMENT.md for why it gates nothing.
 jobs:
   integration-non-video:
     name: 🧪 Non-video integration (${{ matrix.python-version }})

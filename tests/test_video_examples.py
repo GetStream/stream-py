@@ -20,8 +20,6 @@ from datetime import datetime, timezone, timedelta
 from tests.test_video_integration import get_openai_api_key_or_skip
 
 
-# Every test in this module talks to a live Stream app, so it is integration, not unit.
-# The pull-request gate runs `-m "not integration"`; these run daily and before a release.
 pytestmark = pytest.mark.integration
 
 

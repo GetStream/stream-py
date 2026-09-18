@@ -13,19 +13,9 @@ env:
 permissions:
   contents: read
 
-# The unit lane, and it is offline. Every test that talks to a live Stream app carries
-# `@pytest.mark.integration`, and pytest's default expression here is `not integration`, so
-# these jobs declare no environment and receive no credentials. That is deliberate and it is
-# load-bearing twice over: a pull request from a fork, which gets no secrets, still goes
-# green, and a live test added without the marker fails loudly here instead of quietly
-# passing on someone else's credentials.
-#
-# The `integration` marker lives in run_integration.yml, which only the daily schedule and
-# release.yml call, so a shared-app failure can never block a merge.
-#
-# There is no Release PR guard in this file. It sits on the calling job in ci.yml, which is
-# the only caller that can see a pull request at all, and ci.yml's `🧪 Tests` job publishes
-# the required status check whether or not this workflow ran.
+# The unit lane runs `-m "not integration"`, so it declares no environment and receives no
+# credentials. Keep it that way: a fork PR gets no secrets and still goes green, and a live
+# test added without the marker fails here instead of passing on someone else's.
 jobs:
   ruff:
     name: 🧪 Ruff

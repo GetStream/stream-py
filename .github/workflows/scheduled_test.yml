@@ -1,8 +1,5 @@
 name: Scheduled tests
-# The integration lane's home. It runs here every day and in release.yml before a tag, and
-# nowhere else: integration is advisory and never a status check on a pull request. The
-# suite talks to a live Stream app five SDK repos share, so a red run here is as often the
-# app or the backend as this SDK, and that must not be able to block a merge.
+# The integration lane's home. Advisory: see DEVELOPMENT.md.
 on:
   schedule:
     - cron: "0 9 * * *"
@@ -16,9 +13,7 @@ jobs:
     uses: ./.github/workflows/run_integration.yml
     secrets: inherit
 
-  # A daily run nobody is told about is the same as no daily run: a failure here lands on no
-  # PR, and GitHub emails scheduled-workflow failures only to whoever last edited the cron.
-  # One open issue per red streak, a comment per later failure, closed by hand once green.
+  # A failure here lands on no PR, and GitHub emails it only to whoever last edited the cron.
   report:
     name: Report a red run
     needs: integration

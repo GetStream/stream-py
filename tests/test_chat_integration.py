@@ -99,9 +99,7 @@ async def test_send_message(async_client: AsyncStream):
 
 
 def test_from_env(monkeypatch):
-    # Set the variables rather than reading whatever the environment happens to hold: this
-    # is the one test in the unit lane that touches STREAM_* config, and CI runs that lane
-    # with no credentials at all.
+    # Set them rather than reading the ambient environment: CI runs this lane with none.
     monkeypatch.setenv("STREAM_API_KEY", "key-from-env")
     monkeypatch.setenv("STREAM_API_SECRET", "secret-from-env")
 

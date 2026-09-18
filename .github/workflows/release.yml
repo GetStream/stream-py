@@ -165,11 +165,9 @@ jobs:
     if: needs.detect.outputs.ready == 'true'
     uses: ./.github/workflows/run_tests.yml
 
-  # Advisory, exactly as on a pull request. It is deliberately absent from `release`'s
-  # `needs`: a flaky shared-app failure here would skip tagging, and the Release PR is
-  # already merged carrying `autorelease: pending`, so every later push would find a
-  # pending release at a different sha and stand down. Releases would stay wedged until
-  # someone re-ran one run or stripped the label by hand. The unit lane still gates.
+  # Deliberately absent from `release`'s `needs`. A failure here would skip tagging while
+  # the Release PR is already merged carrying `autorelease: pending`, so every later push
+  # would stand down and releases would stay wedged until someone cleared it by hand.
   test-integration:
     name: Test (integration)
     needs: detect

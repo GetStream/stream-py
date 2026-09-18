@@ -46,21 +46,18 @@ make test-prometheus   # requires getstream[telemetry] deps
 | Daily at 09:00 UTC | `run_integration.yml`: `-m integration`, both credential sets | no |
 | Push to `main` with a release pending | both; only the unit lane gates the tag | unit yes, integration no |
 
-`@pytest.mark.integration` means one thing here: the test talks to a live Stream app. The
-unit lane therefore runs with **no credentials at all**, no `environment:` and no
-`STREAM_*` secrets. Keep it that way. A pull request from a fork gets no secrets and still
-goes green, and a live test added without the marker fails loudly in CI instead of quietly
-passing on someone else's credentials.
+`@pytest.mark.integration` means one thing: the test talks to a live Stream app. The unit
+lane therefore runs with no credentials, no `environment:` and no `STREAM_*`. Keep it that
+way. A fork PR gets no secrets and still goes green, and a live test added without the
+marker fails in CI instead of quietly passing on someone else's credentials.
 
 Integration gates nothing, anywhere. It runs against an app five SDK repos share, so
-another repo's run or a backend regression can redden it with nothing wrong here, and a
-red pre-tag run used to wedge every later release behind `autorelease: pending`. A red
-daily run opens an issue titled "Daily integration run is red". Fix it, do not route
-around it.
+another repo's run or a backend regression can redden it with nothing wrong here, and a red
+pre-tag run used to wedge every later release behind `autorelease: pending`. A red daily run
+opens an issue titled "Daily integration run is red". Fix it, do not route around it.
 
-A Release PR skips the suite: `ci.yml`'s `unit` job is guarded, `🧪 Tests` passes in
-seconds on a `skipped` unit result, and branch protection accepts that. The merge commit
-still runs the unit lane before it is tagged.
+A Release PR skips the lane and `🧪 Tests` passes in seconds on a `skipped` result. The
+merge commit still runs it before the tag.
 
 ### Linting and type checking
 

@@ -17,8 +17,6 @@ from getstream.video.rtc.coordinator.errors import (
 from getstream import Stream
 
 
-# Every test in this module talks to a live Stream app, so it is integration, not unit.
-# The pull-request gate runs `-m "not integration"`; these run daily and before a release.
 pytestmark = pytest.mark.integration
 
 

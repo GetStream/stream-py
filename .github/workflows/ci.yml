@@ -3,9 +3,6 @@ name: CI (unit)
 # SHA, and the duplicate legs raced each other against the Stream app several SDK repos
 # share. main and *.x are covered by release.yml, which runs this same reusable workflow
 # as the gate before tagging.
-#
-# Only the unit lane gates a pull request. `-m integration` lives in run_integration.yml,
-# which the daily schedule and release.yml call and this workflow never does.
 on:
   pull_request:
     branches: [ "**" ]
@@ -15,18 +12,11 @@ permissions:
   pull-requests: read
 
 jobs:
-  # Skipped on a Release PR: release-please only bumps the version and rewrites the
-  # changelog, and every source commit in one already passed this suite on the PR it came
-  # from. One guard here rather than one per job inside run_tests.yml, because `🧪 Tests`
-  # below publishes the required status check whether or not this job ran.
-  #
-  # The guard tests the author as well as the branch name: on its own the name would let
-  # any PR, a fork's included, call its branch release-please--x and skip the gate, which
-  # branch protection would count as met. It deliberately leaves out github.actor, which is
-  # the pusher: clicking Update branch attributes the merge commit to whoever clicked, so
-  # keying on it stops the skip firing on the normal release path. The cost is that a human
-  # commit pushed onto a Release PR is untested there, and release.yml runs the suite on the
-  # merge commit before it tags.
+  # Skipped on a Release PR: it only bumps the version and rewrites the changelog. Not
+  # keyed on github.actor, which is the pusher: clicking Update branch reattributes the
+  # merge commit to whoever clicked, and the skip would stop firing on the normal release
+  # path. A human commit pushed onto a Release PR is therefore untested until release.yml
+  # runs the lane on the merge commit.
   unit:
     if: >-
       ${{ !(github.event.pull_request.user.login == 'github-actions[bot]'
@@ -34,14 +24,11 @@ jobs:
       && startsWith(github.head_ref, 'release-please--')) }}
     uses: ./.github/workflows/run_tests.yml
 
-  # The one required status check on main. It carries no matrix, so it always publishes
-  # under this exact name: a matrix job skipped by `if:` publishes a single check run with
-  # the template unexpanded, so per-leg contexts could never be satisfied on a Release PR.
-  #
-  # `skipped` is accepted only when the Release PR condition above actually holds, and the
-  # expression is repeated rather than shared because Actions has no way to share one. If
-  # the two ever drift, this job fails and the PR goes red, which is the safe direction: a
-  # skip nobody asked for is exactly what a required check exists to catch.
+  # The one required status check on main, and it carries no matrix on purpose: a matrix job
+  # skipped by `if:` publishes a single check run with the template unexpanded, so per-leg
+  # contexts could never be satisfied on a Release PR. `skipped` is accepted only when the
+  # condition above holds, repeated here because Actions cannot share an expression; if the
+  # two drift this fails, which is the safe direction.
   tests-passed:
     name: 🧪 Tests
     needs: unit
