@@ -10,6 +10,9 @@ from getstream.models import (
 from tests.base import retry_on_transient_error
 
 
+pytestmark = pytest.mark.integration
+
+
 class TestReminders:
     @pytest.fixture(autouse=True)
     def setup_channel_for_reminders(self, channel: Channel):

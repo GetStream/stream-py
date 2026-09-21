@@ -1,0 +1,68 @@
+name: _run-integration
+on:
+  workflow_call:
+    secrets: { }
+
+# A constant, not `github.workflow`, which inside a reusable workflow resolves to the
+# caller's name: the daily run and the pre-tag run would land in separate lanes and hit the
+# shared app at once. Queue rather than cancel, so the schedule cannot kill a release gate.
+concurrency:
+  group: run-integration-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  UV_FROZEN: "1"
+
+permissions:
+  contents: read
+
+# The only place `-m integration` runs: daily and before a tag, never as a status check on a
+# pull request. See DEVELOPMENT.md for why it gates nothing.
+jobs:
+  integration-non-video:
+    name: 🧪 Non-video integration (${{ matrix.python-version }})
+    environment:
+      name: ci
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Install dependencies
+        uses: ./.github/actions/python-uv-setup
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Run integration tests
+        env:
+          STREAM_API_KEY: ${{ vars.STREAM_CHAT_API_KEY }}
+          STREAM_API_SECRET: ${{ secrets.STREAM_CHAT_API_SECRET }}
+          STREAM_BASE_URL: ${{ vars.STREAM_CHAT_BASE_URL }}
+        run: make test MARKER="integration"
+
+  integration-video:
+    name: 🧪 Video integration (${{ matrix.python-version }})
+    environment:
+      name: ci
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Install dependencies
+        uses: ./.github/actions/python-uv-setup
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Run integration tests
+        env:
+          STREAM_API_KEY: ${{ vars.STREAM_API_KEY }}
+          STREAM_API_SECRET: ${{ secrets.STREAM_API_SECRET }}
+          STREAM_BASE_URL: ${{ vars.STREAM_BASE_URL }}
+        run: make test-video MARKER="integration"

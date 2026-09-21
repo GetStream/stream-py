@@ -11,6 +11,9 @@ from getstream.video.rtc.track_util import (
 from getstream.video.rtc.pb.stream.video.sfu.models.models_pb2 import TRACK_TYPE_VIDEO
 
 
+pytestmark = pytest.mark.integration
+
+
 @pytest.mark.asyncio
 async def test_detect_video_properties():
     """Test that video properties are correctly detected from a video file."""

@@ -17,8 +17,12 @@ from getstream.models import (
     UserRequest,
 )
 from tests.base import wait_for_task
+import pytest
 
 ASSETS_DIR = Path(__file__).parent / "assets"
+
+
+pytestmark = pytest.mark.integration
 
 
 class TestChannelCRUD:

@@ -1,0 +1,42 @@
+name: Scheduled tests
+# The integration lane's home. Advisory: see DEVELOPMENT.md.
+on:
+  schedule:
+    - cron: "0 9 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  integration:
+    uses: ./.github/workflows/run_integration.yml
+    secrets: inherit
+
+  # A failure here lands on no PR, and GitHub emails it only to whoever last edited the cron.
+  report:
+    name: Report a red run
+    needs: integration
+    if: failure()
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Open or update the tracking issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: Daily integration run is red
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          num="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "in:title \"$TITLE\"" \
+            --json number,title --jq "map(select(.title == \"$TITLE\")) | .[0].number // empty")"
+          if [ -n "$num" ]; then
+            gh issue comment "$num" --repo "$GITHUB_REPOSITORY" --body "Still red: $RUN_URL"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --body \
+              "The daily \`-m integration\` run failed: $RUN_URL
+
+          Integration is advisory, so nothing is blocked by this. It still has to be read: the suite
+          runs against a live Stream app shared by five SDK repos, so decide whether this is the app,
+          the backend, or this SDK, and close the issue once a daily run is green again."
+          fi

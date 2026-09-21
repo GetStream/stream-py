@@ -1,6 +1,10 @@
 from datetime import date, timedelta
 
 from getstream import Stream
+import pytest
+
+
+pytestmark = pytest.mark.integration
 
 
 def test_query_team_usage_stats_default(client: Stream):

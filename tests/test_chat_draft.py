@@ -14,6 +14,9 @@ from getstream.models import (
 )
 
 
+pytestmark = pytest.mark.integration
+
+
 def _create_draft(channel, text, user_id, parent_id=None):
     """Create a draft via raw HTTP (endpoint is client-side-only, not in generated SDK)."""
     message = {"text": text, "user_id": user_id}

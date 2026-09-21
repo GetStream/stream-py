@@ -17,6 +17,9 @@ from getstream.stream import Stream
 from tests.conftest import skip_on_rate_limit
 
 
+pytestmark = pytest.mark.integration
+
+
 @pytest.mark.asyncio
 async def test_simple_connection_debug():
     """Simple test to debug websocket server handler signature."""

@@ -19,6 +19,9 @@ from getstream.models import (
 )
 
 
+pytestmark = pytest.mark.integration
+
+
 def test_get_app_settings(client: Stream):
     """Get application settings."""
     response = client.get_app()
