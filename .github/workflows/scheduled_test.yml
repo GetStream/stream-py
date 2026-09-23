@@ -14,13 +14,15 @@ jobs:
     secrets: inherit
 
   # A failure here lands on no PR, and GitHub emails it only to whoever last edited the cron.
+  # A schedule event carries no repository in its payload, so it passes by event name; it
+  # always runs on the default branch anyway.
   report:
     name: Report a red run
     needs: integration
     # Not failure(): a job that hits timeout-minutes concludes `cancelled`, and a hung run
     # must report too. Default branch only: a manual dispatch on a feature branch must not
     # touch the default branch's issue.
-    if: ${{ !cancelled() && needs.integration.result != 'success' && github.ref_name == github.event.repository.default_branch }}
+    if: ${{ !cancelled() && needs.integration.result != 'success' && (github.event_name == 'schedule' || github.ref_name == github.event.repository.default_branch) }}
     runs-on: ubuntu-latest
     permissions:
       issues: write
