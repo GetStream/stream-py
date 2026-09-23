@@ -14,42 +14,68 @@ jobs:
   # Skipped on a Release PR: it only bumps the version and rewrites the changelog. Not
   # keyed on github.actor, which is the pusher: clicking Update branch reattributes the
   # merge commit to whoever clicked, and the skip would stop firing on the normal release
-  # path. A human commit pushed onto a Release PR is therefore released untested.
-  unit:
+  # path.
+  # The skip also requires every changed file to be one release-please writes, so a code change pushed onto a Release PR by hand runs the unit lane. An unexpected file or a failed lookup fails toward running it.
+  release-only:
     if: >-
-      ${{ !(github.event.pull_request.user.login == 'github-actions[bot]'
+      ${{ github.event.pull_request.user.login == 'github-actions[bot]'
       && github.event.pull_request.head.repo.full_name == github.repository
-      && startsWith(github.head_ref, 'release-please--')) }}
+      && startsWith(github.head_ref, 'release-please--') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      skip: ${{ steps.files.outputs.skip }}
+    steps:
+      - id: files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          ALLOWED: '^(CHANGELOG\.md|\.release-please-manifest\.json|pyproject\.toml|uv\.lock)$'
+        run: |
+          if ! files="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}/files" --paginate --jq '.[].filename')"; then
+            echo "::warning::Could not list this PR's files; running the unit lane."
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          other="$(printf '%s\n' "$files" | grep -Ev "$ALLOWED" || true)"
+          if [ -n "$files" ] && [ -z "$other" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Files outside what release-please writes changed, so the unit lane runs: ${other//$'\n'/ }"
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  unit:
+    needs: release-only
+    if: ${{ !cancelled() && needs.release-only.outputs.skip != 'true' }}
     uses: ./.github/workflows/run_tests.yml
 
   # The one required status check on main, and it carries no matrix on purpose: a matrix job
   # skipped by `if:` publishes a single check run with the template unexpanded, so per-leg
-  # contexts could never be satisfied on a Release PR. `skipped` is accepted only when the
-  # condition above holds, repeated here because Actions cannot share an expression; if the
-  # two drift this fails, which is the safe direction.
+  # contexts could never be satisfied on a Release PR. `skipped` is accepted only when release-only confirmed a release-please-only diff.
   tests-passed:
     name: 🧪 Tests
-    needs: unit
+    needs: [release-only, unit]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Check the unit lane
         env:
           RESULT: ${{ needs.unit.result }}
-          RELEASE_PR: >-
-            ${{ github.event.pull_request.user.login == 'github-actions[bot]'
-            && github.event.pull_request.head.repo.full_name == github.repository
-            && startsWith(github.head_ref, 'release-please--') }}
+          SKIP: ${{ needs.release-only.outputs.skip }}
         run: |
           case "$RESULT" in
             success)
               echo "unit lane passed"
               ;;
             skipped)
-              if [ "$RELEASE_PR" = "true" ]; then
+              if [ "$SKIP" = "true" ]; then
                 echo "release pr: unit lane skipped by design"
               else
-                echo "::error::the unit lane was skipped on a PR that is not a Release PR"
+                echo "::error::the unit lane was skipped without release-only confirming a release-please-only diff"
                 exit 1
               fi
               ;;

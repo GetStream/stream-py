@@ -44,7 +44,7 @@ make test-prometheus   # requires getstream[telemetry] deps
 | --- | --- | --- |
 | Pull request | `run_tests.yml`: ruff, ty, and `-m "not integration"` on five Python versions | yes, `🧪 Tests` is the required check |
 | Daily at 09:00 UTC | `run_integration.yml`: `-m integration`, both credential sets | no |
-| Release PR merged | nothing, it tags and publishes | no |
+| Release PR merged | nothing on the default branch, the unit lane on `N.x` | `N.x` only |
 
 `@pytest.mark.integration` means one thing: the test talks to a live Stream app. The unit
 lane therefore runs with no credentials, no `environment:` and no `STREAM_*`. Keep it that
@@ -56,7 +56,7 @@ another repo's run or a backend regression can redden it with nothing wrong here
 run before a tag either. A red daily run opens an issue titled "Daily integration run is
 red". Fix it, do not route around it.
 
-A Release PR skips the lane and `🧪 Tests` passes in seconds on a `skipped` result. Merging it tags and publishes with no further test run: it adds only the version bump and changelog to an already-tested `main`.
+A Release PR skips the lane and `🧪 Tests` passes in seconds on a `skipped` result. The skip only applies while every changed file is one release-please writes, so a code change pushed onto a Release PR by hand runs the unit lane like any other PR. Merging it tags and publishes with no further test run: it adds only the version bump and changelog to an already-tested `main`. A hotfix release from `N.x` runs the unit lane first, since its commits were pushed without a PR.
 
 ### Linting and type checking
 
