@@ -44,7 +44,7 @@ make test-prometheus   # requires getstream[telemetry] deps
 | --- | --- | --- |
 | Pull request | `run_tests.yml`: ruff, ty, and `-m "not integration"` on five Python versions | yes, `🧪 Tests` is the required check |
 | Daily at 09:00 UTC | `run_integration.yml`: `-m integration`, both credential sets | no |
-| Push to `main` with a release pending | both; only the unit lane gates the tag | unit yes, integration no |
+| Push to `main` with a release pending | the unit lane | yes, it gates the tag |
 
 `@pytest.mark.integration` means one thing: the test talks to a live Stream app. The unit
 lane therefore runs with no credentials, no `environment:` and no `STREAM_*`. Keep it that
@@ -52,9 +52,9 @@ way. A fork PR gets no secrets and still goes green, and a live test added witho
 marker fails in CI instead of quietly passing on someone else's credentials.
 
 Integration gates nothing, anywhere. It runs against an app five SDK repos share, so
-another repo's run or a backend regression can redden it with nothing wrong here, and a red
-pre-tag run used to wedge every later release behind `autorelease: pending`. A red daily run
-opens an issue titled "Daily integration run is red". Fix it, do not route around it.
+another repo's run or a backend regression can redden it with nothing wrong here. It does not
+run before a tag either. A red daily run opens an issue titled "Daily integration run is
+red". Fix it, do not route around it.
 
 A Release PR skips the lane and `🧪 Tests` passes in seconds on a `skipped` result. The
 merge commit still runs it before the tag.

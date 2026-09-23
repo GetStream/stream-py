@@ -3,11 +3,11 @@ on:
   workflow_call:
     secrets: { }
 
-# A constant, not `github.workflow`, which inside a reusable workflow resolves to the
-# caller's name: the daily run and the pre-tag run would land in separate lanes and hit the
-# shared app at once. Queue rather than cancel, so the schedule cannot kill a release gate.
 concurrency:
-  group: run-integration-${{ github.ref }}
+  # Repository-wide, on purpose. The contended resource is the Stream app, not the branch,
+  # so keying on github.ref would let a *.x release run beside the daily run on the default
+  # branch. Not cancel-in-progress: a half-run leaves users and channels behind.
+  group: run-integration
   cancel-in-progress: false
 
 env:

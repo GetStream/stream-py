@@ -17,7 +17,10 @@ jobs:
   report:
     name: Report a red run
     needs: integration
-    if: failure()
+    # Not failure(): a job that hits timeout-minutes concludes `cancelled`, and a hung run
+    # must report too. Default branch only: a manual dispatch on a feature branch must not
+    # touch the default branch's issue.
+    if: ${{ !cancelled() && needs.integration.result != 'success' && github.ref_name == github.event.repository.default_branch }}
     runs-on: ubuntu-latest
     permissions:
       issues: write
@@ -28,8 +31,13 @@ jobs:
           TITLE: Daily integration run is red
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          num="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "in:title \"$TITLE\"" \
-            --json number,title --jq "map(select(.title == \"$TITLE\")) | .[0].number // empty")"
+          # Unguarded, a non-2xx would abort the step under `bash -e` and a red run would
+          # report nothing at all. Fail toward creating the issue, which is the loud way.
+          if ! num="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "in:title \"$TITLE\"" \
+            --json number,title --jq "map(select(.title == \"$TITLE\")) | .[0].number // empty")"; then
+            echo "::warning::Could not list open issues; creating a new one."
+            num=""
+          fi
           if [ -n "$num" ]; then
             gh issue comment "$num" --repo "$GITHUB_REPOSITORY" --body "Still red: $RUN_URL"
           else
