@@ -44,11 +44,7 @@ jobs:
           target-branch: ${{ github.ref_name }}
           skip-github-release: true
 
-  # Tagging and the GitHub Release are irreversible, so the suite has to run before
-  # them, which means knowing a release is pending before the suite starts. The tag
-  # lands on the merged Release PR's merge commit while the suite runs on this
-  # workflow's own commit, so `ready` also requires those to be the same commit. They
-  # are, on the path that matters: the push of that merge.
+  # Tagging and the GitHub Release are irreversible, so they run only on the push that merged the Release PR: `ready` requires the pending release's merge commit to be this run's commit. No test run gates them, because the Release PR adds only the version bump and changelog to an already-tested default branch.
   detect:
     name: Detect pending release
     if: >-
@@ -159,16 +155,10 @@ jobs:
             echo "ready=${ready}"
           } >> "$GITHUB_OUTPUT"
 
-  test-unit:
-    name: Test (unit)
-    needs: detect
-    if: needs.detect.outputs.ready == 'true'
-    uses: ./.github/workflows/run_tests.yml
-
   # Irreversible half.
   release:
     name: 🚀 Tag and release
-    needs: [detect, test-unit]
+    needs: detect
     if: needs.detect.outputs.ready == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 5

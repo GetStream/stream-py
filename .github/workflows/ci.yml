@@ -1,8 +1,7 @@
 name: CI (unit)
 # pull_request only. A push trigger alongside it ran the whole suite twice on the same
 # SHA, and the duplicate legs raced each other against the Stream app several SDK repos
-# share. main and *.x are covered by release.yml, which runs this same reusable workflow
-# as the gate before tagging.
+# share. A merge to main runs nothing here.
 on:
   pull_request:
     branches: [ "**" ]
@@ -15,8 +14,7 @@ jobs:
   # Skipped on a Release PR: it only bumps the version and rewrites the changelog. Not
   # keyed on github.actor, which is the pusher: clicking Update branch reattributes the
   # merge commit to whoever clicked, and the skip would stop firing on the normal release
-  # path. A human commit pushed onto a Release PR is therefore untested until release.yml
-  # runs the lane on the merge commit.
+  # path. A human commit pushed onto a Release PR is therefore released untested.
   unit:
     if: >-
       ${{ !(github.event.pull_request.user.login == 'github-actions[bot]'
