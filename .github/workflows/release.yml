@@ -165,7 +165,7 @@ jobs:
     name: 🚀 Tag and release
     needs: [detect, tests]
     if: >-
-      ${{ !cancelled() && needs.detect.outputs.ready == 'true'
+      ${{ !cancelled() && needs.detect.result == 'success' && needs.detect.outputs.ready == 'true'
       && (needs.tests.result == 'success' || needs.tests.result == 'skipped') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
