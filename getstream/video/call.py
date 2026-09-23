@@ -305,10 +305,17 @@ class Call(BaseCall):
 
     @attach_call_cid
     def ring(
-        self, video: Optional[bool] = None, members_ids: Optional[List[str]] = None
+        self,
+        video: Optional[bool] = None,
+        members_ids: Optional[List[str]] = None,
+        custom: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[RingCallResponse]:
         response = self.client.ring_call(
-            type=self.call_type, id=self.id, video=video, members_ids=members_ids
+            type=self.call_type,
+            id=self.id,
+            video=video,
+            members_ids=members_ids,
+            custom=custom,
         )
         self._sync_from_response(response.data)
         return response

@@ -108,7 +108,7 @@ class ChatRestClient(BaseClient):
         next: Optional[str] = None,
         limit: Optional[int] = None,
     ) -> StreamResponse[GetCampaignResponse]:
-        query_params = build_query_param(prev=prev, next=next, limit=limit)
+        query_params = build_query_param(**{"prev": prev, "next": next, "limit": limit})
         path_params = {
             "id": id,
         }
@@ -240,6 +240,7 @@ class ChatRestClient(BaseClient):
         operation: str,
         filter: Dict[str, object],
         hide_history_before: Optional[datetime] = None,
+        synchronous: Optional[bool] = None,
         custom_unset: Optional[List[str]] = None,
         members: Optional[List[ChannelBatchMemberRequest]] = None,
         custom_set: Optional[Dict[str, object]] = None,
@@ -249,6 +250,7 @@ class ChatRestClient(BaseClient):
             operation=operation,
             filter=filter,
             hide_history_before=hide_history_before,
+            synchronous=synchronous,
             custom_unset=custom_unset,
             members=members,
             custom_set=custom_set,
@@ -278,7 +280,7 @@ class ChatRestClient(BaseClient):
         user_id: Optional[str] = None,
         latest_delivered_messages: Optional[List[DeliveredMessagePayload]] = None,
     ) -> StreamResponse[MarkDeliveredResponse]:
-        query_params = build_query_param(user_id=user_id)
+        query_params = build_query_param(**{"user_id": user_id})
         json = MarkDeliveredRequest(
             latest_delivered_messages=latest_delivered_messages
         ).to_dict()
@@ -358,7 +360,7 @@ class ChatRestClient(BaseClient):
         skip_truncate: Optional[bool] = None,
     ) -> StreamResponse[DeleteChannelResponse]:
         query_params = build_query_param(
-            hard_delete=hard_delete, skip_truncate=skip_truncate
+            **{"hard_delete": hard_delete, "skip_truncate": skip_truncate}
         )
         path_params = {
             "type": type,
@@ -388,16 +390,18 @@ class ChatRestClient(BaseClient):
         user_id: Optional[str] = None,
     ) -> StreamResponse[ChannelStateResponse]:
         query_params = build_query_param(
-            state=state,
-            messages_limit=messages_limit,
-            members_limit=members_limit,
-            watchers_limit=watchers_limit,
-            messages_id_lt=messages_id_lt,
-            messages_id_lte=messages_id_lte,
-            messages_id_gt=messages_id_gt,
-            messages_id_gte=messages_id_gte,
-            messages_id_around=messages_id_around,
-            user_id=user_id,
+            **{
+                "state": state,
+                "messages_limit": messages_limit,
+                "members_limit": members_limit,
+                "watchers_limit": watchers_limit,
+                "messages_id_lt": messages_id_lt,
+                "messages_id_lte": messages_id_lte,
+                "messages_id_gt": messages_id_gt,
+                "messages_id_gte": messages_id_gte,
+                "messages_id_around": messages_id_around,
+                "user_id": user_id,
+            }
         )
         path_params = {
             "type": type,
@@ -497,7 +501,7 @@ class ChatRestClient(BaseClient):
         parent_id: Optional[str] = None,
         user_id: Optional[str] = None,
     ) -> StreamResponse[Response]:
-        query_params = build_query_param(parent_id=parent_id, user_id=user_id)
+        query_params = build_query_param(**{"parent_id": parent_id, "user_id": user_id})
         path_params = {
             "type": type,
             "id": id,
@@ -517,7 +521,7 @@ class ChatRestClient(BaseClient):
         parent_id: Optional[str] = None,
         user_id: Optional[str] = None,
     ) -> StreamResponse[GetDraftResponse]:
-        query_params = build_query_param(parent_id=parent_id, user_id=user_id)
+        query_params = build_query_param(**{"parent_id": parent_id, "user_id": user_id})
         path_params = {
             "type": type,
             "id": id,
@@ -549,7 +553,7 @@ class ChatRestClient(BaseClient):
     def delete_channel_file(
         self, type: str, id: str, url: Optional[str] = None
     ) -> StreamResponse[Response]:
-        query_params = build_query_param(url=url)
+        query_params = build_query_param(**{"url": url})
         path_params = {
             "type": type,
             "id": id,
@@ -608,7 +612,7 @@ class ChatRestClient(BaseClient):
     def delete_channel_image(
         self, type: str, id: str, url: Optional[str] = None
     ) -> StreamResponse[Response]:
-        query_params = build_query_param(url=url)
+        query_params = build_query_param(**{"url": url})
         path_params = {
             "type": type,
             "id": id,
@@ -652,7 +656,7 @@ class ChatRestClient(BaseClient):
         unset: Optional[List[str]] = None,
         set: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[UpdateMemberPartialResponse]:
-        query_params = build_query_param(user_id=user_id)
+        query_params = build_query_param(**{"user_id": user_id})
         path_params = {
             "type": type,
             "id": id,
@@ -712,7 +716,7 @@ class ChatRestClient(BaseClient):
         member_custom_include: Optional[List[str]] = None,
     ) -> StreamResponse[GetManyMessagesResponse]:
         query_params = build_query_param(
-            ids=ids, member_custom_include=member_custom_include
+            **{"ids": ids, "member_custom_include": member_custom_include}
         )
         path_params = {
             "type": type,
@@ -747,21 +751,23 @@ class ChatRestClient(BaseClient):
         member_custom_include: Optional[List[str]] = None,
     ) -> StreamResponse[GetPinnedMessagesResponse]:
         query_params = build_query_param(
-            limit=limit,
-            offset=offset,
-            id_gte=id_gte,
-            id_gt=id_gt,
-            id_lte=id_lte,
-            id_lt=id_lt,
-            pinned_at_after_or_equal=pinned_at_after_or_equal,
-            pinned_at_after=pinned_at_after,
-            pinned_at_before_or_equal=pinned_at_before_or_equal,
-            pinned_at_before=pinned_at_before,
-            id_around=id_around,
-            pinned_at_around=pinned_at_around,
-            user_id=user_id,
-            sort=sort,
-            member_custom_include=member_custom_include,
+            **{
+                "limit": limit,
+                "offset": offset,
+                "id_gte": id_gte,
+                "id_gt": id_gt,
+                "id_lte": id_lte,
+                "id_lt": id_lt,
+                "pinned_at_after_or_equal": pinned_at_after_or_equal,
+                "pinned_at_after": pinned_at_after,
+                "pinned_at_before_or_equal": pinned_at_before_or_equal,
+                "pinned_at_before": pinned_at_before,
+                "id_around": id_around,
+                "pinned_at_around": pinned_at_around,
+                "user_id": user_id,
+                "sort": sort,
+                "member_custom_include": member_custom_include,
+            }
         )
         path_params = {
             "type": type,
@@ -1214,7 +1220,7 @@ class ChatRestClient(BaseClient):
     def query_members(
         self, payload: Optional[QueryMembersPayload] = None
     ) -> StreamResponse[MembersResponse]:
-        query_params = build_query_param(payload=payload)
+        query_params = build_query_param(**{"payload": payload})
         return self.get(
             "/api/v2/chat/members", MembersResponse, query_params=query_params
         )
@@ -1244,7 +1250,7 @@ class ChatRestClient(BaseClient):
         delete_for_me: Optional[bool] = None,
     ) -> StreamResponse[DeleteMessageResponse]:
         query_params = build_query_param(
-            hard=hard, deleted_by=deleted_by, delete_for_me=delete_for_me
+            **{"hard": hard, "deleted_by": deleted_by, "delete_for_me": delete_for_me}
         )
         path_params = {
             "id": id,
@@ -1260,7 +1266,9 @@ class ChatRestClient(BaseClient):
     def get_message(
         self, id: str, show_deleted_message: Optional[bool] = None
     ) -> StreamResponse[GetMessageResponse]:
-        query_params = build_query_param(show_deleted_message=show_deleted_message)
+        query_params = build_query_param(
+            **{"show_deleted_message": show_deleted_message}
+        )
         path_params = {
             "id": id,
         }
@@ -1412,7 +1420,7 @@ class ChatRestClient(BaseClient):
     def delete_reaction(
         self, id: str, type: str, user_id: Optional[str] = None
     ) -> StreamResponse[DeleteReactionResponse]:
-        query_params = build_query_param(user_id=user_id)
+        query_params = build_query_param(**{"user_id": user_id})
         path_params = {
             "id": id,
             "type": type,
@@ -1428,7 +1436,7 @@ class ChatRestClient(BaseClient):
     def get_reactions(
         self, id: str, limit: Optional[int] = None, offset: Optional[int] = None
     ) -> StreamResponse[GetReactionsResponse]:
-        query_params = build_query_param(limit=limit, offset=offset)
+        query_params = build_query_param(**{"limit": limit, "offset": offset})
         path_params = {
             "id": id,
         }
@@ -1525,7 +1533,7 @@ class ChatRestClient(BaseClient):
     def delete_poll_vote(
         self, message_id: str, poll_id: str, vote_id: str, user_id: Optional[str] = None
     ) -> StreamResponse[PollVoteResponse]:
-        query_params = build_query_param(user_id=user_id)
+        query_params = build_query_param(**{"user_id": user_id})
         path_params = {
             "message_id": message_id,
             "poll_id": poll_id,
@@ -1542,7 +1550,7 @@ class ChatRestClient(BaseClient):
     def delete_reminder(
         self, message_id: str, user_id: Optional[str] = None
     ) -> StreamResponse[DeleteReminderResponse]:
-        query_params = build_query_param(user_id=user_id)
+        query_params = build_query_param(**{"user_id": user_id})
         path_params = {
             "message_id": message_id,
         }
@@ -1609,14 +1617,16 @@ class ChatRestClient(BaseClient):
         member_custom_include: Optional[List[str]] = None,
     ) -> StreamResponse[GetRepliesResponse]:
         query_params = build_query_param(
-            limit=limit,
-            id_gte=id_gte,
-            id_gt=id_gt,
-            id_lte=id_lte,
-            id_lt=id_lt,
-            id_around=id_around,
-            sort=sort,
-            member_custom_include=member_custom_include,
+            **{
+                "limit": limit,
+                "id_gte": id_gte,
+                "id_gt": id_gt,
+                "id_lte": id_lte,
+                "id_lt": id_lt,
+                "id_around": id_around,
+                "sort": sort,
+                "member_custom_include": member_custom_include,
+            }
         )
         path_params = {
             "parent_id": parent_id,
@@ -1632,7 +1642,7 @@ class ChatRestClient(BaseClient):
     def query_message_flags(
         self, payload: Optional[QueryMessageFlagsPayload] = None
     ) -> StreamResponse[QueryMessageFlagsResponse]:
-        query_params = build_query_param(payload=payload)
+        query_params = build_query_param(**{"payload": payload})
         return self.get(
             "/api/v2/chat/moderation/flags/message",
             QueryMessageFlagsResponse,
@@ -1675,7 +1685,9 @@ class ChatRestClient(BaseClient):
         include_stats: Optional[bool] = None,
         sort: Optional[List[SortParamRequest]] = None,
     ) -> StreamResponse[QueryPredefinedFiltersResponse]:
-        query_params = build_query_param(include_stats=include_stats, sort=sort)
+        query_params = build_query_param(
+            **{"include_stats": include_stats, "sort": sort}
+        )
         return self.get(
             "/api/v2/chat/predefined_filters",
             QueryPredefinedFiltersResponse,
@@ -1750,7 +1762,7 @@ class ChatRestClient(BaseClient):
     def query_banned_users(
         self, payload: Optional[QueryBannedUsersPayload] = None
     ) -> StreamResponse[QueryBannedUsersResponse]:
-        query_params = build_query_param(payload=payload)
+        query_params = build_query_param(**{"payload": payload})
         return self.get(
             "/api/v2/chat/query_banned_users",
             QueryBannedUsersResponse,
@@ -1761,7 +1773,7 @@ class ChatRestClient(BaseClient):
     def query_future_channel_bans(
         self, payload: Optional[QueryFutureChannelBansPayload] = None
     ) -> StreamResponse[QueryFutureChannelBansResponse]:
-        query_params = build_query_param(payload=payload)
+        query_params = build_query_param(**{"payload": payload})
         return self.get(
             "/api/v2/chat/query_future_channel_bans",
             QueryFutureChannelBansResponse,
@@ -1844,7 +1856,7 @@ class ChatRestClient(BaseClient):
     def search(
         self, payload: Optional[SearchPayload] = None
     ) -> StreamResponse[SearchResponse]:
-        query_params = build_query_param(payload=payload)
+        query_params = build_query_param(**{"payload": payload})
         return self.get(
             "/api/v2/chat/search", SearchResponse, query_params=query_params
         )
@@ -2052,9 +2064,11 @@ class ChatRestClient(BaseClient):
         member_limit: Optional[int] = None,
     ) -> StreamResponse[GetThreadResponse]:
         query_params = build_query_param(
-            reply_limit=reply_limit,
-            participant_limit=participant_limit,
-            member_limit=member_limit,
+            **{
+                "reply_limit": reply_limit,
+                "participant_limit": participant_limit,
+                "member_limit": member_limit,
+            }
         )
         path_params = {
             "message_id": message_id,
@@ -2092,7 +2106,7 @@ class ChatRestClient(BaseClient):
     def unread_counts(
         self, user_id: Optional[str] = None
     ) -> StreamResponse[WrappedUnreadCountsResponse]:
-        query_params = build_query_param(user_id=user_id)
+        query_params = build_query_param(**{"user_id": user_id})
         return self.get(
             "/api/v2/chat/unread",
             WrappedUnreadCountsResponse,

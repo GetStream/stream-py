@@ -41,11 +41,13 @@ class ModerationRestClient(AsyncBaseClient):
         user_id: Optional[str] = None,
     ) -> StreamResponse[GetActionConfigResponse]:
         query_params = build_query_param(
-            queue_type=queue_type,
-            entity_type=entity_type,
-            exclude_defaults=exclude_defaults,
-            only_defaults=only_defaults,
-            user_id=user_id,
+            **{
+                "queue_type": queue_type,
+                "entity_type": entity_type,
+                "exclude_defaults": exclude_defaults,
+                "only_defaults": only_defaults,
+                "user_id": user_id,
+            }
         )
         return await self.get(
             "/api/v2/moderation/action_config",
@@ -119,7 +121,7 @@ class ModerationRestClient(AsyncBaseClient):
     async def delete_action_config(
         self, id: str, user_id: Optional[str] = None
     ) -> StreamResponse[DeleteActionConfigResponse]:
-        query_params = build_query_param(user_id=user_id)
+        query_params = build_query_param(**{"user_id": user_id})
         path_params = {
             "id": id,
         }
@@ -162,6 +164,7 @@ class ModerationRestClient(AsyncBaseClient):
         async_response: Optional[bool] = None,
         config_key: Optional[str] = None,
         content_published_at: Optional[datetime] = None,
+        country_code: Optional[str] = None,
         entity_creator_id: Optional[str] = None,
         entity_id: Optional[str] = None,
         entity_type: Optional[str] = None,
@@ -175,6 +178,7 @@ class ModerationRestClient(AsyncBaseClient):
             async_response=async_response,
             config_key=config_key,
             content_published_at=content_published_at,
+            country_code=country_code,
             entity_creator_id=entity_creator_id,
             entity_id=entity_id,
             entity_type=entity_type,
@@ -192,6 +196,7 @@ class ModerationRestClient(AsyncBaseClient):
         appeal_reason: str,
         entity_id: str,
         entity_type: str,
+        channel_cid: Optional[str] = None,
         review_queue_item_id: Optional[str] = None,
         user_id: Optional[str] = None,
         attachments: Optional[List[str]] = None,
@@ -201,6 +206,7 @@ class ModerationRestClient(AsyncBaseClient):
             appeal_reason=appeal_reason,
             entity_id=entity_id,
             entity_type=entity_type,
+            channel_cid=channel_cid,
             review_queue_item_id=review_queue_item_id,
             user_id=user_id,
             attachments=attachments,
@@ -326,6 +332,7 @@ class ModerationRestClient(AsyncBaseClient):
         config_key: Optional[str] = None,
         config_team: Optional[str] = None,
         content_published_at: Optional[datetime] = None,
+        country_code: Optional[str] = None,
         test_mode: Optional[bool] = None,
         user_id: Optional[str] = None,
         config: Optional[ModerationConfig] = None,
@@ -340,6 +347,7 @@ class ModerationRestClient(AsyncBaseClient):
             config_key=config_key,
             config_team=config_team,
             content_published_at=content_published_at,
+            country_code=country_code,
             test_mode=test_mode,
             user_id=user_id,
             config=config,
@@ -416,7 +424,7 @@ class ModerationRestClient(AsyncBaseClient):
     async def delete_config(
         self, key: str, team: Optional[str] = None, user_id: Optional[str] = None
     ) -> StreamResponse[DeleteModerationConfigResponse]:
-        query_params = build_query_param(team=team, user_id=user_id)
+        query_params = build_query_param(**{"team": team, "user_id": user_id})
         path_params = {
             "key": key,
         }
@@ -431,7 +439,7 @@ class ModerationRestClient(AsyncBaseClient):
     async def get_config(
         self, key: str, team: Optional[str] = None
     ) -> StreamResponse[GetConfigResponse]:
-        query_params = build_query_param(team=team)
+        query_params = build_query_param(**{"team": team})
         path_params = {
             "key": key,
         }
@@ -684,7 +692,7 @@ class ModerationRestClient(AsyncBaseClient):
     async def delete_moderation_rule(
         self, id: str, user_id: Optional[str] = None
     ) -> StreamResponse[DeleteModerationRuleResponse]:
-        query_params = build_query_param(user_id=user_id)
+        query_params = build_query_param(**{"user_id": user_id})
         path_params = {
             "id": id,
         }
@@ -824,7 +832,7 @@ class ModerationRestClient(AsyncBaseClient):
     async def list_queues(
         self, user_id: Optional[str] = None
     ) -> StreamResponse[ListQueuesResponse]:
-        query_params = build_query_param(user_id=user_id)
+        query_params = build_query_param(**{"user_id": user_id})
         return await self.get(
             "/api/v2/moderation/queues", ListQueuesResponse, query_params=query_params
         )
@@ -855,7 +863,7 @@ class ModerationRestClient(AsyncBaseClient):
     async def get_queue(
         self, id: str, user_id: Optional[str] = None
     ) -> StreamResponse[QueueResponse]:
-        query_params = build_query_param(user_id=user_id)
+        query_params = build_query_param(**{"user_id": user_id})
         path_params = {
             "id": id,
         }
@@ -1071,9 +1079,11 @@ class ModerationRestClient(AsyncBaseClient):
         unbanned_by: Optional[UserRequest] = None,
     ) -> StreamResponse[UnbanResponse]:
         query_params = build_query_param(
-            target_user_id=target_user_id,
-            channel_cid=channel_cid,
-            created_by=created_by,
+            **{
+                "target_user_id": target_user_id,
+                "channel_cid": channel_cid,
+                "created_by": created_by,
+            }
         )
         json = UnbanRequest(
             unbanned_by_id=unbanned_by_id, unbanned_by=unbanned_by

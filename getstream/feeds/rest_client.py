@@ -180,7 +180,7 @@ class FeedsRestClient(BaseClient):
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[QueryActivitiesResponse]:
         query_params = build_query_param(
-            language=language, translate_text=translate_text
+            **{"language": language, "translate_text": translate_text}
         )
         json = QueryActivitiesRequest(
             enrich_own_fields=enrich_own_fields,
@@ -237,7 +237,7 @@ class FeedsRestClient(BaseClient):
         folder_id: Optional[str] = None,
         user_id: Optional[str] = None,
     ) -> StreamResponse[DeleteBookmarkResponse]:
-        query_params = build_query_param(folder_id=folder_id, user_id=user_id)
+        query_params = build_query_param(**{"folder_id": folder_id, "user_id": user_id})
         path_params = {
             "activity_id": activity_id,
         }
@@ -360,7 +360,7 @@ class FeedsRestClient(BaseClient):
         vote_id: str,
         user_id: Optional[str] = None,
     ) -> StreamResponse[PollVoteResponse]:
-        query_params = build_query_param(user_id=user_id)
+        query_params = build_query_param(**{"user_id": user_id})
         path_params = {
             "activity_id": activity_id,
             "poll_id": poll_id,
@@ -442,7 +442,10 @@ class FeedsRestClient(BaseClient):
         user_id: Optional[str] = None,
     ) -> StreamResponse[DeleteActivityReactionResponse]:
         query_params = build_query_param(
-            delete_notification_activity=delete_notification_activity, user_id=user_id
+            **{
+                "delete_notification_activity": delete_notification_activity,
+                "user_id": user_id,
+            }
         )
         path_params = {
             "activity_id": activity_id,
@@ -463,7 +466,7 @@ class FeedsRestClient(BaseClient):
         prev: Optional[str] = None,
         next: Optional[str] = None,
     ) -> StreamResponse[QueryActivitySharesResponse]:
-        query_params = build_query_param(limit=limit, prev=prev, next=next)
+        query_params = build_query_param(**{"limit": limit, "prev": prev, "next": next})
         path_params = {
             "activity_id": activity_id,
         }
@@ -482,8 +485,10 @@ class FeedsRestClient(BaseClient):
         delete_notification_activity: Optional[bool] = None,
     ) -> StreamResponse[DeleteActivityResponse]:
         query_params = build_query_param(
-            hard_delete=hard_delete,
-            delete_notification_activity=delete_notification_activity,
+            **{
+                "hard_delete": hard_delete,
+                "delete_notification_activity": delete_notification_activity,
+            }
         )
         path_params = {
             "id": id,
@@ -501,16 +506,20 @@ class FeedsRestClient(BaseClient):
         id: str,
         comment_sort: Optional[str] = None,
         comment_limit: Optional[int] = None,
+        skip_own_followings: Optional[bool] = None,
         user_id: Optional[str] = None,
         language: Optional[str] = None,
         translate_text: Optional[bool] = None,
     ) -> StreamResponse[GetActivityResponse]:
         query_params = build_query_param(
-            comment_sort=comment_sort,
-            comment_limit=comment_limit,
-            user_id=user_id,
-            language=language,
-            translate_text=translate_text,
+            **{
+                "comment_sort": comment_sort,
+                "comment_limit": comment_limit,
+                "skip_own_followings": skip_own_followings,
+                "user_id": user_id,
+                "language": language,
+                "translate_text": translate_text,
+            }
         )
         path_params = {
             "id": id,
@@ -628,7 +637,7 @@ class FeedsRestClient(BaseClient):
         user_id: Optional[str] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[RestoreActivityResponse]:
-        query_params = build_query_param(enrich_own_fields=enrich_own_fields)
+        query_params = build_query_param(**{"enrich_own_fields": enrich_own_fields})
         path_params = {
             "id": id,
         }
@@ -724,7 +733,7 @@ class FeedsRestClient(BaseClient):
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[QueryBookmarksResponse]:
         query_params = build_query_param(
-            language=language, translate_text=translate_text
+            **{"language": language, "translate_text": translate_text}
         )
         json = QueryBookmarksRequest(
             enrich_own_fields=enrich_own_fields,
@@ -747,7 +756,7 @@ class FeedsRestClient(BaseClient):
     def delete_collections(
         self, collection_refs: List[str]
     ) -> StreamResponse[DeleteCollectionsResponse]:
-        query_params = build_query_param(collection_refs=collection_refs)
+        query_params = build_query_param(**{"collection_refs": collection_refs})
         return self.delete(
             "/api/v2/feeds/collections",
             DeleteCollectionsResponse,
@@ -759,7 +768,7 @@ class FeedsRestClient(BaseClient):
         self, user_id: Optional[str] = None, collection_refs: Optional[List[str]] = None
     ) -> StreamResponse[ReadCollectionsResponse]:
         query_params = build_query_param(
-            user_id=user_id, collection_refs=collection_refs
+            **{"user_id": user_id, "collection_refs": collection_refs}
         )
         return self.get(
             "/api/v2/feeds/collections",
@@ -845,18 +854,20 @@ class FeedsRestClient(BaseClient):
         next: Optional[str] = None,
     ) -> StreamResponse[GetCommentsResponse]:
         query_params = build_query_param(
-            object_id=object_id,
-            object_type=object_type,
-            depth=depth,
-            sort=sort,
-            replies_limit=replies_limit,
-            id_around=id_around,
-            language=language,
-            translate_text=translate_text,
-            user_id=user_id,
-            limit=limit,
-            prev=prev,
-            next=next,
+            **{
+                "object_id": object_id,
+                "object_type": object_type,
+                "depth": depth,
+                "sort": sort,
+                "replies_limit": replies_limit,
+                "id_around": id_around,
+                "language": language,
+                "translate_text": translate_text,
+                "user_id": user_id,
+                "limit": limit,
+                "prev": prev,
+                "next": next,
+            }
         )
         return self.get(
             "/api/v2/feeds/comments", GetCommentsResponse, query_params=query_params
@@ -924,7 +935,7 @@ class FeedsRestClient(BaseClient):
         translate_text: Optional[bool] = None,
     ) -> StreamResponse[QueryCommentsResponse]:
         query_params = build_query_param(
-            language=language, translate_text=translate_text
+            **{"language": language, "translate_text": translate_text}
         )
         json = QueryCommentsRequest(
             filter=filter,
@@ -978,7 +989,7 @@ class FeedsRestClient(BaseClient):
         folder_id: Optional[str] = None,
         user_id: Optional[str] = None,
     ) -> StreamResponse[DeleteCommentBookmarkResponse]:
-        query_params = build_query_param(folder_id=folder_id, user_id=user_id)
+        query_params = build_query_param(**{"folder_id": folder_id, "user_id": user_id})
         path_params = {
             "comment_id": comment_id,
         }
@@ -1053,8 +1064,10 @@ class FeedsRestClient(BaseClient):
         delete_notification_activity: Optional[bool] = None,
     ) -> StreamResponse[DeleteCommentResponse]:
         query_params = build_query_param(
-            hard_delete=hard_delete,
-            delete_notification_activity=delete_notification_activity,
+            **{
+                "hard_delete": hard_delete,
+                "delete_notification_activity": delete_notification_activity,
+            }
         )
         path_params = {
             "id": id,
@@ -1075,7 +1088,11 @@ class FeedsRestClient(BaseClient):
         translate_text: Optional[bool] = None,
     ) -> StreamResponse[GetCommentResponse]:
         query_params = build_query_param(
-            user_id=user_id, language=language, translate_text=translate_text
+            **{
+                "user_id": user_id,
+                "language": language,
+                "translate_text": translate_text,
+            }
         )
         path_params = {
             "id": id,
@@ -1228,7 +1245,10 @@ class FeedsRestClient(BaseClient):
         user_id: Optional[str] = None,
     ) -> StreamResponse[DeleteCommentReactionResponse]:
         query_params = build_query_param(
-            delete_notification_activity=delete_notification_activity, user_id=user_id
+            **{
+                "delete_notification_activity": delete_notification_activity,
+                "user_id": user_id,
+            }
         )
         path_params = {
             "id": id,
@@ -1257,16 +1277,18 @@ class FeedsRestClient(BaseClient):
         next: Optional[str] = None,
     ) -> StreamResponse[GetCommentRepliesResponse]:
         query_params = build_query_param(
-            depth=depth,
-            sort=sort,
-            replies_limit=replies_limit,
-            id_around=id_around,
-            language=language,
-            translate_text=translate_text,
-            user_id=user_id,
-            limit=limit,
-            prev=prev,
-            next=next,
+            **{
+                "depth": depth,
+                "sort": sort,
+                "replies_limit": replies_limit,
+                "id_around": id_around,
+                "language": language,
+                "translate_text": translate_text,
+                "user_id": user_id,
+                "limit": limit,
+                "prev": prev,
+                "next": next,
+            }
         )
         path_params = {
             "id": id,
@@ -1312,7 +1334,9 @@ class FeedsRestClient(BaseClient):
     def list_feed_groups(
         self, include_soft_deleted: Optional[bool] = None
     ) -> StreamResponse[ListFeedGroupsResponse]:
-        query_params = build_query_param(include_soft_deleted=include_soft_deleted)
+        query_params = build_query_param(
+            **{"include_soft_deleted": include_soft_deleted}
+        )
         return self.get(
             "/api/v2/feeds/feed_groups",
             ListFeedGroupsResponse,
@@ -1366,7 +1390,10 @@ class FeedsRestClient(BaseClient):
         purge_user_activities: Optional[bool] = None,
     ) -> StreamResponse[DeleteFeedResponse]:
         query_params = build_query_param(
-            hard_delete=hard_delete, purge_user_activities=purge_user_activities
+            **{
+                "hard_delete": hard_delete,
+                "purge_user_activities": purge_user_activities,
+            }
         )
         path_params = {
             "feed_group_id": feed_group_id,
@@ -1406,7 +1433,7 @@ class FeedsRestClient(BaseClient):
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[GetOrCreateFeedResponse]:
         query_params = build_query_param(
-            language=language, translate_text=translate_text
+            **{"language": language, "translate_text": translate_text}
         )
         path_params = {
             "feed_group_id": feed_group_id,
@@ -1518,7 +1545,7 @@ class FeedsRestClient(BaseClient):
         user_id: Optional[str] = None,
     ) -> StreamResponse[UnpinActivityResponse]:
         query_params = build_query_param(
-            enrich_own_fields=enrich_own_fields, user_id=user_id
+            **{"enrich_own_fields": enrich_own_fields, "user_id": user_id}
         )
         path_params = {
             "feed_group_id": feed_group_id,
@@ -1698,7 +1725,7 @@ class FeedsRestClient(BaseClient):
         filter: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[QueryPinnedActivitiesResponse]:
         query_params = build_query_param(
-            language=language, translate_text=translate_text
+            **{"language": language, "translate_text": translate_text}
         )
         path_params = {
             "feed_group_id": feed_group_id,
@@ -1727,7 +1754,7 @@ class FeedsRestClient(BaseClient):
         limit: Optional[int] = None,
         user_id: Optional[str] = None,
     ) -> StreamResponse[GetFollowSuggestionsResponse]:
-        query_params = build_query_param(limit=limit, user_id=user_id)
+        query_params = build_query_param(**{"limit": limit, "user_id": user_id})
         path_params = {
             "feed_group_id": feed_group_id,
         }
@@ -1755,7 +1782,7 @@ class FeedsRestClient(BaseClient):
     def delete_feed_group(
         self, id: str, hard_delete: Optional[bool] = None
     ) -> StreamResponse[DeleteFeedGroupResponse]:
-        query_params = build_query_param(hard_delete=hard_delete)
+        query_params = build_query_param(**{"hard_delete": hard_delete})
         path_params = {
             "id": id,
         }
@@ -1770,7 +1797,9 @@ class FeedsRestClient(BaseClient):
     def get_feed_group(
         self, id: str, include_soft_deleted: Optional[bool] = None
     ) -> StreamResponse[GetFeedGroupResponse]:
-        query_params = build_query_param(include_soft_deleted=include_soft_deleted)
+        query_params = build_query_param(
+            **{"include_soft_deleted": include_soft_deleted}
+        )
         path_params = {
             "id": id,
         }
@@ -2065,14 +2094,16 @@ class FeedsRestClient(BaseClient):
         server_side: Optional[bool] = None,
     ) -> StreamResponse[GetFeedsRateLimitsResponse]:
         query_params = build_query_param(
-            endpoints=endpoints,
-            android=android,
-            ios=ios,
-            web=web,
-            unity=unity,
-            unity_desktop=unity_desktop,
-            unity_console=unity_console,
-            server_side=server_side,
+            **{
+                "endpoints": endpoints,
+                "android": android,
+                "ios": ios,
+                "web": web,
+                "unity": unity,
+                "unity_desktop": unity_desktop,
+                "unity_console": unity_console,
+                "server_side": server_side,
+            }
         )
         return self.get(
             "/api/v2/feeds/feeds/rate_limits",
@@ -2248,9 +2279,11 @@ class FeedsRestClient(BaseClient):
         enrich_own_fields: Optional[bool] = None,
     ) -> StreamResponse[UnfollowResponse]:
         query_params = build_query_param(
-            delete_notification_activity=delete_notification_activity,
-            keep_history=keep_history,
-            enrich_own_fields=enrich_own_fields,
+            **{
+                "delete_notification_activity": delete_notification_activity,
+                "keep_history": keep_history,
+                "enrich_own_fields": enrich_own_fields,
+            }
         )
         path_params = {
             "source": source,
@@ -2444,11 +2477,26 @@ class FeedsRestClient(BaseClient):
             path_params=path_params,
         )
 
+    @telemetry.operation_name("getstream.api.feeds.delete_user_interests")
+    def delete_user_interests(
+        self, user_id: str, tags: List[str]
+    ) -> StreamResponse[DeleteUserInterestsResponse]:
+        query_params = build_query_param(**{"tags": tags})
+        path_params = {
+            "user_id": user_id,
+        }
+        return self.delete(
+            "/api/v2/feeds/users/{user_id}/interests",
+            DeleteUserInterestsResponse,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
     @telemetry.operation_name("getstream.api.feeds.get_user_interests")
     def get_user_interests(
         self, user_id: str, limit: Optional[int] = None
     ) -> StreamResponse[GetUserInterestsResponse]:
-        query_params = build_query_param(limit=limit)
+        query_params = build_query_param(**{"limit": limit})
         path_params = {
             "user_id": user_id,
         }
@@ -2457,4 +2505,19 @@ class FeedsRestClient(BaseClient):
             GetUserInterestsResponse,
             query_params=query_params,
             path_params=path_params,
+        )
+
+    @telemetry.operation_name("getstream.api.feeds.upsert_user_interests")
+    def upsert_user_interests(
+        self, user_id: str, interests: List[UserInterestRequest]
+    ) -> StreamResponse[UpsertUserInterestsResponse]:
+        path_params = {
+            "user_id": user_id,
+        }
+        json = UpsertUserInterestsRequest(interests=interests).to_dict()
+        return self.put(
+            "/api/v2/feeds/users/{user_id}/interests",
+            UpsertUserInterestsResponse,
+            path_params=path_params,
+            json=json,
         )
