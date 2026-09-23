@@ -15,7 +15,7 @@ jobs:
   # keyed on github.actor, which is the pusher: clicking Update branch reattributes the
   # merge commit to whoever clicked, and the skip would stop firing on the normal release
   # path.
-  # The skip also requires every changed file to be one release-please writes, so a code change pushed onto a Release PR by hand runs the unit lane. An unexpected file or a failed lookup fails toward running it.
+  # The skip also requires the diff to be only what release-please writes: the changelog, the manifest, and in each version file nothing but the version line. A hand-pushed code or dependency change, an unexpected file or a failed lookup runs the unit lane.
   release-only:
     if: >-
       ${{ github.event.pull_request.user.login == 'github-actions[bot]'
@@ -33,20 +33,57 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
-          ALLOWED: '^(CHANGELOG\.md|\.release-please-manifest\.json|pyproject\.toml|uv\.lock)$'
+          VERSION_FILES: pyproject.toml uv.lock
         run: |
-          if ! files="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}/files" --paginate --jq '.[].filename')"; then
+          export FILES="$RUNNER_TEMP/pr-files.jsonl"
+          if ! gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}/files" --paginate --jq '.[] | @json' > "$FILES"; then
             echo "::warning::Could not list this PR's files; running the unit lane."
             echo "skip=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          other="$(printf '%s\n' "$files" | grep -Ev "$ALLOWED" || true)"
-          if [ -n "$files" ] && [ -z "$other" ]; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "::notice::Files outside what release-please writes changed, so the unit lane runs: ${other//$'\n'/ }"
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-          fi
+          python3 - <<'PY'
+          import json, os, re
+
+          files = [json.loads(line) for line in open(os.environ["FILES"]) if line.strip()]
+          version_files = set(os.environ["VERSION_FILES"].split())
+          free = {"CHANGELOG.md", ".release-please-manifest.json"}
+          version_token = re.compile(r"v?\d+(?:\.\d+)+(?:-[0-9A-Za-z.]+)?")
+
+
+          def lines(f, sign):
+              return [l[1:] for l in (f.get("patch") or "").split("\n") if l.startswith(sign)]
+
+
+          def decide():
+              manifest = next((f for f in files if f["filename"] == ".release-please-manifest.json"), None)
+              new = re.findall(r'"\.":\s*"([^"]+)"', "\n".join(lines(manifest, "+"))) if manifest else []
+              if len(new) != 1:
+                  return "the manifest diff is not a single version bump"
+              has_new = re.compile(r"(?<![\w.])v?" + re.escape(new[0]) + r"(?![\w.])")
+              for f in files:
+                  name = f["filename"]
+                  if name in free:
+                      continue
+                  if name not in version_files:
+                      return f"{name} is not a file release-please writes"
+                  if f.get("patch") is None:
+                      return f"GitHub returned no diff for {name}"
+                  added, removed = lines(f, "+"), lines(f, "-")
+                  stray = next((l for l in added if not has_new.search(l)), None)
+                  if stray is not None:
+                      return f"{name} adds a line without the new version: {stray.strip()[:120]}"
+                  # Masking versions, what was removed must be exactly what was added back.
+                  if sorted(version_token.sub("V", l) for l in removed) != sorted(version_token.sub("V", l) for l in added):
+                      return f"{name} changes more than its version line"
+              return None
+
+
+          reason = decide()
+          with open(os.environ.get("GITHUB_OUTPUT", "/dev/stdout"), "a") as out:
+              out.write(f"skip={'false' if reason else 'true'}\n")
+          if reason:
+              print(f"::notice::Running the unit lane: {reason}")
+          PY
 
   unit:
     needs: release-only

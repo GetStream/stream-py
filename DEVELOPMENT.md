@@ -56,7 +56,7 @@ another repo's run or a backend regression can redden it with nothing wrong here
 run before a tag either. A red daily run opens an issue titled "Daily integration run is
 red". Fix it, do not route around it.
 
-A Release PR skips the lane and `🧪 Tests` passes in seconds on a `skipped` result. The skip only applies while every changed file is one release-please writes, so a code change pushed onto a Release PR by hand runs the unit lane like any other PR. Merging it tags and publishes with no further test run: it adds only the version bump and changelog to an already-tested `main`. A hotfix release from `N.x` runs the unit lane first, since its commits were pushed without a PR.
+A Release PR skips the lane and `🧪 Tests` passes in seconds on a `skipped` result. The skip only applies while the diff is nothing but what release-please writes, down to the version line in each version file, so a code or dependency change pushed onto a Release PR by hand runs the unit lane like any other PR. Merging it tags and publishes with no further test run: it adds only the version bump and changelog to an already-tested `main`. A hotfix release from `N.x` runs the unit lane first, since its commits were pushed without a PR.
 
 ### Linting and type checking
 
