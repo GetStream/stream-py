@@ -44,11 +44,7 @@ jobs:
           target-branch: ${{ github.ref_name }}
           skip-github-release: true
 
-  # Tagging and the GitHub Release are irreversible, so the suite has to run before
-  # them, which means knowing a release is pending before the suite starts. The tag
-  # lands on the merged Release PR's merge commit while the suite runs on this
-  # workflow's own commit, so `ready` also requires those to be the same commit. They
-  # are, on the path that matters: the push of that merge.
+  # Tagging and the GitHub Release are irreversible, so they run only on the push that merged the Release PR: `ready` requires the pending release's merge commit to be this run's commit. A release from the default branch has no test run, because the Release PR adds only the version bump and changelog to already-tested code; a hotfix release from `N.x` runs the unit lane first, because hotfix commits are pushed without a PR.
   detect:
     name: Detect pending release
     if: >-
@@ -123,8 +119,7 @@ jobs:
             echo "No pending release on ${BASE}."
           elif [ "$sha" != "$HEAD_SHA" ]; then
             # Reached when an earlier release run failed after the Release PR merged.
-            # Tagging $sha here would tag a tree this run never tested, and failing
-            # would redden every later push, so stand down and say why.
+            # Finishing it from a later push would retry a deterministic failure (a refused major tag, a broken build) on every push, so stand down and say why.
             pending=true
             echo "::warning::Release PR #${num} is still pending at ${sha}, which is not this run's commit ${HEAD_SHA}. Re-run the workflow run for ${sha} to finish that release."
             {
@@ -159,17 +154,19 @@ jobs:
             echo "ready=${ready}"
           } >> "$GITHUB_OUTPUT"
 
-  test-unit:
-    name: Test (unit)
+  tests:
+    name: Tests (hotfix only)
     needs: detect
-    if: needs.detect.outputs.ready == 'true'
+    if: needs.detect.outputs.ready == 'true' && github.ref_name != github.event.repository.default_branch
     uses: ./.github/workflows/run_tests.yml
 
   # Irreversible half.
   release:
     name: 🚀 Tag and release
-    needs: [detect, test-unit]
-    if: needs.detect.outputs.ready == 'true'
+    needs: [detect, tests]
+    if: >-
+      ${{ !cancelled() && needs.detect.result == 'success' && needs.detect.outputs.ready == 'true'
+      && (needs.tests.result == 'success' || needs.tests.result == 'skipped') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:

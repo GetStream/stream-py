@@ -268,17 +268,11 @@ Releases are driven by [release-please](https://github.com/googleapis/release-pl
 - release-please keeps a Release PR open with the version bump in `pyproject.toml`,
   `uv.lock` and `CHANGELOG.md`. It is opened by `github-actions[bot]`, so approve it and
   run its held checks like any other PR.
-- Merging the Release PR runs lint, type-check and the unit and integration matrix on
-  that merge commit, which is the commit the tag will point at. Only if that is green
-  does the workflow create the tag and the GitHub Release and publish to PyPI via
-  Trusted Publishing (OIDC). The order matters: a tag and a GitHub Release cannot be
-  withdrawn, a failed publish can be retried. If the commit waiting to be tagged is not
-  the one this run tested, the workflow stands down instead of tagging it, and says so in
-  the run summary.
+- Merging the Release PR creates the tag and the GitHub Release on that merge commit and publishes to PyPI via Trusted Publishing (OIDC), with no further test run: the Release PR adds only the version bump and changelog to an already-tested `main`. A hotfix release from `N.x` runs the unit lane first, since its commits were pushed without a PR. A tag and a GitHub Release cannot be withdrawn, a failed publish can be retried. If the commit waiting to be tagged is not this run's commit, the workflow stands down instead of tagging it, and says so in the run summary.
 
 While a merged Release PR is waiting to be tagged, no new Release PR is opened or
-refreshed, so that release-please has a release commit to stop its walk at. If the suite
-failed on that merge commit, use "Re-run failed jobs" on its `Release` run. If the commit
+refreshed, so that release-please has a release commit to stop its walk at. If the release
+job failed on that merge commit, use "Re-run failed jobs" on its `Release` run. If the commit
 is genuinely broken, remove the `autorelease: pending` label from the merged Release PR
 by hand, then release forward; nothing clears that state automatically.
 

@@ -16,8 +16,7 @@ env:
 permissions:
   contents: read
 
-# The only place `-m integration` runs: daily and before a tag, never as a status check on a
-# pull request. See DEVELOPMENT.md for why it gates nothing.
+# The only place `-m integration` runs: daily, never as a status check on a pull request. See DEVELOPMENT.md for why it gates nothing.
 jobs:
   integration-non-video:
     name: 🧪 Non-video integration (${{ matrix.python-version }})

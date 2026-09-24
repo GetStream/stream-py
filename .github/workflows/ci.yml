@@ -1,8 +1,7 @@
 name: CI (unit)
 # pull_request only. A push trigger alongside it ran the whole suite twice on the same
 # SHA, and the duplicate legs raced each other against the Stream app several SDK repos
-# share. main and *.x are covered by release.yml, which runs this same reusable workflow
-# as the gate before tagging.
+# share. A merge to main runs nothing here.
 on:
   pull_request:
     branches: [ "**" ]
@@ -15,43 +14,105 @@ jobs:
   # Skipped on a Release PR: it only bumps the version and rewrites the changelog. Not
   # keyed on github.actor, which is the pusher: clicking Update branch reattributes the
   # merge commit to whoever clicked, and the skip would stop firing on the normal release
-  # path. A human commit pushed onto a Release PR is therefore untested until release.yml
-  # runs the lane on the merge commit.
-  unit:
+  # path.
+  # The skip also requires the diff to be only what release-please writes: the changelog, the manifest, and in each version file nothing but the version line. A hand-pushed code or dependency change, an unexpected file or a failed lookup runs the unit lane.
+  release-only:
     if: >-
-      ${{ !(github.event.pull_request.user.login == 'github-actions[bot]'
+      ${{ github.event.pull_request.user.login == 'github-actions[bot]'
       && github.event.pull_request.head.repo.full_name == github.repository
-      && startsWith(github.head_ref, 'release-please--')) }}
+      && startsWith(github.head_ref, 'release-please--') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      skip: ${{ steps.files.outputs.skip }}
+    steps:
+      - id: files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          VERSION_FILES: pyproject.toml uv.lock
+        run: |
+          export FILES="$RUNNER_TEMP/pr-files.jsonl"
+          if ! gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}/files" --paginate --jq '.[] | @json' > "$FILES"; then
+            echo "::warning::Could not list this PR's files; running the unit lane."
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          python3 - <<'PY'
+          import json, os, re
+
+          files = [json.loads(line) for line in open(os.environ["FILES"]) if line.strip()]
+          version_files = set(os.environ["VERSION_FILES"].split())
+          free = {"CHANGELOG.md", ".release-please-manifest.json"}
+          version_token = re.compile(r"v?\d+(?:\.\d+)+(?:-[0-9A-Za-z.]+)?")
+
+
+          def lines(f, sign):
+              return [l[1:] for l in (f.get("patch") or "").split("\n") if l.startswith(sign)]
+
+
+          def decide():
+              manifest = next((f for f in files if f["filename"] == ".release-please-manifest.json"), None)
+              new = re.findall(r'"\.":\s*"([^"]+)"', "\n".join(lines(manifest, "+"))) if manifest else []
+              if len(new) != 1:
+                  return "the manifest diff is not a single version bump"
+              has_new = re.compile(r"(?<![\w.])v?" + re.escape(new[0]) + r"(?![\w.])")
+              for f in files:
+                  name = f["filename"]
+                  if name in free:
+                      continue
+                  if name not in version_files:
+                      return f"{name} is not a file release-please writes"
+                  if f.get("patch") is None:
+                      return f"GitHub returned no diff for {name}"
+                  added, removed = lines(f, "+"), lines(f, "-")
+                  stray = next((l for l in added if not has_new.search(l)), None)
+                  if stray is not None:
+                      return f"{name} adds a line without the new version: {stray.strip()[:120]}"
+                  # Masking versions, what was removed must be exactly what was added back.
+                  if sorted(version_token.sub("V", l) for l in removed) != sorted(version_token.sub("V", l) for l in added):
+                      return f"{name} changes more than its version line"
+              return None
+
+
+          reason = decide()
+          with open(os.environ.get("GITHUB_OUTPUT", "/dev/stdout"), "a") as out:
+              out.write(f"skip={'false' if reason else 'true'}\n")
+          if reason:
+              print(f"::notice::Running the unit lane: {reason}")
+          PY
+
+  unit:
+    needs: release-only
+    if: ${{ !cancelled() && needs.release-only.outputs.skip != 'true' }}
     uses: ./.github/workflows/run_tests.yml
 
   # The one required status check on main, and it carries no matrix on purpose: a matrix job
   # skipped by `if:` publishes a single check run with the template unexpanded, so per-leg
-  # contexts could never be satisfied on a Release PR. `skipped` is accepted only when the
-  # condition above holds, repeated here because Actions cannot share an expression; if the
-  # two drift this fails, which is the safe direction.
+  # contexts could never be satisfied on a Release PR. `skipped` is accepted only when release-only confirmed a release-please-only diff.
   tests-passed:
     name: 🧪 Tests
-    needs: unit
+    needs: [release-only, unit]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Check the unit lane
         env:
           RESULT: ${{ needs.unit.result }}
-          RELEASE_PR: >-
-            ${{ github.event.pull_request.user.login == 'github-actions[bot]'
-            && github.event.pull_request.head.repo.full_name == github.repository
-            && startsWith(github.head_ref, 'release-please--') }}
+          SKIP: ${{ needs.release-only.outputs.skip }}
         run: |
           case "$RESULT" in
             success)
               echo "unit lane passed"
               ;;
             skipped)
-              if [ "$RELEASE_PR" = "true" ]; then
+              if [ "$SKIP" = "true" ]; then
                 echo "release pr: unit lane skipped by design"
               else
-                echo "::error::the unit lane was skipped on a PR that is not a Release PR"
+                echo "::error::the unit lane was skipped without release-only confirming a release-please-only diff"
                 exit 1
               fi
               ;;
