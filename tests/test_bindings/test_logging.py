@@ -99,7 +99,7 @@ class TestLogging:
 
     @pytest.mark.integration
     async def test_log_bodies_logs_request_bodies(
-        self, sdk_logs: pytest.LogCaptureFixture, random_user: FullUserResponse
+        self, sdk_logs: pytest.LogCaptureFixture, call_users: list[FullUserResponse]
     ):
         client = _rust.Client(
             os.environ["STREAM_API_KEY"],
@@ -107,7 +107,7 @@ class TestLogging:
             log_bodies=True,
         )
         call = client.call("default", str(uuid.uuid4()))
-        await call.join(random_user.id)
+        await call.join(call_users[0].id)
         await call.leave()
         _rust.configure_logging(None, logging.NOTSET)
 
@@ -121,10 +121,10 @@ class TestLogging:
         self,
         sdk_logs: pytest.LogCaptureFixture,
         rust_client: _rust.Client,
-        random_user: FullUserResponse,
+        call_users: list[FullUserResponse],
     ):
         call = rust_client.call("default", str(uuid.uuid4()))
-        await call.join(random_user.id)
+        await call.join(call_users[0].id)
         await call.leave()
         _rust.configure_logging(None, logging.NOTSET)
 
@@ -141,12 +141,12 @@ class TestLogging:
         self,
         sdk_logs: pytest.LogCaptureFixture,
         rust_client: _rust.Client,
-        random_user: FullUserResponse,
+        call_users: list[FullUserResponse],
     ):
         logger = logging.getLogger("getstream")
         _rust.configure_logging(logger, logging.DEBUG, logging.DEBUG)
         call = rust_client.call("default", str(uuid.uuid4()))
-        await call.join(random_user.id)
+        await call.join(call_users[0].id)
         await call.leave()
         _rust.configure_logging(None, logging.NOTSET)
 
