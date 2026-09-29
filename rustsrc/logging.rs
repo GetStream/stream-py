@@ -338,7 +338,7 @@ fn report(py: Python<'_>, result: PyResult<()>) {
     }
 }
 
-/// `getstream._native_logging.handle_record` builds and handles the Python
+/// `getstream._native.logging.handle_record` builds and handles the Python
 /// record.
 fn deliver(logger: &Bound<'_, PyAny>, record: Captured) -> PyResult<()> {
     let py = logger.py();
@@ -346,7 +346,7 @@ fn deliver(logger: &Bound<'_, PyAny>, record: Captured) -> PyResult<()> {
     for (name, value) in record.fields {
         fields.set_item(name.replace('.', "_"), value.into_python(py)?)?;
     }
-    py.import("getstream._native_logging")?.call_method1(
+    py.import("getstream._native.logging")?.call_method1(
         "handle_record",
         (
             logger,
