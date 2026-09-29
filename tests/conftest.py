@@ -1,5 +1,8 @@
 import functools
+import logging
 import uuid
+from typing import Iterator
+
 import pytest
 import os
 from dotenv import load_dotenv
@@ -13,7 +16,7 @@ from tests.fixtures import (
     async_client,
 )
 
-from getstream import Stream
+from getstream import Stream, _rust
 from getstream.models import UserRequest, ChannelInput
 
 __all__ = [
@@ -101,6 +104,14 @@ def channel(client: Stream, random_user):
 @pytest.fixture(scope="session", autouse=True)
 def load_env():
     load_dotenv()
+
+
+@pytest.fixture(autouse=True)
+def forward_sdk_logs() -> Iterator[None]:
+    logger = logging.getLogger("getstream")
+    _rust.configure_logging(logger, logger.getEffectiveLevel())
+    yield
+    _rust.configure_logging(None, logging.NOTSET)
 
 
 def pytest_configure(config):
