@@ -1,12 +1,11 @@
 use pyo3::PyErr;
-use pyo3::create_exception;
-use pyo3::exceptions::PyException;
+use pyo3::import_exception;
 
-create_exception!(_native, Error, PyException);
-create_exception!(_native, RtcError, Error);
+import_exception!(getstream._rust.errors, RustError);
+import_exception!(getstream._rust.errors, RtcError);
 
 pub fn sdk_error(err: getstream::Error) -> PyErr {
-    Error::new_err(err.to_string())
+    RustError::new_err(err.to_string())
 }
 
 pub fn rtc_error(err: getstream::rtc::RtcError) -> PyErr {

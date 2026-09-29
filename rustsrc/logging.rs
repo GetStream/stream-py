@@ -338,7 +338,7 @@ fn report(py: Python<'_>, result: PyResult<()>) {
     }
 }
 
-/// `getstream._native.logging.handle_record` builds and handles the Python
+/// `getstream._rust.logging.handle_record` builds and handles the Python
 /// record.
 fn deliver(logger: &Bound<'_, PyAny>, record: Captured) -> PyResult<()> {
     let py = logger.py();
@@ -346,7 +346,7 @@ fn deliver(logger: &Bound<'_, PyAny>, record: Captured) -> PyResult<()> {
     for (name, value) in record.fields {
         fields.set_item(name.replace('.', "_"), value.into_python(py)?)?;
     }
-    py.import("getstream._native.logging")?.call_method1(
+    py.import("getstream._rust.logging")?.call_method1(
         "handle_record",
         (
             logger,
@@ -369,7 +369,11 @@ fn deliver_dropped(logger: &Bound<'_, PyAny>, dropped: u64) -> PyResult<()> {
     extra.set_item("dropped", dropped)?;
     let kwargs = PyDict::new(py);
     kwargs.set_item("extra", extra)?;
-    logger.call_method("warning", ("native.log_records_dropped",), Some(&kwargs))?;
+    logger.call_method(
+        "warning",
+        ("stream.rust.log_records_dropped",),
+        Some(&kwargs),
+    )?;
     Ok(())
 }
 
@@ -444,7 +448,7 @@ mod tests {
         };
         sink.set_filters(LevelFilter::DEBUG, LevelFilter::WARN);
 
-        assert!(sink.enabled("_native::call", &Level::DEBUG));
+        assert!(sink.enabled("_bindings::call", &Level::DEBUG));
         assert!(sink.enabled("getstream::rtc::join", &Level::DEBUG));
         assert!(!sink.enabled("webrtc_ice::agent", &Level::DEBUG));
     }
