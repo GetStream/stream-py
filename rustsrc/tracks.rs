@@ -237,8 +237,8 @@ impl LocalAudioTrack {
         })
     }
 
-    fn flush(&self) {
-        self.inner.flush();
+    fn flush(&self, py: Python<'_>) {
+        py.detach(|| self.inner.flush());
     }
 }
 

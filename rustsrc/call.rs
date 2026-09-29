@@ -102,24 +102,26 @@ impl Call {
     }
 
     #[getter]
-    fn calling_state(&self) -> CallingState {
-        self.inner.calling_state().into()
+    fn calling_state(&self, py: Python<'_>) -> CallingState {
+        py.detach(|| self.inner.calling_state()).into()
     }
 
-    fn participants(&self) -> Vec<RemoteParticipant> {
-        self.inner
-            .participants()
-            .into_iter()
-            .map(Into::into)
-            .collect()
+    fn participants(&self, py: Python<'_>) -> Vec<RemoteParticipant> {
+        py.detach(|| {
+            self.inner
+                .participants()
+                .into_iter()
+                .map(Into::into)
+                .collect()
+        })
     }
 
-    fn call_state(&self) -> CallStateSnapshot {
-        self.inner.call_state().into()
+    fn call_state(&self, py: Python<'_>) -> CallStateSnapshot {
+        py.detach(|| self.inner.call_state()).into()
     }
 
-    fn events(&self) -> EventStream {
-        EventStream::new(self.inner.subscribe(), self.end.clone())
+    fn events(&self, py: Python<'_>) -> EventStream {
+        EventStream::new(py.detach(|| self.inner.subscribe()), self.end.clone())
     }
 
     fn tracks(&self) -> TrackStream {
