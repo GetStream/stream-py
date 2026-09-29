@@ -1,4 +1,14 @@
-from getstream._rust.errors import RtcError, RustError
+from getstream._rust.errors import (
+    ApiError,
+    ConfigError,
+    CoordinatorError,
+    IllegalStateError,
+    MediaError,
+    PcmQueueOverflowError,
+    PermissionDeniedError,
+    RtcError,
+    RustError,
+)
 from getstream._rust.bindings import (
     Call,
     CallEnded,
@@ -15,14 +25,21 @@ from getstream._rust.bindings import (
 )
 
 __all__ = [
+    "ApiError",
     "Call",
     "CallEnded",
     "CallingState",
     "CallingStateChanged",
     "Client",
+    "ConfigError",
+    "CoordinatorError",
+    "IllegalStateError",
     "LocalAudioTrack",
     "LocalVideoTrack",
+    "MediaError",
     "ParticipantJoined",
+    "PcmQueueOverflowError",
+    "PermissionDeniedError",
     "RtcError",
     "RustError",
     "TrackPublished",

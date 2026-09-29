@@ -2,13 +2,13 @@ import asyncio
 import contextlib
 import os
 import uuid
-from typing import AsyncIterator
+from typing import AsyncIterator, Iterator
 
 import numpy as np
 import pytest
 
 from getstream import Stream, _rust
-from getstream.models import FullUserResponse
+from getstream.models import CallRequest, FullUserResponse
 
 SAMPLE_RATE = 48000
 FRAME_SAMPLES = SAMPLE_RATE // 50
@@ -86,6 +86,29 @@ async def published_video(
     task.cancel()
 
 
+@pytest.fixture
+def live_call_id(
+    client: Stream, call_id: str, random_users: list[FullUserResponse]
+) -> Iterator[str]:
+    call = client.video.call("livestream", call_id)
+    call.get_or_create(data=CallRequest(created_by_id=random_users[0].id))
+    call.go_live()
+    yield call_id
+    call.end()
+
+
+@pytest.fixture
+async def viewer_call(
+    rust_client: _rust.Client,
+    live_call_id: str,
+    random_users: list[FullUserResponse],
+) -> AsyncIterator[_rust.Call]:
+    call = rust_client.call("livestream", live_call_id)
+    await call.join(random_users[1].id, create=False)
+    yield call
+    await call.leave()
+
+
 @pytest.mark.integration
 class TestCallJoin:
     async def test_join_and_leave(
@@ -104,8 +127,20 @@ class TestCallJoin:
         client = _rust.Client(os.environ["STREAM_API_KEY"], "wrong-secret")
         call = client.call("default", str(uuid.uuid4()))
 
-        with pytest.raises(_rust.RtcError, match="coordinator connection error"):
+        with pytest.raises(_rust.CoordinatorError):
             await call.join(random_user.id)
+
+    async def test_join_with_unknown_call_type_raises(
+        self, rust_client: _rust.Client, random_user: FullUserResponse
+    ):
+        call = rust_client.call("missingtype", str(uuid.uuid4()))
+
+        with pytest.raises(_rust.ApiError) as exc_info:
+            await call.join(random_user.id)
+
+        assert exc_info.value.status_code == 404
+        assert exc_info.value.code == 16
+        assert exc_info.value.message
 
     async def test_cancelled_join_allows_new_join(
         self, rust_client: _rust.Client, random_user: FullUserResponse
@@ -146,10 +181,8 @@ class TestCallJoin:
         await call.join(random_user.id)
 
         leave = call.leave()
-        try:
+        with contextlib.suppress(_rust.IllegalStateError):
             await call.join(random_user.id)
-        except _rust.RtcError as error:
-            assert "shall be called only once" in str(error)
         await leave
 
         # The join failed while the leave ran (LEFT), or it ran after the
@@ -158,6 +191,21 @@ class TestCallJoin:
             await call.join(random_user.id)
         assert call.calling_state == _rust.CallingState.JOINED
         await call.leave()
+
+
+class TestCallPublish:
+    async def test_publish_before_join_raises(self, call_id: str):
+        call = _rust.Client("key", "secret").call("default", call_id)
+
+        with pytest.raises(_rust.IllegalStateError):
+            await call.publish_audio(_rust.LocalAudioTrack())
+
+    @pytest.mark.integration
+    async def test_publish_without_capability_raises(self, viewer_call: _rust.Call):
+        with pytest.raises(_rust.PermissionDeniedError) as exc_info:
+            await viewer_call.publish_audio(_rust.LocalAudioTrack())
+
+        assert exc_info.value.capability == "send-audio"
 
 
 @pytest.mark.integration

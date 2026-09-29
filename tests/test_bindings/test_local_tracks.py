@@ -12,19 +12,22 @@ class TestLocalTracks:
         track = _rust.LocalAudioTrack()
         samples = np.zeros(SAMPLE_RATE * 61, dtype=np.int16)
 
-        with pytest.raises(_rust.RtcError, match="pcm queue overflow"):
+        with pytest.raises(_rust.PcmQueueOverflowError) as exc_info:
             await track.write_pcm(samples, SAMPLE_RATE, 1)
+
+        assert exc_info.value.capacity_samples == SAMPLE_RATE * 60
+        assert exc_info.value.dropped_samples == SAMPLE_RATE
 
     async def test_misaligned_samples_raise(self):
         track = _rust.LocalAudioTrack()
         samples = np.frombuffer(memoryview(bytearray(1921))[1:], dtype=np.int16)
 
-        with pytest.raises(ValueError, match="aligned"):
+        with pytest.raises(ValueError):
             await track.write_pcm(samples, SAMPLE_RATE, 1)
 
     async def test_odd_video_dimensions_raise(self):
         track = _rust.LocalVideoTrack.vp9()
         frame = np.zeros(321 * 240 * 3 // 2, dtype=np.uint8)
 
-        with pytest.raises(_rust.RtcError, match="must be non-zero and even"):
+        with pytest.raises(_rust.MediaError):
             await track.write_i420(frame, 321, 240, 1 / VIDEO_FPS)
