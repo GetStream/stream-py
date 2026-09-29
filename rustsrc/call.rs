@@ -12,7 +12,7 @@ use crate::events::EventStream;
 use crate::participants::{CallStateSnapshot, RemoteParticipant};
 use crate::tracks::{LocalAudioTrack, LocalVideoTrack, TrackQueue, TrackStream};
 
-#[pyclass(frozen)]
+#[pyclass(frozen, module = "getstream._rust.bindings")]
 pub struct Client {
     inner: getstream::Stream,
 }
@@ -54,7 +54,7 @@ impl Client {
     }
 }
 
-#[pyclass(frozen)]
+#[pyclass(frozen, module = "getstream._rust.bindings")]
 pub struct Call {
     inner: getstream::Call,
     tracks: Arc<TrackQueue>,
@@ -176,6 +176,7 @@ impl Call {
 
 #[pyclass(
     frozen,
+    module = "getstream._rust.bindings",
     eq,
     eq_int,
     skip_from_py_object,

@@ -13,19 +13,19 @@ use crate::call_end::{self, CallEnd};
 use crate::errors::RtcError;
 use crate::participants::{RemoteParticipant, TrackType};
 
-#[pyclass(frozen)]
+#[pyclass(frozen, module = "getstream._rust.bindings")]
 pub struct ParticipantJoined {
     #[pyo3(get)]
     participant: RemoteParticipant,
 }
 
-#[pyclass(frozen)]
+#[pyclass(frozen, module = "getstream._rust.bindings")]
 pub struct ParticipantLeft {
     #[pyo3(get)]
     participant: RemoteParticipant,
 }
 
-#[pyclass(frozen)]
+#[pyclass(frozen, module = "getstream._rust.bindings")]
 pub struct TrackPublished {
     #[pyo3(get)]
     user_id: String,
@@ -35,7 +35,7 @@ pub struct TrackPublished {
     track_type: TrackType,
 }
 
-#[pyclass(frozen)]
+#[pyclass(frozen, module = "getstream._rust.bindings")]
 pub struct TrackUnpublished {
     #[pyo3(get)]
     user_id: String,
@@ -45,10 +45,10 @@ pub struct TrackUnpublished {
     track_type: TrackType,
 }
 
-#[pyclass(frozen)]
+#[pyclass(frozen, module = "getstream._rust.bindings")]
 pub struct CallEnded;
 
-#[pyclass(frozen)]
+#[pyclass(frozen, module = "getstream._rust.bindings")]
 pub struct CallingStateChanged {
     #[pyo3(get)]
     state: CallingState,
@@ -130,7 +130,7 @@ struct EventStreamState {
 /// subscription, so it sees only events sent after it was created. It ends
 /// after the event that ends the call, or at once if the call had already
 /// ended when the stream was created.
-#[pyclass(frozen)]
+#[pyclass(frozen, module = "getstream._rust.bindings")]
 pub struct EventStream {
     state: Arc<Mutex<EventStreamState>>,
     end: watch::Receiver<CallEnd>,
