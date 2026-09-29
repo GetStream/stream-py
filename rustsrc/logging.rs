@@ -27,6 +27,8 @@ use tracing_subscriber::layer::{Context, Layer, SubscriberExt};
 
 const QUEUE_CAPACITY: usize = 1024;
 const SDK_CRATE: &str = "getstream";
+/// Records of this crate use the SDK level.
+const WRAPPER_CRATE: &str = env!("CARGO_CRATE_NAME");
 const PYTHON_WARNING: i32 = 30;
 /// Index = the value stored in the filter atomics.
 const FILTERS: [LevelFilter; 6] = [
@@ -384,9 +386,11 @@ fn logger_name(target: &str) -> Option<String> {
 }
 
 fn is_sdk_target(target: &str) -> bool {
-    target
-        .strip_prefix(SDK_CRATE)
-        .is_some_and(|rest| rest.is_empty() || rest.starts_with("::"))
+    [SDK_CRATE, WRAPPER_CRATE].into_iter().any(|name| {
+        target
+            .strip_prefix(name)
+            .is_some_and(|rest| rest.is_empty() || rest.starts_with("::"))
+    })
 }
 
 fn python_level(level: Level) -> i32 {
@@ -423,4 +427,25 @@ fn decode(value: u8) -> LevelFilter {
         .get(usize::from(value))
         .copied()
         .unwrap_or(LevelFilter::OFF)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn wrapper_records_use_the_sdk_level() {
+        let (sender, _receiver) = sync_channel(1);
+        let sink = Sink {
+            sender,
+            dropped: AtomicU64::new(0),
+            sdk_filter: AtomicU8::new(0),
+            third_party_filter: AtomicU8::new(0),
+        };
+        sink.set_filters(LevelFilter::DEBUG, LevelFilter::WARN);
+
+        assert!(sink.enabled("_native::call", &Level::DEBUG));
+        assert!(sink.enabled("getstream::rtc::join", &Level::DEBUG));
+        assert!(!sink.enabled("webrtc_ice::agent", &Level::DEBUG));
+    }
 }
