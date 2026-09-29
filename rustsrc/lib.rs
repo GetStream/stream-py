@@ -9,7 +9,7 @@ mod participants;
 mod tracks;
 
 #[pymodule]
-fn _native(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     m.add_class::<call::Client>()?;
     m.add_class::<call::Call>()?;
