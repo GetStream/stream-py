@@ -152,9 +152,10 @@ def _strip_none(obj):
 def build_path(path: str, path_params: Optional[Dict[str, Any]]) -> str:
     if path_params is None:
         return path
-    for k, v in path_params.items():
-        path_params[k] = quote(str(v), safe="")
-    return path.format(**path_params)
+    # Quote into a new dict: the caller's mapping is reused when a request is
+    # retried, so mutating it would percent-encode the values twice.
+    quoted = {k: quote(str(v), safe="") for k, v in path_params.items()}
+    return path.format(**quoted)
 
 
 class ResponseParserMixin:
