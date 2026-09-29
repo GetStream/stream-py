@@ -26,10 +26,10 @@ def call_id() -> str:
 async def joined_call(
     rust_client: _rust.Client,
     call_id: str,
-    random_users: list[FullUserResponse],
+    call_users: list[FullUserResponse],
 ) -> AsyncIterator[_rust.Call]:
     call = rust_client.call("default", call_id)
-    await call.join(random_users[0].id)
+    await call.join(call_users[0].id)
     yield call
     await call.leave()
 
@@ -38,7 +38,7 @@ async def joined_call(
 async def joining_call(
     rust_client: _rust.Client,
     call_id: str,
-    random_users: list[FullUserResponse],
+    call_users: list[FullUserResponse],
 ) -> AsyncIterator[_rust.Call]:
     call = rust_client.call("default", call_id)
     yield call
@@ -88,10 +88,10 @@ async def published_video(
 
 @pytest.fixture
 def live_call_id(
-    client: Stream, call_id: str, random_users: list[FullUserResponse]
+    client: Stream, call_id: str, call_users: list[FullUserResponse]
 ) -> Iterator[str]:
     call = client.video.call("livestream", call_id)
-    call.get_or_create(data=CallRequest(created_by_id=random_users[0].id))
+    call.get_or_create(data=CallRequest(created_by_id=call_users[0].id))
     call.go_live()
     yield call_id
     call.end()
@@ -101,10 +101,10 @@ def live_call_id(
 async def viewer_call(
     rust_client: _rust.Client,
     live_call_id: str,
-    random_users: list[FullUserResponse],
+    call_users: list[FullUserResponse],
 ) -> AsyncIterator[_rust.Call]:
     call = rust_client.call("livestream", live_call_id)
-    await call.join(random_users[1].id, create=False)
+    await call.join(call_users[1].id, create=False)
     yield call
     await call.leave()
 
@@ -112,57 +112,59 @@ async def viewer_call(
 @pytest.mark.integration
 class TestCallJoin:
     async def test_join_and_leave(
-        self, rust_client: _rust.Client, random_user: FullUserResponse
+        self, rust_client: _rust.Client, call_users: list[FullUserResponse]
     ):
         call = rust_client.call("default", str(uuid.uuid4()))
 
-        await call.join(random_user.id)
+        await call.join(call_users[0].id)
         assert call.calling_state == _rust.CallingState.JOINED
         assert await call.session_id()
 
         await call.leave()
         assert call.calling_state == _rust.CallingState.LEFT
 
-    async def test_join_with_wrong_secret_raises(self, random_user: FullUserResponse):
+    async def test_join_with_wrong_secret_raises(
+        self, call_users: list[FullUserResponse]
+    ):
         client = _rust.Client(os.environ["STREAM_API_KEY"], "wrong-secret")
         call = client.call("default", str(uuid.uuid4()))
 
         with pytest.raises(_rust.CoordinatorError):
-            await call.join(random_user.id)
+            await call.join(call_users[0].id)
 
     async def test_join_with_unknown_call_type_raises(
-        self, rust_client: _rust.Client, random_user: FullUserResponse
+        self, rust_client: _rust.Client, call_users: list[FullUserResponse]
     ):
         call = rust_client.call("missingtype", str(uuid.uuid4()))
 
         with pytest.raises(_rust.ApiError) as exc_info:
-            await call.join(random_user.id)
+            await call.join(call_users[0].id)
 
         assert exc_info.value.status_code == 404
         assert exc_info.value.code == 16
         assert exc_info.value.message
 
     async def test_cancelled_join_allows_new_join(
-        self, rust_client: _rust.Client, random_user: FullUserResponse
+        self, rust_client: _rust.Client, call_users: list[FullUserResponse]
     ):
         call = rust_client.call("default", str(uuid.uuid4()))
 
-        join = call.join(random_user.id)
+        join = call.join(call_users[0].id)
         await asyncio.sleep(0.1)
         join.cancel()
         with pytest.raises(asyncio.CancelledError):
             await join
 
-        await call.join(random_user.id)
+        await call.join(call_users[0].id)
         assert call.calling_state == _rust.CallingState.JOINED
         await call.leave()
 
     async def test_leave_during_join(
-        self, rust_client: _rust.Client, random_user: FullUserResponse
+        self, rust_client: _rust.Client, call_users: list[FullUserResponse]
     ):
         call = rust_client.call("default", str(uuid.uuid4()))
 
-        join = call.join(random_user.id)
+        join = call.join(call_users[0].id)
         await asyncio.sleep(0.1)
         await call.leave()
         # A fast join can finish before the leave stops it.
@@ -170,25 +172,25 @@ class TestCallJoin:
             await join
         assert call.calling_state == _rust.CallingState.LEFT
 
-        await call.join(random_user.id)
+        await call.join(call_users[0].id)
         assert call.calling_state == _rust.CallingState.JOINED
         await call.leave()
 
     async def test_join_during_leave(
-        self, rust_client: _rust.Client, random_user: FullUserResponse
+        self, rust_client: _rust.Client, call_users: list[FullUserResponse]
     ):
         call = rust_client.call("default", str(uuid.uuid4()))
-        await call.join(random_user.id)
+        await call.join(call_users[0].id)
 
         leave = call.leave()
         with contextlib.suppress(_rust.IllegalStateError):
-            await call.join(random_user.id)
+            await call.join(call_users[0].id)
         await leave
 
         # The join failed while the leave ran (LEFT), or it ran after the
         # leave finished (JOINED).
         if call.calling_state == _rust.CallingState.LEFT:
-            await call.join(random_user.id)
+            await call.join(call_users[0].id)
         assert call.calling_state == _rust.CallingState.JOINED
         await call.leave()
 
@@ -211,12 +213,12 @@ class TestCallPublish:
 @pytest.mark.integration
 class TestCallEvents:
     async def test_calling_state_changed_to_joined(
-        self, rust_client: _rust.Client, random_user: FullUserResponse
+        self, rust_client: _rust.Client, call_users: list[FullUserResponse]
     ):
         call = rust_client.call("default", str(uuid.uuid4()))
         events = call.events()
 
-        await call.join(random_user.id)
+        await call.join(call_users[0].id)
         async for event in events:
             if (
                 isinstance(event, _rust.CallingStateChanged)
@@ -229,25 +231,25 @@ class TestCallEvents:
         self,
         joined_call: _rust.Call,
         joining_call: _rust.Call,
-        random_users: list[FullUserResponse],
+        call_users: list[FullUserResponse],
     ):
         events = joined_call.events()
 
-        await joining_call.join(random_users[1].id)
+        await joining_call.join(call_users[1].id)
         async for event in events:
             if (
                 isinstance(event, _rust.ParticipantJoined)
-                and event.participant.user_id == random_users[1].id
+                and event.participant.user_id == call_users[1].id
             ):
                 break
 
     async def test_events_end_when_call_is_left(
-        self, rust_client: _rust.Client, random_user: FullUserResponse
+        self, rust_client: _rust.Client, call_users: list[FullUserResponse]
     ):
         call = rust_client.call("default", str(uuid.uuid4()))
         events = call.events()
 
-        await call.join(random_user.id)
+        await call.join(call_users[0].id)
         await call.leave()
         received = [event async for event in events]
 
@@ -255,10 +257,10 @@ class TestCallEvents:
         assert received[-1].state == _rust.CallingState.LEFT
 
     async def test_events_created_after_leave_are_empty(
-        self, rust_client: _rust.Client, random_user: FullUserResponse
+        self, rust_client: _rust.Client, call_users: list[FullUserResponse]
     ):
         call = rust_client.call("default", str(uuid.uuid4()))
-        await call.join(random_user.id)
+        await call.join(call_users[0].id)
         await call.leave()
 
         assert [event async for event in call.events()] == []
@@ -277,16 +279,16 @@ class TestCallEvents:
         self,
         joined_call: _rust.Call,
         joining_call: _rust.Call,
-        random_users: list[FullUserResponse],
+        call_users: list[FullUserResponse],
     ):
-        await joining_call.join(random_users[1].id)
+        await joining_call.join(call_users[1].id)
         events = joining_call.events()
 
         await joined_call.publish_audio(_rust.LocalAudioTrack())
         async for event in events:
             if (
                 isinstance(event, _rust.TrackPublished)
-                and event.user_id == random_users[0].id
+                and event.user_id == call_users[0].id
             ):
                 assert event.track_type == _rust.TrackType.AUDIO
                 break
@@ -298,35 +300,35 @@ class TestCallParticipants:
         self,
         joined_call: _rust.Call,
         joining_call: _rust.Call,
-        random_users: list[FullUserResponse],
+        call_users: list[FullUserResponse],
     ):
         events = joined_call.events()
-        await joining_call.join(random_users[1].id)
+        await joining_call.join(call_users[1].id)
         async for event in events:
             if isinstance(event, _rust.ParticipantJoined):
                 break
 
         user_ids = {p.user_id for p in joined_call.participants()}
-        assert {random_users[0].id, random_users[1].id} <= user_ids
+        assert {call_users[0].id, call_users[1].id} <= user_ids
 
     async def test_call_state(
-        self, joined_call: _rust.Call, random_users: list[FullUserResponse]
+        self, joined_call: _rust.Call, call_users: list[FullUserResponse]
     ):
         state = joined_call.call_state()
 
-        assert random_users[0].id in {p.user_id for p in state.participants}
+        assert call_users[0].id in {p.user_id for p in state.participants}
         assert "send-audio" in state.own_capabilities
 
 
 @pytest.mark.integration
 class TestCallMedia:
     async def test_tracks_end_when_call_is_left(
-        self, rust_client: _rust.Client, random_user: FullUserResponse
+        self, rust_client: _rust.Client, call_users: list[FullUserResponse]
     ):
         call = rust_client.call("default", str(uuid.uuid4()))
         tracks = call.tracks()
 
-        await call.join(random_user.id)
+        await call.join(call_users[0].id)
         await call.leave()
 
         assert [track async for track in tracks] == []
@@ -335,16 +337,16 @@ class TestCallMedia:
         self,
         published_audio: _rust.LocalAudioTrack,
         joining_call: _rust.Call,
-        random_users: list[FullUserResponse],
+        call_users: list[FullUserResponse],
     ):
         tracks = joining_call.tracks()
-        await joining_call.join(random_users[1].id)
+        await joining_call.join(call_users[1].id)
         await joining_call.update_subscriptions(audio=True)
 
         async for track in tracks:
             if track.track_type == _rust.TrackType.AUDIO:
                 break
-        assert track.participant.user_id == random_users[0].id
+        assert track.participant.user_id == call_users[0].id
 
         while True:
             frame = await track.next_pcm()
@@ -357,16 +359,16 @@ class TestCallMedia:
         self,
         published_video: _rust.LocalVideoTrack,
         joining_call: _rust.Call,
-        random_users: list[FullUserResponse],
+        call_users: list[FullUserResponse],
     ):
         tracks = joining_call.tracks()
-        await joining_call.join(random_users[1].id)
+        await joining_call.join(call_users[1].id)
         await joining_call.update_subscriptions(audio=True, video=True)
 
         async for track in tracks:
             if track.track_type == _rust.TrackType.VIDEO:
                 break
-        assert track.participant.user_id == random_users[0].id
+        assert track.participant.user_id == call_users[0].id
 
         frame = await track.next_video_frame()
         assert (frame.width, frame.height) == (VIDEO_WIDTH, VIDEO_HEIGHT)
