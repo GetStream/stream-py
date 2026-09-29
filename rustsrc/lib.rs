@@ -9,7 +9,7 @@ mod participants;
 mod tracks;
 
 #[pymodule]
-fn native(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     m.add_class::<call::Client>()?;
     m.add_class::<call::Call>()?;
@@ -30,8 +30,6 @@ fn native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<tracks::VideoFrame>()?;
     m.add_class::<tracks::LocalAudioTrack>()?;
     m.add_class::<tracks::LocalVideoTrack>()?;
-    m.add("Error", m.py().get_type::<errors::Error>())?;
-    m.add("RtcError", m.py().get_type::<errors::RtcError>())?;
     m.add_function(wrap_pyfunction!(logging::configure_logging, m)?)?;
     logging::install(m)?;
     Ok(())

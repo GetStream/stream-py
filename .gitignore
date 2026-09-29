@@ -25,7 +25,7 @@ __pycache__/
 
 # Rust build artifacts
 /target
-getstream/_native/*.so
-getstream/_native/*.pyd
+getstream/_rust/*.so
+getstream/_rust/*.pyd
 \n+# Local protocol folder (handled by generate_webrtc.sh)
 protocol/

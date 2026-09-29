@@ -4,7 +4,7 @@
 2. Never use pip directly, use `uv add` to add dependencies and `uv sync --dev --all-packages` to install the dependency
 3. Do not change code generated python code, `./generate.sh` is the script responsible of rebuilding all API endpoints and API models
 4. **WebRTC Dependencies**: All dependencies related to WebRTC, audio, video processing (like `aiortc`, `numpy`, `torch`, `torchaudio`, `soundfile`, `scipy`, `deepgram-sdk`, `elevenlabs`, etc.) are organized under the `webrtc` optional dependencies group. Plugins that work with audio, video, or WebRTC functionality should depend on `getstream[webrtc]` instead of just `getstream`.
-5. **Native module**: `getstream._native` is a PyO3 extension built by maturin from `Cargo.toml` (sources in `rustsrc/`). It wraps the Rust SDK (`getstream` crate from https://github.com/GetStream/stream-video-rust). `uv sync` compiles it, so every checkout needs the Rust toolchain pinned in `rust-toolchain.toml`, a C compiler, `cmake`, `pkg-config`, and `libvpx` (macOS: `brew install libvpx cmake pkg-config`; Debian/Ubuntu: `apt install libvpx-dev cmake pkg-config build-essential`). Run `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings` and `cargo test --lib` after Rust changes.
+5. **Rust bindings**: `getstream._rust.bindings` is a PyO3 extension built by maturin from `Cargo.toml` (sources in `rustsrc/`). It wraps the Rust SDK (`getstream` crate from https://github.com/GetStream/stream-video-rust). `uv sync` compiles it, so every checkout needs the Rust toolchain pinned in `rust-toolchain.toml`, a C compiler, `cmake`, `pkg-config`, and `libvpx` (macOS: `brew install libvpx cmake pkg-config`; Debian/Ubuntu: `apt install libvpx-dev cmake pkg-config build-essential`). Run `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings` and `cargo test --lib` after Rust changes.
 
 ## Python testing
 
@@ -65,10 +65,10 @@ impossible:
 
 - Log with the `tracing` macros (`tracing::debug!` and the others). Do not use
   `println!`, the `log` macros, or Python `logging` through `Python::attach`.
-- Use the default target. Records of the wrapper (`_native::…`) and of the SDK
+- Use the default target. Records of the wrapper (`_bindings::…`) and of the SDK
   (`getstream::…`) use the `level` of `configure_logging`; records of other
   crates use `third_party_level`. A record reaches the configured logger's
-  child, for example `getstream._native.call` for `rustsrc/call.rs` and
+  child, for example `getstream._bindings.call` for `rustsrc/call.rs` and
   `getstream.rtc.join` for the SDK's `getstream::rtc::join`.
 - The message is an event name in the SDK style, `stream.<area>.<event>`. Put
   values in fields, not in the message:
@@ -81,12 +81,12 @@ impossible:
 - Levels map to Python as ERROR 40, WARN 30, INFO 20, DEBUG 10, TRACE 5.
 - A log call never blocks and never takes the GIL, so it is safe while a lock or
   the GIL is held. When the queue (1024 records) is full, records are dropped and
-  counted; a `native.log_records_dropped` warning with `dropped` comes before the
+  counted; a `stream.rust.log_records_dropped` warning with `dropped` comes before the
   next delivered record.
 - Nothing is forwarded until `configure_logging` sets a logger. Disabled records
   are filtered before their fields are formatted.
 - Never log secrets or tokens.
 - In tests, enable forwarding with the `sdk_logs` fixture in
-  `tests/test_native.py`, and call `_native.configure_logging(None,
+  `tests/test_bindings/conftest.py`, and call `_rust.configure_logging(None,
   logging.NOTSET)` before you assert: it returns after the queued records are
   delivered.

@@ -6,7 +6,7 @@ rust-version = "1.88"
 publish = false
 
 [lib]
-name = "_native"
+name = "_bindings"
 path = "rustsrc/lib.rs"
 crate-type = ["cdylib"]
 
