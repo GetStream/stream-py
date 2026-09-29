@@ -47,7 +47,7 @@ impl TrackQueue {
 /// queue, so each track is delivered to exactly one stream. A stream ends when
 /// the call ends, or at once if the call had already ended when the stream was
 /// created.
-#[pyclass(frozen)]
+#[pyclass(frozen, module = "getstream._rust.bindings")]
 pub struct TrackStream {
     queue: Arc<TrackQueue>,
     end: watch::Receiver<CallEnd>,
@@ -95,7 +95,7 @@ impl TrackStream {
     }
 }
 
-#[pyclass(frozen)]
+#[pyclass(frozen, module = "getstream._rust.bindings")]
 pub struct RemoteTrack {
     inner: Arc<getstream::rtc::RemoteTrack>,
     #[pyo3(get)]
@@ -137,7 +137,7 @@ impl RemoteTrack {
 }
 
 /// Interleaved int16 samples; the array owns the SDK buffer without a copy.
-#[pyclass(frozen)]
+#[pyclass(frozen, module = "getstream._rust.bindings")]
 pub struct PcmFrame {
     #[pyo3(get)]
     samples: Py<PyArray1<i16>>,
@@ -168,7 +168,7 @@ impl<'py> IntoPyObject<'py> for PcmFrameData {
 }
 
 /// Packed I420 pixels; the array owns the SDK buffer without a copy.
-#[pyclass(frozen)]
+#[pyclass(frozen, module = "getstream._rust.bindings")]
 pub struct VideoFrame {
     #[pyo3(get)]
     width: u32,
@@ -201,7 +201,7 @@ impl<'py> IntoPyObject<'py> for VideoFrameData {
     }
 }
 
-#[pyclass(frozen)]
+#[pyclass(frozen, module = "getstream._rust.bindings")]
 pub struct LocalAudioTrack {
     pub(crate) inner: getstream::rtc::LocalAudioTrack,
 }
@@ -242,7 +242,7 @@ impl LocalAudioTrack {
     }
 }
 
-#[pyclass(frozen)]
+#[pyclass(frozen, module = "getstream._rust.bindings")]
 pub struct LocalVideoTrack {
     pub(crate) inner: getstream::rtc::LocalVideoTrack,
 }

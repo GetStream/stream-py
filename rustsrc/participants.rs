@@ -3,6 +3,7 @@ use pyo3::prelude::*;
 
 #[pyclass(
     frozen,
+    module = "getstream._rust.bindings",
     eq,
     eq_int,
     skip_from_py_object,
@@ -35,7 +36,7 @@ impl TrackType {
     }
 }
 
-#[pyclass(frozen, skip_from_py_object)]
+#[pyclass(frozen, module = "getstream._rust.bindings", skip_from_py_object)]
 #[derive(Clone)]
 pub struct RemoteParticipant {
     #[pyo3(get)]
@@ -86,7 +87,7 @@ impl From<models::Participant> for RemoteParticipant {
     }
 }
 
-#[pyclass(frozen)]
+#[pyclass(frozen, module = "getstream._rust.bindings")]
 pub struct CallStateSnapshot {
     #[pyo3(get)]
     participants: Vec<RemoteParticipant>,
