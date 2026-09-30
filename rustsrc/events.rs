@@ -12,6 +12,7 @@ use crate::call::CallingState;
 use crate::call_end::{self, CallEnd};
 use crate::errors::RtcError;
 use crate::participants::{RemoteParticipant, TrackType};
+use crate::repr::repr;
 
 #[pyclass(frozen, module = "getstream._rust.bindings")]
 pub struct ParticipantJoined {
@@ -19,10 +20,30 @@ pub struct ParticipantJoined {
     participant: RemoteParticipant,
 }
 
+#[pymethods]
+impl ParticipantJoined {
+    fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
+        Ok(format!(
+            "ParticipantJoined(participant={})",
+            repr(py, self.participant.clone())?
+        ))
+    }
+}
+
 #[pyclass(frozen, module = "getstream._rust.bindings")]
 pub struct ParticipantLeft {
     #[pyo3(get)]
     participant: RemoteParticipant,
+}
+
+#[pymethods]
+impl ParticipantLeft {
+    fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
+        Ok(format!(
+            "ParticipantLeft(participant={})",
+            repr(py, self.participant.clone())?
+        ))
+    }
 }
 
 #[pyclass(frozen, module = "getstream._rust.bindings")]
@@ -35,6 +56,18 @@ pub struct TrackPublished {
     track_type: TrackType,
 }
 
+#[pymethods]
+impl TrackPublished {
+    fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
+        Ok(format!(
+            "TrackPublished(user_id={}, session_id={}, track_type={})",
+            repr(py, &self.user_id)?,
+            repr(py, &self.session_id)?,
+            repr(py, self.track_type)?,
+        ))
+    }
+}
+
 #[pyclass(frozen, module = "getstream._rust.bindings")]
 pub struct TrackUnpublished {
     #[pyo3(get)]
@@ -45,13 +78,42 @@ pub struct TrackUnpublished {
     track_type: TrackType,
 }
 
+#[pymethods]
+impl TrackUnpublished {
+    fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
+        Ok(format!(
+            "TrackUnpublished(user_id={}, session_id={}, track_type={})",
+            repr(py, &self.user_id)?,
+            repr(py, &self.session_id)?,
+            repr(py, self.track_type)?,
+        ))
+    }
+}
+
 #[pyclass(frozen, module = "getstream._rust.bindings")]
 pub struct CallEnded;
+
+#[pymethods]
+impl CallEnded {
+    fn __repr__(&self) -> &'static str {
+        "CallEnded()"
+    }
+}
 
 #[pyclass(frozen, module = "getstream._rust.bindings")]
 pub struct CallingStateChanged {
     #[pyo3(get)]
     state: CallingState,
+}
+
+#[pymethods]
+impl CallingStateChanged {
+    fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
+        Ok(format!(
+            "CallingStateChanged(state={})",
+            repr(py, self.state)?
+        ))
+    }
 }
 
 enum Event {

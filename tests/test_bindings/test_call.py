@@ -209,6 +209,59 @@ class TestCallPublish:
 
         assert exc_info.value.capability == "send-audio"
 
+    @pytest.mark.integration
+    async def test_stop_publish_audio_unpublishes_track(
+        self,
+        joined_call: _rust.Call,
+        joining_call: _rust.Call,
+        call_users: list[FullUserResponse],
+        tone: np.ndarray,
+    ):
+        track = _rust.LocalAudioTrack()
+        await joined_call.publish_audio(track)
+        await joining_call.join(call_users[1].id)
+        events = joining_call.events()
+
+        await joined_call.stop_publish_audio(track)
+        async for event in events:
+            if (
+                isinstance(event, _rust.TrackUnpublished)
+                and event.user_id == call_users[0].id
+            ):
+                break
+        assert event.track_type == _rust.TrackType.AUDIO
+        with pytest.raises(_rust.IllegalStateError):
+            await track.write_pcm(tone, SAMPLE_RATE, 1)
+
+    @pytest.mark.integration
+    async def test_screen_share_is_published_and_unpublished(
+        self,
+        joined_call: _rust.Call,
+        joining_call: _rust.Call,
+        call_users: list[FullUserResponse],
+    ):
+        await joining_call.join(call_users[1].id)
+        events = joining_call.events()
+        track = _rust.LocalVideoTrack.vp8()
+
+        await joined_call.publish_screen_share(track)
+        async for event in events:
+            if (
+                isinstance(event, _rust.TrackPublished)
+                and event.user_id == call_users[0].id
+            ):
+                break
+        assert event.track_type == _rust.TrackType.SCREEN_SHARE
+
+        await joined_call.stop_publish_screen_share(track)
+        async for event in events:
+            if (
+                isinstance(event, _rust.TrackUnpublished)
+                and event.user_id == call_users[0].id
+            ):
+                break
+        assert event.track_type == _rust.TrackType.SCREEN_SHARE
+
 
 @pytest.mark.integration
 class TestCallEvents:

@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use getstream::ClientConfig;
-use getstream::rtc::{JoinCallData, SubscriptionConfig};
+use getstream::rtc::proto::models::TrackType;
+use getstream::rtc::{JoinCallData, LocalTrack, SubscriptionConfig};
 use pyo3::prelude::*;
 use pyo3_async_runtimes::tokio::future_into_py;
 use tokio::sync::{Mutex, watch};
@@ -149,6 +150,60 @@ impl Call {
         let track = track.get().inner.clone();
         future_into_py(py, async move {
             call.publish_video(track).await.map_err(rtc_error)
+        })
+    }
+
+    fn publish_screen_share<'py>(
+        &self,
+        py: Python<'py>,
+        track: &Bound<'py, LocalVideoTrack>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let call = self.inner.clone();
+        let track = track.get().inner.clone();
+        future_into_py(py, async move {
+            call.publish_screen_share(track).await.map_err(rtc_error)
+        })
+    }
+
+    fn stop_publish_audio<'py>(
+        &self,
+        py: Python<'py>,
+        track: &Bound<'py, LocalAudioTrack>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let call = self.inner.clone();
+        let track = LocalTrack::Audio(track.get().inner.clone());
+        future_into_py(py, async move {
+            call.stop_publish(track).await.map_err(rtc_error)
+        })
+    }
+
+    fn stop_publish_video<'py>(
+        &self,
+        py: Python<'py>,
+        track: &Bound<'py, LocalVideoTrack>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let call = self.inner.clone();
+        let track = LocalTrack::Video {
+            track: track.get().inner.clone(),
+            track_type: TrackType::Video,
+        };
+        future_into_py(py, async move {
+            call.stop_publish(track).await.map_err(rtc_error)
+        })
+    }
+
+    fn stop_publish_screen_share<'py>(
+        &self,
+        py: Python<'py>,
+        track: &Bound<'py, LocalVideoTrack>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let call = self.inner.clone();
+        let track = LocalTrack::Video {
+            track: track.get().inner.clone(),
+            track_type: TrackType::ScreenShare,
+        };
+        future_into_py(py, async move {
+            call.stop_publish(track).await.map_err(rtc_error)
         })
     }
 

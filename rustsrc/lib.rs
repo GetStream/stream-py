@@ -6,6 +6,7 @@ mod errors;
 mod events;
 mod logging;
 mod participants;
+mod repr;
 mod tracks;
 
 #[pymodule]
