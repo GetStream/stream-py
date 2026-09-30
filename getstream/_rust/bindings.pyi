@@ -132,7 +132,10 @@ class TrackStream:
     def __anext__(self) -> Awaitable[RemoteTrack]: ...
 
 class LocalAudioTrack:
-    def __init__(self) -> None: ...
+    def __init__(self, pcm_queue_capacity: float | None = None) -> None:
+        """``pcm_queue_capacity``: the seconds of PCM that ``write_pcm`` queues
+        (``None``: the SDK default, 60 s). A write above it drops the oldest
+        samples and raises ``PcmQueueOverflowError``."""
     def write_pcm(
         self, samples: npt.NDArray[np.int16], sample_rate: int, channels: int
     ) -> Awaitable[None]:
@@ -165,6 +168,17 @@ class Call:
     def tracks(self) -> TrackStream: ...
     def publish_audio(self, track: LocalAudioTrack) -> Awaitable[None]: ...
     def publish_video(self, track: LocalVideoTrack) -> Awaitable[None]: ...
+    def publish_screen_share(self, track: LocalVideoTrack) -> Awaitable[None]:
+        """The SFU accepts VP8 for screen share (``LocalVideoTrack.vp8()``)."""
+    def stop_publish_audio(self, track: LocalAudioTrack) -> Awaitable[None]:
+        """Stops the track: later writes raise ``IllegalStateError``. A track
+        that is not published is ignored."""
+    def stop_publish_video(self, track: LocalVideoTrack) -> Awaitable[None]:
+        """Stops the track: later writes raise ``IllegalStateError``. A track
+        that is not published is ignored."""
+    def stop_publish_screen_share(self, track: LocalVideoTrack) -> Awaitable[None]:
+        """Stops the track: later writes raise ``IllegalStateError``. A track
+        that is not published is ignored."""
     def update_subscriptions(
         self,
         audio: bool = True,

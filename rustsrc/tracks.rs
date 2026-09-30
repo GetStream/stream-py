@@ -2,6 +2,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
+use getstream::rtc::LocalAudioTrackConfig;
 use numpy::{PyArray1, PyReadonlyArray1, PyUntypedArrayMethods};
 use pyo3::exceptions::{PyStopAsyncIteration, PyValueError};
 use pyo3::prelude::*;
@@ -11,6 +12,7 @@ use tokio::sync::{Mutex, mpsc, watch};
 use crate::call_end::{self, CallEnd};
 use crate::errors::{RtcError, rtc_error};
 use crate::participants::{RemoteParticipant, TrackType};
+use crate::repr::repr;
 
 const TRACK_QUEUE_CAPACITY: usize = 64;
 
@@ -134,6 +136,14 @@ impl RemoteTrack {
             Ok(track.next_video_frame().await.map(VideoFrameData))
         })
     }
+
+    fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
+        Ok(format!(
+            "RemoteTrack(participant={}, track_type={})",
+            repr(py, self.participant.clone())?,
+            repr(py, self.track_type)?,
+        ))
+    }
 }
 
 /// Interleaved int16 samples; the array owns the SDK buffer without a copy.
@@ -145,6 +155,18 @@ pub struct PcmFrame {
     sample_rate: u32,
     #[pyo3(get)]
     channels: u16,
+}
+
+#[pymethods]
+impl PcmFrame {
+    fn __repr__(&self, py: Python<'_>) -> String {
+        format!(
+            "PcmFrame(sample_rate={}, channels={}, samples={})",
+            self.sample_rate,
+            self.channels,
+            self.samples.bind(py).len()
+        )
+    }
 }
 
 struct PcmFrameData(getstream::rtc::PcmFrame);
@@ -180,6 +202,16 @@ pub struct VideoFrame {
     rtp_timestamp: u32,
 }
 
+#[pymethods]
+impl VideoFrame {
+    fn __repr__(&self) -> String {
+        format!(
+            "VideoFrame(width={}, height={}, rtp_timestamp={})",
+            self.width, self.height, self.rtp_timestamp
+        )
+    }
+}
+
 struct VideoFrameData(getstream::rtc::VideoFrame);
 
 impl<'py> IntoPyObject<'py> for VideoFrameData {
@@ -208,10 +240,18 @@ pub struct LocalAudioTrack {
 
 #[pymethods]
 impl LocalAudioTrack {
+    /// `pcm_queue_capacity` is in seconds; `None` keeps the SDK default.
     #[new]
-    fn new() -> PyResult<Self> {
+    #[pyo3(signature = (pcm_queue_capacity=None))]
+    fn new(pcm_queue_capacity: Option<f64>) -> PyResult<Self> {
+        let mut config = LocalAudioTrackConfig::default();
+        if let Some(capacity) = pcm_queue_capacity {
+            let capacity = Duration::try_from_secs_f64(capacity)
+                .map_err(|error| PyValueError::new_err(error.to_string()))?;
+            config = config.with_pcm_queue_capacity(capacity);
+        }
         Ok(Self {
-            inner: getstream::rtc::LocalAudioTrack::opus().map_err(rtc_error)?,
+            inner: getstream::rtc::LocalAudioTrack::opus_with_config(config).map_err(rtc_error)?,
         })
     }
 

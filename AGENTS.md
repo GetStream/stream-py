@@ -86,7 +86,7 @@ impossible:
 - Nothing is forwarded until `configure_logging` sets a logger. Disabled records
   are filtered before their fields are formatted.
 - Never log secrets or tokens.
-- In tests, enable forwarding with the `sdk_logs` fixture in
-  `tests/test_bindings/conftest.py`, and call `_rust.configure_logging(None,
-  logging.NOTSET)` before you assert: it returns after the queued records are
-  delivered.
+- To assert on records in tests, including DEBUG ones, use the `sdk_logs`
+  fixture in `tests/test_bindings/conftest.py`, and call
+  `_rust.configure_logging(None, logging.NOTSET)` before you assert: it returns
+  after the queued records are delivered.

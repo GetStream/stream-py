@@ -20,6 +20,7 @@ from getstream._rust.bindings import (
     ParticipantJoined,
     TrackPublished,
     TrackType,
+    TrackUnpublished,
     __version__,
     configure_logging,
 )
@@ -44,6 +45,7 @@ __all__ = [
     "RustError",
     "TrackPublished",
     "TrackType",
+    "TrackUnpublished",
     "__version__",
     "configure_logging",
 ]

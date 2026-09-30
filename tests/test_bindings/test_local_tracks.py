@@ -18,6 +18,16 @@ class TestLocalTracks:
         assert exc_info.value.capacity_samples == SAMPLE_RATE * 60
         assert exc_info.value.dropped_samples == SAMPLE_RATE
 
+    async def test_pcm_queue_capacity_limits_the_queue(self):
+        track = _rust.LocalAudioTrack(pcm_queue_capacity=0.1)
+        samples = np.zeros(SAMPLE_RATE, dtype=np.int16)
+
+        with pytest.raises(_rust.PcmQueueOverflowError) as exc_info:
+            await track.write_pcm(samples, SAMPLE_RATE, 1)
+
+        assert exc_info.value.capacity_samples == SAMPLE_RATE // 10
+        assert exc_info.value.dropped_samples == SAMPLE_RATE - SAMPLE_RATE // 10
+
     async def test_misaligned_samples_raise(self):
         track = _rust.LocalAudioTrack()
         samples = np.frombuffer(memoryview(bytearray(1921))[1:], dtype=np.int16)

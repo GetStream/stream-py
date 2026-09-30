@@ -1,6 +1,8 @@
 use getstream::rtc::proto::models;
 use pyo3::prelude::*;
 
+use crate::repr::repr;
+
 #[pyclass(
     frozen,
     module = "getstream._rust.bindings",
@@ -53,6 +55,18 @@ pub struct RemoteParticipant {
     published_tracks: Vec<TrackType>,
 }
 
+#[pymethods]
+impl RemoteParticipant {
+    fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
+        Ok(format!(
+            "RemoteParticipant(user_id={}, session_id={}, published_tracks={})",
+            repr(py, &self.user_id)?,
+            repr(py, &self.session_id)?,
+            repr(py, self.published_tracks.clone())?,
+        ))
+    }
+}
+
 impl From<getstream::rtc::RemoteParticipant> for RemoteParticipant {
     fn from(participant: getstream::rtc::RemoteParticipant) -> Self {
         Self {
@@ -93,6 +107,17 @@ pub struct CallStateSnapshot {
     participants: Vec<RemoteParticipant>,
     #[pyo3(get)]
     own_capabilities: Vec<String>,
+}
+
+#[pymethods]
+impl CallStateSnapshot {
+    fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
+        Ok(format!(
+            "CallStateSnapshot(participants={}, own_capabilities={})",
+            repr(py, self.participants.clone())?,
+            repr(py, &self.own_capabilities)?,
+        ))
+    }
 }
 
 impl From<getstream::rtc::CallStateSnapshot> for CallStateSnapshot {
