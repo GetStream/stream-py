@@ -1,5 +1,9 @@
+import asyncio
 import logging
 import os
+import threading
+import time
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import httpx
 import pytest
@@ -33,8 +37,8 @@ class TestSyncPoolDefaults:
     def test_default_limits_applied(self):
         client = Stream(api_key="k", api_secret="s", base_url="http://test")
         pool = client.client._transport._pool
-        assert pool._max_connections == 5
-        assert pool._max_keepalive_connections == 5
+        assert pool._max_connections == 100
+        assert pool._max_keepalive_connections == 100
         assert pool._keepalive_expiry == 55.0
 
     def test_default_timeout_is_30s(self):
@@ -51,8 +55,8 @@ class TestAsyncPoolDefaults:
     async def test_default_limits_applied(self):
         client = AsyncStream(api_key="k", api_secret="s", base_url="http://test")
         pool = client.client._transport._pool
-        assert pool._max_connections == 5
-        assert pool._max_keepalive_connections == 5
+        assert pool._max_connections == 100
+        assert pool._max_keepalive_connections == 100
         assert pool._keepalive_expiry == 55.0
         await client.aclose()
 
@@ -176,17 +180,98 @@ class TestSubClientPoolPropagation:
 
     def test_sync_sub_client_pools_match_defaults(self):
         # Even with no explicit knobs, sub-clients must carry the SDK defaults
-        # (5/55/10/30), not whatever a freshly-built sub-client would default to.
+        # (100/55/10/30), not whatever a freshly-built sub-client would default to.
         client = Stream(api_key="k", api_secret="s", base_url="http://test")
         for name in ("video", "chat", "moderation", "feeds"):
             sub = getattr(client, name)
             assert sub.client is client.client
             pool = sub.client._transport._pool
-            assert pool._max_connections == 5
+            assert pool._max_connections == 100
             assert pool._keepalive_expiry == 55.0
             assert sub.client.timeout.connect == 10.0
             assert sub.client.timeout.read == 30.0
         client.close()
+
+
+# ── pool behavior against a real local server ────────────────────────
+
+
+class _TrackingHandler(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
+
+    def do_GET(self):
+        server = self.server
+        with server.lock:
+            server.in_flight += 1
+            server.peak = max(server.peak, server.in_flight)
+            server.client_ports.add(self.client_address[1])
+        time.sleep(server.delay)
+        with server.lock:
+            server.in_flight -= 1
+        body = b"{}"
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, *args):
+        pass
+
+
+class _TrackingServer(ThreadingHTTPServer):
+    daemon_threads = True
+    request_queue_size = 128
+
+    def __init__(self, delay):
+        super().__init__(("127.0.0.1", 0), _TrackingHandler)
+        self.delay = delay
+        self.lock = threading.Lock()
+        self.in_flight = 0
+        self.peak = 0
+        self.client_ports = set()
+
+
+@pytest.fixture
+def tracking_server():
+    server = _TrackingServer(delay=0.2)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    yield server
+    server.shutdown()
+    server.server_close()
+
+
+@pytest.mark.asyncio
+class TestPoolBehavior:
+    def _make(self, server, **kw):
+        return AsyncStream(
+            api_key="k",
+            api_secret="s",
+            base_url=f"http://127.0.0.1:{server.server_port}",
+            **kw,
+        )
+
+    async def test_default_pool_allows_high_concurrency(self, tracking_server):
+        client = self._make(tracking_server)
+        await asyncio.gather(*(client.get("/app") for _ in range(30)))
+        assert tracking_server.peak == 30
+        await client.aclose()
+
+    async def test_max_conns_per_host_caps_concurrency(self, tracking_server):
+        client = self._make(tracking_server, max_conns_per_host=3)
+        await asyncio.gather(*(client.get("/app") for _ in range(12)))
+        assert tracking_server.peak == 3
+        assert len(tracking_server.client_ports) == 3
+        await client.aclose()
+
+    async def test_sequential_requests_reuse_connection(self, tracking_server):
+        tracking_server.delay = 0
+        client = self._make(tracking_server)
+        for _ in range(5):
+            await client.get("/app")
+        assert len(tracking_server.client_ports) == 1
+        await client.aclose()
 
 
 # ── transport (primary API) ──────────────────────────────────────────
@@ -423,7 +508,7 @@ class TestSyncInfoLog:
         assert len(infos) == 1
         r = infos[0]
         assert r.getMessage() == "client.initialized"
-        assert getattr(r, "stream.client.max_conns_per_host") == 5
+        assert getattr(r, "stream.client.max_conns_per_host") == 100
         assert getattr(r, "stream.client.idle_timeout_seconds") == 55.0
         assert getattr(r, "stream.client.connect_timeout_seconds") == 10.0
         assert getattr(r, "stream.client.request_timeout_seconds") == 30.0
@@ -481,7 +566,7 @@ class TestAsyncInfoLog:
             await client.aclose()
         infos = [r for r in caplog.records if r.name == "getstream"]
         assert len(infos) == 1
-        assert getattr(infos[0], "stream.client.max_conns_per_host") == 5
+        assert getattr(infos[0], "stream.client.max_conns_per_host") == 100
         assert getattr(infos[0], "stream.client.user_http_client") is False
 
 
@@ -678,12 +763,12 @@ class TestConstructsWithoutStreamEnv:
     def test_sync_constructs_with_spec_defaults(self, monkeypatch):
         self._clear_stream_env(monkeypatch)
         client = Stream(api_key="k", api_secret="s", base_url="http://test")
-        assert client.max_conns_per_host == 5
+        assert client.max_conns_per_host == 100
         assert client.idle_timeout == 55.0
         assert client.connect_timeout == 10.0
         assert client.request_timeout == 30.0
         pool = client.client._transport._pool
-        assert pool._max_connections == 5
+        assert pool._max_connections == 100
         assert pool._keepalive_expiry == 55.0
         client.close()
 
@@ -691,7 +776,7 @@ class TestConstructsWithoutStreamEnv:
     async def test_async_constructs_with_spec_defaults(self, monkeypatch):
         self._clear_stream_env(monkeypatch)
         client = AsyncStream(api_key="k", api_secret="s", base_url="http://test")
-        assert client.max_conns_per_host == 5
+        assert client.max_conns_per_host == 100
         assert client.idle_timeout == 55.0
         assert client.connect_timeout == 10.0
         assert client.request_timeout == 30.0
