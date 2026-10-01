@@ -11,7 +11,13 @@ import httpx
 import jwt
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from getstream.base import _log_client_initialized, _resolve_logger
+from getstream.base import (
+    DEFAULT_CONNECT_TIMEOUT,
+    DEFAULT_IDLE_TIMEOUT,
+    DEFAULT_MAX_CONNS_PER_HOST,
+    _log_client_initialized,
+    _resolve_logger,
+)
 from getstream.common import telemetry
 from getstream.config import RetryConfig
 from getstream.chat.client import ChatClient
@@ -31,14 +37,9 @@ from typing_extensions import deprecated
 BASE_URL = "https://chat.stream-io-api.com/"
 
 # ── Connection pool defaults (CHA-2956) ──────────────────────────────
+# Pool defaults (DEFAULT_MAX_CONNS_PER_HOST etc.) live in getstream.base.
 # DEFAULT_REQUEST_TIMEOUT is the default per-request timeout (was 6.0 prior to 3.5.0).
 DEFAULT_REQUEST_TIMEOUT = 30.0
-# DEFAULT_MAX_CONNS_PER_HOST caps concurrent TCP connections per host.
-DEFAULT_MAX_CONNS_PER_HOST = 5
-# DEFAULT_IDLE_TIMEOUT sits below the typical 60s LB idle timeout with a 5s safety margin.
-DEFAULT_IDLE_TIMEOUT = 55.0
-# DEFAULT_CONNECT_TIMEOUT caps TCP + TLS handshake duration.
-DEFAULT_CONNECT_TIMEOUT = 10.0
 
 
 class Settings(BaseSettings):
@@ -116,7 +117,7 @@ class BaseStream:
             http_client: Optional pre-built ``httpx`` client. Mutually exclusive with ``transport``. When provided, sub-clients (video/chat/moderation) reuse it instead of opening their own.
             token: Pre-minted user JWT. Mutually exclusive with ``api_secret``.
             request_timeout: Default per-request timeout in seconds. Default 30.0. Replaces the older ``timeout`` kwarg; ``timeout`` is kept as an alias for backward compatibility.
-            max_conns_per_host: Max concurrent TCP connections per host. Default 5. Ignored when ``http_client`` is set.
+            max_conns_per_host: Max concurrent TCP connections per host, i.e. max in-flight requests for this client; also the number of idle keep-alive connections kept for reuse. Default 100. Ignored when ``http_client`` is set.
             idle_timeout: Idle connection lifetime in seconds. Default 55.0 (sits 5s under the typical 60s LB idle timeout). Ignored when ``http_client`` is set.
             connect_timeout: TCP + TLS handshake timeout in seconds. Default 10.0. Ignored when ``http_client`` is set.
             logger: Optional stdlib ``logging.Logger`` for the SDK's structured log events (``client.initialized``, ``http.request.sent``, ``http.response.received``, ``http.request.failed``). Defaults to ``logging.getLogger("getstream")``, which is a no-op until the caller attaches a handler.

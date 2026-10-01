@@ -99,6 +99,25 @@ response: StreamResponse[StartClosedCaptionsResponse] = call.start_closed_captio
 response.data  # Gives the StartClosedCaptionsResponse model
 ```
 
+### Reusing the client and connection pooling
+
+Create one `Stream` (or `AsyncStream`) client when your app starts and reuse it everywhere, for example as a module-level object or on your web framework's app state. The client keeps a pool of keep-alive HTTP connections, so most requests skip the TCP and TLS handshake. Creating a new client per request throws that pool away and adds latency to every call. The sub-clients (`client.video`, `client.chat`, `client.moderation`, `client.feeds`) all share the same pool. Call `client.close()` (or `await client.aclose()`) when your app shuts down.
+
+By default the pool allows up to 100 concurrent connections, closes connections that have been idle for 55 seconds, and uses a 10 second connect timeout and a 30 second request timeout. When every connection is busy, further requests wait for one to free up. If your app sends more concurrent requests than that, raise the limit:
+
+```python
+client = Stream(
+    api_key="your_api_key",
+    api_secret="your_api_secret",
+    max_conns_per_host=200,  # max concurrent connections, also kept alive for reuse
+    idle_timeout=55.0,       # seconds an idle connection stays open
+    connect_timeout=10.0,    # seconds for the TCP + TLS handshake
+    request_timeout=30.0,    # seconds per request
+)
+```
+
+The same settings can be set with the `STREAM_MAX_CONNS_PER_HOST`, `STREAM_IDLE_TIMEOUT`, `STREAM_CONNECT_TIMEOUT` and `STREAM_REQUEST_TIMEOUT` environment variables. For full control, pass your own `httpx.Client` (or `httpx.AsyncClient`) as `http_client=`; the settings above are then ignored and your client's configuration is used as-is.
+
 ### Logging
 
 The SDK emits structured log events (`client.initialized`, `http.request.sent`, `http.response.received`, `http.request.failed`) through the stdlib `logging` module. By default nothing is printed: pass a `logging.Logger` to see them.

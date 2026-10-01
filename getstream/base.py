@@ -38,9 +38,12 @@ import ijson
 
 
 # ── Connection pool defaults (CHA-2956) ──────────────────────────────
-# Kept in sync with getstream.stream constants; duplicated here so BaseClient/AsyncBaseClient can be instantiated standalone (e.g. by sub-clients constructed directly without going through Stream/AsyncStream).
-DEFAULT_MAX_CONNS_PER_HOST = 5
+# Defined here (not in getstream.stream) so BaseClient/AsyncBaseClient can be instantiated standalone (e.g. by sub-clients constructed directly without going through Stream/AsyncStream).
+# DEFAULT_MAX_CONNS_PER_HOST is a hard cap on in-flight requests per client (excess requests wait up to the pool timeout), and also the keep-alive pool size so connections are reused instead of re-handshaked under sustained load. Matches httpx's own default max_connections.
+DEFAULT_MAX_CONNS_PER_HOST = 100
+# DEFAULT_IDLE_TIMEOUT sits below the typical 60s LB idle timeout with a 5s safety margin.
 DEFAULT_IDLE_TIMEOUT = 55.0
+# DEFAULT_CONNECT_TIMEOUT caps TCP + TLS handshake duration.
 DEFAULT_CONNECT_TIMEOUT = 10.0
 
 
