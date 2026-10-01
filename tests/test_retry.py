@@ -459,3 +459,49 @@ async def test_async_retry_after_honored(monkeypatch):
     assert counter.calls == 2
     assert slept == [1.0]  # clamped from 5s to max_backoff=1.0
     await client.aclose()
+
+
+# ── path parameters ─────────────────────────────────────────────────
+
+
+class PathRecorder(Counter):
+    def __init__(self, responses):
+        super().__init__(responses)
+        self.raw_paths = []
+
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        self.raw_paths.append(request.url.raw_path.decode().split("?")[0])
+        return super().__call__(request)
+
+
+def test_retry_does_not_re_encode_path_params(monkeypatch):
+    """A retried GET sends the same URL path as the first attempt."""
+    counter = PathRecorder(
+        [
+            httpx.Response(429, json=rate_limited_body()),
+            httpx.Response(200, json={}),
+        ]
+    )
+    client = sync_client(counter, retry=ENABLED, monkeypatch=monkeypatch)
+    client.get("/api/v2/things/{thing_id}", path_params={"thing_id": "a b:c"})
+    assert counter.raw_paths == [
+        "/api/v2/things/a%20b%3Ac",
+        "/api/v2/things/a%20b%3Ac",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_async_retry_does_not_re_encode_path_params(monkeypatch):
+    counter = PathRecorder(
+        [
+            httpx.Response(429, json=rate_limited_body()),
+            httpx.Response(200, json={}),
+        ]
+    )
+    client = async_client(counter, retry=ENABLED, monkeypatch=monkeypatch)
+    await client.get("/api/v2/things/{thing_id}", path_params={"thing_id": "a b:c"})
+    assert counter.raw_paths == [
+        "/api/v2/things/a%20b%3Ac",
+        "/api/v2/things/a%20b%3Ac",
+    ]
+    await client.aclose()
