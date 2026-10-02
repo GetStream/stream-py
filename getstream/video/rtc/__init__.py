@@ -1,6 +1,7 @@
 import logging
 from typing import Optional
 
+from getstream._rust import CallingState as CallingState
 from getstream.video.async_call import Call
 from getstream.video.rtc.audio_track import AudioStreamTrack
 from getstream.video.rtc.connection_manager import ConnectionManager
@@ -97,4 +98,5 @@ __all__ = [
     "G711Encoding",
     "G711Mapping",
     "AudioStreamTrack",
+    "CallingState",
 ]

@@ -17,7 +17,7 @@ from tests.fixtures import (
 )
 
 from getstream import Stream, _rust
-from getstream.models import UserRequest, ChannelInput
+from getstream.models import ChannelInput, FullUserResponse, UserRequest
 
 __all__ = [
     "client",
@@ -31,6 +31,7 @@ __all__ = [
     "random_user",
     "random_users",
     "server_user",
+    "call_users",
 ]
 
 
@@ -82,6 +83,19 @@ def server_user(client: Stream):
         )
     except Exception:
         pass
+
+
+@pytest.fixture(scope="session")
+def call_users() -> Iterator[list[FullUserResponse]]:
+    client = Stream(timeout=10.0)
+    user_ids = [str(uuid.uuid4()) for _ in range(2)]
+    response = client.update_users(
+        users={user_id: UserRequest(id=user_id, name=user_id) for user_id in user_ids}
+    )
+    yield [response.data.users[user_id] for user_id in user_ids]
+    client.delete_users(
+        user_ids=user_ids, user="hard", conversations="hard", messages="hard"
+    )
 
 
 @pytest.fixture

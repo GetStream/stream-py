@@ -17,7 +17,7 @@ import pytest_asyncio
 from getstream import AsyncStream
 from getstream.models import CallRequest, UserRequest
 from getstream.video import rtc
-from getstream.video.rtc.connection_utils import ConnectionState
+from getstream.video.rtc import CallingState
 from tests.conftest import skip_on_rate_limit
 
 logger = logging.getLogger(__name__)
@@ -47,7 +47,7 @@ async def test_custom_event_round_trip(async_client: AsyncStream, test_users: li
     await call.get_or_create(data=CallRequest(created_by_id=sender))
 
     async with await rtc.join(call, receiver) as connection:
-        assert connection.connection_state == ConnectionState.JOINED
+        assert connection.connection_state == CallingState.JOINED
 
         received_event = None
         event_received = asyncio.Event()

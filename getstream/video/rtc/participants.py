@@ -1,11 +1,10 @@
-from typing import Optional, Callable, List
+from typing import Any, Callable, List
 import inspect
 import weakref
 
 from pyee.asyncio import AsyncIOEventEmitter
 
-from getstream.video.rtc.pb.stream.video.sfu.event import events_pb2
-from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
+from getstream import _rust
 
 import logging
 
@@ -13,53 +12,42 @@ logger = logging.getLogger(__name__)
 
 
 class ParticipantsState(AsyncIOEventEmitter):
-    """Tracks participants and stream mapping received from the SFU."""
+    """Tracks the participants of the call, this participant included."""
 
     def __init__(self):
         super().__init__()
-        self._participant_by_prefix = {}
-        self._track_stream_mapping = {}
+        self._participant_by_session_id = {}
         self._map_handlers = []  # List of weak references to handler functions
 
-    def get_user_from_track_id(self, track_id: str) -> Optional[models_pb2.Participant]:
-        # Track IDs have format: participant_id:track_type:...
-        # We can extract the participant prefix directly from the track ID
-        if ":" in track_id:
-            # Extract the participant prefix from the track ID
-            prefix = track_id.split(":")[0]
-            user = self._participant_by_prefix.get(prefix)
-            if user:
-                return user
+    def emit(self, event: str, *args: Any, unsafe: bool = False, **kwargs: Any) -> bool:
+        """Calls the handlers of `event`. Unless `unsafe`, a handler that raises
+        is logged, so it cannot stop the task that emits."""
+        if unsafe:
+            return super().emit(event, *args, **kwargs)
+        try:
+            return super().emit(event, *args, **kwargs)
+        except Exception:
+            logger.exception(f"A {event!r} handler failed")
+            return True
 
-        # Fallback to the old mapping approach if it exists
-        stream_id = self._track_stream_mapping.get(track_id)
-        if stream_id:
-            prefix = stream_id.split(":")[0]
-            return self._participant_by_prefix.get(prefix)
-
-        return None
-
-    def get_stream_id_from_track_id(self, track_id: str) -> Optional[str]:
-        return self._track_stream_mapping.get(track_id)
-
-    def set_track_stream_mapping(self, mapping: dict):
-        logger.debug(f"Setting track stream mapping: {mapping}")
-        self._track_stream_mapping = mapping
-
-    def _add_participant(self, participant: models_pb2.Participant):
-        self._participant_by_prefix[participant.track_lookup_prefix] = participant
+    def _add_participant(self, participant: _rust.RemoteParticipant):
+        self._participant_by_session_id[participant.session_id] = participant
         self._notify_map_handlers()
 
-    def _remove_participant(self, participant: models_pb2.Participant):
-        if participant.track_lookup_prefix in self._participant_by_prefix:
-            del self._participant_by_prefix[participant.track_lookup_prefix]
+    def _remove_participant(self, participant: _rust.RemoteParticipant):
+        if participant.session_id in self._participant_by_session_id:
+            del self._participant_by_session_id[participant.session_id]
             self._notify_map_handlers()
 
-    def get_participants(self) -> List[models_pb2.Participant]:
-        """Get the current list of participants."""
-        return list(self._participant_by_prefix.values())
+    def _replace_participants(self, participants: List[_rust.RemoteParticipant]):
+        self._participant_by_session_id = {p.session_id: p for p in participants}
+        self._notify_map_handlers()
 
-    def map(self, handler: Callable[[List[models_pb2.Participant]], None]):
+    def get_participants(self) -> List[_rust.RemoteParticipant]:
+        """Get the current list of participants."""
+        return list(self._participant_by_session_id.values())
+
+    def map(self, handler: Callable[[List[_rust.RemoteParticipant]], None]):
         """
         Subscribe to participant list changes. The handler is called immediately
         with the current list and whenever participants are added or removed.
@@ -147,10 +135,10 @@ class ParticipantsState(AsyncIOEventEmitter):
         # Update list to only include active handlers
         self._map_handlers[:] = active_handlers
 
-    async def _on_participant_joined(self, event: events_pb2.ParticipantJoined):
+    async def _on_participant_joined(self, event: _rust.ParticipantJoined):
         self._add_participant(event.participant)
         self.emit("participant_joined", event.participant)
 
-    async def _on_participant_left(self, event: events_pb2.ParticipantLeft):
+    async def _on_participant_left(self, event: _rust.ParticipantLeft):
         self._remove_participant(event.participant)
         self.emit("participant_left", event.participant)

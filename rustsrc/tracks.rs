@@ -1,8 +1,8 @@
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex as StdMutex, PoisonError};
 use std::time::Duration;
 
-use getstream::rtc::LocalAudioTrackConfig;
+use getstream::rtc::{LocalAudioTrackConfig, RtcCall};
 use numpy::{PyArray1, PyReadonlyArray1, PyUntypedArrayMethods};
 use pyo3::exceptions::{PyStopAsyncIteration, PyValueError};
 use pyo3::prelude::*;
@@ -24,7 +24,7 @@ pub struct TrackQueue {
 }
 
 impl TrackQueue {
-    pub fn register(call: &getstream::Call) -> Arc<Self> {
+    pub fn register(call: &RtcCall) -> Arc<Self> {
         let (sender, receiver) = mpsc::channel(TRACK_QUEUE_CAPACITY);
         let queue = Arc::new(Self {
             receiver: Mutex::new(receiver),
@@ -100,6 +100,7 @@ impl TrackStream {
 #[pyclass(frozen, module = "getstream._rust.bindings")]
 pub struct RemoteTrack {
     inner: Arc<getstream::rtc::RemoteTrack>,
+    video: Arc<VideoFrames>,
     #[pyo3(get)]
     participant: RemoteParticipant,
     #[pyo3(get)]
@@ -108,10 +109,16 @@ pub struct RemoteTrack {
 
 impl RemoteTrack {
     fn new(track: getstream::rtc::RemoteTrack) -> Self {
+        let inner = Arc::new(track);
         Self {
-            participant: track.participant().clone().into(),
-            track_type: track.track_type().into(),
-            inner: Arc::new(track),
+            participant: inner.participant().clone().into(),
+            track_type: inner.track_type().into(),
+            video: Arc::new(VideoFrames {
+                track: Arc::clone(&inner),
+                latest: watch::Sender::new(LatestFrame::Waiting),
+                decoding: StdMutex::new(false),
+            }),
+            inner,
         }
     }
 }
@@ -128,13 +135,12 @@ impl RemoteTrack {
         )
     }
 
-    /// The next decoded video frame, or `None` when the track has ended or is
-    /// not a video track.
-    fn next_video_frame<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        let track = self.inner.clone();
-        future_into_py(py, async move {
-            Ok(track.next_video_frame().await.map(VideoFrameData))
-        })
+    /// A new stream of the frames decoded after this call.
+    fn video_frames(&self) -> VideoFrameStream {
+        VideoFrameStream {
+            receiver: Arc::new(Mutex::new(self.video.latest.subscribe())),
+            frames: Arc::clone(&self.video),
+        }
     }
 
     fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
@@ -155,17 +161,22 @@ pub struct PcmFrame {
     sample_rate: u32,
     #[pyo3(get)]
     channels: u16,
+    /// The RTP timestamp of the first sample, on the 48 kHz Opus clock. It
+    /// wraps at 2^32, like RTP.
+    #[pyo3(get)]
+    pts: Option<u32>,
 }
 
 #[pymethods]
 impl PcmFrame {
-    fn __repr__(&self, py: Python<'_>) -> String {
-        format!(
-            "PcmFrame(sample_rate={}, channels={}, samples={})",
+    fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
+        Ok(format!(
+            "PcmFrame(sample_rate={}, channels={}, samples={}, pts={})",
             self.sample_rate,
             self.channels,
-            self.samples.bind(py).len()
-        )
+            self.samples.bind(py).len(),
+            repr(py, self.pts)?
+        ))
     }
 }
 
@@ -184,12 +195,13 @@ impl<'py> IntoPyObject<'py> for PcmFrameData {
                 samples: PyArray1::from_vec(py, frame.samples).unbind(),
                 sample_rate: frame.sample_rate,
                 channels: frame.channels,
+                pts: frame.pts,
             },
         )
     }
 }
 
-/// Packed I420 pixels; the array owns the SDK buffer without a copy.
+/// Packed I420 pixels; each stream gets its own copy of the SDK buffer.
 #[pyclass(frozen, module = "getstream._rust.bindings")]
 pub struct VideoFrame {
     #[pyo3(get)]
@@ -212,7 +224,7 @@ impl VideoFrame {
     }
 }
 
-struct VideoFrameData(getstream::rtc::VideoFrame);
+struct VideoFrameData(Arc<getstream::rtc::VideoFrame>);
 
 impl<'py> IntoPyObject<'py> for VideoFrameData {
     type Target = VideoFrame;
@@ -226,10 +238,98 @@ impl<'py> IntoPyObject<'py> for VideoFrameData {
             VideoFrame {
                 width: frame.width,
                 height: frame.height,
-                data: PyArray1::from_vec(py, frame.data).unbind(),
+                data: PyArray1::from_slice(py, &frame.data).unbind(),
                 rtp_timestamp: frame.rtp_timestamp,
             },
         )
+    }
+}
+
+#[derive(Clone)]
+enum LatestFrame {
+    /// No frame has been decoded yet.
+    Waiting,
+    Frame(Arc<getstream::rtc::VideoFrame>),
+    /// The last value: the track has ended or has no video decoder.
+    TrackEnded,
+}
+
+/// The decoded frames of one video track, shared by the track and its
+/// streams. One task decodes from the first read of a stream until the track
+/// ends or no stream is left, and keeps only the latest frame.
+struct VideoFrames {
+    track: Arc<getstream::rtc::RemoteTrack>,
+    latest: watch::Sender<LatestFrame>,
+    /// Whether the task runs; it stays `true` after the track ends.
+    decoding: StdMutex<bool>,
+}
+
+impl VideoFrames {
+    fn start(self: &Arc<Self>) {
+        let mut decoding = self.decoding.lock().unwrap_or_else(PoisonError::into_inner);
+        if !*decoding {
+            *decoding = true;
+            pyo3_async_runtimes::tokio::get_runtime().spawn(Arc::clone(self).decode());
+        }
+    }
+
+    async fn decode(self: Arc<Self>) {
+        loop {
+            tokio::select! {
+                frame = self.track.next_video_frame() => {
+                    let Some(frame) = frame else {
+                        self.latest.send_replace(LatestFrame::TrackEnded);
+                        return;
+                    };
+                    self.latest.send_replace(LatestFrame::Frame(Arc::new(frame)));
+                }
+                () = self.latest.closed() => {
+                    let mut decoding = self.decoding.lock().unwrap_or_else(PoisonError::into_inner);
+                    // A stream created after `closed` resolved can find
+                    // `decoding` still set and start no task, so this one
+                    // continues for it.
+                    if self.latest.receiver_count() == 0 {
+                        *decoding = false;
+                        return;
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Async iterator over the decoded frames of one video track. Each stream has
+/// its own receiver, so a slow stream skips frames without delaying the others.
+#[pyclass(frozen, module = "getstream._rust.bindings")]
+pub struct VideoFrameStream {
+    frames: Arc<VideoFrames>,
+    receiver: Arc<Mutex<watch::Receiver<LatestFrame>>>,
+}
+
+#[pymethods]
+impl VideoFrameStream {
+    fn __aiter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+
+    fn __anext__<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        self.frames.start();
+        let receiver = Arc::clone(&self.receiver);
+        future_into_py(py, async move {
+            let mut receiver = receiver.lock().await;
+            let ended = matches!(*receiver.borrow(), LatestFrame::TrackEnded);
+            // `changed` fails only when the sender is dropped, after the
+            // decoding has stopped.
+            if ended || receiver.changed().await.is_err() {
+                return Err(PyStopAsyncIteration::new_err(()));
+            }
+            match &*receiver.borrow_and_update() {
+                LatestFrame::Frame(frame) => Ok(VideoFrameData(Arc::clone(frame))),
+                LatestFrame::Waiting | LatestFrame::TrackEnded => {
+                    Err(PyStopAsyncIteration::new_err(()))
+                }
+            }
+        })
     }
 }
 
