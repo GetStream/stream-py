@@ -1,5 +1,8 @@
 import functools
+import logging
 import uuid
+from typing import Iterator
+
 import pytest
 import os
 from dotenv import load_dotenv
@@ -13,8 +16,8 @@ from tests.fixtures import (
     async_client,
 )
 
-from getstream import Stream
-from getstream.models import UserRequest, ChannelInput
+from getstream import Stream, _rust
+from getstream.models import ChannelInput, FullUserResponse, UserRequest
 
 __all__ = [
     "client",
@@ -28,6 +31,7 @@ __all__ = [
     "random_user",
     "random_users",
     "server_user",
+    "call_users",
 ]
 
 
@@ -81,6 +85,19 @@ def server_user(client: Stream):
         pass
 
 
+@pytest.fixture(scope="session")
+def call_users() -> Iterator[list[FullUserResponse]]:
+    client = Stream(timeout=10.0)
+    user_ids = [str(uuid.uuid4()) for _ in range(2)]
+    response = client.update_users(
+        users={user_id: UserRequest(id=user_id, name=user_id) for user_id in user_ids}
+    )
+    yield [response.data.users[user_id] for user_id in user_ids]
+    client.delete_users(
+        user_ids=user_ids, user="hard", conversations="hard", messages="hard"
+    )
+
+
 @pytest.fixture
 def channel(client: Stream, random_user):
     channel_id = str(uuid.uuid4())
@@ -101,6 +118,14 @@ def channel(client: Stream, random_user):
 @pytest.fixture(scope="session", autouse=True)
 def load_env():
     load_dotenv()
+
+
+@pytest.fixture(autouse=True)
+def forward_sdk_logs() -> Iterator[None]:
+    logger = logging.getLogger("getstream")
+    _rust.configure_logging(logger, logger.getEffectiveLevel())
+    yield
+    _rust.configure_logging(None, logging.NOTSET)
 
 
 def pytest_configure(config):
