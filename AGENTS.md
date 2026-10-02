@@ -56,10 +56,20 @@ impossible:
   the bounded queue in `rustsrc/logging.rs`; only its forwarding thread, which
   holds no SDK lock, takes the GIL.
 - Python destructors drop the SDK objects they own with the GIL held. When you
-  update the SDK, check that these drops (`Call`, `RemoteTrack`, local tracks,
-  tracks in the track queue) still take no lock that another thread can hold.
+  update the SDK, check that these drops (`Call`, `RemoteTrack`,
+  `VideoFrameStream`, local tracks, tracks in the track queue) still take no
+  lock that another thread can hold.
 - While the GIL is released, do not read memory that Python owns (for example a
   numpy buffer); copy it first.
+
+### Calling Python from Rust
+
+- Do not call Python code from Rust (`py.import(...)`, `call_method`, `call1`,
+  `getattr` of a Python object) unless the user agreed to it first. It makes the
+  code more complex and slower, so it is always a developer decision.
+- Return values that PyO3 converts by itself (`bool`, integers, `f64`, `String`,
+  `Vec`, `Option`, pyclasses) and let the Python caller convert them further,
+  for example a Unix time in seconds to a `datetime`.
 
 ### Logging in the wrapper
 

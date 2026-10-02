@@ -1,24 +1,29 @@
 import asyncio
 import contextlib
+import logging
 import uuid
+from typing import AsyncIterator
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import numpy as np
 import pytest
 from dotenv import load_dotenv
 
-from getstream import AsyncStream
-from getstream.models import CallRequest, UserRequest
+from getstream import AsyncStream, _rust
+from getstream.models import CallRequest, FullUserResponse, UserRequest
 from getstream.video import rtc
+from getstream.video.rtc import AudioStreamTrack, CallingState, PcmData
 from getstream.video.rtc.connection_manager import ConnectionManager
-from getstream.video.rtc.connection_utils import (
-    ConnectionState,
-    SfuConnectionError,
-    SfuJoinError,
-)
 from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
-from getstream.video.rtc.reconnection import ReconnectionStrategy
+from getstream.video.rtc.tracks import SubscriptionConfig, TrackSubscriptionConfig
+from tests.rtc.video_source import FrameSource
 
 load_dotenv()
+
+SAMPLE_RATE = 48000
+VIDEO_WIDTH = 320
+VIDEO_HEIGHT = 240
+VIDEO_FPS = 15
 
 
 @contextlib.contextmanager
@@ -28,7 +33,6 @@ def patched_dependencies():
         patch("getstream.video.rtc.connection_manager.PeerConnectionManager"),
         patch("getstream.video.rtc.connection_manager.NetworkMonitor"),
         patch("getstream.video.rtc.connection_manager.ReconnectionManager"),
-        patch("getstream.video.rtc.connection_manager.RecordingManager"),
         patch("getstream.video.rtc.connection_manager.SubscriptionManager"),
         patch("getstream.video.rtc.connection_manager.ParticipantsState"),
         patch("getstream.video.rtc.connection_manager.Tracer"),
@@ -41,26 +45,60 @@ def patched_dependencies():
 
 
 @pytest.fixture
-def connection_manager(request):
-    """Create a ConnectionManager with mocked heavy dependencies.
-
-    Accepts max_join_retries via indirect parametrize, defaults to 3.
-    """
-    max_join_retries = getattr(request, "param", 3)
-    with patched_dependencies():
-        mock_call = MagicMock()
-        mock_call.call_type = "default"
-        mock_call.id = "test_call"
-        cm = ConnectionManager(
-            call=mock_call, user_id="user1", max_join_retries=max_join_retries
-        )
-        cm._connect_coordinator_ws = AsyncMock()
-        yield cm
+def client():
+    return AsyncStream(timeout=10.0)
 
 
 @pytest.fixture
-def client():
-    return AsyncStream(timeout=10.0)
+def call_id() -> str:
+    return str(uuid.uuid4())
+
+
+@pytest.fixture
+async def connection(
+    client: AsyncStream, call_id: str, call_users: list[FullUserResponse]
+) -> AsyncIterator[ConnectionManager]:
+    call = client.video.call("default", call_id)
+    async with await rtc.join(call, call_users[0].id) as connection:
+        yield connection
+
+
+@pytest.fixture
+async def peer_call(client: AsyncStream, call_id: str) -> AsyncIterator[_rust.Call]:
+    call = _rust.Client(client.api_key, client.api_secret).call("default", call_id)
+    yield call
+    await call.leave()
+
+
+@pytest.fixture
+def tone() -> np.ndarray:
+    t = np.arange(SAMPLE_RATE) / SAMPLE_RATE
+    return (np.sin(2 * np.pi * 440 * t) * 10000).astype(np.int16)
+
+
+@pytest.fixture
+async def peer_video(
+    client: AsyncStream,
+    call_id: str,
+    call_users: list[FullUserResponse],
+    peer_call: _rust.Call,
+) -> AsyncIterator[None]:
+    """The second user publishes VP9 video before the test joins."""
+    call = client.video.call("default", call_id)
+    await call.get_or_create(data=CallRequest(created_by_id=call_users[0].id))
+    await peer_call.join(call_users[1].id, create=False)
+    video = _rust.LocalVideoTrack.vp9()
+    await peer_call.publish_video(video)
+    frame = np.full(VIDEO_WIDTH * VIDEO_HEIGHT * 3 // 2, 128, dtype=np.uint8)
+
+    async def write_forever() -> None:
+        while True:
+            await video.write_i420(frame, VIDEO_WIDTH, VIDEO_HEIGHT, 1 / VIDEO_FPS)
+            await asyncio.sleep(1 / VIDEO_FPS)
+
+    task = asyncio.create_task(write_forever())
+    yield
+    task.cancel()
 
 
 class TestConnectionManager:
@@ -72,16 +110,16 @@ class TestConnectionManager:
         call = client.video.call("default", call_id)
 
         async with await rtc.join(call, "test-user") as connection:
-            assert connection.connection_state == ConnectionState.JOINED
+            assert connection.connection_state == CallingState.JOINED
 
             await asyncio.sleep(2)
 
             await asyncio.wait_for(connection.leave(), timeout=10.0)
-            assert connection.connection_state == ConnectionState.LEFT
+            assert connection.connection_state == CallingState.LEFT
 
             # Second leave must not hang
             await asyncio.wait_for(connection.leave(), timeout=10.0)
-            assert connection.connection_state == ConnectionState.LEFT
+            assert connection.connection_state == CallingState.LEFT
 
     @pytest.mark.asyncio
     @pytest.mark.integration
@@ -109,125 +147,10 @@ class TestConnectionManager:
             token_call = token_client.video.call("default", call_id)
 
             async with await rtc.join(token_call, user_id) as connection:
-                assert connection.connection_state == ConnectionState.JOINED
+                assert connection.connection_state == CallingState.JOINED
                 await asyncio.sleep(2)
                 await asyncio.wait_for(connection.leave(), timeout=10.0)
-                assert connection.connection_state == ConnectionState.LEFT
-
-    @pytest.mark.asyncio
-    @pytest.mark.parametrize("connection_manager", [2], indirect=True)
-    async def test_retries_on_sfu_join_error_and_passes_failed_sfus(
-        self, connection_manager
-    ):
-        """When SFU is full, connect() should retry with migrating_from_list."""
-        cm = connection_manager
-        call_count = 0
-        received_migrating_from_list = []
-
-        async def mock_connect_internal(migrating_from_list=None, **kwargs):
-            nonlocal call_count
-            call_count += 1
-            received_migrating_from_list.append(
-                list(migrating_from_list) if migrating_from_list else None
-            )
-
-            if call_count <= 2:
-                mock_join_response = MagicMock()
-                mock_join_response.credentials.server.edge_name = (
-                    f"sfu-node-{call_count}"
-                )
-                cm.join_response = mock_join_response
-                raise SfuJoinError(
-                    "server is full",
-                    error_code=models_pb2.ERROR_CODE_SFU_FULL,
-                    should_retry=True,
-                )
-            cm.running = True
-
-        cm._connect_internal = mock_connect_internal
-
-        await cm.connect()
-
-        assert call_count == 3
-        assert received_migrating_from_list[0] is None
-        assert received_migrating_from_list[1] == ["sfu-node-1"]
-        assert received_migrating_from_list[2] == ["sfu-node-1", "sfu-node-2"]
-
-    @pytest.mark.asyncio
-    @pytest.mark.parametrize("connection_manager", [1], indirect=True)
-    async def test_raises_after_all_retries_exhausted(self, connection_manager):
-        """When all retries are exhausted, connect() should raise SfuJoinError."""
-        cm = connection_manager
-        call_count = 0
-
-        async def always_fail(migrating_from_list=None, **kwargs):
-            nonlocal call_count
-            call_count += 1
-            mock_join_response = MagicMock()
-            mock_join_response.credentials.server.edge_name = "sfu-node-1"
-            cm.join_response = mock_join_response
-            raise SfuJoinError(
-                "server is full",
-                error_code=models_pb2.ERROR_CODE_SFU_FULL,
-                should_retry=True,
-            )
-
-        cm._connect_internal = always_fail
-
-        with pytest.raises(SfuJoinError):
-            await cm.connect()
-
-        assert call_count == 2  # 1 initial + 1 retry
-
-    @pytest.mark.asyncio
-    async def test_non_retryable_error_propagates_immediately(self, connection_manager):
-        """Non-retryable errors should not trigger retry."""
-        cm = connection_manager
-        call_count = 0
-
-        async def fail_with_generic_error(migrating_from_list=None, **kwargs):
-            nonlocal call_count
-            call_count += 1
-            raise SfuConnectionError("something went wrong")
-
-        cm._connect_internal = fail_with_generic_error
-
-        with pytest.raises(SfuConnectionError):
-            await cm.connect()
-
-        assert call_count == 1
-
-    @pytest.mark.asyncio
-    @pytest.mark.parametrize("connection_manager", [1], indirect=True)
-    async def test_cleans_up_ws_client_between_retries(self, connection_manager):
-        """Partial WS state should be cleaned up before retry."""
-        cm = connection_manager
-        call_count = 0
-
-        first_ws_client = MagicMock()
-
-        async def mock_connect_internal(migrating_from_list=None, **kwargs):
-            nonlocal call_count
-            call_count += 1
-            if call_count == 1:
-                cm._ws_client = first_ws_client
-                mock_join_response = MagicMock()
-                mock_join_response.credentials.server.edge_name = "sfu-node-1"
-                cm.join_response = mock_join_response
-                raise SfuJoinError(
-                    "server is full",
-                    error_code=models_pb2.ERROR_CODE_SFU_FULL,
-                    should_retry=True,
-                )
-            cm.running = True
-
-        cm._connect_internal = mock_connect_internal
-
-        await cm.connect()
-
-        assert call_count == 2
-        first_ws_client.close.assert_called_once()
-        assert cm._ws_client is None
+                assert connection.connection_state == CallingState.LEFT
 
     def test_rejects_negative_max_join_retries(self):
         """max_join_retries must be >= 0."""
@@ -237,22 +160,398 @@ class TestConnectionManager:
         ):
             ConnectionManager(call=MagicMock(), user_id="user1", max_join_retries=-1)
 
-    @pytest.mark.asyncio
-    async def test_signaling_connection_lost_triggers_fast_reconnect(
-        self, connection_manager
+
+@pytest.mark.integration
+class TestConnectionManagerEvents:
+    async def test_participant_joined(
+        self,
+        connection: ConnectionManager,
+        peer_call: _rust.Call,
+        call_users: list[FullUserResponse],
     ):
-        """A signaling-WS `connection_lost` event drives a FAST reconnect.
+        events: asyncio.Queue[_rust.ParticipantJoined] = asyncio.Queue()
+        connection.on("participant_joined", events.put_nowait)
 
-        Without this handler the session would sit hanging on a transient
-        socket drop until the frontend tears it down.
-        """
-        cm = connection_manager
-        cm.running = True
-        cm._reconnector.reconnect = AsyncMock()
+        await peer_call.join(call_users[1].id)
 
-        await cm._on_signaling_connection_lost("health check timeout")
+        event = await asyncio.wait_for(events.get(), timeout=10)
+        assert event.participant.user_id == call_users[1].id
 
-        cm._reconnector.reconnect.assert_called_once()
-        kwargs = cm._reconnector.reconnect.call_args.kwargs
-        assert kwargs["strategy"] == ReconnectionStrategy.FAST
-        assert "health check timeout" in kwargs["reason"]
+    async def test_track_added(
+        self,
+        connection: ConnectionManager,
+        peer_call: _rust.Call,
+        call_users: list[FullUserResponse],
+        tone: np.ndarray,
+    ):
+        tracks: asyncio.Queue[_rust.RemoteTrack] = asyncio.Queue()
+        connection.on("track_added", tracks.put_nowait)
+        await peer_call.join(call_users[1].id)
+        audio = _rust.LocalAudioTrack()
+        await peer_call.publish_audio(audio)
+
+        await audio.write_pcm(tone, SAMPLE_RATE, 1)
+
+        track = await asyncio.wait_for(tracks.get(), timeout=10)
+        assert track.participant.user_id == call_users[1].id
+        assert track.track_type == _rust.TrackType.AUDIO
+
+    async def test_audio(
+        self,
+        connection: ConnectionManager,
+        peer_call: _rust.Call,
+        call_users: list[FullUserResponse],
+        tone: np.ndarray,
+    ):
+        frames: asyncio.Queue[PcmData] = asyncio.Queue()
+        connection.on("audio", frames.put_nowait)
+        await peer_call.join(call_users[1].id)
+        audio = _rust.LocalAudioTrack()
+        await peer_call.publish_audio(audio)
+
+        await audio.write_pcm(tone, SAMPLE_RATE, 1)
+
+        while True:
+            pcm = await asyncio.wait_for(frames.get(), timeout=10)
+            if np.abs(pcm.samples).max() > 1000:
+                break
+        following = await asyncio.wait_for(frames.get(), timeout=10)
+        assert pcm.participant.user_id == call_users[1].id
+        assert pcm.sample_rate == SAMPLE_RATE
+        assert pcm.time_base == 1 / SAMPLE_RATE
+        assert (following.pts - pcm.pts) % 2**32 == len(pcm.samples)
+
+    async def test_participants_state(
+        self,
+        connection: ConnectionManager,
+        peer_call: _rust.Call,
+        call_users: list[FullUserResponse],
+    ):
+        lists: asyncio.Queue[list[_rust.RemoteParticipant]] = asyncio.Queue()
+        # The subscription keeps the weakly referenced handler alive.
+        subscription = connection.participants_state.map(lists.put_nowait)
+
+        user_ids = {p.user_id for p in await lists.get()}
+        assert call_users[0].id in user_ids
+
+        await peer_call.join(call_users[1].id)
+        while call_users[1].id not in user_ids:
+            user_ids = {p.user_id for p in await asyncio.wait_for(lists.get(), 10)}
+        await peer_call.leave()
+        while call_users[1].id in user_ids:
+            user_ids = {p.user_id for p in await asyncio.wait_for(lists.get(), 10)}
+        subscription.unsubscribe()
+
+    async def test_failing_handler_does_not_stop_the_events(
+        self,
+        connection: ConnectionManager,
+        peer_call: _rust.Call,
+        call_users: list[FullUserResponse],
+    ):
+        left: asyncio.Queue[_rust.ParticipantLeft] = asyncio.Queue()
+
+        def fail(event: _rust.ParticipantJoined) -> None:
+            raise RuntimeError("handler failed")
+
+        connection.on("participant_joined", fail)
+        connection.on("participant_left", left.put_nowait)
+
+        await peer_call.join(call_users[1].id)
+        await peer_call.leave()
+
+        event = await asyncio.wait_for(left.get(), timeout=10)
+        assert event.participant.user_id == call_users[1].id
+
+    async def test_failing_state_handler_does_not_stop_wait(
+        self, client: AsyncStream, call_id: str, call_users: list[FullUserResponse]
+    ):
+        def fail(change: dict[str, CallingState]) -> None:
+            raise RuntimeError("handler failed")
+
+        call = client.video.call("default", call_id)
+        connection = await rtc.join(call, call_users[0].id)
+        connection.on("connection.state_changed", fail)
+
+        async with connection:
+            await call.end()
+            await asyncio.wait_for(connection.wait(), timeout=10)
+
+    async def test_cancelled_connect_leaves_the_call(
+        self, client: AsyncStream, call_id: str, call_users: list[FullUserResponse]
+    ):
+        config = SubscriptionConfig(
+            default=TrackSubscriptionConfig(track_types=[models_pb2.TRACK_TYPE_AUDIO])
+        )
+        call = client.video.call("default", call_id)
+        connection = await rtc.join(call, call_users[0].id, subscription_config=config)
+        connect = asyncio.create_task(connection.connect())
+
+        def cancel_after_join(participants: list[_rust.RemoteParticipant]) -> None:
+            # Called while connect() fills the list, after the SDK join.
+            if participants:
+                connect.cancel()
+
+        subscription = connection.participants_state.map(cancel_after_join)
+        with pytest.raises(asyncio.CancelledError):
+            await connect
+        subscription.unsubscribe()
+
+        assert connection.connection_state == CallingState.LEFT
+
+    async def test_unknown_track_type_in_subscription_config_is_ignored(
+        self, client: AsyncStream, call_id: str, call_users: list[FullUserResponse]
+    ):
+        config = SubscriptionConfig(
+            default=TrackSubscriptionConfig(
+                track_types=[
+                    models_pb2.TRACK_TYPE_UNSPECIFIED,
+                    models_pb2.TRACK_TYPE_AUDIO,
+                ]
+            )
+        )
+        call = client.video.call("default", call_id)
+
+        async with await rtc.join(
+            call, call_users[0].id, subscription_config=config
+        ) as connection:
+            assert connection.connection_state == CallingState.JOINED
+
+    async def test_wait_returns_when_call_ends(
+        self, client: AsyncStream, connection: ConnectionManager, call_id: str
+    ):
+        await client.video.call("default", call_id).end()
+
+        await asyncio.wait_for(connection.wait(), timeout=10)
+
+    async def test_connection_state_changed(
+        self, client: AsyncStream, call_id: str, call_users: list[FullUserResponse]
+    ):
+        changes: list[dict[str, CallingState]] = []
+        call = client.video.call("default", call_id)
+        connection = await rtc.join(call, call_users[0].id)
+        connection.on("connection.state_changed", changes.append)
+
+        async with connection:
+            pass
+
+        assert changes == [
+            {"old": CallingState.IDLE, "new": CallingState.JOINING},
+            {"old": CallingState.JOINING, "new": CallingState.JOINED},
+            {"old": CallingState.JOINED, "new": CallingState.LEFT},
+        ]
+
+    async def test_call_ended_is_emitted_once_when_call_ends(
+        self, client: AsyncStream, connection: ConnectionManager, call_id: str
+    ):
+        ended: list[_rust.CallEnded] = []
+        connection.on("call_ended", ended.append)
+
+        await client.video.call("default", call_id).end()
+        await asyncio.wait_for(connection.wait(), timeout=10)
+        await connection.leave()
+
+        assert len(ended) == 1
+        assert isinstance(ended[0], _rust.CallEnded)
+
+
+@pytest.mark.integration
+class TestConnectionManagerLogging:
+    async def test_sdk_logs_reach_python_logging(
+        self,
+        client: AsyncStream,
+        call_id: str,
+        call_users: list[FullUserResponse],
+        caplog: pytest.LogCaptureFixture,
+    ):
+        # Stops the forwarding that the autouse fixture set up.
+        _rust.configure_logging(None, logging.NOTSET)
+        caplog.set_level(logging.DEBUG, logger="getstream")
+
+        call = client.video.call("default", call_id)
+        async with await rtc.join(call, call_users[0].id):
+            pass
+        # Returns after the queued records are delivered.
+        _rust.configure_logging(None, logging.NOTSET)
+
+        assert any(
+            record.name.startswith("getstream.rtc.") for record in caplog.records
+        )
+
+
+@pytest.fixture
+async def agent_audio(
+    connection: ConnectionManager,
+    peer_call: _rust.Call,
+    call_users: list[FullUserResponse],
+) -> AsyncIterator[tuple[AudioStreamTrack, _rust.TrackStream]]:
+    """The agent publishes an AudioStreamTrack; the peer receives audio."""
+    tracks = peer_call.tracks()
+    await peer_call.join(call_users[1].id)
+    await peer_call.update_subscriptions(
+        _rust.SubscriptionConfig(
+            default=_rust.TrackSubscriptionConfig(track_types=[_rust.TrackType.AUDIO])
+        )
+    )
+    audio = AudioStreamTrack()
+    await connection.add_tracks(audio=audio)
+    yield audio, tracks
+
+
+async def next_loud_frame(track: _rust.RemoteTrack) -> _rust.PcmFrame:
+    while True:
+        frame = await track.next_pcm()
+        if np.abs(frame.samples).max() > 1000:
+            return frame
+
+
+async def next_silent_frame(track: _rust.RemoteTrack) -> _rust.PcmFrame:
+    while True:
+        frame = await track.next_pcm()
+        if np.abs(frame.samples).max() < 100:
+            return frame
+
+
+@pytest.mark.integration
+class TestConnectionManagerPublishing:
+    async def test_add_tracks_publishes_audio(
+        self,
+        agent_audio: tuple[AudioStreamTrack, _rust.TrackStream],
+        call_users: list[FullUserResponse],
+        tone: np.ndarray,
+    ):
+        audio, tracks = agent_audio
+        pcm = PcmData(samples=tone, sample_rate=SAMPLE_RATE, format="s16", channels=1)
+
+        for _ in range(5):
+            await audio.write(pcm)
+
+        track = await asyncio.wait_for(anext(tracks), timeout=15)
+        assert track.participant.user_id == call_users[0].id
+        await asyncio.wait_for(next_loud_frame(track), timeout=10)
+
+    async def test_flush_drops_the_queued_audio(
+        self,
+        agent_audio: tuple[AudioStreamTrack, _rust.TrackStream],
+        tone: np.ndarray,
+    ):
+        audio, tracks = agent_audio
+        pcm = PcmData(samples=tone, sample_rate=SAMPLE_RATE, format="s16", channels=1)
+        for _ in range(20):
+            await audio.write(pcm)
+        track = await asyncio.wait_for(anext(tracks), timeout=15)
+        await asyncio.wait_for(next_loud_frame(track), timeout=10)
+
+        await audio.flush()
+
+        # Without the flush, the tone would play for about 20 s.
+        await asyncio.wait_for(next_silent_frame(track), timeout=5)
+
+
+@pytest.mark.integration
+class TestConnectionManagerVideoPublishing:
+    async def test_video_keeps_the_first_size(
+        self,
+        connection: ConnectionManager,
+        peer_call: _rust.Call,
+        call_users: list[FullUserResponse],
+    ):
+        tracks = peer_call.tracks()
+        await peer_call.join(call_users[1].id)
+        await peer_call.update_subscriptions(
+            _rust.SubscriptionConfig(
+                default=_rust.TrackSubscriptionConfig(
+                    track_types=[_rust.TrackType.VIDEO]
+                )
+            )
+        )
+        # 4 s at the first size, then a size that the SDK encoder rejects
+        # unless the forwarder scales it.
+        source = FrameSource([(320, 240)] * 60 + [(640, 480)] * 300)
+        await connection.add_tracks(video=source)
+
+        track = await asyncio.wait_for(anext(tracks), timeout=15)
+        assert track.participant.user_id == call_users[0].id
+        frames = track.video_frames()
+        # 90 received frames end well after the size change.
+        for _ in range(90):
+            frame = await asyncio.wait_for(anext(frames), timeout=10)
+        assert (frame.width, frame.height) == (320, 240)
+
+    async def test_stopped_video_track_is_unpublished(
+        self,
+        connection: ConnectionManager,
+        peer_call: _rust.Call,
+        call_users: list[FullUserResponse],
+    ):
+        events = peer_call.sfu_events()
+        await peer_call.join(call_users[1].id)
+        source = FrameSource([(320, 240)] * 300)
+        await connection.add_tracks(video=source)
+        async for event in events:
+            if (
+                isinstance(event, _rust.TrackPublished)
+                and event.user_id == call_users[0].id
+            ):
+                break
+
+        source.stop()
+
+        async for event in events:
+            if (
+                isinstance(event, _rust.TrackUnpublished)
+                and event.user_id == call_users[0].id
+            ):
+                break
+        assert event.track_type == _rust.TrackType.VIDEO
+
+
+@pytest.mark.integration
+class TestConnectionManagerSubscriptions:
+    async def test_default_rule_subscribes_to_video(
+        self,
+        client: AsyncStream,
+        call_id: str,
+        call_users: list[FullUserResponse],
+        peer_video: None,
+    ):
+        config = SubscriptionConfig(
+            default=TrackSubscriptionConfig(track_types=[models_pb2.TRACK_TYPE_VIDEO])
+        )
+        tracks: asyncio.Queue[_rust.RemoteTrack] = asyncio.Queue()
+        call = client.video.call("default", call_id)
+        connection = await rtc.join(
+            call, call_users[0].id, create=False, subscription_config=config
+        )
+        connection.on("track_added", tracks.put_nowait)
+
+        async with connection:
+            track = await asyncio.wait_for(tracks.get(), timeout=15)
+
+        assert track.track_type == _rust.TrackType.VIDEO
+        assert track.participant.user_id == call_users[1].id
+
+    async def test_role_rule_subscribes_to_video(
+        self,
+        client: AsyncStream,
+        call_id: str,
+        call_users: list[FullUserResponse],
+        peer_video: None,
+    ):
+        config = SubscriptionConfig(
+            role_filters={
+                "user": TrackSubscriptionConfig(
+                    track_types=[models_pb2.TRACK_TYPE_VIDEO]
+                )
+            }
+        )
+        tracks: asyncio.Queue[_rust.RemoteTrack] = asyncio.Queue()
+        call = client.video.call("default", call_id)
+        connection = await rtc.join(
+            call, call_users[0].id, create=False, subscription_config=config
+        )
+        connection.on("track_added", tracks.put_nowait)
+
+        async with connection:
+            track = await asyncio.wait_for(tracks.get(), timeout=15)
+
+        assert track.track_type == _rust.TrackType.VIDEO

@@ -1,33 +1,43 @@
 use std::sync::Arc;
 
 use getstream::ClientConfig;
-use getstream::rtc::proto::models::TrackType;
-use getstream::rtc::{JoinCallData, LocalTrack, SubscriptionConfig};
+use getstream::rtc::proto::models;
+use getstream::rtc::{JoinCallData, LocalTrack, RtcCall, RtcClient};
 use pyo3::prelude::*;
 use pyo3_async_runtimes::tokio::future_into_py;
 use tokio::sync::{Mutex, watch};
 
 use crate::call_end::{self, CallEnd};
-use crate::errors::{rtc_error, sdk_error};
-use crate::events::EventStream;
-use crate::participants::{CallStateSnapshot, RemoteParticipant};
+use crate::errors::{ConfigError, rtc_error, sdk_error};
+use crate::events::{EventStream, Source};
+use crate::participants::{CallStateSnapshot, RemoteParticipant, TrackType};
+use crate::subscriptions::SubscriptionConfig;
 use crate::tracks::{LocalAudioTrack, LocalVideoTrack, TrackQueue, TrackStream};
+
+enum Credentials {
+    /// Mints a user token for each join.
+    ApiSecret(getstream::Stream),
+    /// Joins with the user token of one user.
+    UserToken(RtcClient),
+}
 
 #[pyclass(frozen, module = "getstream._rust.bindings")]
 pub struct Client {
-    inner: getstream::Stream,
+    inner: Credentials,
 }
 
 #[pymethods]
 impl Client {
     #[new]
-    #[pyo3(signature = (api_key, api_secret, base_url=None, ws_url=None, log_bodies=false))]
+    #[pyo3(signature = (api_key, api_secret=None, *, token=None, base_url=None, ws_url=None, log_bodies=false, call_event_capacity=None))]
     fn new(
         api_key: String,
-        api_secret: String,
+        api_secret: Option<String>,
+        token: Option<String>,
         base_url: Option<String>,
         ws_url: Option<String>,
         log_bodies: bool,
+        call_event_capacity: Option<usize>,
     ) -> PyResult<Self> {
         let mut config = ClientConfig::default();
         if let Some(base_url) = base_url {
@@ -36,18 +46,37 @@ impl Client {
         if let Some(ws_url) = ws_url {
             config.coordinator_ws_url = ws_url;
         }
+        if let Some(call_event_capacity) = call_event_capacity {
+            config.call_event_capacity = call_event_capacity;
+        }
         config.log_bodies = log_bodies;
-        let inner =
-            getstream::Stream::with_config(api_key, api_secret, config).map_err(sdk_error)?;
+        let inner = match (api_secret, token) {
+            (Some(api_secret), None) => Credentials::ApiSecret(
+                getstream::Stream::with_config(api_key, api_secret, config).map_err(sdk_error)?,
+            ),
+            (None, Some(token)) => Credentials::UserToken(
+                RtcClient::with_config(api_key, token, config).map_err(sdk_error)?,
+            ),
+            _ => {
+                return Err(ConfigError::new_err(
+                    "pass exactly one of api_secret or token",
+                ));
+            }
+        };
         Ok(Self { inner })
     }
 
     fn call(&self, call_type: String, call_id: String) -> Call {
-        let inner = self.inner.video().call(call_type, call_id);
-        let end = call_end::watch_call_end(inner.subscribe());
+        let cid = format!("{call_type}:{call_id}");
+        let inner = match &self.inner {
+            Credentials::ApiSecret(stream) => stream.video().call(call_type, call_id).rtc(),
+            Credentials::UserToken(client) => client.call(call_type, call_id),
+        };
+        let end = call_end::watch_call_end(inner.client_events());
         let tracks = TrackQueue::register(&inner);
         Call {
             inner,
+            cid,
             tracks,
             end,
             join_lock: Arc::default(),
@@ -57,7 +86,9 @@ impl Client {
 
 #[pyclass(frozen, module = "getstream._rust.bindings")]
 pub struct Call {
-    inner: getstream::Call,
+    inner: RtcCall,
+    /// `"<type>:<id>"`, for the `call_cid` of the SFU events.
+    cid: String,
     tracks: Arc<TrackQueue>,
     end: watch::Receiver<CallEnd>,
     /// Python sees a cancelled `join()` at once, but the SDK future is dropped
@@ -121,8 +152,19 @@ impl Call {
         py.detach(|| self.inner.call_state()).into()
     }
 
-    fn events(&self, py: Python<'_>) -> EventStream {
-        EventStream::new(py.detach(|| self.inner.subscribe()), self.end.clone())
+    fn sfu_events(&self, py: Python<'_>) -> EventStream {
+        let source = Source::Sfu(py.detach(|| self.inner.sfu_events()));
+        EventStream::new(source, self.cid.clone(), self.end.clone())
+    }
+
+    fn coordinator_events(&self, py: Python<'_>) -> EventStream {
+        let source = Source::Coordinator(py.detach(|| self.inner.coordinator_events()));
+        EventStream::new(source, self.cid.clone(), self.end.clone())
+    }
+
+    fn client_events(&self, py: Python<'_>) -> EventStream {
+        let source = Source::Client(py.detach(|| self.inner.client_events()));
+        EventStream::new(source, self.cid.clone(), self.end.clone())
     }
 
     fn tracks(&self) -> TrackStream {
@@ -185,7 +227,7 @@ impl Call {
         let call = self.inner.clone();
         let track = LocalTrack::Video {
             track: track.get().inner.clone(),
-            track_type: TrackType::Video,
+            track_type: models::TrackType::Video,
         };
         future_into_py(py, async move {
             call.stop_publish(track).await.map_err(rtc_error)
@@ -200,29 +242,44 @@ impl Call {
         let call = self.inner.clone();
         let track = LocalTrack::Video {
             track: track.get().inner.clone(),
-            track_type: TrackType::ScreenShare,
+            track_type: models::TrackType::ScreenShare,
         };
         future_into_py(py, async move {
             call.stop_publish(track).await.map_err(rtc_error)
         })
     }
 
-    #[pyo3(signature = (audio=true, video=false, screen_share=false, video_dimension=None))]
+    fn mute_track<'py>(
+        &self,
+        py: Python<'py>,
+        track_type: TrackType,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let call = self.inner.clone();
+        future_into_py(py, async move {
+            call.mute_track(track_type.into()).await.map_err(rtc_error)
+        })
+    }
+
+    fn unmute_track<'py>(
+        &self,
+        py: Python<'py>,
+        track_type: TrackType,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let call = self.inner.clone();
+        future_into_py(py, async move {
+            call.unmute_track(track_type.into())
+                .await
+                .map_err(rtc_error)
+        })
+    }
+
     fn update_subscriptions<'py>(
         &self,
         py: Python<'py>,
-        audio: bool,
-        video: bool,
-        screen_share: bool,
-        video_dimension: Option<(u32, u32)>,
+        config: SubscriptionConfig,
     ) -> PyResult<Bound<'py, PyAny>> {
         let call = self.inner.clone();
-        let config = SubscriptionConfig {
-            audio,
-            video,
-            screen_share,
-            video_dimension,
-        };
+        let config = getstream::rtc::SubscriptionConfig::from(config);
         future_into_py(py, async move {
             call.update_subscriptions(config).await.map_err(rtc_error)
         })

@@ -21,14 +21,14 @@ class TestParticipantsState:
 
         p1 = models_pb2.Participant()
         p1.user_id = "user1"
-        p1.track_lookup_prefix = "prefix1"
+        p1.session_id = "prefix1"
 
         state._add_participant(p1)
 
         participants = state.get_participants()
         assert len(participants) == 1
         assert participants[0].user_id == "user1"
-        assert participants[0].track_lookup_prefix == "prefix1"
+        assert participants[0].session_id == "prefix1"
 
     def test_add_multiple_participants(self):
         """Test adding multiple participants."""
@@ -36,15 +36,15 @@ class TestParticipantsState:
 
         p1 = models_pb2.Participant()
         p1.user_id = "user1"
-        p1.track_lookup_prefix = "prefix1"
+        p1.session_id = "prefix1"
 
         p2 = models_pb2.Participant()
         p2.user_id = "user2"
-        p2.track_lookup_prefix = "prefix2"
+        p2.session_id = "prefix2"
 
         p3 = models_pb2.Participant()
         p3.user_id = "user3"
-        p3.track_lookup_prefix = "prefix3"
+        p3.session_id = "prefix3"
 
         state._add_participant(p1)
         state._add_participant(p2)
@@ -62,11 +62,11 @@ class TestParticipantsState:
 
         p1 = models_pb2.Participant()
         p1.user_id = "user1"
-        p1.track_lookup_prefix = "prefix1"
+        p1.session_id = "prefix1"
 
         p2 = models_pb2.Participant()
         p2.user_id = "user2"
-        p2.track_lookup_prefix = "prefix2"
+        p2.session_id = "prefix2"
 
         state._add_participant(p1)
         state._add_participant(p2)
@@ -83,11 +83,33 @@ class TestParticipantsState:
 
         p1 = models_pb2.Participant()
         p1.user_id = "user1"
-        p1.track_lookup_prefix = "prefix1"
+        p1.session_id = "prefix1"
 
         # Should not raise an error
         state._remove_participant(p1)
         assert len(state.get_participants()) == 0
+
+    def test_replace_participants(self):
+        """Replacing the list notifies the map handlers with the new list."""
+        state = ParticipantsState()
+
+        p1 = models_pb2.Participant()
+        p1.user_id = "user1"
+        p1.session_id = "session1"
+        p2 = models_pb2.Participant()
+        p2.user_id = "user2"
+        p2.session_id = "session2"
+        state._add_participant(p1)
+        results = []
+
+        def handler(participants):
+            results.append([p.user_id for p in participants])
+
+        _subscription = state.map(handler)
+        state._replace_participants([p2])
+
+        assert results[-1] == ["user2"]
+        assert [p.user_id for p in state.get_participants()] == ["user2"]
 
     def test_map_called_immediately(self):
         """Test that map handler is called immediately with current participant list."""
@@ -120,14 +142,14 @@ class TestParticipantsState:
 
         p1 = models_pb2.Participant()
         p1.user_id = "user1"
-        p1.track_lookup_prefix = "prefix1"
+        p1.session_id = "prefix1"
         state._add_participant(p1)
 
         assert results == [0, 1]
 
         p2 = models_pb2.Participant()
         p2.user_id = "user2"
-        p2.track_lookup_prefix = "prefix2"
+        p2.session_id = "prefix2"
         state._add_participant(p2)
 
         assert results == [0, 1, 2]
@@ -138,7 +160,7 @@ class TestParticipantsState:
 
         p1 = models_pb2.Participant()
         p1.user_id = "user1"
-        p1.track_lookup_prefix = "prefix1"
+        p1.session_id = "prefix1"
         state._add_participant(p1)
 
         results = []
@@ -165,7 +187,7 @@ class TestParticipantsState:
 
         p1 = models_pb2.Participant()
         p1.user_id = "user1"
-        p1.track_lookup_prefix = "prefix1"
+        p1.session_id = "prefix1"
         state._add_participant(p1)
 
         assert results == [0, 1]
@@ -188,7 +210,7 @@ class TestParticipantsState:
 
         p1 = models_pb2.Participant()
         p1.user_id = "user1"
-        p1.track_lookup_prefix = "prefix1"
+        p1.session_id = "prefix1"
         state._add_participant(p1)
 
         assert results1 == [0, 1]
@@ -209,7 +231,7 @@ class TestParticipantsState:
 
         p1 = models_pb2.Participant()
         p1.user_id = "user1"
-        p1.track_lookup_prefix = "prefix1"
+        p1.session_id = "prefix1"
         state._add_participant(p1)
         assert results == [0, 1]
 
@@ -219,7 +241,7 @@ class TestParticipantsState:
         # Add another participant - handler should NOT be called
         p2 = models_pb2.Participant()
         p2.user_id = "user2"
-        p2.track_lookup_prefix = "prefix2"
+        p2.session_id = "prefix2"
         state._add_participant(p2)
 
         assert results == [0, 1]  # Should not have changed
@@ -245,7 +267,7 @@ class TestParticipantsState:
         # Handler should be cleaned up
         p1 = models_pb2.Participant()
         p1.user_id = "user1"
-        p1.track_lookup_prefix = "prefix1"
+        p1.session_id = "prefix1"
         state._add_participant(p1)
 
         # Results should not have changed (handler was garbage collected)
@@ -269,7 +291,7 @@ class TestParticipantsState:
         # Handler should be cleaned up
         p1 = models_pb2.Participant()
         p1.user_id = "user1"
-        p1.track_lookup_prefix = "prefix1"
+        p1.session_id = "prefix1"
         state._add_participant(p1)
 
         # Results should not have changed (handler was garbage collected)
@@ -297,7 +319,7 @@ class TestParticipantsState:
         # Add a participant
         p1 = models_pb2.Participant()
         p1.user_id = "user1"
-        p1.track_lookup_prefix = "prefix1"
+        p1.session_id = "prefix1"
         state._add_participant(p1)
 
         # Only sub1 and sub3 should have been called
@@ -321,16 +343,16 @@ class TestParticipantsState:
 
         p1 = models_pb2.Participant()
         p1.user_id = "alice"
-        p1.track_lookup_prefix = "alice_123"
+        p1.session_id = "alice_123"
         state._add_participant(p1)
 
         assert len(received_participants) == 1
         assert received_participants[0].user_id == "alice"
-        assert received_participants[0].track_lookup_prefix == "alice_123"
+        assert received_participants[0].session_id == "alice_123"
 
         p2 = models_pb2.Participant()
         p2.user_id = "bob"
-        p2.track_lookup_prefix = "bob_456"
+        p2.session_id = "bob_456"
         state._add_participant(p2)
 
         assert len(received_participants) == 2
@@ -344,11 +366,11 @@ class TestParticipantsState:
         # Add participants before subscribing
         p1 = models_pb2.Participant()
         p1.user_id = "user1"
-        p1.track_lookup_prefix = "prefix1"
+        p1.session_id = "prefix1"
 
         p2 = models_pb2.Participant()
         p2.user_id = "user2"
-        p2.track_lookup_prefix = "prefix2"
+        p2.session_id = "prefix2"
 
         state._add_participant(p1)
         state._add_participant(p2)
@@ -363,46 +385,6 @@ class TestParticipantsState:
 
         # Handler should be called immediately with existing 2 participants
         assert results == [2]
-
-    def test_get_user_from_track_id_with_prefix(self):
-        """Test get_user_from_track_id using track prefix."""
-        state = ParticipantsState()
-
-        p1 = models_pb2.Participant()
-        p1.user_id = "user1"
-        p1.track_lookup_prefix = "prefix1"
-        state._add_participant(p1)
-
-        # Track ID format: participant_id:track_type:...
-        user = state.get_user_from_track_id("prefix1:audio:123")
-        assert user is not None
-        assert user.user_id == "user1"
-
-    def test_get_user_from_track_id_not_found(self):
-        """Test get_user_from_track_id returns None for unknown track."""
-        state = ParticipantsState()
-
-        user = state.get_user_from_track_id("unknown:audio:123")
-        assert user is None
-
-    def test_get_stream_id_from_track_id(self):
-        """Test get_stream_id_from_track_id."""
-        state = ParticipantsState()
-
-        mapping = {
-            "track1": "stream1",
-            "track2": "stream2",
-        }
-        state.set_track_stream_mapping(mapping)
-
-        stream_id = state.get_stream_id_from_track_id("track1")
-        assert stream_id == "stream1"
-
-        stream_id = state.get_stream_id_from_track_id("track2")
-        assert stream_id == "stream2"
-
-        stream_id = state.get_stream_id_from_track_id("track3")
-        assert stream_id is None
 
     def test_map_with_bound_method(self):
         """Test that map works with bound methods."""
@@ -426,7 +408,7 @@ class TestParticipantsState:
         # Add a participant
         p1 = models_pb2.Participant()
         p1.user_id = "user1"
-        p1.track_lookup_prefix = "prefix1"
+        p1.session_id = "prefix1"
         state._add_participant(p1)
 
         # Handler should be called
@@ -435,7 +417,7 @@ class TestParticipantsState:
         # Add another participant
         p2 = models_pb2.Participant()
         p2.user_id = "user2"
-        p2.track_lookup_prefix = "prefix2"
+        p2.session_id = "prefix2"
         state._add_participant(p2)
 
         # Handler should be called again
@@ -466,7 +448,7 @@ class TestParticipantsState:
         # Handler should be cleaned up
         p1 = models_pb2.Participant()
         p1.user_id = "user1"
-        p1.track_lookup_prefix = "prefix1"
+        p1.session_id = "prefix1"
         state._add_participant(p1)
 
         # No handlers should remain

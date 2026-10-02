@@ -987,7 +987,7 @@ dependencies = [
 [[package]]
 name = "getstream"
 version = "0.1.0-preview.2"
-source = "git+https://github.com/GetStream/stream-video-rust?branch=fix%2Fcompatibility-fixes#8793fefc4c3c4e6a2233037bad0aa190c7c6fb87"
+source = "git+https://github.com/GetStream/stream-video-rust?branch=fix%2Fcompatibility-fixes#972471ff27d31a76501f0b37467667ca9cba516e"
 dependencies = [
  "base64 0.23.1",
  "bytes",
@@ -995,6 +995,7 @@ dependencies = [
  "flate2",
  "futures-util",
  "hmac 0.13.0",
+ "indexmap",
  "openh264",
  "opus",
  "prost",
@@ -1022,8 +1023,10 @@ dependencies = [
  "getstream",
  "log",
  "numpy",
+ "prost-types",
  "pyo3",
  "pyo3-async-runtimes",
+ "serde_json",
  "tokio",
  "tracing",
  "tracing-log",
