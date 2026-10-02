@@ -48,7 +48,9 @@ a C compiler, `cmake`, `pkg-config` and `libvpx`:
 ### Event payloads
 
 Every SDK event is an instance of `CallEvent` and has `name`, the event name
-it is emitted under. The classes are in `getstream._rust` today.
+it is emitted under. Import the classes from `getstream.video.rtc`, together
+with `RemoteTrack`, `RemoteParticipant`, `TrackType`, `VideoFrameStream` and
+`VideoFrame`.
 
 | Event | 4.1.0 payload | Now |
 | --- | --- | --- |
