@@ -1,7 +1,32 @@
 import logging
 from typing import Optional
 
-from getstream._rust import CallingState as CallingState
+from getstream._rust import (
+    AudioLevelChanged,
+    CallEnded,
+    CallEvent,
+    CallGrantsUpdated,
+    CallingState,
+    ChangePublishOptions,
+    ChangePublishQuality,
+    ConnectionQualityChanged,
+    DominantSpeakerChanged,
+    Error,
+    ICERestart,
+    InboundStateNotification,
+    ParticipantCountChanged,
+    ParticipantJoined,
+    ParticipantLeft,
+    ParticipantUpdated,
+    PinsChanged,
+    RemoteParticipant,
+    RemoteTrack,
+    TrackPublished,
+    TrackType,
+    TrackUnpublished,
+    VideoFrame,
+    VideoFrameStream,
+)
 from getstream.video.async_call import Call
 from getstream.video.rtc.audio_track import AudioStreamTrack
 from getstream.video.rtc.connection_manager import ConnectionManager
@@ -99,4 +124,27 @@ __all__ = [
     "G711Mapping",
     "AudioStreamTrack",
     "CallingState",
+    "RemoteParticipant",
+    "RemoteTrack",
+    "TrackType",
+    "VideoFrame",
+    "VideoFrameStream",
+    "CallEvent",
+    "AudioLevelChanged",
+    "CallEnded",
+    "CallGrantsUpdated",
+    "ChangePublishOptions",
+    "ChangePublishQuality",
+    "ConnectionQualityChanged",
+    "DominantSpeakerChanged",
+    "Error",
+    "ICERestart",
+    "InboundStateNotification",
+    "ParticipantCountChanged",
+    "ParticipantJoined",
+    "ParticipantLeft",
+    "ParticipantUpdated",
+    "PinsChanged",
+    "TrackPublished",
+    "TrackUnpublished",
 ]
