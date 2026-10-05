@@ -3,7 +3,7 @@
 1. This project uses `uv`,  `pyproject.toml` and venv to manage dependencies
 2. Never use pip directly, use `uv add` to add dependencies and `uv sync --dev --all-packages` to install the dependency
 3. Do not change code generated python code, `./generate.sh` is the script responsible of rebuilding all API endpoints and API models
-4. **WebRTC Dependencies**: All dependencies related to WebRTC, audio, video processing (like `aiortc`, `numpy`, `torch`, `torchaudio`, `soundfile`, `scipy`, `deepgram-sdk`, `elevenlabs`, etc.) are organized under the `webrtc` optional dependencies group. Plugins that work with audio, video, or WebRTC functionality should depend on `getstream[webrtc]` instead of just `getstream`.
+4. **WebRTC Dependencies**: The dependencies of `getstream.video.rtc` (`aiortc`, `av`, `numpy`, and `twirp`, `protobuf` and `aiohttp` for the generated SFU code) are organized under the `webrtc` optional dependencies group. Plugins that work with audio, video, or WebRTC functionality should depend on `getstream[webrtc]` instead of just `getstream`, and declare every other package they import themselves.
 5. **Rust bindings**: `getstream._rust.bindings` is a PyO3 extension built by maturin from `Cargo.toml` (sources in `rustsrc/`). It wraps the Rust SDK (`getstream` crate from https://github.com/GetStream/stream-video-rust). `uv sync` compiles it, so every checkout needs the Rust toolchain pinned in `rust-toolchain.toml`, a C compiler, `cmake`, `pkg-config`, and `libvpx` (macOS: `brew install libvpx cmake pkg-config`; Debian/Ubuntu: `apt install libvpx-dev cmake pkg-config build-essential`). Run `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings` and `cargo test --lib` after Rust changes.
 
 ## Python testing

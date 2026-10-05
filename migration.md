@@ -33,6 +33,10 @@ a C compiler, `cmake`, `pkg-config` and `libvpx`:
 - macOS: `brew install libvpx cmake pkg-config`
 - Debian/Ubuntu: `apt install libvpx-dev cmake pkg-config build-essential`
 
+The `webrtc` extra no longer installs `scipy`, `soundfile`, `websockets`,
+`websocket-client`, `structlog`, `tenacity` and `ping3`; no stream-py code uses
+them. Code that imports one of them must declare it itself.
+
 ## Breaking Changes
 
 ### Connection state
