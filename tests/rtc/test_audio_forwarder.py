@@ -51,3 +51,21 @@ class TestAudioForwarder:
         assert not run.done()
         source.stop()
         await asyncio.wait_for(run, timeout=1)
+
+
+@pytest.mark.integration
+class TestAudioForwarderOnACall:
+    async def test_run_returns_when_the_call_is_left(
+        self, joined_call: _rust.Call, one_second: PcmData
+    ):
+        source = AudioStreamTrack()
+        target = _rust.LocalAudioTrack()
+        await joined_call.publish_audio(target)
+        run = asyncio.create_task(AudioForwarder(source, target).run())
+        await source.write(one_second)
+
+        # Leaving stops the published track.
+        await joined_call.leave()
+        await source.write(one_second)
+
+        await asyncio.wait_for(run, timeout=5)

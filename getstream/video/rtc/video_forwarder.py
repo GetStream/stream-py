@@ -21,7 +21,7 @@ class VideoForwarder:
         self.target = target
 
     async def run(self) -> None:
-        """Copy frames until the source ends."""
+        """Copy frames until the source ends or the SDK stops the target."""
         size: tuple[int, int] | None = None
         previous_time: float | None = None
         while True:
@@ -43,9 +43,14 @@ class VideoForwarder:
             previous_time = time
             width, height = size
             frame = frame.reformat(width=width, height=height, format="yuv420p")
-            await self.target.write_i420(
-                frame.to_ndarray().reshape(-1), width, height, duration
-            )
+            try:
+                await self.target.write_i420(
+                    frame.to_ndarray().reshape(-1), width, height, duration
+                )
+            except _rust.IllegalStateError:
+                # The only cause is a stopped track: it was unpublished, or the
+                # call was left or ended.
+                return
 
 
 def _even(value: int) -> int:

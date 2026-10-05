@@ -23,7 +23,7 @@ class AudioForwarder:
         self.target = target
 
     async def run(self) -> None:
-        """Copy frames until the source ends."""
+        """Copy frames until the source ends or the SDK stops the target."""
         flushes = (
             asyncio.create_task(self._forward_flushes(self.source))
             if isinstance(self.source, AudioStreamTrack)
@@ -52,6 +52,10 @@ class AudioForwarder:
                 logger.debug(
                     f"Audio buffer overflow: dropped {error.dropped_samples} samples"
                 )
+            except _rust.IllegalStateError:
+                # The only cause is a stopped track: it was unpublished, or the
+                # call was left or ended.
+                return
 
     async def _forward_flushes(self, source: AudioStreamTrack) -> None:
         while True:
