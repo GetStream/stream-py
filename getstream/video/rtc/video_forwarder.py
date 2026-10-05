@@ -1,4 +1,9 @@
+from typing import cast
+
 import aiortc
+import av
+import numpy as np
+from numpy.typing import NDArray
 
 from getstream import _rust
 
@@ -26,7 +31,9 @@ class VideoForwarder:
         previous_time: float | None = None
         while True:
             try:
-                frame = await self.source.recv()
+                # aiortc types recv() as a frame or a packet; a video track
+                # gives video frames.
+                frame = cast(av.VideoFrame, await self.source.recv())
             except aiortc.mediastreams.MediaStreamError:
                 return
             if size is None:
@@ -43,9 +50,11 @@ class VideoForwarder:
             previous_time = time
             width, height = size
             frame = frame.reformat(width=width, height=height, format="yuv420p")
+            # A yuv420p frame gives uint8 planes.
+            pixels = cast(NDArray[np.uint8], frame.to_ndarray())
             try:
                 await self.target.write_i420(
-                    frame.to_ndarray().reshape(-1), width, height, duration
+                    pixels.reshape(-1), width, height, duration
                 )
             except _rust.IllegalStateError:
                 # The only cause is a stopped track: it was unpublished, or the

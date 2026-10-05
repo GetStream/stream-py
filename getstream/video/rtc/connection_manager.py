@@ -36,7 +36,7 @@ _AUDIO_TRACK_TYPES = (_rust.TrackType.AUDIO, _rust.TrackType.SCREEN_SHARE_AUDIO)
 _CALL_EVENT_CAPACITY = 1024
 # The unit of `PcmFrame.pts`: the 48 kHz RTP clock of Opus.
 _OPUS_TIME_BASE = 1 / 48000
-_TRACK_TYPES = {
+_TRACK_TYPES: dict[int, _rust.TrackType] = {
     models_pb2.TRACK_TYPE_AUDIO: _rust.TrackType.AUDIO,
     models_pb2.TRACK_TYPE_VIDEO: _rust.TrackType.VIDEO,
     models_pb2.TRACK_TYPE_SCREEN_SHARE: _rust.TrackType.SCREEN_SHARE,
@@ -79,15 +79,17 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
     def __init__(
         self,
         call: Call,
-        user_id: Optional[str] = None,
+        user_id: str,
         create: bool = True,
         subscription_config: Optional[SubscriptionConfig] = None,
     ):
         super().__init__()
+        if call.id is None:
+            raise TypeError("the call has no id")
 
         # Public attributes
         self.call: Call = call
-        self.user_id: Optional[str] = user_id
+        self.user_id: str = user_id
         self.create: bool = create
 
         # Created before the join, so the tracks and events of the join are kept.
@@ -198,7 +200,8 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
 
     async def _emit_coordinator_events(self, events: _rust.EventStream) -> None:
         async for event in events:
-            if isinstance(event, _rust.EventsLagged):
+            # The stream gives only `CoordinatorEvent` and `EventsLagged`.
+            if not isinstance(event, _rust.CoordinatorEvent):
                 continue
             # Of the coordinator events, only `custom` is emitted, as its dict.
             if event.name == "custom":
@@ -209,7 +212,8 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
     async def _emit_client_events(self, events: _rust.EventStream) -> None:
         old = _rust.CallingState.IDLE
         async for event in events:
-            if isinstance(event, _rust.EventsLagged):
+            # The stream gives only `CallingStateChanged` and `EventsLagged`.
+            if not isinstance(event, _rust.CallingStateChanged):
                 continue
             self.emit("connection.state_changed", {"old": old, "new": event.state})
             old = event.state

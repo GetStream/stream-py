@@ -161,7 +161,7 @@ Behavior of a track object:
 | `call_ended` only from the SFU | also when the coordinator ends the call | Emitted once. After a coordinator end, the payload is a `CallEnded` that stream-py makes. |
 | `connect()` retries with `max_join_retries` and other SFUs | the SDK retries | The `max_join_retries` argument is removed. |
 | `rtc.join(call, user_id, **kwargs)` passes `kwargs` to the join request | `rtc.join(call, user_id, create, subscription_config)` | Other keyword arguments raise `TypeError`. |
-| `user_id=None` raises `ValueError` | raises `TypeError` | |
+| `user_id=None` raises `ValueError` | raises `TypeError` | `user_id` of `rtc.join` and `ConnectionManager` has no default now. A call without an id raises `TypeError`. |
 | `drain_video_frames` | removed | The SDK decodes a remote track only while it is read. |
 
 ### Publishing audio

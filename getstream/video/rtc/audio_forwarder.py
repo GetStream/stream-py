@@ -1,7 +1,11 @@
 import asyncio
 import logging
+from typing import cast
 
 import aiortc
+import av
+import numpy as np
+from numpy.typing import NDArray
 
 from getstream import _rust
 from getstream.video.rtc.audio_track import AudioStreamTrack
@@ -38,12 +42,17 @@ class AudioForwarder:
     async def _forward_frames(self) -> None:
         while True:
             try:
-                frame = await self.source.recv()
+                # aiortc types recv() as a frame or a packet; an audio track
+                # gives audio frames.
+                frame = cast(av.AudioFrame, await self.source.recv())
             except aiortc.mediastreams.MediaStreamError:
                 return
+            # aiortc audio tracks give packed s16 frames: aiortc's own Opus
+            # encoder accepts only s16.
+            samples = cast(NDArray[np.int16], frame.to_ndarray())
             try:
                 await self.target.write_pcm(
-                    frame.to_ndarray().reshape(-1),
+                    samples.reshape(-1),
                     frame.sample_rate,
                     len(frame.layout.channels),
                 )

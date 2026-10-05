@@ -57,7 +57,7 @@ logger.debug(f"loaded aiortc {aiortc.__version__} correctly")
 
 async def join(
     call: Call,
-    user_id: Optional[str] = None,
+    user_id: str,
     create=True,
     subscription_config: Optional[SubscriptionConfig] = None,
 ) -> ConnectionManager:
