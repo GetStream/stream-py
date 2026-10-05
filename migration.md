@@ -144,8 +144,10 @@ Behavior of a track object:
   from that track.
 - After a remote mute and unmute (`track_unpublished`, then
   `track_published`), no new `track_added` arrives. The same track object
-  delivers frames again. Keep the track object during a mute: if you drop it,
-  the track does not come back until the participant rejoins.
+  delivers frames again. If you drop the track object during the mute, a new
+  `track_added` with a new track object arrives when the media flows again
+  after the `track_published`. A track that you drop while it is published
+  does not come back until it is published again.
 - A track ends (`None`, or the end of its `VideoFrameStream`s) when its
   participant leaves, when this client leaves, or when this client rejoins
   with a new session; after a rejoin a new `track_added` arrives.
