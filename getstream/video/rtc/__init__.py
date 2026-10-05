@@ -52,6 +52,7 @@ from getstream.video.rtc.track_util import (
     PcmData,
     Resampler,
 )
+from getstream.video.rtc.tracks import SubscriptionConfig
 
 logger = logging.getLogger(__name__)
 
@@ -81,27 +82,31 @@ async def discover_location():
 
 
 async def join(
-    call: Call, user_id: Optional[str] = None, create=True, **kwargs
+    call: Call,
+    user_id: Optional[str] = None,
+    create=True,
+    subscription_config: Optional[SubscriptionConfig] = None,
 ) -> ConnectionManager:
     """
-    Join a call. This method will:
-    - discover the best location
-    - join the call (or create it if needed)
-    - setup the peer connection
-    - connect to the SFU
+    Make a ConnectionManager for a call. Entering it (or `connect()`) joins the
+    call, or creates it if needed; the SDK chooses the SFU and connects.
 
     Args:
         call: The call to join
         user_id: The user id to join with
         create: Whether to create the call if it doesn't exist
-        **kwargs: Additional arguments to pass to the join call request
+        subscription_config: The remote tracks to subscribe to; without it,
+            only remote audio is received
 
     Returns:
         A ConnectionManager object that can be used as a context manager
     """
-    # Return ConnectionManager instance that handles everything internally
-    # when used as an async context manager and async iterator
-    return ConnectionManager(call=call, user_id=user_id, create=create, **kwargs)
+    return ConnectionManager(
+        call=call,
+        user_id=user_id,
+        create=create,
+        subscription_config=subscription_config,
+    )
 
 
 __all__ = [

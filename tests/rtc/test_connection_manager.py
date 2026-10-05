@@ -1,9 +1,7 @@
 import asyncio
-import contextlib
 import logging
 import uuid
 from typing import AsyncIterator
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import numpy as np
 import pytest
@@ -24,24 +22,6 @@ SAMPLE_RATE = 48000
 VIDEO_WIDTH = 320
 VIDEO_HEIGHT = 240
 VIDEO_FPS = 15
-
-
-@contextlib.contextmanager
-def patched_dependencies():
-    """Patch heavy ConnectionManager dependencies for unit testing."""
-    with (
-        patch("getstream.video.rtc.connection_manager.PeerConnectionManager"),
-        patch("getstream.video.rtc.connection_manager.NetworkMonitor"),
-        patch("getstream.video.rtc.connection_manager.ReconnectionManager"),
-        patch("getstream.video.rtc.connection_manager.SubscriptionManager"),
-        patch("getstream.video.rtc.connection_manager.ParticipantsState"),
-        patch("getstream.video.rtc.connection_manager.Tracer"),
-        patch(
-            "getstream.video.rtc.connection_manager.asyncio.sleep",
-            new_callable=AsyncMock,
-        ),
-    ):
-        yield
 
 
 @pytest.fixture
@@ -151,14 +131,6 @@ class TestConnectionManager:
                 await asyncio.sleep(2)
                 await asyncio.wait_for(connection.leave(), timeout=10.0)
                 assert connection.connection_state == CallingState.LEFT
-
-    def test_rejects_negative_max_join_retries(self):
-        """max_join_retries must be >= 0."""
-        with (
-            patched_dependencies(),
-            pytest.raises(ValueError, match="max_join_retries must be >= 0"),
-        ):
-            ConnectionManager(call=MagicMock(), user_id="user1", max_join_retries=-1)
 
 
 @pytest.mark.integration

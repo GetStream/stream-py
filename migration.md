@@ -130,7 +130,7 @@ Field changes:
 | `track_added` with `(track_id, kind, user)` | `track_added` with a `RemoteTrack` | `track.participant`, `track.track_type`. |
 | `connection.subscriber_pc.add_track_subscriber(track_id)` | the `RemoteTrack` itself | `await track.next_pcm()` gives a `PcmFrame` (48 kHz mono `int16` numpy samples), or `None` when the track ends. `track.video_frames()` gives a `VideoFrameStream`: `async for frame in track.video_frames()` gives each `VideoFrame` (I420 `uint8` numpy data) until the track ends. |
 | each `add_track_subscriber()` call returns a new aiortc relay proxy, and each proxy gets the frames independently | each `video_frames()` call returns a new independent `VideoFrameStream` | Each stream gets its own copy of each frame. A stream that reads slower than the track skips to the latest frame. Two loops on one stream share its frames. The result is not an aiortc track. |
-| `connection.republish_tracks()` | not needed; it does nothing | `track_added` also arrives for the tracks of participants who joined before you. |
+| `connection.republish_tracks()` | removed; not needed | `track_added` also arrives for the tracks of participants who joined before you. |
 | `track_published` for tracks that existed before the join (from `republish_tracks()`) | not emitted | Use `track_added`. |
 
 Behavior of a track object:
@@ -153,10 +153,10 @@ Behavior of a track object:
 | `participant_joined` only for participants who join after you | also for the participants already in the call at join | Handlers registered before `__aenter__()` get them. |
 | `wait()` returns after `leave()` | also returns when the call ends | |
 | `call_ended` only from the SFU | also when the coordinator ends the call | Emitted once. After a coordinator end, the payload is a `CallEnded` that stream-py makes. |
-| `connect()` retries with `max_join_retries` and other SFUs | the SDK retries | `max_join_retries` has no effect. |
-| `rtc.join(call, user_id, **kwargs)` passes `kwargs` to the join request | `kwargs` are ignored | |
+| `connect()` retries with `max_join_retries` and other SFUs | the SDK retries | The `max_join_retries` argument is removed. |
+| `rtc.join(call, user_id, **kwargs)` passes `kwargs` to the join request | `rtc.join(call, user_id, create, subscription_config)` | Other keyword arguments raise `TypeError`. |
 | `user_id=None` raises `ValueError` | raises `TypeError` | |
-| `drain_video_frames` | no effect | |
+| `drain_video_frames` | removed | The SDK decodes a remote track only while it is read. |
 
 ### Publishing audio
 
@@ -254,13 +254,15 @@ rare cases:
 
 ### `ConnectionManager` attributes
 
-These attributes are no longer set:
+These attributes and methods of the aiortc transport are removed:
 
-- `join_response` stays `None`.
-- `session_id` is a random UUID, not the SFU session id.
-- `running` stays `False`.
-- `ws_client`, `publisher_pc`, `subscriber_pc`, `twirp_signaling_client` and
-  `stats_reporter` are not set.
+- `join_response`, `session_id`, `running`, `local_sfu`, `kwargs`.
+- `ws_client`, `publisher_pc`, `subscriber_pc`, `publisher_negotiation_lock`,
+  `subscriber_negotiation_lock`, `twirp_signaling_client`, `twirp_context`,
+  `stats_reporter`, `tracer`, `reconnector`.
+- `pc_id()`, `sfu_id()`, `republish_tracks()`.
+
+`call`, `user_id`, `create`, `participants_state` and `connection_state` stay.
 
 ### Logging
 
