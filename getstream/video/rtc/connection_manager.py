@@ -158,7 +158,8 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         self._subscription_config = subscription_config
         self._event_tasks: list[asyncio.Task] = []
         self._audio_tasks: set[asyncio.Task] = set()
-        self._publish_tasks: set[asyncio.Task] = set()
+        # The forwarding task of the published track of each kind.
+        self._publish_tasks: dict[str, asyncio.Task] = {}
         self._leaving: bool = False
         self._call_ended_sent: bool = False
 
@@ -743,7 +744,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         self._stop_event.set()
         await self._rust_call.leave()
         await asyncio.gather(*self._event_tasks)
-        media_tasks = [*self._audio_tasks, *self._publish_tasks]
+        media_tasks = [*self._audio_tasks, *self._publish_tasks.values()]
         for task in media_tasks:
             task.cancel()
         if media_tasks:
@@ -769,7 +770,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         The SDK paces the audio and sends it as mono, so the audio track need not
         be paced (`AudioStreamTrack(pace=False)`). The video track paces itself;
         it is sent as VP9 at the size of its first frame. A track that ends is
-        unpublished.
+        unpublished. A new track replaces the published track of its kind.
         """
         with telemetry.start_as_current_span("rtc.add_tracks"):
             if audio is not None:
@@ -785,37 +786,54 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             else None
         )
         rust_track = _rust.LocalAudioTrack(pcm_queue_capacity=capacity)
+        # The SFU has one publish option for each kind of track.
+        await self._stop_forwarding("audio")
         await self._rust_call.publish_audio(rust_track)
         self._start_forwarding(
-            AudioForwarder(track, rust_track), self._rust_call.stop_publish_audio
+            "audio",
+            AudioForwarder(track, rust_track),
+            self._rust_call.stop_publish_audio,
         )
 
     async def _publish_video(self, track: aiortc.MediaStreamTrack) -> None:
         # VP9 is the SFU's default publish option for camera video; no other
         # codec is requested at join.
         rust_track = _rust.LocalVideoTrack.vp9()
+        await self._stop_forwarding("video")
         await self._rust_call.publish_video(rust_track)
         self._start_forwarding(
-            VideoForwarder(track, rust_track), self._rust_call.stop_publish_video
+            "video",
+            VideoForwarder(track, rust_track),
+            self._rust_call.stop_publish_video,
         )
 
     def _start_forwarding(
         self,
+        kind: str,
         forwarder: AudioForwarder | VideoForwarder,
         stop_publish: Callable[[Any], Awaitable[None]],
     ) -> None:
-        task = asyncio.create_task(self._forward(forwarder, stop_publish))
-        self._publish_tasks.add(task)
-        task.add_done_callback(self._publish_tasks.discard)
+        self._publish_tasks[kind] = asyncio.create_task(
+            self._forward(forwarder, stop_publish)
+        )
+
+    async def _stop_forwarding(self, kind: str) -> None:
+        """Unpublish the published track of `kind`, if there is one."""
+        task = self._publish_tasks.pop(kind, None)
+        if task is not None:
+            task.cancel()
+            await asyncio.wait([task])
 
     async def _forward(
         self,
         forwarder: AudioForwarder | VideoForwarder,
         stop_publish: Callable[[Any], Awaitable[None]],
     ) -> None:
-        await forwarder.run()
-        # The source track ended.
-        await stop_publish(forwarder.target)
+        try:
+            await forwarder.run()
+        finally:
+            # The source track ended, or the forwarding was cancelled.
+            await stop_publish(forwarder.target)
 
     # WebSocket client helper
     @property

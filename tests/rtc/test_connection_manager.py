@@ -411,6 +411,30 @@ async def next_silent_frame(track: _rust.RemoteTrack) -> _rust.PcmFrame:
             return frame
 
 
+async def next_frame_of_size(
+    frames: _rust.VideoFrameStream, size: tuple[int, int]
+) -> _rust.VideoFrame:
+    async for frame in frames:
+        if (frame.width, frame.height) == size:
+            return frame
+    raise AssertionError(f"the stream ended before a {size} frame")
+
+
+@pytest.fixture
+async def peer_video_tracks(
+    peer_call: _rust.Call, call_users: list[FullUserResponse]
+) -> _rust.TrackStream:
+    """The peer joins and subscribes to video."""
+    tracks = peer_call.tracks()
+    await peer_call.join(call_users[1].id)
+    await peer_call.update_subscriptions(
+        _rust.SubscriptionConfig(
+            default=_rust.TrackSubscriptionConfig(track_types=[_rust.TrackType.VIDEO])
+        )
+    )
+    return tracks
+
+
 @pytest.mark.integration
 class TestConnectionManagerPublishing:
     async def test_add_tracks_publishes_audio(
@@ -445,6 +469,25 @@ class TestConnectionManagerPublishing:
 
         # Without the flush, the tone would play for about 20 s.
         await asyncio.wait_for(next_silent_frame(track), timeout=5)
+
+    async def test_audio_added_while_audio_is_published_replaces_it(
+        self,
+        agent_audio: tuple[AudioStreamTrack, _rust.TrackStream],
+        connection: ConnectionManager,
+        tone: np.ndarray,
+    ):
+        audio, tracks = agent_audio
+        pcm = PcmData(samples=tone, sample_rate=SAMPLE_RATE, format="s16", channels=1)
+        await audio.write(pcm)
+        track = await asyncio.wait_for(anext(tracks), timeout=15)
+        await asyncio.wait_for(next_loud_frame(track), timeout=10)
+        await asyncio.wait_for(next_silent_frame(track), timeout=10)
+
+        second = AudioStreamTrack()
+        await connection.add_tracks(audio=second)
+        await second.write(pcm)
+
+        await asyncio.wait_for(next_loud_frame(track), timeout=10)
 
 
 @pytest.mark.integration
@@ -503,6 +546,36 @@ class TestConnectionManagerVideoPublishing:
             ):
                 break
         assert event.track_type == _rust.TrackType.VIDEO
+
+    async def test_video_added_after_stop_replaces_the_stopped_video(
+        self,
+        connection: ConnectionManager,
+        peer_video_tracks: _rust.TrackStream,
+    ):
+        first = FrameSource([(320, 240)] * 300)
+        await connection.add_tracks(video=first)
+        track = await asyncio.wait_for(anext(peer_video_tracks), timeout=15)
+        frames = track.video_frames()
+        await asyncio.wait_for(anext(frames), timeout=10)
+
+        first.stop()
+        await connection.add_tracks(video=FrameSource([(640, 480)] * 300))
+
+        await asyncio.wait_for(next_frame_of_size(frames, (640, 480)), timeout=15)
+
+    async def test_video_added_while_video_is_published_replaces_it(
+        self,
+        connection: ConnectionManager,
+        peer_video_tracks: _rust.TrackStream,
+    ):
+        await connection.add_tracks(video=FrameSource([(320, 240)] * 300))
+        track = await asyncio.wait_for(anext(peer_video_tracks), timeout=15)
+        frames = track.video_frames()
+        await asyncio.wait_for(anext(frames), timeout=10)
+
+        await connection.add_tracks(video=FrameSource([(640, 480)] * 300))
+
+        await asyncio.wait_for(next_frame_of_size(frames, (640, 480)), timeout=15)
 
 
 @pytest.mark.integration

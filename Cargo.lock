@@ -987,7 +987,7 @@ dependencies = [
 [[package]]
 name = "getstream"
 version = "0.1.0-preview.2"
-source = "git+https://github.com/GetStream/stream-video-rust?branch=fix%2Fcompatibility-fixes#63e5fa6ad412b65c25448f0fa986234a45743faf"
+source = "git+https://github.com/GetStream/stream-video-rust?branch=fix%2Fcompatibility-fixes#147e04a7c9d668b31f805bb78a94d08e386c8e3f"
 dependencies = [
  "base64 0.23.1",
  "bytes",

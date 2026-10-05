@@ -178,6 +178,9 @@ Behavior of a track object:
   an `audio_buffer_size_ms` below 20 (one frame).
 - After `track.stop()`, the track is unpublished, so other participants get
   `track_unpublished`. In 4.1.0 the packets only stopped.
+- A new `add_tracks(audio=new_track)` replaces the published audio track: the
+  earlier track is unpublished first, also while it is still live. In 4.1.0
+  each call added one more audio track.
 
 ### Publishing video
 
@@ -192,9 +195,10 @@ Behavior of a track object:
   count as 1/30 s.
 - After `track.stop()`, the track is unpublished, so other participants get
   `track_unpublished`.
-- A later `add_tracks(video=new_track)` puts the new track on the same sender:
-  other participants get its frames on their existing `RemoteTrack`. If it is
-  called before the stopped track is unpublished, it raises `MediaError`.
+- A new `add_tracks(video=new_track)` replaces the published video track: the
+  earlier track is unpublished first, also while it is still live. Other
+  participants get the new frames on their existing `RemoteTrack`. In 4.1.0
+  each call added one more video track.
 
 ### Handlers, failures and lost events
 
