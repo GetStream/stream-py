@@ -174,7 +174,8 @@ Behavior of a track object:
   already queued for sending.
 - When more audio is queued than `audio_buffer_size_ms`, the oldest audio is
   dropped, as in 4.1.0, with an "Audio buffer overflow" DEBUG record from
-  `getstream.video.rtc.audio_forwarder`.
+  `getstream.video.rtc.audio_forwarder`. `add_tracks` raises `MediaError` for
+  an `audio_buffer_size_ms` below 20 (one frame).
 - After `track.stop()`, the track is unpublished, so other participants get
   `track_unpublished`. In 4.1.0 the packets only stopped.
 
@@ -191,6 +192,9 @@ Behavior of a track object:
   count as 1/30 s.
 - After `track.stop()`, the track is unpublished, so other participants get
   `track_unpublished`.
+- A later `add_tracks(video=new_track)` puts the new track on the same sender:
+  other participants get its frames on their existing `RemoteTrack`. If it is
+  called before the stopped track is unpublished, it raises `MediaError`.
 
 ### Handlers, failures and lost events
 

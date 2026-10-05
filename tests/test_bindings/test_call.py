@@ -119,6 +119,13 @@ async def read_to_end(frames: _rust.VideoFrameStream) -> list[_rust.VideoFrame]:
     return [frame async for frame in frames]
 
 
+async def write_gray_video(track: _rust.LocalVideoTrack) -> None:
+    frame = np.full(VIDEO_WIDTH * VIDEO_HEIGHT * 3 // 2, 128, dtype=np.uint8)
+    while True:
+        await track.write_i420(frame, VIDEO_WIDTH, VIDEO_HEIGHT, 1 / VIDEO_FPS)
+        await asyncio.sleep(1 / VIDEO_FPS)
+
+
 @pytest.fixture
 def live_call_id(
     client: Stream, call_id: str, call_users: list[FullUserResponse]
@@ -332,6 +339,39 @@ class TestCallPublish:
             ):
                 break
         assert event.track_type == _rust.TrackType.SCREEN_SHARE
+
+    @pytest.mark.integration
+    async def test_video_is_published_again_after_stop(
+        self,
+        joined_call: _rust.Call,
+        joining_call: _rust.Call,
+        call_users: list[FullUserResponse],
+    ):
+        events = joining_call.sfu_events()
+        tracks = joining_call.tracks()
+        await joining_call.join(call_users[1].id)
+        await joining_call.update_subscriptions(AUDIO_AND_VIDEO)
+        first = _rust.LocalVideoTrack.vp9()
+        await joined_call.publish_video(first)
+        writing = asyncio.create_task(write_gray_video(first))
+        remote = await asyncio.wait_for(anext(tracks), timeout=15)
+        await asyncio.wait_for(anext(remote.video_frames()), timeout=10)
+        writing.cancel()
+        await joined_call.stop_publish_video(first)
+        async for event in events:
+            if (
+                isinstance(event, _rust.TrackUnpublished)
+                and event.user_id == call_users[0].id
+            ):
+                break
+        frames = remote.video_frames()
+
+        second = _rust.LocalVideoTrack.vp9()
+        await joined_call.publish_video(second)
+        writing = asyncio.create_task(write_gray_video(second))
+
+        await asyncio.wait_for(anext(frames), timeout=15)
+        writing.cancel()
 
 
 @pytest.mark.integration

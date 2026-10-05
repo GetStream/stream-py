@@ -466,8 +466,9 @@ class TrackStream:
 class LocalAudioTrack:
     def __init__(self, pcm_queue_capacity: float | None = None) -> None:
         """``pcm_queue_capacity``: the seconds of PCM that ``write_pcm`` queues
-        (``None``: the SDK default, 60 s). A write above it drops the oldest
-        samples and raises ``PcmQueueOverflowError``."""
+        (``None``: the SDK default, 60 s; below 0.02 raises ``MediaError``). A
+        write above it drops the oldest samples and raises
+        ``PcmQueueOverflowError``."""
     def write_pcm(
         self, samples: npt.NDArray[np.int16], sample_rate: int, channels: int
     ) -> Awaitable[None]:
