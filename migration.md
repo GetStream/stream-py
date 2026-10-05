@@ -188,6 +188,10 @@ Behavior of a track object:
   itself, as in 4.1.0.
 - The video is sent as VP9, the SFU's default publish option for camera
   video. 4.1.0 sent H264 (aiortc without VP8).
+- The environment variables `STREAM_PATCH_AIORTC_BITRATES` and
+  `STREAM_PATCH_AIORTC_H264_PRESET` have no effect: the aiortc encoder patches
+  are removed. The SDK encoder starts at its default bitrate and follows the
+  SFU's publish quality settings (`change_publish_quality`).
 - The whole track has the size of its first frame. Later frames of another
   size are scaled to it, and an odd width or height is raised to the next
   even value. In 4.1.0 each frame kept its own size.
@@ -263,6 +267,27 @@ These attributes and methods of the aiortc transport are removed:
 - `pc_id()`, `sfu_id()`, `republish_tracks()`.
 
 `call`, `user_id`, `create`, `participants_state` and `connection_state` stay.
+
+### Removed modules and names
+
+The SDK does the coordinator join, chooses the SFU and owns the peer
+connections, so the aiortc transport code is removed:
+
+- From `getstream.video.rtc`: `join_call_coordinator_request`,
+  `JoinCallRequest`, `JoinCallResponse`, `ServerCredentials`, `Credentials`,
+  `discover_location`, `HTTPHintLocationDiscovery`, `HEADER_CLOUDFRONT_POP`,
+  `FALLBACK_LOCATION_NAME`, `STREAM_PROD_URL`.
+- The modules `peer_connection`, `pc`, `encoders_patches`, `signaling`,
+  `twirp_client_wrapper`, `connection_utils` (with `SfuJoinError`,
+  `SfuConnectionError` and its `ConnectionState`), `models`, `reconnection`,
+  `network_monitor`, `stats_reporter`, `stats_tracer`, `tracer`,
+  `coordinator` and `location_discovery` of `getstream.video.rtc`.
+- `getstream.video.rtc.tracks.SubscriptionManager`. `SubscriptionConfig` and
+  `TrackSubscriptionConfig` stay.
+- From `getstream.video.rtc.track_util`: `patch_sdp_offer`,
+  `fix_sdp_msid_semantic`, `fix_sdp_rtcp_fb`, `parse_track_stream_mapping`,
+  `BufferedMediaTrack`, `VideoFrameTracker`, `detect_video_properties`,
+  `AudioTrackHandler`. `PcmData`, `AudioFormat` and the resamplers stay.
 
 ### Logging
 

@@ -18,7 +18,6 @@ from getstream import AsyncStream
 from getstream.models import CallRequest, UserRequest
 from getstream.video import rtc
 from getstream.video.rtc import CallingState
-from tests.conftest import skip_on_rate_limit
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +37,6 @@ async def test_users(async_client: AsyncStream):
 
 @pytest.mark.asyncio
 @pytest.mark.integration
-@skip_on_rate_limit
 async def test_custom_event_round_trip(async_client: AsyncStream, test_users: list):
     """Send a custom event via REST and verify it arrives on ConnectionManager."""
     sender, receiver = test_users

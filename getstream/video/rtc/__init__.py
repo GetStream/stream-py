@@ -30,22 +30,9 @@ from getstream._rust import (
 from getstream.video.async_call import Call
 from getstream.video.rtc.audio_track import AudioStreamTrack
 from getstream.video.rtc.connection_manager import ConnectionManager
-from getstream.video.rtc.connection_utils import join_call_coordinator_request
 from getstream.video.rtc.g711 import (
     G711Encoding,
     G711Mapping,
-)
-from getstream.video.rtc.location_discovery import (
-    FALLBACK_LOCATION_NAME,
-    HEADER_CLOUDFRONT_POP,
-    STREAM_PROD_URL,
-    HTTPHintLocationDiscovery,
-)
-from getstream.video.rtc.models import (
-    Credentials,
-    JoinCallRequest,
-    JoinCallResponse,
-    ServerCredentials,
 )
 from getstream.video.rtc.track_util import (
     AudioFormat,
@@ -66,19 +53,6 @@ except ImportError:
     )
 
 logger.debug(f"loaded aiortc {aiortc.__version__} correctly")
-
-
-async def discover_location():
-    """
-    Discover the closest location based on CloudFront pop headers.
-
-    Returns:
-        str: The 3-character location code (e.g. "IAD")
-    """
-    logger.info("Discovering location")
-    discovery = HTTPHintLocationDiscovery(logger=logger)
-    # Even though discover is synchronous, we keep this function async for future compatibility
-    return discovery.discover()
 
 
 async def join(
@@ -110,18 +84,8 @@ async def join(
 
 
 __all__ = [
-    "HTTPHintLocationDiscovery",
-    "HEADER_CLOUDFRONT_POP",
-    "FALLBACK_LOCATION_NAME",
-    "STREAM_PROD_URL",
     "join",
     "ConnectionManager",
-    "JoinCallRequest",
-    "JoinCallResponse",
-    "ServerCredentials",
-    "Credentials",
-    "join_call_coordinator_request",
-    "discover_location",
     "PcmData",
     "Resampler",
     "AudioFormat",
