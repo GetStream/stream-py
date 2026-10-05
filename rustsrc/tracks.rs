@@ -403,13 +403,6 @@ impl LocalVideoTrack {
         })
     }
 
-    #[staticmethod]
-    fn h264() -> PyResult<Self> {
-        Ok(Self {
-            inner: getstream::rtc::LocalVideoTrack::h264().map_err(rtc_error)?,
-        })
-    }
-
     /// Copies `data` (packed I420) and encodes it; `duration` is in seconds.
     fn write_i420<'py>(
         &self,

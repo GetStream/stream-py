@@ -148,6 +148,10 @@ Behavior of a track object:
   `track_added` with a new track object arrives when the media flows again
   after the `track_published`. A track that you drop while it is published
   does not come back until it is published again.
+- Remote H.264 video is not supported: the SDK decodes only VP8 and VP9. A
+  participant that publishes only H.264 (for example RTMP or SRT ingress, or an
+  app that chooses H.264 as its codec) gives no video track. 4.1.0 decoded
+  H.264 with aiortc.
 - A track ends (`None`, or the end of its `VideoFrameStream`s) when its
   participant leaves, when this client leaves, or when this client rejoins
   with a new session; after a rejoin a new `track_added` arrives.
