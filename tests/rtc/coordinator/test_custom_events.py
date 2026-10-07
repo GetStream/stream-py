@@ -58,6 +58,9 @@ async def test_custom_event_round_trip(async_client: AsyncStream, test_users: li
             received_event = event
             event_received.set()
 
+        # join() returns before the coordinator watches the call, and an event sent earlier never arrives.
+        await connection._coordinator_task
+
         await call.send_call_event(
             user_id=sender,
             custom={"type": "test_event", "payload": "hello from sender"},
