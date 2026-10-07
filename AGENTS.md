@@ -99,6 +99,6 @@ impossible:
   are filtered before their fields are formatted.
 - Never log secrets or tokens.
 - To assert on records in tests, including DEBUG ones, use the `sdk_logs`
-  fixture in `tests/test_bindings/conftest.py`, and call
+  fixture in `getstream-rtc/tests/conftest.py`, and call
   `getstream_rtc.configure_logging(None, logging.NOTSET)` before you assert: it
   returns after the queued records are delivered.

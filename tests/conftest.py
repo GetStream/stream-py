@@ -1,9 +1,7 @@
-import logging
 import uuid
 from typing import Iterator
 
 import pytest
-import getstream_rtc
 import os
 from dotenv import load_dotenv
 from tests.fixtures import (
@@ -118,14 +116,6 @@ def channel(client: Stream, random_user):
 @pytest.fixture(scope="session", autouse=True)
 def load_env():
     load_dotenv()
-
-
-@pytest.fixture(autouse=True)
-def forward_sdk_logs() -> Iterator[None]:
-    logger = logging.getLogger("getstream")
-    getstream_rtc.configure_logging(logger, logger.getEffectiveLevel())
-    yield
-    getstream_rtc.configure_logging(None, logging.NOTSET)
 
 
 def pytest_configure(config):

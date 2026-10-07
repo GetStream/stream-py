@@ -13,6 +13,7 @@ build-backend = "maturin"
 
 [tool.maturin]
 module-name = "getstream_rtc._bindings"
+exclude = ["tests/**"]
 
 [tool.uv]
 cache-keys = [
