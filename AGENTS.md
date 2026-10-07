@@ -1,10 +1,10 @@
 ## Project setup
 
 1. This project uses `uv`,  `pyproject.toml` and venv to manage dependencies
-2. Never use pip directly, use `uv add` to add dependencies and `uv sync --dev --all-packages` to install the dependency
+2. Never use pip directly, use `uv add` to add dependencies and `uv sync --dev --all-packages --all-extras` to install the dependency (without `--all-extras` the sync removes the packages of the optional dependency groups, for example `aiortc`, `av` and `numpy`)
 3. Do not change code generated python code, `./generate.sh` is the script responsible of rebuilding all API endpoints and API models
-4. **WebRTC Dependencies**: The dependencies of `getstream.video.rtc` (`aiortc`, `av`, `numpy`, and `twirp`, `protobuf` and `aiohttp` for the generated SFU code) are organized under the `webrtc` optional dependencies group. Plugins that work with audio, video, or WebRTC functionality should depend on `getstream[webrtc]` instead of just `getstream`, and declare every other package they import themselves.
-5. **Rust bindings**: `getstream._rust.bindings` is a PyO3 extension built by maturin from `Cargo.toml` (sources in `rustsrc/`). It wraps the Rust SDK (`getstream` crate from https://github.com/GetStream/stream-video-rust). `uv sync` compiles it, so every checkout needs the Rust toolchain pinned in `rust-toolchain.toml`, a C compiler, `cmake`, `pkg-config`, and `libvpx` (macOS: `brew install libvpx cmake pkg-config`; Debian/Ubuntu: `apt install libvpx-dev cmake pkg-config build-essential`). Run `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings` and `cargo test --lib` after Rust changes.
+4. **WebRTC Dependencies**: The dependencies of `getstream.video.rtc` (`getstream-rtc`, `aiortc`, `av`, `numpy`, and `twirp`, `protobuf` and `aiohttp` for the generated SFU code) are organized under the `webrtc` optional dependencies group. Plugins that work with audio, video, or WebRTC functionality should depend on `getstream[webrtc]` instead of just `getstream`, and declare every other package they import themselves.
+5. **Rust bindings**: `getstream-rtc` (directory `getstream-rtc/`) is a separate distribution and a member of the uv workspace. Its package `getstream_rtc` contains the PyO3 extension `getstream_rtc._bindings`, which maturin builds from `getstream-rtc/Cargo.toml` (sources in `getstream-rtc/rustsrc/`), and exports every class at its root. It wraps the Rust SDK (`getstream` crate from https://github.com/GetStream/stream-video-rust). It does not depend on `getstream`; stream-py code imports `getstream_rtc` as a separate package, and only the `webrtc` extra installs it. Its version is independent of the `getstream` version and is only in `getstream-rtc/pyproject.toml` (the crate has no version). `uv sync` compiles it when it installs the `webrtc` extra or all workspace packages; this needs the Rust toolchain pinned in `getstream-rtc/rust-toolchain.toml`, a C compiler, `cmake`, `pkg-config`, `libvpx`, and libclang for bindgen (macOS: `brew install libvpx cmake pkg-config`, libclang comes with Xcode; Debian/Ubuntu: `apt install libvpx-dev libclang-dev cmake pkg-config build-essential`). After Rust changes, run `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings` and `cargo test --lib` in `getstream-rtc/`; rustup selects the toolchain from the current directory, not from `--manifest-path`.
 
 ## Python testing
 
@@ -30,7 +30,8 @@
 - Do not circumvent borrow checker with .clone() for no reason.
 - Keep queues and buffers bounded. Make background-task cancellation and cleanup
   deterministic, and do not hold synchronous locks across `.await` points.
-- Preserve compatibility with the Rust version declared in `Cargo.toml`.
+- Preserve compatibility with the Rust version declared in
+  `getstream-rtc/Cargo.toml`.
 
 ## Rust wrapper: GIL, locks and deadlocks
 
@@ -53,8 +54,8 @@ impossible:
   `Python::attach` in them; return the value and let pyo3-async-runtimes convert
   it.
 - Never call Python from a `tracing` layer or a `log` logger. Records go through
-  the bounded queue in `rustsrc/logging.rs`; only its forwarding thread, which
-  holds no SDK lock, takes the GIL.
+  the bounded queue in `getstream-rtc/rustsrc/logging.rs`; only its forwarding
+  thread, which holds no SDK lock, takes the GIL.
 - Python destructors drop the SDK objects they own with the GIL held. When you
   update the SDK, check that these drops (`Call`, `RemoteTrack`,
   `VideoFrameStream`, local tracks, tracks in the track queue) still take no
@@ -78,8 +79,9 @@ impossible:
 - Use the default target. Records of the wrapper (`_bindings::…`) and of the SDK
   (`getstream::…`) use the `level` of `configure_logging`; records of other
   crates use `third_party_level`. A record reaches the configured logger's
-  child, for example `getstream._bindings.call` for `rustsrc/call.rs` and
-  `getstream.rtc.join` for the SDK's `getstream::rtc::join`.
+  child, for example `getstream._bindings.call` for
+  `getstream-rtc/rustsrc/call.rs` and `getstream.rtc.join` for the SDK's
+  `getstream::rtc::join`.
 - The message is an event name in the SDK style, `stream.<area>.<event>`. Put
   values in fields, not in the message:
   `tracing::debug!(dropped_samples = n, "stream.rtc.audio.pcm_queue_overflow")`.
@@ -98,5 +100,5 @@ impossible:
 - Never log secrets or tokens.
 - To assert on records in tests, including DEBUG ones, use the `sdk_logs`
   fixture in `tests/test_bindings/conftest.py`, and call
-  `_rust.configure_logging(None, logging.NOTSET)` before you assert: it returns
-  after the queued records are delivered.
+  `getstream_rtc.configure_logging(None, logging.NOTSET)` before you assert: it
+  returns after the queued records are delivered.
