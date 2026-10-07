@@ -2,10 +2,9 @@ from typing import cast
 
 import aiortc
 import av
+import getstream_rtc
 import numpy as np
 from numpy.typing import NDArray
-
-from getstream import _rust
 
 # The duration of a frame whose source gives no timing, in seconds.
 _DEFAULT_FRAME_DURATION = 1 / 30
@@ -20,7 +19,7 @@ class VideoForwarder:
     """
 
     def __init__(
-        self, source: aiortc.MediaStreamTrack, target: _rust.LocalVideoTrack
+        self, source: aiortc.MediaStreamTrack, target: getstream_rtc.LocalVideoTrack
     ) -> None:
         self.source = source
         self.target = target
@@ -56,7 +55,7 @@ class VideoForwarder:
                 await self.target.write_i420(
                     pixels.reshape(-1), width, height, duration
                 )
-            except _rust.IllegalStateError:
+            except getstream_rtc.IllegalStateError:
                 # The only cause is a stopped track: it was unpublished, or the
                 # call was left or ended.
                 return

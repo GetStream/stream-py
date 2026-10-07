@@ -11,8 +11,7 @@ mod subscriptions;
 mod tracks;
 
 #[pymodule]
-fn bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add("__version__", env!("CARGO_PKG_VERSION"))?;
+fn _bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<call::Client>()?;
     m.add_class::<call::Call>()?;
     m.add_class::<call::CallingState>()?;

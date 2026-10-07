@@ -4,10 +4,10 @@ from typing import cast
 
 import aiortc
 import av
+import getstream_rtc
 import numpy as np
 from numpy.typing import NDArray
 
-from getstream import _rust
 from getstream.video.rtc.audio_track import AudioStreamTrack
 
 logger = logging.getLogger(__name__)
@@ -21,7 +21,7 @@ class AudioForwarder:
     """
 
     def __init__(
-        self, source: aiortc.MediaStreamTrack, target: _rust.LocalAudioTrack
+        self, source: aiortc.MediaStreamTrack, target: getstream_rtc.LocalAudioTrack
     ) -> None:
         self.source = source
         self.target = target
@@ -56,12 +56,12 @@ class AudioForwarder:
                     frame.sample_rate,
                     len(frame.layout.channels),
                 )
-            except _rust.PcmQueueOverflowError as error:
+            except getstream_rtc.PcmQueueOverflowError as error:
                 # The SDK dropped the oldest audio and kept the newest.
                 logger.debug(
                     f"Audio buffer overflow: dropped {error.dropped_samples} samples"
                 )
-            except _rust.IllegalStateError:
+            except getstream_rtc.IllegalStateError:
                 # The only cause is a stopped track: it was unpublished, or the
                 # call was left or ended.
                 return

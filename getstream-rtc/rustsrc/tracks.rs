@@ -49,7 +49,7 @@ impl TrackQueue {
 /// queue, so each track is delivered to exactly one stream. A stream ends when
 /// the call ends, or at once if the call had already ended when the stream was
 /// created.
-#[pyclass(frozen, module = "getstream._rust.bindings")]
+#[pyclass(frozen, module = "getstream_rtc")]
 pub struct TrackStream {
     queue: Arc<TrackQueue>,
     end: watch::Receiver<CallEnd>,
@@ -97,7 +97,7 @@ impl TrackStream {
     }
 }
 
-#[pyclass(frozen, module = "getstream._rust.bindings")]
+#[pyclass(frozen, module = "getstream_rtc")]
 pub struct RemoteTrack {
     inner: Arc<getstream::rtc::RemoteTrack>,
     video: Arc<VideoFrames>,
@@ -153,7 +153,7 @@ impl RemoteTrack {
 }
 
 /// Interleaved int16 samples; the array owns the SDK buffer without a copy.
-#[pyclass(frozen, module = "getstream._rust.bindings")]
+#[pyclass(frozen, module = "getstream_rtc")]
 pub struct PcmFrame {
     #[pyo3(get)]
     samples: Py<PyArray1<i16>>,
@@ -202,7 +202,7 @@ impl<'py> IntoPyObject<'py> for PcmFrameData {
 }
 
 /// Packed I420 pixels; each stream gets its own copy of the SDK buffer.
-#[pyclass(frozen, module = "getstream._rust.bindings")]
+#[pyclass(frozen, module = "getstream_rtc")]
 pub struct VideoFrame {
     #[pyo3(get)]
     width: u32,
@@ -300,7 +300,7 @@ impl VideoFrames {
 
 /// Async iterator over the decoded frames of one video track. Each stream has
 /// its own receiver, so a slow stream skips frames without delaying the others.
-#[pyclass(frozen, module = "getstream._rust.bindings")]
+#[pyclass(frozen, module = "getstream_rtc")]
 pub struct VideoFrameStream {
     frames: Arc<VideoFrames>,
     receiver: Arc<Mutex<watch::Receiver<LatestFrame>>>,
@@ -333,7 +333,7 @@ impl VideoFrameStream {
     }
 }
 
-#[pyclass(frozen, module = "getstream._rust.bindings")]
+#[pyclass(frozen, module = "getstream_rtc")]
 pub struct LocalAudioTrack {
     pub(crate) inner: getstream::rtc::LocalAudioTrack,
 }
@@ -382,7 +382,7 @@ impl LocalAudioTrack {
     }
 }
 
-#[pyclass(frozen, module = "getstream._rust.bindings")]
+#[pyclass(frozen, module = "getstream_rtc")]
 pub struct LocalVideoTrack {
     pub(crate) inner: getstream::rtc::LocalVideoTrack,
 }

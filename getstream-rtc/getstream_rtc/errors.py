@@ -1,5 +1,5 @@
 class RustError(Exception):
-    """Base class of the errors that ``getstream._rust`` raises."""
+    """Base class of the errors that ``getstream_rtc`` raises."""
 
 
 class ConfigError(RustError):

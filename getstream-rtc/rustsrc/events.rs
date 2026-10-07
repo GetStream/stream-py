@@ -19,18 +19,13 @@ use crate::repr::repr;
 
 /// The base class of all events. `name` is the stable SDK event name: the
 /// `SfuEvent` oneof field name for SFU events, the `type` for coordinator events.
-#[pyclass(
-    frozen,
-    subclass,
-    name = "CallEvent",
-    module = "getstream._rust.bindings"
-)]
+#[pyclass(frozen, subclass, name = "CallEvent", module = "getstream_rtc")]
 pub struct CallEventBase {
     #[pyo3(get)]
     name: String,
 }
 
-#[pyclass(frozen, extends = CallEventBase, module = "getstream._rust.bindings")]
+#[pyclass(frozen, extends = CallEventBase, module = "getstream_rtc")]
 pub struct ParticipantJoined {
     /// The cid of this call, `"<type>:<id>"`.
     #[pyo3(get)]
@@ -50,7 +45,7 @@ impl ParticipantJoined {
     }
 }
 
-#[pyclass(frozen, extends = CallEventBase, module = "getstream._rust.bindings")]
+#[pyclass(frozen, extends = CallEventBase, module = "getstream_rtc")]
 pub struct ParticipantLeft {
     /// The cid of this call, `"<type>:<id>"`.
     #[pyo3(get)]
@@ -70,7 +65,7 @@ impl ParticipantLeft {
     }
 }
 
-#[pyclass(frozen, extends = CallEventBase, module = "getstream._rust.bindings")]
+#[pyclass(frozen, extends = CallEventBase, module = "getstream_rtc")]
 pub struct TrackPublished {
     #[pyo3(get)]
     user_id: String,
@@ -95,7 +90,7 @@ impl TrackPublished {
     }
 }
 
-#[pyclass(frozen, extends = CallEventBase, module = "getstream._rust.bindings")]
+#[pyclass(frozen, extends = CallEventBase, module = "getstream_rtc")]
 pub struct TrackUnpublished {
     #[pyo3(get)]
     user_id: String,
@@ -124,7 +119,7 @@ impl TrackUnpublished {
     }
 }
 
-#[pyclass(frozen, extends = CallEventBase, module = "getstream._rust.bindings")]
+#[pyclass(frozen, extends = CallEventBase, module = "getstream_rtc")]
 pub struct CallEnded {
     /// The protobuf `CallEndedReason` value.
     #[pyo3(get)]
@@ -154,7 +149,7 @@ impl CallEnded {
     }
 }
 
-#[pyclass(frozen, extends = CallEventBase, module = "getstream._rust.bindings")]
+#[pyclass(frozen, extends = CallEventBase, module = "getstream_rtc")]
 pub struct CallingStateChanged {
     #[pyo3(get)]
     state: CallingState,
@@ -170,7 +165,7 @@ impl CallingStateChanged {
     }
 }
 
-#[pyclass(frozen, extends = CallEventBase, module = "getstream._rust.bindings")]
+#[pyclass(frozen, extends = CallEventBase, module = "getstream_rtc")]
 pub struct ParticipantUpdated {
     /// The cid of this call, `"<type>:<id>"`.
     #[pyo3(get)]
@@ -190,7 +185,7 @@ impl ParticipantUpdated {
     }
 }
 
-#[pyclass(frozen, extends = CallEventBase, module = "getstream._rust.bindings")]
+#[pyclass(frozen, extends = CallEventBase, module = "getstream_rtc")]
 pub struct DominantSpeakerChanged {
     #[pyo3(get)]
     user_id: String,
@@ -209,7 +204,7 @@ impl DominantSpeakerChanged {
     }
 }
 
-#[pyclass(frozen, module = "getstream._rust.bindings", skip_from_py_object)]
+#[pyclass(frozen, module = "getstream_rtc", skip_from_py_object)]
 #[derive(Clone)]
 pub struct AudioLevel {
     #[pyo3(get)]
@@ -247,7 +242,7 @@ impl From<event::AudioLevel> for AudioLevel {
     }
 }
 
-#[pyclass(frozen, extends = CallEventBase, module = "getstream._rust.bindings")]
+#[pyclass(frozen, extends = CallEventBase, module = "getstream_rtc")]
 pub struct AudioLevelChanged {
     #[pyo3(get)]
     audio_levels: Vec<AudioLevel>,
@@ -263,7 +258,7 @@ impl AudioLevelChanged {
     }
 }
 
-#[pyclass(frozen, module = "getstream._rust.bindings", skip_from_py_object)]
+#[pyclass(frozen, module = "getstream_rtc", skip_from_py_object)]
 #[derive(Clone)]
 pub struct ConnectionQualityInfo {
     #[pyo3(get)]
@@ -297,7 +292,7 @@ impl From<event::ConnectionQualityInfo> for ConnectionQualityInfo {
     }
 }
 
-#[pyclass(frozen, extends = CallEventBase, module = "getstream._rust.bindings")]
+#[pyclass(frozen, extends = CallEventBase, module = "getstream_rtc")]
 pub struct ConnectionQualityChanged {
     #[pyo3(get)]
     connection_quality_updates: Vec<ConnectionQualityInfo>,
@@ -314,7 +309,7 @@ impl ConnectionQualityChanged {
 }
 
 /// Sent by the SDK when the SFU's participant count changes.
-#[pyclass(frozen, extends = CallEventBase, module = "getstream._rust.bindings")]
+#[pyclass(frozen, extends = CallEventBase, module = "getstream_rtc")]
 pub struct ParticipantCountChanged {
     #[pyo3(get)]
     total: u32,
@@ -332,7 +327,7 @@ impl ParticipantCountChanged {
     }
 }
 
-#[pyclass(frozen, module = "getstream._rust.bindings", skip_from_py_object)]
+#[pyclass(frozen, module = "getstream_rtc", skip_from_py_object)]
 #[derive(Clone)]
 pub struct Pin {
     #[pyo3(get)]
@@ -361,7 +356,7 @@ impl From<models::Pin> for Pin {
     }
 }
 
-#[pyclass(frozen, extends = CallEventBase, module = "getstream._rust.bindings")]
+#[pyclass(frozen, extends = CallEventBase, module = "getstream_rtc")]
 pub struct PinsChanged {
     #[pyo3(get)]
     pins: Vec<Pin>,
@@ -377,7 +372,7 @@ impl PinsChanged {
     }
 }
 
-#[pyclass(frozen, module = "getstream._rust.bindings", skip_from_py_object)]
+#[pyclass(frozen, module = "getstream_rtc", skip_from_py_object)]
 #[derive(Clone)]
 pub struct InboundVideoState {
     #[pyo3(get)]
@@ -414,7 +409,7 @@ impl From<event::InboundVideoState> for InboundVideoState {
     }
 }
 
-#[pyclass(frozen, extends = CallEventBase, module = "getstream._rust.bindings")]
+#[pyclass(frozen, extends = CallEventBase, module = "getstream_rtc")]
 pub struct InboundStateNotification {
     #[pyo3(get)]
     inbound_video_states: Vec<InboundVideoState>,
@@ -430,7 +425,7 @@ impl InboundStateNotification {
     }
 }
 
-#[pyclass(frozen, module = "getstream._rust.bindings", skip_from_py_object)]
+#[pyclass(frozen, module = "getstream_rtc", skip_from_py_object)]
 #[derive(Clone)]
 pub struct CallGrants {
     #[pyo3(get)]
@@ -463,7 +458,7 @@ impl From<models::CallGrants> for CallGrants {
     }
 }
 
-#[pyclass(frozen, extends = CallEventBase, module = "getstream._rust.bindings")]
+#[pyclass(frozen, extends = CallEventBase, module = "getstream_rtc")]
 pub struct CallGrantsUpdated {
     /// `None` if the SFU did not send it.
     #[pyo3(get)]
@@ -488,7 +483,7 @@ impl CallGrantsUpdated {
     frozen,
     extends = CallEventBase,
     name = "ICERestart",
-    module = "getstream._rust.bindings"
+    module = "getstream_rtc"
 )]
 pub struct IceRestart {
     /// The protobuf `PeerType` value.
@@ -503,7 +498,7 @@ impl IceRestart {
     }
 }
 
-#[pyclass(frozen, module = "getstream._rust.bindings", skip_from_py_object)]
+#[pyclass(frozen, module = "getstream_rtc", skip_from_py_object)]
 #[derive(Clone)]
 pub struct Codec {
     #[pyo3(get)]
@@ -542,7 +537,7 @@ impl From<models::Codec> for Codec {
     }
 }
 
-#[pyclass(frozen, module = "getstream._rust.bindings", skip_from_py_object)]
+#[pyclass(frozen, module = "getstream_rtc", skip_from_py_object)]
 #[derive(Clone)]
 pub struct VideoDimension {
     #[pyo3(get)]
@@ -570,7 +565,7 @@ impl From<models::VideoDimension> for VideoDimension {
     }
 }
 
-#[pyclass(frozen, module = "getstream._rust.bindings", skip_from_py_object)]
+#[pyclass(frozen, module = "getstream_rtc", skip_from_py_object)]
 #[derive(Clone)]
 pub struct AudioBitrate {
     /// The protobuf `AudioBitrateProfile` value.
@@ -599,7 +594,7 @@ impl From<models::AudioBitrate> for AudioBitrate {
     }
 }
 
-#[pyclass(frozen, module = "getstream._rust.bindings", skip_from_py_object)]
+#[pyclass(frozen, module = "getstream_rtc", skip_from_py_object)]
 #[derive(Clone)]
 pub struct PublishOption {
     #[pyo3(get)]
@@ -664,7 +659,7 @@ impl From<models::PublishOption> for PublishOption {
     }
 }
 
-#[pyclass(frozen, extends = CallEventBase, module = "getstream._rust.bindings")]
+#[pyclass(frozen, extends = CallEventBase, module = "getstream_rtc")]
 pub struct ChangePublishOptions {
     #[pyo3(get)]
     publish_options: Vec<PublishOption>,
@@ -683,7 +678,7 @@ impl ChangePublishOptions {
     }
 }
 
-#[pyclass(frozen, module = "getstream._rust.bindings", skip_from_py_object)]
+#[pyclass(frozen, module = "getstream_rtc", skip_from_py_object)]
 #[derive(Clone)]
 pub struct AudioSender {
     /// `None` if the SFU did not send it.
@@ -717,7 +712,7 @@ impl From<event::AudioSender> for AudioSender {
     }
 }
 
-#[pyclass(frozen, module = "getstream._rust.bindings", skip_from_py_object)]
+#[pyclass(frozen, module = "getstream_rtc", skip_from_py_object)]
 #[derive(Clone)]
 pub struct VideoLayerSetting {
     #[pyo3(get)]
@@ -763,7 +758,7 @@ impl From<event::VideoLayerSetting> for VideoLayerSetting {
     }
 }
 
-#[pyclass(frozen, module = "getstream._rust.bindings", skip_from_py_object)]
+#[pyclass(frozen, module = "getstream_rtc", skip_from_py_object)]
 #[derive(Clone)]
 pub struct VideoSender {
     /// `None` if the SFU did not send it.
@@ -804,7 +799,7 @@ impl From<event::VideoSender> for VideoSender {
     }
 }
 
-#[pyclass(frozen, extends = CallEventBase, module = "getstream._rust.bindings")]
+#[pyclass(frozen, extends = CallEventBase, module = "getstream_rtc")]
 pub struct ChangePublishQuality {
     #[pyo3(get)]
     audio_senders: Vec<AudioSender>,
@@ -824,7 +819,7 @@ impl ChangePublishQuality {
 }
 
 /// The protobuf `models.Error` inside the `Error` event.
-#[pyclass(frozen, module = "getstream._rust.bindings", skip_from_py_object)]
+#[pyclass(frozen, module = "getstream_rtc", skip_from_py_object)]
 #[derive(Clone)]
 pub struct ErrorDetails {
     /// The protobuf `ErrorCode` value.
@@ -852,7 +847,7 @@ impl ErrorDetails {
     frozen,
     extends = CallEventBase,
     name = "Error",
-    module = "getstream._rust.bindings"
+    module = "getstream_rtc"
 )]
 pub struct SfuError {
     #[pyo3(get)]
@@ -875,7 +870,7 @@ impl SfuError {
 
 /// Sent by the wrapper when this stream fell behind and lost `skipped` events.
 /// The stream continues with the oldest event that is still buffered.
-#[pyclass(frozen, extends = CallEventBase, module = "getstream._rust.bindings")]
+#[pyclass(frozen, extends = CallEventBase, module = "getstream_rtc")]
 pub struct EventsLagged {
     #[pyo3(get)]
     skipped: u64,
@@ -889,7 +884,7 @@ impl EventsLagged {
 }
 
 /// A coordinator event of this call. `name` is its JSON `type`.
-#[pyclass(frozen, extends = CallEventBase, module = "getstream._rust.bindings")]
+#[pyclass(frozen, extends = CallEventBase, module = "getstream_rtc")]
 pub struct CoordinatorEvent {
     /// The whole JSON message.
     #[pyo3(get)]
@@ -1199,7 +1194,7 @@ struct EventStreamState {
 /// SDK subscription, so it sees only events sent after it was created. It ends
 /// when the call ends, after the events that are already buffered, or at once
 /// if the call had already ended when the stream was created.
-#[pyclass(frozen, module = "getstream._rust.bindings")]
+#[pyclass(frozen, module = "getstream_rtc")]
 pub struct EventStream {
     state: Arc<Mutex<EventStreamState>>,
     end: watch::Receiver<CallEnd>,

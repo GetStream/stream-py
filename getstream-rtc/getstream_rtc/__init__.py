@@ -1,4 +1,6 @@
-from getstream._rust.errors import (
+import importlib.metadata
+
+from getstream_rtc.errors import (
     ApiError,
     ConfigError,
     CoordinatorError,
@@ -9,7 +11,7 @@ from getstream._rust.errors import (
     RtcError,
     RustError,
 )
-from getstream._rust.bindings import (
+from getstream_rtc._bindings import (
     AudioLevelChanged,
     Call,
     CallEnded,
@@ -46,9 +48,10 @@ from getstream._rust.bindings import (
     TrackUnpublished,
     VideoFrame,
     VideoFrameStream,
-    __version__,
     configure_logging,
 )
+
+__version__ = importlib.metadata.version("getstream-rtc")
 
 __all__ = [
     "ApiError",

@@ -9,7 +9,7 @@ use crate::repr::repr;
 
 #[pyclass(
     frozen,
-    module = "getstream._rust.bindings",
+    module = "getstream_rtc",
     eq,
     eq_int,
     from_py_object,
@@ -56,7 +56,7 @@ impl TrackType {
 
 /// The fields of the SFU `Participant` message, except `track_lookup_prefix`.
 /// Protobuf enum fields keep their `int` values.
-#[pyclass(frozen, module = "getstream._rust.bindings", skip_from_py_object)]
+#[pyclass(frozen, module = "getstream_rtc", skip_from_py_object)]
 #[derive(Clone)]
 pub struct RemoteParticipant {
     #[pyo3(get)]
@@ -188,7 +188,7 @@ fn value_to_py<'py>(py: Python<'py>, value: &Value) -> PyResult<Bound<'py, PyAny
     })
 }
 
-#[pyclass(frozen, module = "getstream._rust.bindings")]
+#[pyclass(frozen, module = "getstream_rtc")]
 pub struct CallStateSnapshot {
     #[pyo3(get)]
     participants: Vec<RemoteParticipant>,

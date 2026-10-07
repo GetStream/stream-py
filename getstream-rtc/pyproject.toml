@@ -1,0 +1,23 @@
+[project]
+name = "getstream-rtc"
+version = "0.1.0"
+description = "Python bindings for the Stream Video Rust SDK"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=2.2.6",
+]
+
+[build-system]
+requires = ["maturin>=1.9.4,<2.0"]
+build-backend = "maturin"
+
+[tool.maturin]
+module-name = "getstream_rtc._bindings"
+
+[tool.uv]
+cache-keys = [
+    { file = "pyproject.toml" },
+    { file = "Cargo.toml" },
+    { file = "Cargo.lock" },
+    { file = "rustsrc/**/*.rs" },
+]

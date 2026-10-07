@@ -6,10 +6,10 @@ import time
 import uuid
 from typing import Iterator
 
+import getstream_rtc
 import numpy as np
 import pytest
 
-from getstream import _rust
 from getstream.models import FullUserResponse
 
 SAMPLE_RATE = 48000
@@ -33,11 +33,11 @@ class TestLogging:
     async def test_sdk_events_reach_python_logging(
         self, sdk_logs: pytest.LogCaptureFixture, overflowing_samples: np.ndarray
     ):
-        track = _rust.LocalAudioTrack()
-        with pytest.raises(_rust.RtcError):
+        track = getstream_rtc.LocalAudioTrack()
+        with pytest.raises(getstream_rtc.RtcError):
             await track.write_pcm(overflowing_samples, SAMPLE_RATE, 1)
         # Returns after the records sent before it are delivered.
-        _rust.configure_logging(None, logging.NOTSET)
+        getstream_rtc.configure_logging(None, logging.NOTSET)
 
         record = next(
             r
@@ -56,15 +56,15 @@ class TestLogging:
         overflowing_samples: np.ndarray,
         long_switch_interval: None,
     ):
-        track = _rust.LocalAudioTrack()
+        track = getstream_rtc.LocalAudioTrack()
         write = track.write_pcm(overflowing_samples, SAMPLE_RATE, 1)
         started = time.time()
         # Holds the GIL, so the record cannot reach Python before this ends.
         while time.time() - started < 0.3:
             pass
-        with pytest.raises(_rust.RtcError):
+        with pytest.raises(getstream_rtc.RtcError):
             await write
-        _rust.configure_logging(None, logging.NOTSET)
+        getstream_rtc.configure_logging(None, logging.NOTSET)
 
         record = next(
             r
@@ -77,22 +77,22 @@ class TestLogging:
     async def test_flush_during_logged_overflow_does_not_hang(
         self, sdk_logs: pytest.LogCaptureFixture, overflowing_samples: np.ndarray
     ):
-        track = _rust.LocalAudioTrack()
+        track = getstream_rtc.LocalAudioTrack()
 
         for _ in range(20):
             write = track.write_pcm(overflowing_samples, SAMPLE_RATE, 1)
             track.flush()
-            with contextlib.suppress(_rust.RtcError):
+            with contextlib.suppress(getstream_rtc.RtcError):
                 await write
 
     async def test_no_records_after_logging_is_stopped(
         self, caplog: pytest.LogCaptureFixture, overflowing_samples: np.ndarray
     ):
         caplog.set_level(logging.DEBUG, logger="getstream")
-        _rust.configure_logging(None, logging.NOTSET)
-        track = _rust.LocalAudioTrack()
+        getstream_rtc.configure_logging(None, logging.NOTSET)
+        track = getstream_rtc.LocalAudioTrack()
 
-        with pytest.raises(_rust.RtcError):
+        with pytest.raises(getstream_rtc.RtcError):
             await track.write_pcm(overflowing_samples, SAMPLE_RATE, 1)
 
         assert not [r for r in caplog.records if r.name.startswith("getstream.rtc")]
@@ -101,7 +101,7 @@ class TestLogging:
     async def test_log_bodies_logs_request_bodies(
         self, sdk_logs: pytest.LogCaptureFixture, call_users: list[FullUserResponse]
     ):
-        client = _rust.Client(
+        client = getstream_rtc.Client(
             os.environ["STREAM_API_KEY"],
             os.environ["STREAM_API_SECRET"],
             log_bodies=True,
@@ -109,7 +109,7 @@ class TestLogging:
         call = client.call("default", str(uuid.uuid4()))
         await call.join(call_users[0].id)
         await call.leave()
-        _rust.configure_logging(None, logging.NOTSET)
+        getstream_rtc.configure_logging(None, logging.NOTSET)
 
         record = next(
             r for r in sdk_logs.records if r.getMessage() == "stream.http.request_body"
@@ -120,13 +120,13 @@ class TestLogging:
     async def test_third_party_records_default_to_warning(
         self,
         sdk_logs: pytest.LogCaptureFixture,
-        rust_client: _rust.Client,
+        rust_client: getstream_rtc.Client,
         call_users: list[FullUserResponse],
     ):
         call = rust_client.call("default", str(uuid.uuid4()))
         await call.join(call_users[0].id)
         await call.leave()
-        _rust.configure_logging(None, logging.NOTSET)
+        getstream_rtc.configure_logging(None, logging.NOTSET)
 
         assert not [
             r
@@ -140,15 +140,15 @@ class TestLogging:
     async def test_third_party_level_can_be_lowered(
         self,
         sdk_logs: pytest.LogCaptureFixture,
-        rust_client: _rust.Client,
+        rust_client: getstream_rtc.Client,
         call_users: list[FullUserResponse],
     ):
         logger = logging.getLogger("getstream")
-        _rust.configure_logging(logger, logging.DEBUG, logging.DEBUG)
+        getstream_rtc.configure_logging(logger, logging.DEBUG, logging.DEBUG)
         call = rust_client.call("default", str(uuid.uuid4()))
         await call.join(call_users[0].id)
         await call.leave()
-        _rust.configure_logging(None, logging.NOTSET)
+        getstream_rtc.configure_logging(None, logging.NOTSET)
 
         assert [
             r

@@ -1,7 +1,7 @@
 import logging
 from typing import Optional
 
-from getstream._rust import (
+from getstream_rtc import (
     AudioLevelChanged,
     CallEnded,
     CallEvent,

@@ -4,7 +4,7 @@ import weakref
 
 from pyee.asyncio import AsyncIOEventEmitter
 
-from getstream import _rust
+import getstream_rtc
 
 import logging
 
@@ -30,24 +30,26 @@ class ParticipantsState(AsyncIOEventEmitter):
             logger.exception(f"A {event!r} handler failed")
             return True
 
-    def _add_participant(self, participant: _rust.RemoteParticipant):
+    def _add_participant(self, participant: getstream_rtc.RemoteParticipant):
         self._participant_by_session_id[participant.session_id] = participant
         self._notify_map_handlers()
 
-    def _remove_participant(self, participant: _rust.RemoteParticipant):
+    def _remove_participant(self, participant: getstream_rtc.RemoteParticipant):
         if participant.session_id in self._participant_by_session_id:
             del self._participant_by_session_id[participant.session_id]
             self._notify_map_handlers()
 
-    def _replace_participants(self, participants: List[_rust.RemoteParticipant]):
+    def _replace_participants(
+        self, participants: List[getstream_rtc.RemoteParticipant]
+    ):
         self._participant_by_session_id = {p.session_id: p for p in participants}
         self._notify_map_handlers()
 
-    def get_participants(self) -> List[_rust.RemoteParticipant]:
+    def get_participants(self) -> List[getstream_rtc.RemoteParticipant]:
         """Get the current list of participants."""
         return list(self._participant_by_session_id.values())
 
-    def map(self, handler: Callable[[List[_rust.RemoteParticipant]], None]):
+    def map(self, handler: Callable[[List[getstream_rtc.RemoteParticipant]], None]):
         """
         Subscribe to participant list changes. The handler is called immediately
         with the current list and whenever participants are added or removed.
@@ -135,10 +137,10 @@ class ParticipantsState(AsyncIOEventEmitter):
         # Update list to only include active handlers
         self._map_handlers[:] = active_handlers
 
-    async def _on_participant_joined(self, event: _rust.ParticipantJoined):
+    async def _on_participant_joined(self, event: getstream_rtc.ParticipantJoined):
         self._add_participant(event.participant)
         self.emit("participant_joined", event.participant)
 
-    async def _on_participant_left(self, event: _rust.ParticipantLeft):
+    async def _on_participant_left(self, event: getstream_rtc.ParticipantLeft):
         self._remove_participant(event.participant)
         self.emit("participant_left", event.participant)

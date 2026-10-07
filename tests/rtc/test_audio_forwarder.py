@@ -1,10 +1,10 @@
 import asyncio
 import logging
 
+import getstream_rtc
 import numpy as np
 import pytest
 
-from getstream import _rust
 from getstream.video.rtc import AudioStreamTrack, PcmData
 from getstream.video.rtc.audio_forwarder import AudioForwarder
 
@@ -24,7 +24,9 @@ def one_second() -> PcmData:
 class TestAudioForwarder:
     async def test_run_returns_when_the_source_stops(self):
         source = AudioStreamTrack()
-        run = asyncio.create_task(AudioForwarder(source, _rust.LocalAudioTrack()).run())
+        run = asyncio.create_task(
+            AudioForwarder(source, getstream_rtc.LocalAudioTrack()).run()
+        )
         await asyncio.sleep(0.01)
 
         source.stop()
@@ -36,7 +38,7 @@ class TestAudioForwarder:
     ):
         source = AudioStreamTrack()
         # Not published, so nothing drains the 100 ms queue.
-        target = _rust.LocalAudioTrack(pcm_queue_capacity=0.1)
+        target = getstream_rtc.LocalAudioTrack(pcm_queue_capacity=0.1)
         run = asyncio.create_task(AudioForwarder(source, target).run())
 
         logger = "getstream.video.rtc.audio_forwarder"
@@ -56,10 +58,10 @@ class TestAudioForwarder:
 @pytest.mark.integration
 class TestAudioForwarderOnACall:
     async def test_run_returns_when_the_call_is_left(
-        self, joined_call: _rust.Call, one_second: PcmData
+        self, joined_call: getstream_rtc.Call, one_second: PcmData
     ):
         source = AudioStreamTrack()
-        target = _rust.LocalAudioTrack()
+        target = getstream_rtc.LocalAudioTrack()
         await joined_call.publish_audio(target)
         run = asyncio.create_task(AudioForwarder(source, target).run())
         await source.write(one_second)

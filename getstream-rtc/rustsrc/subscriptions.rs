@@ -6,7 +6,7 @@ use crate::participants::TrackType;
 use crate::repr::repr;
 
 /// The subscription rule for the participants of one role, or the default rule.
-#[pyclass(frozen, module = "getstream._rust.bindings", from_py_object)]
+#[pyclass(frozen, module = "getstream_rtc", from_py_object)]
 #[derive(Clone)]
 pub struct TrackSubscriptionConfig {
     #[pyo3(get)]
@@ -70,7 +70,7 @@ impl From<TrackSubscriptionConfig> for getstream::rtc::TrackSubscriptionConfig {
 /// Which remote tracks to receive. The SDK applies the rule of the first role
 /// in `participant.roles` that has an entry in `role_filters`, or else
 /// `default`, and keeps at most `max_subscriptions` tracks.
-#[pyclass(frozen, module = "getstream._rust.bindings", from_py_object)]
+#[pyclass(frozen, module = "getstream_rtc", from_py_object)]
 #[derive(Clone)]
 pub struct SubscriptionConfig {
     #[pyo3(get)]

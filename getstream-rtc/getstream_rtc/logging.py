@@ -1,4 +1,4 @@
-"""Turns records forwarded by ``getstream._rust`` into Python log records."""
+"""Turns records forwarded by ``getstream_rtc`` into Python log records."""
 
 import logging
 

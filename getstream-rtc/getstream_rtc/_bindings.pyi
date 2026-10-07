@@ -5,8 +5,6 @@ from typing import Any, Awaitable
 import numpy as np
 import numpy.typing as npt
 
-__version__: str
-
 def configure_logging(
     logger: logging.Logger | None, level: int, third_party_level: int = 30
 ) -> None:

@@ -9,9 +9,9 @@ updated with each change.
 ## Overview
 
 `ConnectionManager` (from `rtc.join(...)`) no longer connects to the call
-itself. The Rust SDK, compiled into the private extension
-`getstream._rust.bindings`, does the coordinator join, the SFU signaling, the
-peer connections, the retries and the reconnects. `ConnectionManager` is a thin
+itself. The Rust SDK, compiled into the separate package `getstream-rtc`
+(import name `getstream_rtc`), does the coordinator join, the SFU signaling,
+the peer connections, the retries and the reconnects. `ConnectionManager` is a thin
 layer on top of it.
 
 The main changes for consumers:
@@ -26,12 +26,15 @@ The main changes for consumers:
 
 ## Installation
 
-The package now contains a native extension. Building from source (a git
-checkout or an sdist) needs the Rust toolchain pinned in `rust-toolchain.toml`,
-a C compiler, `cmake`, `pkg-config` and `libvpx`:
+The `webrtc` extra now also installs `getstream-rtc` (import name
+`getstream_rtc`), a separate package that contains the native extension.
+`getstream` itself stays pure Python. Building `getstream-rtc` from source (a
+git checkout, or its sdist on a platform without a wheel) needs the Rust
+toolchain pinned in `getstream-rtc/rust-toolchain.toml`, a C compiler, `cmake`,
+`pkg-config`, `libvpx` and libclang:
 
-- macOS: `brew install libvpx cmake pkg-config`
-- Debian/Ubuntu: `apt install libvpx-dev cmake pkg-config build-essential`
+- macOS: `brew install libvpx cmake pkg-config` (libclang comes with Xcode)
+- Debian/Ubuntu: `apt install libvpx-dev libclang-dev cmake pkg-config build-essential`
 
 The `webrtc` extra no longer installs `scipy`, `soundfile`, `websockets`,
 `websocket-client`, `structlog`, `tenacity` and `ping3`; no stream-py code uses
@@ -260,7 +263,7 @@ rare cases:
 
 | 4.1.0 | Now |
 | --- | --- |
-| `SfuJoinError`, `SfuConnectionError` | Errors from `getstream._rust`, all subclasses of `RustError`: |
+| `SfuJoinError`, `SfuConnectionError` | Errors from `getstream_rtc`, all subclasses of `RustError`: |
 | | `ApiError` (coordinator HTTP error: `code`, `status_code`, `message`, `unrecoverable`) |
 | | `CoordinatorError` (coordinator connection or authentication failed) |
 | | `PermissionDeniedError` (`capability`), `IllegalStateError`, `MediaError`, `PcmQueueOverflowError` |

@@ -3,6 +3,7 @@ import uuid
 from typing import Iterator
 
 import pytest
+import getstream_rtc
 import os
 from dotenv import load_dotenv
 from tests.fixtures import (
@@ -15,7 +16,7 @@ from tests.fixtures import (
     async_client,
 )
 
-from getstream import Stream, _rust
+from getstream import Stream
 from getstream.models import ChannelInput, FullUserResponse, UserRequest
 
 __all__ = [
@@ -122,9 +123,9 @@ def load_env():
 @pytest.fixture(autouse=True)
 def forward_sdk_logs() -> Iterator[None]:
     logger = logging.getLogger("getstream")
-    _rust.configure_logging(logger, logger.getEffectiveLevel())
+    getstream_rtc.configure_logging(logger, logger.getEffectiveLevel())
     yield
-    _rust.configure_logging(None, logging.NOTSET)
+    getstream_rtc.configure_logging(None, logging.NOTSET)
 
 
 def pytest_configure(config):

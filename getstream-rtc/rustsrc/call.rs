@@ -21,7 +21,7 @@ enum Credentials {
     UserToken(RtcClient),
 }
 
-#[pyclass(frozen, module = "getstream._rust.bindings")]
+#[pyclass(frozen, module = "getstream_rtc")]
 pub struct Client {
     inner: Credentials,
 }
@@ -84,7 +84,7 @@ impl Client {
     }
 }
 
-#[pyclass(frozen, module = "getstream._rust.bindings")]
+#[pyclass(frozen, module = "getstream_rtc")]
 pub struct Call {
     inner: RtcCall,
     /// `"<type>:<id>"`, for the `call_cid` of the SFU events.
@@ -288,7 +288,7 @@ impl Call {
 
 #[pyclass(
     frozen,
-    module = "getstream._rust.bindings",
+    module = "getstream_rtc",
     eq,
     eq_int,
     skip_from_py_object,

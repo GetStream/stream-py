@@ -1010,8 +1010,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "getstream-py"
-version = "6.1.1"
+name = "getstream-rtc"
+version = "0.0.0"
 dependencies = [
  "getstream",
  "log",

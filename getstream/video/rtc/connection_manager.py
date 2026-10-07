@@ -3,8 +3,8 @@ import logging
 from typing import Any, Awaitable, Callable, Optional
 
 import aiortc
+import getstream_rtc
 
-from getstream import _rust
 from getstream.common import telemetry
 from getstream.utils import StreamAsyncIOEventEmitter
 from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
@@ -30,22 +30,27 @@ async def _log_event(event_type: str, data: Any):
     logger.debug(f"Received event {event_type}: {data}")
 
 
-_AUDIO_TRACK_TYPES = (_rust.TrackType.AUDIO, _rust.TrackType.SCREEN_SHARE_AUDIO)
+_AUDIO_TRACK_TYPES = (
+    getstream_rtc.TrackType.AUDIO,
+    getstream_rtc.TrackType.SCREEN_SHARE_AUDIO,
+)
 # Events that each SDK event stream buffers while the event loop is blocked
 # (SDK default 256); more makes a lag less likely and costs memory per call.
 _CALL_EVENT_CAPACITY = 1024
 # The unit of `PcmFrame.pts`: the 48 kHz RTP clock of Opus.
 _OPUS_TIME_BASE = 1 / 48000
-_TRACK_TYPES: dict[int, _rust.TrackType] = {
-    models_pb2.TRACK_TYPE_AUDIO: _rust.TrackType.AUDIO,
-    models_pb2.TRACK_TYPE_VIDEO: _rust.TrackType.VIDEO,
-    models_pb2.TRACK_TYPE_SCREEN_SHARE: _rust.TrackType.SCREEN_SHARE,
-    models_pb2.TRACK_TYPE_SCREEN_SHARE_AUDIO: _rust.TrackType.SCREEN_SHARE_AUDIO,
+_TRACK_TYPES: dict[int, getstream_rtc.TrackType] = {
+    models_pb2.TRACK_TYPE_AUDIO: getstream_rtc.TrackType.AUDIO,
+    models_pb2.TRACK_TYPE_VIDEO: getstream_rtc.TrackType.VIDEO,
+    models_pb2.TRACK_TYPE_SCREEN_SHARE: getstream_rtc.TrackType.SCREEN_SHARE,
+    models_pb2.TRACK_TYPE_SCREEN_SHARE_AUDIO: getstream_rtc.TrackType.SCREEN_SHARE_AUDIO,
 }
 
 
-def _rust_subscription_config(config: SubscriptionConfig) -> _rust.SubscriptionConfig:
-    return _rust.SubscriptionConfig(
+def _rust_subscription_config(
+    config: SubscriptionConfig,
+) -> getstream_rtc.SubscriptionConfig:
+    return getstream_rtc.SubscriptionConfig(
         default=_rust_track_subscription_config(config.default),
         role_filters={
             role: _rust_track_subscription_config(rule)
@@ -57,8 +62,8 @@ def _rust_subscription_config(config: SubscriptionConfig) -> _rust.SubscriptionC
 
 def _rust_track_subscription_config(
     rule: TrackSubscriptionConfig,
-) -> _rust.TrackSubscriptionConfig:
-    return _rust.TrackSubscriptionConfig(
+) -> getstream_rtc.TrackSubscriptionConfig:
+    return getstream_rtc.TrackSubscriptionConfig(
         # An unknown value matches no track, as in the aiortc version.
         track_types=[
             _TRACK_TYPES[track_type]
@@ -95,20 +100,20 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         # Created before the join, so the tracks and events of the join are kept.
         stream = call.client.stream
         if stream.has_api_secret:
-            rust_client = _rust.Client(
+            rust_client = getstream_rtc.Client(
                 stream.api_key,
                 stream.api_secret,
                 base_url=stream.base_url,
                 call_event_capacity=_CALL_EVENT_CAPACITY,
             )
         else:
-            rust_client = _rust.Client(
+            rust_client = getstream_rtc.Client(
                 stream.api_key,
                 token=stream.token,
                 base_url=stream.base_url,
                 call_event_capacity=_CALL_EVENT_CAPACITY,
             )
-        self._rust_call: _rust.Call = rust_client.call(call.call_type, call.id)
+        self._rust_call: getstream_rtc.Call = rust_client.call(call.call_type, call.id)
         self._subscription_config = subscription_config
         self._event_tasks: list[asyncio.Task] = []
         self._audio_tasks: set[asyncio.Task] = set()
@@ -126,7 +131,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         self.participants_state = self._participants_state
 
     @property
-    def connection_state(self) -> _rust.CallingState:
+    def connection_state(self) -> getstream_rtc.CallingState:
         """Get the current connection state."""
         return self._rust_call.calling_state
 
@@ -150,7 +155,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         # Process-wide. Rust drops records below this level before it formats
         # them, so a later level change applies at the next connect().
         sdk_logger = logging.getLogger("getstream")
-        _rust.configure_logging(sdk_logger, sdk_logger.getEffectiveLevel())
+        getstream_rtc.configure_logging(sdk_logger, sdk_logger.getEffectiveLevel())
         # The streams are created before the join, so the events and tracks of
         # the join are kept. Both end when the call ends or is left.
         call = self._rust_call
@@ -181,27 +186,27 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             raise
         self._event_tasks = tasks
 
-    async def _emit_sfu_events(self, events: _rust.EventStream) -> None:
+    async def _emit_sfu_events(self, events: getstream_rtc.EventStream) -> None:
         async for event in events:
-            if isinstance(event, _rust.EventsLagged):
+            if isinstance(event, getstream_rtc.EventsLagged):
                 # The lost events can include participant changes.
                 self._participants_state._replace_participants(
                     self._rust_call.participants()
                 )
                 continue
-            if isinstance(event, _rust.ParticipantJoined):
+            if isinstance(event, getstream_rtc.ParticipantJoined):
                 await self._participants_state._on_participant_joined(event)
-            elif isinstance(event, _rust.ParticipantLeft):
+            elif isinstance(event, getstream_rtc.ParticipantLeft):
                 await self._participants_state._on_participant_left(event)
-            if isinstance(event, _rust.CallEnded):
+            if isinstance(event, getstream_rtc.CallEnded):
                 self._emit_call_ended(event)
             else:
                 self.emit(event.name, event)
 
-    async def _emit_coordinator_events(self, events: _rust.EventStream) -> None:
+    async def _emit_coordinator_events(self, events: getstream_rtc.EventStream) -> None:
         async for event in events:
             # The stream gives only `CoordinatorEvent` and `EventsLagged`.
-            if not isinstance(event, _rust.CoordinatorEvent):
+            if not isinstance(event, getstream_rtc.CoordinatorEvent):
                 continue
             # Of the coordinator events, only `custom` is emitted, as its dict.
             if event.name == "custom":
@@ -209,26 +214,26 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             else:
                 await _log_event(event.name, event.data)
 
-    async def _emit_client_events(self, events: _rust.EventStream) -> None:
-        old = _rust.CallingState.IDLE
+    async def _emit_client_events(self, events: getstream_rtc.EventStream) -> None:
+        old = getstream_rtc.CallingState.IDLE
         async for event in events:
             # The stream gives only `CallingStateChanged` and `EventsLagged`.
-            if not isinstance(event, _rust.CallingStateChanged):
+            if not isinstance(event, getstream_rtc.CallingStateChanged):
                 continue
             self.emit("connection.state_changed", {"old": old, "new": event.state})
             old = event.state
             # The SDK leaves on the SFU `call_ended` and on the coordinator
             # `call.ended`; after the latter the SFU `call_ended` may not come.
-            if event.state == _rust.CallingState.LEFT and not self._leaving:
-                self._emit_call_ended(_rust.CallEnded())
+            if event.state == getstream_rtc.CallingState.LEFT and not self._leaving:
+                self._emit_call_ended(getstream_rtc.CallEnded())
         self._stop_event.set()
 
-    def _emit_call_ended(self, event: _rust.CallEnded) -> None:
+    def _emit_call_ended(self, event: getstream_rtc.CallEnded) -> None:
         if not self._call_ended_sent:
             self._call_ended_sent = True
             self.emit("call_ended", event)
 
-    async def _emit_tracks(self, tracks: _rust.TrackStream) -> None:
+    async def _emit_tracks(self, tracks: getstream_rtc.TrackStream) -> None:
         async for track in tracks:
             self.emit("track_added", track)
             if track.track_type in _AUDIO_TRACK_TYPES:
@@ -238,7 +243,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             # Holds no reference: dropping the last one unsubscribes the track.
             del track
 
-    async def _emit_audio(self, track: _rust.RemoteTrack) -> None:
+    async def _emit_audio(self, track: getstream_rtc.RemoteTrack) -> None:
         # Reads every frame of the track, so no other reader may read it.
         while (frame := await track.next_pcm()) is not None:
             self.emit(
@@ -315,7 +320,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             if isinstance(track, AudioStreamTrack)
             else None
         )
-        rust_track = _rust.LocalAudioTrack(pcm_queue_capacity=capacity)
+        rust_track = getstream_rtc.LocalAudioTrack(pcm_queue_capacity=capacity)
         # The SFU has one publish option for each kind of track.
         await self._stop_forwarding("audio")
         await self._rust_call.publish_audio(rust_track)
@@ -328,7 +333,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
     async def _publish_video(self, track: aiortc.MediaStreamTrack) -> None:
         # VP9 is the SFU's default publish option for camera video; no other
         # codec is requested at join.
-        rust_track = _rust.LocalVideoTrack.vp9()
+        rust_track = getstream_rtc.LocalVideoTrack.vp9()
         await self._stop_forwarding("video")
         await self._rust_call.publish_video(rust_track)
         self._start_forwarding(
