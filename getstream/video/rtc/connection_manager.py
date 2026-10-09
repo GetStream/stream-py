@@ -370,6 +370,8 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
     ) -> None:
         try:
             await forwarder.run()
+        except Exception:
+            logger.exception("The forwarding of a published track failed")
         finally:
             # The source track ended, or the forwarding was cancelled.
             await stop_publish(forwarder.target)

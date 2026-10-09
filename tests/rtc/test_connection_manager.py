@@ -5,6 +5,8 @@ import time
 import uuid
 from typing import AsyncIterator, Iterator
 
+import aiortc
+import av
 import getstream_rtc
 import numpy as np
 import pytest
@@ -464,6 +466,36 @@ async def next_frame_of_size(
     raise AssertionError(f"the stream ended before a {size} frame")
 
 
+async def next_error_record(
+    caplog: pytest.LogCaptureFixture, logger: str
+) -> logging.LogRecord:
+    while True:
+        for record in caplog.records:
+            if record.name == logger and record.levelno == logging.ERROR:
+                return record
+        await asyncio.sleep(0.01)
+
+
+@pytest.fixture
+def float_audio() -> aiortc.MediaStreamTrack:
+    """An aiortc audio track that gives silent 20 ms `fltp` frames."""
+
+    class FloatAudio(aiortc.MediaStreamTrack):
+        kind = "audio"
+
+        async def recv(self) -> av.AudioFrame:
+            await asyncio.sleep(0.02)
+            frame = av.AudioFrame.from_ndarray(
+                np.zeros((1, SAMPLE_RATE // 50), dtype=np.float32),
+                format="fltp",
+                layout="mono",
+            )
+            frame.sample_rate = SAMPLE_RATE
+            return frame
+
+    return FloatAudio()
+
+
 @pytest.fixture
 async def peer_video_tracks(
     peer_call: getstream_rtc.Call, call_users: list[FullUserResponse]
@@ -534,6 +566,22 @@ class TestConnectionManagerPublishing:
         await second.write(pcm)
 
         await asyncio.wait_for(next_loud_frame(track), timeout=10)
+
+    async def test_failed_forwarding_is_logged(
+        self,
+        connection: ConnectionManager,
+        float_audio: aiortc.MediaStreamTrack,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        # The SDK takes only s16 samples.
+        await connection.add_tracks(audio=float_audio)
+
+        record = await asyncio.wait_for(
+            next_error_record(caplog, "getstream.video.rtc.connection_manager"),
+            timeout=5,
+        )
+        assert record.exc_info is not None
+        assert record.exc_info[0] is TypeError
 
 
 @pytest.mark.integration

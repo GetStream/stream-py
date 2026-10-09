@@ -283,6 +283,10 @@ windowed-sinc filter (`getstream_rtc.StreamResampler`), not with PyAV
   either.
 - If `connect()` fails or is cancelled after the SDK join, it leaves the call
   before it raises.
+- If the forwarding of a track from `add_tracks` raises, for example for the
+  `fltp` frames or the rate change in "Publishing audio", the track is
+  unpublished, and the exception is logged at ERROR with its traceback, with
+  the message "The forwarding of a published track failed".
 - If the event loop is blocked long enough that `ConnectionManager` falls
   behind an SDK event stream (1024 buffered events per stream), the lost events are
   skipped with a `stream.rtc.events.lagged` WARNING (field `skipped`), and
@@ -471,7 +475,7 @@ in a test run ("confirmed") or found only its cause ("not confirmed").
   `__aexit__` replaces the exception of the `async with` body. In `connect()`,
   a `call.leave()` that raises replaces the join error. One confirmed cause is
   the track queue overflow (see "Handlers, failures and lost events").
-- `getstream/video/rtc/connection_manager.py:355-375` (low, not confirmed):
+- `getstream/video/rtc/connection_manager.py:355-377` (low, not confirmed):
   `_stop_forwarding()` can cancel a task that is already in its
   `finally: await stop_publish(...)` because its source ended. The SDK stop is
   then dropped, and the old track can stay published. Two concurrent
@@ -518,13 +522,13 @@ in a test run ("confirmed") or found only its cause ("not confirmed").
 - `async for ... break` loops without `else: pytest.fail(...)` (low, not
   confirmed): `getstream-rtc/tests/test_call.py:295, 317, 337, 346, 372, 397,
   415, 479, 501, 521, 542, 558, 712` and
-  `tests/rtc/test_connection_manager.py:579, 588`. If the stream ends before the
+  `tests/rtc/test_connection_manager.py:627, 636`. If the stream ends before the
   expected event, `test_calling_state_changed_to_joined` (397) and
   `test_track_published` (479) pass with no assertion. The other tests assert
   on the last event.
 - Writer tasks that are cancelled and never awaited (low, not confirmed):
   `getstream-rtc/tests/test_call.py:79-81, 97-99, 367/370, 382/385` and
-  `tests/rtc/test_connection_manager.py:86-88`. If `write_pcm` or
+  `tests/rtc/test_connection_manager.py:88-90`. If `write_pcm` or
   `write_i420` raises, the receiving test waits for the 120 s timeout and does
   not show the cause.
 - Type annotations (low, confirmed): the test methods in
@@ -532,9 +536,9 @@ in a test run ("confirmed") or found only its cause ("not confirmed").
   and `tests/rtc/test_connection_manager.py`, and in
   `tests/rtc/test_audio_forwarder.py:36,60` and
   `tests/rtc/test_video_forwarder.py:29`, have no `-> None`. The fixture
-  `client()` in `tests/rtc/test_connection_manager.py:31` has no return type.
+  `client()` in `tests/rtc/test_connection_manager.py:33` has no return type.
 - Issues that existed before this branch (low, confirmed):
-  - `tests/rtc/test_connection_manager.py:22` calls `load_dotenv()` at module
+  - `tests/rtc/test_connection_manager.py:24` calls `load_dotenv()` at module
     level, not in a fixture.
   - `tests/test_audio_stream_track.py:284` requests `monkeypatch` and does not
     use it.
