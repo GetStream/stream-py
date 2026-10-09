@@ -388,6 +388,14 @@ connections, so the aiortc transport code is removed:
   `getstream.webrtc_ice`) are forwarded at `WARNING` and above.
 - `connect()` reads the effective level of the `getstream` logger. A later
   level change takes effect at the next `connect()`.
+- `rtc.join()` starts the threads of the SDK runtime, and the first
+  `connect()` starts the thread that forwards the Rust records to `logging`.
+  An import starts no thread. `fork()` copies only the calling thread, so a
+  process forked after that cannot use the SDK: SDK calls in the child never
+  complete, and `connect()` never returns (on macOS the child stops with
+  `SIGTRAP`). Start the worker processes before the first `rtc.join()`, as
+  `gunicorn --preload` and the Celery prefork pool do, or use the `spawn` or
+  `forkserver` start method of `multiprocessing`.
 
 ### Telemetry
 
