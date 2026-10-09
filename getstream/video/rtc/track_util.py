@@ -16,6 +16,7 @@ from typing import (
 )
 
 import av
+import getstream_rtc
 import numpy as np
 from numpy.typing import NDArray
 
@@ -1672,166 +1673,6 @@ class PcmData:
         return len(self.samples) == 0
 
 
-class PyAVResampler:
-    """
-    A stateful audio resampler.
-    It acts as a thin wrapper around `pyav.AudioResampler`, and it is intended to be
-    created once for the audio track and re-used.
-
-
-    Key differences from the stateless implementation:
-
-    - `pyav.AudioResampler` buffers samples internally, so the number of output samples doesn't always match the input.
-    - `PyAVResampler` keeps its own monotonic PTS clock, and it's meant to be used with a single audio stream only.
-       It ignores the PTS/DTS from `PcmData`.
-       PTS always starts from 0 for the first output.
-    - `pyav.AudioResampler` configures itself based on the first input frame. Feeding data in a different format
-       or sample rate will fail.
-    - `PyAVResampler` is not thread-safe.
-
-    The source PCMs must have the same sample rate, format, and number of channels.
-
-    Example:
-
-        >>> import numpy as np
-        >>> resampler = PyAVResampler(format="s16", sample_rate=48000, channels=1)
-        >>> # Process 20ms chunks at 16kHz (320 samples each)
-        >>> samples = np.random.randint(-1000, 1000, 320, dtype=np.int16)
-        >>> pcm_16k = PcmData(samples=samples, sample_rate=16000, format="s16", channels=1)
-        >>> pcm_48k = resampler.resample(pcm_16k)  # Returns 912 samples at 48kHz without flushing
-        >>> len(pcm_48k.samples)
-        912
-        >>> flushed_pcm = resampler.flush()
-        >>> len(flushed_pcm.samples)
-        48
-    """
-
-    def __init__(
-        self,
-        format: AudioFormatType,
-        sample_rate: int,
-        channels: int,
-        frame_size: int = 0,
-    ):
-        """
-        Initialize a stateful resampler with target audio parameters.
-
-        Args:
-            format: Target format ("s16" or "f32", also `AudioFormat.F32` or `AudioFormat.S16`).
-            sample_rate: Target sample rate (e.g., 48000, 16000, 8000)
-            channels: Target number of channels (1 for mono, 2 for stereo)
-            frame_size: how many samples per channel are produce in each output frame.
-                When set, the underlying resampler will buffer output the specified number of samples is accumulated,
-                and it will output frames of this exact size (except when ".resample(flush=True)").
-                Default - `0` (each frame can be of a variable size).
-        """
-        if isinstance(format, str):
-            AudioFormat.validate(format)
-
-        self.format = AudioFormat(format)
-        self.sample_rate = sample_rate
-        self.channels = channels
-        self.frame_size = frame_size
-        # Determine PyAV format based on original format to preserve it
-        # f32 -> fltp (float32 planar), s16 -> s16p (int16 planar)
-        self._pyav_format = "fltp" if self.format == AudioFormat.F32 else "s16p"
-        self._pts = 0
-        self._set_pyav_resampler()
-
-    def __repr__(self) -> str:
-        return (
-            f"{self.__class__.__name__}(format={self.format.name.lower()!r}, "
-            f"sample_rate={self.sample_rate}, channels={self.channels}, frame_size={self.frame_size})"
-        )
-
-    def _set_pyav_resampler(self):
-        # Create PyAV resampler with format matching the original
-        self._pyav_resampler = av.AudioResampler(
-            format=self._pyav_format,
-            layout="mono" if self.channels == 1 else "stereo",
-            rate=self.sample_rate,
-            frame_size=self.frame_size,
-        )
-
-    def _pyav_resample(self, frame: av.AudioFrame | None) -> list[av.AudioFrame]:
-        if frame is not None and not frame.samples:
-            # pyav resampler fails if audioframe has no samples
-            return []
-        return self._pyav_resampler.resample(frame)
-
-    def resample(self, pcm: PcmData, flush: bool = False) -> PcmData:
-        """
-        Resample using PyAV (libav) for high-quality resampling and downmixing.
-
-        Args:
-            pcm: Input PCM data to resample
-            flush: if True, get the remaining frames from underlying `av.AudioResampler` if there are any.
-                Default - `False`.
-
-        Returns:
-            New PcmData object with resampled audio, potentially empty if the frame size is set and larger
-            than the input PCM.
-        """
-        # Create AudioFrame from PcmData
-        frame = pcm.to_av_frame()
-
-        # Convert each frame to PcmData using from_av_frame and concatenate them
-        # Start with an empty PcmData preserving the original format
-        result = PcmData(
-            sample_rate=self.sample_rate,
-            format=self.format,
-            channels=self.channels,
-            time_base=1 / self.sample_rate,
-        )
-
-        # Resample
-        # Keep the lock because resampler is stateful, and we want to keep PTS in order
-        resampled_frames = self._pyav_resample(frame)
-        if flush:
-            try:
-                resampled_frames.extend(self._pyav_resample(None))
-            finally:
-                # Reset the resampler because it cannot be used after it's flushed,
-                self._set_pyav_resampler()
-
-        for resampled_frame in resampled_frames:
-            self._pts += resampled_frame.samples
-            result = result.append(PcmData.from_av_frame(resampled_frame))
-
-        result.pts = self._pts - len(result.samples)
-        result.dts = result.pts
-        return result
-
-    def flush(self) -> PcmData:
-        """
-        Flush the underlying `av.AudioResampler`
-
-        Returns:
-            New PcmData object with resampled audio, potentially empty.
-        """
-        # Convert each frame to PcmData using from_av_frame and concatenate them
-        # Start with an empty PcmData preserving the original format
-        result = PcmData(
-            sample_rate=self.sample_rate,
-            format=self.format,
-            channels=self.channels,
-        )
-
-        try:
-            # Flush the resampler to get remaining buffered samples
-            resampled_frames = self._pyav_resample(None)
-        finally:
-            # Reset the resampler because it cannot be used after it's flushed,
-            self._set_pyav_resampler()
-
-        # Convert frames to PcmData and update the PTS clock
-        for resampled_frame in resampled_frames:
-            self._pts += resampled_frame.samples
-            result = result.append(PcmData.from_av_frame(resampled_frame))
-        result.pts = self._pts - len(result.samples)
-        return result
-
-
 class Resampler:
     """
     Stateless audio resampler for converting between sample rates, formats, and channels.
@@ -2036,10 +1877,12 @@ class Resampler:
 
 
 class FrameResampler:
-    """Wraps av.AudioResampler to emit fixed-size packed av.AudioFrames from PcmData.
+    """Resamples PcmData with the SDK's windowed-sinc `StreamResampler` and emits
+    fixed-size packed s16 av.AudioFrames.
 
-    A single av.AudioResampler locks onto its first input frame's rate/layout/format,
-    so this rebuilds the underlying resampler whenever the input signature changes.
+    A `StreamResampler` keeps the rate of its first input, so this rebuilds it
+    whenever the input rate changes. It does not convert channels or formats, so
+    the input is converted to s16 at the output channel count first.
     """
 
     def __init__(
@@ -2049,20 +1892,24 @@ class FrameResampler:
         Args:
             rate: Target output sample rate in Hz.
             layout: Target channel layout, e.g. "mono" or "stereo".
-            format: Output sample format passed to av.AudioResampler (packed, e.g. "s16").
-            frame_size: Samples per channel in each emitted frame; input is buffered
+            format: Output sample format; only packed "s16".
+            frame_size: Samples per channel in each emitted frame; output is buffered
                 until a full frame_size can be emitted. 0 emits variable-size frames.
                 The tail returned by flush() may be shorter than frame_size.
         """
+        if format != AudioFormat.S16:
+            raise ValueError(
+                f"FrameResampler output format must be 's16', got {format!r}"
+            )
         self._rate = rate
         self._layout = layout
-        self._format = format
+        self._channels = len(av.AudioLayout(layout).channels)
         self._frame_size = frame_size
-        self._resampler: Optional[av.AudioResampler] = None
-        # Input signature the current resampler was built for.
-        self._in_rate: Optional[int] = None
-        self._in_channels: Optional[int] = None
-        self._in_format: Optional[str] = None
+        self._resampler: getstream_rtc.StreamResampler | None = None
+        # Input rate the current resampler was built for.
+        self._in_rate: int | None = None
+        # Resampled interleaved samples that no emitted frame holds yet.
+        self._pending: NDArray[np.int16] = np.array([], dtype=np.int16)
 
     def resample(self, pcm: PcmData, flush: bool = False) -> list[av.AudioFrame]:
         """Resample pcm data and return finished av.AudioFrames.
@@ -2070,61 +1917,77 @@ class FrameResampler:
 
         Args:
             pcm: PcmData audio
-            flush: if True, also flush the tail and reset."""
-        frames: list[av.AudioFrame] = []
+            flush: if True, also flush the tail."""
         # Empty input (e.g. the final marker) yields no frames but can still flush.
         if pcm.samples.size:
-            resampler, tail = self._reset_resampler(pcm)
-            # `tail` holds the old resampler's drained buffer when the input
-            # signature changed; emit it before this input's frames.
-            frames = tail + resampler.resample(pcm.to_av_frame())
+            resampler = self._reset_resampler(pcm)
+            self._append(
+                resampler.push(self._interleave(pcm), pcm.sample_rate, self._channels)
+            )
 
         if flush:
-            frames.extend(self.flush())
+            return self.flush()
 
-        return frames
+        return self._take_frames(partial=False)
 
     def flush(self) -> list[av.AudioFrame]:
         """
-        Flush the resampler's buffered tail and reset it.
+        Flush the resampler's buffered tail and the samples of a partial frame.
         """
-        frames: list[av.AudioFrame] = []
-        if self._resampler is not None:
-            # resample(None) flushes swr to EOF: it raises on any further input, so
-            # drop it here and _reset_resampler rebuilds on the next write.
-            frames = self._resampler.resample(None)
-            self._resampler = None
-        return frames
+        self._take_tail()
+        return self._take_frames(partial=True)
 
-    def _reset_resampler(
-        self, pcm: PcmData
-    ) -> tuple[av.AudioResampler, list[av.AudioFrame]]:
-        """Return the resampler for pcm's signature, rebuilding it on a change.
+    def _reset_resampler(self, pcm: PcmData) -> getstream_rtc.StreamResampler:
+        """Return the resampler for pcm's rate, rebuilding it on a change.
 
-        On a rebuild the old resampler's buffered tail is drained and returned so it
-        isn't dropped; the output signature is fixed, so the tail stays compatible.
+        On a rebuild the old resampler's held audio is kept so it isn't dropped; the
+        output rate and channels are fixed, so it stays compatible.
         """
         resampler = self._resampler
-        if (
-            resampler is None
-            or self._in_rate != pcm.sample_rate
-            or self._in_channels != pcm.channels
-            or self._in_format != pcm.format
-        ):
-            tail: list[av.AudioFrame] = []
-            if resampler is not None:
-                # Drain the outgoing resampler before swapping it out.
-                tail = resampler.resample(None)
-            resampler = av.AudioResampler(
-                format=self._format,
-                layout=self._layout,
-                rate=self._rate,
-                # frame_size makes the resampler emit fixed frame_size-sample frames.
-                frame_size=self._frame_size,
-            )
+        if resampler is None or self._in_rate != pcm.sample_rate:
+            self._take_tail()
+            resampler = getstream_rtc.StreamResampler(self._rate, self._channels)
             self._resampler = resampler
             self._in_rate = pcm.sample_rate
-            self._in_channels = pcm.channels
-            self._in_format = pcm.format
-            return resampler, tail
-        return resampler, []
+        return resampler
+
+    def _take_tail(self) -> None:
+        if self._resampler is not None:
+            self._append(self._resampler.flush())
+
+    def _append(self, frame: getstream_rtc.PcmFrame) -> None:
+        self._pending = np.concatenate([self._pending, frame.samples])
+
+    def _interleave(self, pcm: PcmData) -> NDArray[np.int16]:
+        """Return pcm as interleaved s16 samples at the output channel count."""
+        samples = np.frombuffer(pcm.to_int16().to_bytes(), dtype=np.int16)
+        if pcm.channels == self._channels:
+            return samples
+        if self._channels == 1:
+            # Average the channels of each sample frame.
+            mono = samples.reshape(-1, pcm.channels).mean(axis=1)
+            return mono.round().astype(np.int16)
+        if pcm.channels == 1:
+            return np.repeat(samples, self._channels)
+        raise ValueError(
+            f"Unsupported channel conversion: {pcm.channels} -> {self._channels}"
+        )
+
+    def _take_frames(self, partial: bool) -> list[av.AudioFrame]:
+        """Cut the pending samples into frames; `partial` also emits the shorter rest."""
+        pending = self._pending
+        size = self._frame_size * self._channels or len(pending)
+        if not size:
+            return []
+        end = len(pending) if partial else len(pending) - len(pending) % size
+        self._pending = pending[end:]
+        frames = []
+        for start in range(0, end, size):
+            frame = av.AudioFrame.from_ndarray(
+                pending[start : start + size].reshape(1, -1),
+                format="s16",
+                layout=self._layout,
+            )
+            frame.sample_rate = self._rate
+            frames.append(frame)
+        return frames

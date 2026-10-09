@@ -175,6 +175,10 @@ Behavior of a track object:
 
 - `add_tracks(audio=track)` accepts any aiortc audio track. The SDK paces the
   frames and always sends mono: stereo frames are mixed down.
+- The SDK takes the sample rate of the first frame of a published track. A
+  later frame at another rate raises `PcmRateMismatchError` (`expected`,
+  `actual`), which stops the forwarding and unpublishes the track.
+  `AudioStreamTrack` always gives frames at its own `sample_rate`.
 - `AudioStreamTrack` has a new setting `pace`, `False` by default:
   - `pace=False`: `recv()` returns the next queued frame at once and waits for
     the next `write()` when the queue is empty. This is the right setting for
@@ -194,6 +198,32 @@ Behavior of a track object:
 - A new `add_tracks(audio=new_track)` replaces the published audio track: the
   earlier track is unpublished first, also while it is still live. In 4.1.0
   each call added one more audio track.
+
+### Resampling
+
+`FrameResampler`, and so `AudioStreamTrack.write()`, resamples with the SDK's
+windowed-sinc filter (`getstream_rtc.StreamResampler`), not with PyAV
+(libswresample). The filter removes much more of the images and aliases: from
+16 kHz to 48 kHz, the image of a 7 kHz tone is at −103 dB, with PyAV at
+−38 dB. The differences from 6.1.1:
+
+- Audio at another rate than the output rate is delayed by 128 input frames:
+  8 ms at 16 kHz, 5.3 ms at 24 kHz, 2.9 ms at 44.1 kHz. The delay is silence
+  at the start of the audio and again after each `flush()`. PyAV added no
+  silence.
+- `flush()` and `write(pcm, final=True)` give the audio that the filter holds
+  and about 132 input frames of near-silence after it: 16 ms in all at
+  16 kHz. PyAV gave 1 ms at 16 kHz. A change of the input rate also adds the
+  held audio and this near-silence.
+- Mono input to a stereo `FrameResampler` is copied to each channel at full
+  level. PyAV lowered it by 3 dB. Stereo input to mono is averaged, as in
+  6.1.1.
+- The channel count changes only from mono or to mono; another change raises
+  `ValueError`. PyAV converted between all layouts.
+- `FrameResampler` accepts only the output format `s16`; another `format`
+  raises `ValueError`.
+- `PyAVResampler` is removed. For a stream of `PcmData`, use
+  `FrameResampler`.
 
 ### Publishing video
 
@@ -266,7 +296,7 @@ rare cases:
 | `SfuJoinError`, `SfuConnectionError` | Errors from `getstream_rtc`, all subclasses of `RustError`: |
 | | `ApiError` (coordinator HTTP error: `code`, `status_code`, `message`, `unrecoverable`) |
 | | `CoordinatorError` (coordinator connection or authentication failed) |
-| | `PermissionDeniedError` (`capability`), `IllegalStateError`, `MediaError`, `PcmQueueOverflowError` |
+| | `PermissionDeniedError` (`capability`), `IllegalStateError`, `MediaError`, `PcmQueueOverflowError`, `PcmRateMismatchError` (`expected`, `actual`) |
 | | `RtcError` (other RTC failures), `ConfigError` (invalid client configuration) |
 
 ### `ConnectionManager` attributes
@@ -300,7 +330,8 @@ connections, so the aiortc transport code is removed:
 - From `getstream.video.rtc.track_util`: `patch_sdp_offer`,
   `fix_sdp_msid_semantic`, `fix_sdp_rtcp_fb`, `parse_track_stream_mapping`,
   `BufferedMediaTrack`, `VideoFrameTracker`, `detect_video_properties`,
-  `AudioTrackHandler`. `PcmData`, `AudioFormat` and the resamplers stay.
+  `AudioTrackHandler`, `PyAVResampler` (see "Resampling"). `PcmData`,
+  `AudioFormat`, `Resampler` and `FrameResampler` stay.
 
 ### Logging
 

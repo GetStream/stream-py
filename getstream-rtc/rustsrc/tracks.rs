@@ -180,7 +180,7 @@ impl PcmFrame {
     }
 }
 
-struct PcmFrameData(getstream::rtc::PcmFrame);
+pub(crate) struct PcmFrameData(pub(crate) getstream::rtc::PcmFrame);
 
 impl<'py> IntoPyObject<'py> for PcmFrameData {
     type Target = PcmFrame;

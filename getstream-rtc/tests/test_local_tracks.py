@@ -27,6 +27,15 @@ class TestLocalTracks:
         assert exc_info.value.capacity_samples == SAMPLE_RATE // 10
         assert exc_info.value.dropped_samples == SAMPLE_RATE - SAMPLE_RATE // 10
 
+    async def test_audio_at_another_rate_than_the_first_frame_raises(self) -> None:
+        track = getstream_rtc.LocalAudioTrack()
+        await track.write_pcm(np.zeros(320, dtype=np.int16), 16000, 1)
+
+        with pytest.raises(getstream_rtc.PcmRateMismatchError) as exc_info:
+            await track.write_pcm(np.zeros(480, dtype=np.int16), 24000, 1)
+
+        assert (exc_info.value.expected, exc_info.value.actual) == (16000, 24000)
+
     async def test_misaligned_samples_raise(self):
         track = getstream_rtc.LocalAudioTrack()
         samples = np.frombuffer(memoryview(bytearray(1921))[1:], dtype=np.int16)

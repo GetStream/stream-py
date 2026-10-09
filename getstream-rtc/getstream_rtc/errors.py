@@ -59,3 +59,13 @@ class PcmQueueOverflowError(RtcError):
         super().__init__(message)
         self.dropped_samples = dropped_samples
         self.capacity_samples = capacity_samples
+
+
+class PcmRateMismatchError(RtcError):
+    """A PCM frame is not at the sample rate ``expected`` of the first frame;
+    ``actual`` is its rate. The frame was not used."""
+
+    def __init__(self, message: str, expected: int, actual: int):
+        super().__init__(message)
+        self.expected = expected
+        self.actual = actual

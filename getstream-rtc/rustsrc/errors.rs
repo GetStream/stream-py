@@ -10,6 +10,7 @@ import_exception!(getstream_rtc.errors, IllegalStateError);
 import_exception!(getstream_rtc.errors, MediaError);
 import_exception!(getstream_rtc.errors, PermissionDeniedError);
 import_exception!(getstream_rtc.errors, PcmQueueOverflowError);
+import_exception!(getstream_rtc.errors, PcmRateMismatchError);
 
 pub fn sdk_error(err: getstream::Error) -> PyErr {
     let message = err.to_string();
@@ -40,6 +41,9 @@ pub fn rtc_error(err: getstream::rtc::RtcError) -> PyErr {
             dropped_samples,
             capacity_samples,
         } => PcmQueueOverflowError::new_err((message, dropped_samples, capacity_samples)),
+        Sdk::PcmRateMismatch { expected, actual } => {
+            PcmRateMismatchError::new_err((message, expected, actual))
+        }
         _ => RtcError::new_err(message),
     }
 }

@@ -7,6 +7,7 @@ mod events;
 mod logging;
 mod participants;
 mod repr;
+mod resample;
 mod subscriptions;
 mod tracks;
 
@@ -62,6 +63,7 @@ fn _bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<tracks::VideoFrameStream>()?;
     m.add_class::<tracks::LocalAudioTrack>()?;
     m.add_class::<tracks::LocalVideoTrack>()?;
+    m.add_class::<resample::StreamResampler>()?;
     m.add_function(wrap_pyfunction!(logging::configure_logging, m)?)?;
     logging::install(m)?;
     Ok(())

@@ -471,8 +471,29 @@ class LocalAudioTrack:
         self, samples: npt.NDArray[np.int16], sample_rate: int, channels: int
     ) -> Awaitable[None]:
         """Await each write before the next; writes that run at the same time
-        can reach the SDK out of order."""
+        can reach the SDK out of order. The first frame sets the sample rate of
+        the track; a frame at another rate raises ``PcmRateMismatchError``."""
     def flush(self) -> None: ...
+
+class StreamResampler:
+    """Resamples one stream of interleaved int16 PCM to ``sample_rate`` with a
+    windowed-sinc filter, without a change of the channel count. The filter
+    state carries over between calls. The filter delays the audio by 128 input
+    frames (8 ms at 16 kHz) and holds them until the next ``push`` or
+    ``flush``."""
+
+    def __init__(self, sample_rate: int, channels: int) -> None: ...
+    def push(
+        self, samples: npt.NDArray[np.int16], sample_rate: int, channels: int
+    ) -> PcmFrame:
+        """The first call sets the input rate. A later frame at another rate
+        raises ``PcmRateMismatchError``, a frame with another channel count
+        ``IllegalStateError``. Input at the output rate is copied."""
+    def flush(self) -> PcmFrame:
+        """Returns the audio that the filter holds, followed by near-silence
+        (about 132 input frames). Returns an empty frame when nothing was pushed
+        since the last flush, or when the input is at the output rate. Later
+        pushes continue at the same input rate."""
 
 class LocalVideoTrack:
     @staticmethod

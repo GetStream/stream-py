@@ -675,9 +675,62 @@ class TestFrameResampler:
         freqs = np.fft.rfftfreq(len(signal), 1 / 48000)
         assert abs(freqs[np.argmax(spectrum)] - SINE_FREQ) < 20
 
+    def test_upsampling_leaves_no_image_of_the_tone(
+        self, resampler: FrameResampler
+    ) -> None:
+        # From 16 kHz to 48 kHz, a 7 kHz tone has its image at 16 - 7 = 9 kHz.
+        out = _frames_samples(
+            [
+                frame
+                for chunk in _sine_chunks(7000, 16000, total_ms=1000)
+                for frame in resampler.resample(chunk)
+            ]
+        ).astype(np.float64)
+
+        middle = out[len(out) // 4 : len(out) // 4 + 24000]
+        spectrum = np.abs(np.fft.rfft(middle * np.blackman(len(middle))))
+        freqs = np.fft.rfftfreq(len(middle), 1 / 48000)
+        image = spectrum[np.abs(freqs - 9000) < 50].max()
+        assert 20 * np.log10(image / spectrum.max()) < -80
+
+    def test_stereo_input_is_averaged_to_mono(self, resampler: FrameResampler) -> None:
+        pcm = PcmData(
+            samples=np.array([np.full(480, 100), np.full(480, 300)], dtype=np.int16),
+            sample_rate=48000,
+            format=AudioFormat.S16,
+            channels=2,
+        )
+
+        out = _frames_samples(resampler.resample(pcm))
+
+        assert out.size == 480
+        assert np.all(out == 200)
+
+    def test_mono_input_is_copied_to_each_stereo_channel(self) -> None:
+        r = FrameResampler(rate=48000, layout="stereo", format="s16", frame_size=0)
+        ramp = np.arange(480, dtype=np.int16)
+
+        out = _frames_samples(
+            r.resample(
+                PcmData(
+                    samples=ramp,
+                    sample_rate=48000,
+                    format=AudioFormat.S16,
+                    channels=1,
+                )
+            )
+        ).reshape(-1, 2)
+
+        assert np.array_equal(out[:, 0], ramp)
+        assert np.array_equal(out[:, 1], ramp)
+
+    def test_rejects_an_output_format_other_than_s16(self) -> None:
+        with pytest.raises(ValueError):
+            FrameResampler(rate=48000, layout="mono", format="f32", frame_size=0)
+
     def test_matched_rate_is_passed_through(self, resampler):
         # The resampler targets 48000 mono s16; a chunk already at that rate needs no
-        # resampling and comes back unchanged (same-rate swr is a lossless passthrough).
+        # resampling and comes back unchanged (same-rate input is copied).
         chunk = _sine_chunks(SINE_FREQ, 48000, total_ms=20)[0]
         out = _frames_samples(resampler.resample(chunk))
         assert np.array_equal(out, chunk.samples.reshape(-1))
@@ -695,7 +748,7 @@ class TestFrameResampler:
             resampler.resample(chunk)
         resampler.flush()
 
-        # swr is at EOF after a flush; the wrapper must rebuild, not raise EOFError.
+        # A flush must not end the resampler: later input is still resampled.
         produced = _frames_samples(
             [frame for chunk in chunks for frame in resampler.resample(chunk)]
         )
