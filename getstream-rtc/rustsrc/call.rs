@@ -153,22 +153,28 @@ impl Call {
     }
 
     fn sfu_events(&self, py: Python<'_>) -> EventStream {
-        let source = Source::Sfu(py.detach(|| self.inner.sfu_events()));
-        EventStream::new(source, self.cid.clone(), self.end.clone())
+        py.detach(|| {
+            let source = Source::Sfu(self.inner.sfu_events());
+            EventStream::new(source, &self.inner, self.cid.clone(), self.end.clone())
+        })
     }
 
     fn coordinator_events(&self, py: Python<'_>) -> EventStream {
-        let source = Source::Coordinator(py.detach(|| self.inner.coordinator_events()));
-        EventStream::new(source, self.cid.clone(), self.end.clone())
+        py.detach(|| {
+            let source = Source::Coordinator(self.inner.coordinator_events());
+            EventStream::new(source, &self.inner, self.cid.clone(), self.end.clone())
+        })
     }
 
     fn client_events(&self, py: Python<'_>) -> EventStream {
-        let source = Source::Client(py.detach(|| self.inner.client_events()));
-        EventStream::new(source, self.cid.clone(), self.end.clone())
+        py.detach(|| {
+            let source = Source::Client(self.inner.client_events());
+            EventStream::new(source, &self.inner, self.cid.clone(), self.end.clone())
+        })
     }
 
-    fn tracks(&self) -> TrackStream {
-        TrackStream::new(self.tracks.clone(), self.end.clone())
+    fn tracks(&self, py: Python<'_>) -> TrackStream {
+        py.detach(|| TrackStream::new(self.tracks.clone(), &self.inner, self.end.clone()))
     }
 
     fn publish_audio<'py>(

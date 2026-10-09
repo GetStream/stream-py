@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use getstream::rtc::proto::event;
 use getstream::rtc::proto::models::{self, CallEndedReason};
-use getstream::rtc::{ClientCallEvent, SfuCallEvent};
+use getstream::rtc::{ClientCallEvent, RtcCall, SfuCallEvent};
 use pyo3::IntoPyObjectExt;
 use pyo3::exceptions::PyStopAsyncIteration;
 use pyo3::prelude::*;
@@ -1202,14 +1202,19 @@ pub struct EventStream {
 }
 
 impl EventStream {
-    pub fn new(source: Source, call_cid: String, end: watch::Receiver<CallEnd>) -> Self {
+    pub fn new(
+        source: Source,
+        call: &RtcCall,
+        call_cid: String,
+        end: watch::Receiver<CallEnd>,
+    ) -> Self {
         Self {
             state: Arc::new(Mutex::new(EventStreamState {
                 source,
                 call_cid,
                 finished: false,
             })),
-            start: call_end::start(&end),
+            start: call_end::start(call, &end),
             end,
         }
     }

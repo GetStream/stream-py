@@ -57,10 +57,10 @@ pub struct TrackStream {
 }
 
 impl TrackStream {
-    pub fn new(queue: Arc<TrackQueue>, end: watch::Receiver<CallEnd>) -> Self {
+    pub fn new(queue: Arc<TrackQueue>, call: &RtcCall, end: watch::Receiver<CallEnd>) -> Self {
         Self {
             queue,
-            start: call_end::start(&end),
+            start: call_end::start(call, &end),
             end,
         }
     }

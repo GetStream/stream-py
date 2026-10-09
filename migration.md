@@ -450,9 +450,9 @@ in a test run ("confirmed") or found only its cause ("not confirmed").
 - `getstream-rtc/rustsrc/logging.rs:278` (low, confirmed):
   `SINK.get().expect(...)` in a `#[pyfunction]` breaks the AGENTS.md rule
   against `expect` in library code. It cannot fail at this time.
-- `getstream-rtc/rustsrc/call_end.rs:38` (low, confirmed): the watcher ignores
-  `RecvError::Lagged`, so a skipped `LEFT` or `JOINING` state is never applied,
-  and the streams can end at the wrong time.
+- `getstream-rtc/rustsrc/call_end.rs:28` (low, confirmed): the watcher ignores
+  `RecvError::Lagged`, so a skipped `LEFT` state is never counted, and the
+  streams that wait for that end do not end.
 - Python calls from Rust that AGENTS.md does not document (low, confirmed):
   `atexit.register` (`logging.rs:259-262`), `PyObject_Repr` in each `__repr__`
   (`repr.rs:7`) and `import_exception!` of `getstream_rtc.errors`
