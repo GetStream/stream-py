@@ -352,6 +352,10 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         forwarder: AudioForwarder | VideoForwarder,
         stop_publish: Callable[[Any], Awaitable[None]],
     ) -> None:
+        # leave() may have cancelled the publish tasks already, and the SDK
+        # leave stops the published track.
+        if self._leaving:
+            return
         self._publish_tasks[kind] = asyncio.create_task(
             self._forward(forwarder, stop_publish)
         )

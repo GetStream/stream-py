@@ -475,7 +475,7 @@ in a test run ("confirmed") or found only its cause ("not confirmed").
   `__aexit__` replaces the exception of the `async with` body. In `connect()`,
   a `call.leave()` that raises replaces the join error. One confirmed cause is
   the track queue overflow (see "Handlers, failures and lost events").
-- `getstream/video/rtc/connection_manager.py:355-377` (low, not confirmed):
+- `getstream/video/rtc/connection_manager.py:359-381` (low, not confirmed):
   `_stop_forwarding()` can cancel a task that is already in its
   `finally: await stop_publish(...)` because its source ended. The SDK stop is
   then dropped, and the old track can stay published. Two concurrent
