@@ -25,6 +25,8 @@ jobs:
         uses: actions/checkout@v5
       - name: Install dependencies
         uses: ./.github/actions/python-uv-setup
+        with:
+          build-extension: "false"
       - name: Run linter
         run: make lint
 
@@ -36,8 +38,42 @@ jobs:
         uses: actions/checkout@v5
       - name: Install dependencies
         uses: ./.github/actions/python-uv-setup
+        # ty reads getstream_rtc from getstream-rtc/ (see make typecheck), not the built extension.
+        with:
+          build-extension: "false"
       - name: Run type checker
         run: make typecheck
+
+  rust:
+    name: 🦀 Rust
+    runs-on: ubuntu-latest
+    env:
+      # The same interpreter for clippy and the tests, so the PyO3 build is reused.
+      PYO3_PYTHON: /usr/bin/python3
+    defaults:
+      run:
+        # rustup reads the toolchain from the current directory.
+        working-directory: getstream-rtc
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Install the native build dependencies
+        # The tests link libpython of the system Python.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libvpx-dev libclang-dev python3-dev
+      - name: Install the Rust toolchain
+        run: rustup toolchain install
+      - name: Cache the Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: getstream-rtc
+      - name: Check formatting
+        run: cargo fmt --check
+      - name: Run clippy
+        run: cargo clippy --all-targets -- -D warnings
+      - name: Run the unit tests
+        run: cargo test --lib
 
   # ── Non-video tests (chat, feeds, etc.) ────────────────────────────
   # Uses STREAM_CHAT_* credentials which do NOT have video enabled.
@@ -57,6 +93,7 @@ jobs:
         uses: ./.github/actions/python-uv-setup
         with:
           python-version: ${{ matrix.python-version }}
+          build-extension: "false"
       - name: Run tests
         run: make test
 

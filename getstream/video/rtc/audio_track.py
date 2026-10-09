@@ -20,11 +20,16 @@ class AudioStreamTrack(aiortc.mediastreams.MediaStreamTrack):
     rate/layout and queues them (dropping the oldest once the queue exceeds
     audio_buffer_size_ms).
 
-    `recv()` paces the queue out in real time via _FramePacer,
+    With `pace=True`, `recv()` paces the queue out in real time via _FramePacer,
     handing back one frame per call with its pts stamped, and synthesizes silence
     when the queue is empty so the RTP timeline never stalls.
 
-    `flush()` clears the queue to support interruption/barge-in.
+    With `pace=False`, `recv()` hands back the next queued frame at once and waits
+    for the next `write()` when the queue is empty; the reader paces the frames.
+
+    `flush()` clears the queue to support interruption/barge-in, and wakes the
+    callers of `wait_for_flush()`, so a reader that keeps its own queue can clear
+    it too.
     """
 
     kind = "audio"
@@ -35,6 +40,7 @@ class AudioStreamTrack(aiortc.mediastreams.MediaStreamTrack):
         channels: int = 1,  # output channel count (1=mono, 2=stereo)
         format: AudioFormatType = AudioFormat.S16,  # output sample format; must be s16 (aiortc's Opus encoder requirement)
         audio_buffer_size_ms: int = 30000,  # max audio to hold before dropping oldest
+        pace: bool = False,  # True: recv() returns one frame per 20ms; False: at once
     ):
         super().__init__()
         if format != AudioFormat.S16:
@@ -46,6 +52,13 @@ class AudioStreamTrack(aiortc.mediastreams.MediaStreamTrack):
         self.channels = channels
         self.format = format
         self.audio_buffer_size_ms = audio_buffer_size_ms
+        self.pace = pace
+        # Set when a frame is queued or the track stops; wakes an unpaced recv().
+        self._frame_queued = asyncio.Event()
+        # Replaced at each flush(); wait_for_flush() waits on the current one.
+        self._flushed = asyncio.Event()
+        # pts of the next unpaced frame, in samples.
+        self._next_pts = 0
 
         self._frame_buffer: deque[av.AudioFrame] = deque()
         # Running per-channel sample total, to enforce the size cap cheaply.
@@ -95,6 +108,7 @@ class AudioStreamTrack(aiortc.mediastreams.MediaStreamTrack):
             for frame in frames:
                 self._frame_buffer.append(frame)
                 self._buffered_samples += frame.samples
+            self._frame_queued.set()
 
             # Bound latency/memory: if the producer outran the consumer, drop the
             # oldest frames until back under the cap.
@@ -109,12 +123,26 @@ class AudioStreamTrack(aiortc.mediastreams.MediaStreamTrack):
             self._frame_buffer.clear()
             self._buffered_samples = 0
             self._resampler.flush()
+            flushed, self._flushed = self._flushed, asyncio.Event()
+            flushed.set()
+
+    async def wait_for_flush(self) -> None:
+        """Return at the next `flush()`."""
+        await self._flushed.wait()
+
+    def stop(self) -> None:
+        super().stop()
+        # Wakes an unpaced recv() that waits for a frame, so it can end.
+        self._frame_queued.set()
 
     async def recv(self) -> av.AudioFrame:
-        """Return the next 20ms frame, synthesizing silence when starved."""
+        """Return the next 20ms frame; with pacing, synthesize silence when starved."""
         # aiortc calls recv() in a loop; once the track is stopped, signal EOF.
         if self.readyState != "live":
             raise aiortc.mediastreams.MediaStreamError
+
+        if not self.pace:
+            return await self._recv_unpaced()
 
         # Block until this frame is due, and get the pts to stamp on it.
         pts = await self._pacer.next_pts()
@@ -131,6 +159,27 @@ class AudioStreamTrack(aiortc.mediastreams.MediaStreamTrack):
                     self._silence, format="s16", layout=self._layout
                 )
 
+        return self._finish_frame(frame, pts)
+
+    async def _recv_unpaced(self) -> av.AudioFrame:
+        """Return the next queued frame at once, waiting for a write when empty."""
+        while True:
+            async with self._frame_lock:
+                if self._frame_buffer:
+                    frame = self._frame_buffer.popleft()
+                    self._buffered_samples -= frame.samples
+                    break
+                # Cleared under the lock, so a write() cannot be missed.
+                self._frame_queued.clear()
+            await self._frame_queued.wait()
+            if self.readyState != "live":
+                raise aiortc.mediastreams.MediaStreamError
+
+        pts = self._next_pts
+        self._next_pts += self._samples_per_frame
+        return self._finish_frame(frame, pts)
+
+    def _finish_frame(self, frame: av.AudioFrame, pts: int) -> av.AudioFrame:
         # A flushed tail can be shorter than a full frame; pad it with trailing
         # silence so every emitted frame fills its fixed-rate pts slot.
         if frame.samples < self._samples_per_frame:

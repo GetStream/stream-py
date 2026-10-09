@@ -11,9 +11,8 @@ MARKER ?= not integration
 VIDEO_PATHS := \
 	getstream/video \
 	tests/rtc \
+	getstream-rtc/tests \
 	tests/test_audio_stream_track.py \
-	tests/test_connection_utils.py \
-	tests/test_signaling.py \
 	tests/test_video_examples.py \
 	tests/test_video_integration.py \
 	tests/test_video_openai.py \
@@ -93,7 +92,7 @@ format:
 
 ## Run ty type checker
 typecheck:
-	uvx ty@0.0.24 check getstream/ $(TY_EXCLUDES)
+	uvx ty@0.0.24 check getstream/ --extra-search-path getstream-rtc $(TY_EXCLUDES)
 
 ## Run full check: lint + typecheck + non-video tests
 check: lint typecheck test
