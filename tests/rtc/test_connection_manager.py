@@ -1,7 +1,9 @@
 import asyncio
 import logging
+import sys
+import time
 import uuid
-from typing import AsyncIterator
+from typing import AsyncIterator, Iterator
 
 import getstream_rtc
 import numpy as np
@@ -333,8 +335,69 @@ class TestConnectionManagerEvents:
         assert isinstance(ended[0], getstream_rtc.CallEnded)
 
 
+@pytest.fixture
+def overflowing_samples() -> np.ndarray:
+    return np.zeros(SAMPLE_RATE * 61, dtype=np.int16)
+
+
+@pytest.fixture
+def long_switch_interval() -> Iterator[None]:
+    # A busy Python thread then keeps the GIL for up to one second.
+    interval = sys.getswitchinterval()
+    sys.setswitchinterval(1.0)
+    yield
+    sys.setswitchinterval(interval)
+
+
+@pytest.fixture
+async def overflow_handler_waits_for_the_loop() -> AsyncIterator[None]:
+    """A `getstream` handler that runs a coroutine on the test's event loop
+    for each audio overflow record."""
+    loop = asyncio.get_running_loop()
+
+    class WaitForLoop(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            if record.getMessage() == "stream.rtc.audio.pcm_queue_overflow":
+                asyncio.run_coroutine_threadsafe(asyncio.sleep(0), loop).result()
+
+    logger = logging.getLogger("getstream")
+    handler = WaitForLoop()
+    logger.addHandler(handler)
+    yield
+    logger.removeHandler(handler)
+
+
 @pytest.mark.integration
 class TestConnectionManagerLogging:
+    async def test_connect_does_not_block_the_loop_while_records_are_delivered(
+        self,
+        client: AsyncStream,
+        call_id: str,
+        call_users: list[FullUserResponse],
+        caplog: pytest.LogCaptureFixture,
+        overflow_handler_waits_for_the_loop: None,
+        overflowing_samples: np.ndarray,
+        long_switch_interval: None,
+    ) -> None:
+        caplog.set_level(logging.DEBUG, logger="getstream")
+        getstream_rtc.configure_logging(logging.getLogger("getstream"), logging.DEBUG)
+        call = client.video.call("default", call_id)
+        connection = await rtc.join(call, call_users[0].id)
+        track = getstream_rtc.LocalAudioTrack()
+        write = track.write_pcm(overflowing_samples, SAMPLE_RATE, 1)
+        started = time.time()
+        # Holds the GIL, so the overflow record is still queued when connect()
+        # configures the logging.
+        while time.time() - started < 0.3:
+            pass
+
+        async with connection:
+            pass
+
+        with pytest.raises(getstream_rtc.RtcError):
+            await write
+        assert "stream.rtc.audio.pcm_queue_overflow" in caplog.messages
+
     async def test_sdk_logs_reach_python_logging(
         self,
         client: AsyncStream,

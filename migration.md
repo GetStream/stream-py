@@ -432,8 +432,8 @@ in a test run ("confirmed") or found only its cause ("not confirmed").
   `TrackQueue`, which lives as long as the `Call`. After a new join on the same
   `Call`, a new `TrackStream` first returns the dead tracks of the old session.
   Until they are read, these tracks keep their decoders.
-- `getstream-rtc/rustsrc/logging.rs:244-256` (medium, not confirmed):
-  `SINK.set` and the thread spawn come before `set_global_default` and
+- `getstream-rtc/rustsrc/logging.rs:262-270` (medium, not confirmed):
+  `SINK.set` comes before `set_global_default` and
   `LogTracer::init`. If another extension has already set a global `tracing`
   subscriber or `log` logger, `import getstream_rtc` raises. A second import
   then succeeds with no subscriber, and the Rust logs are lost.
@@ -442,21 +442,21 @@ in a test run ("confirmed") or found only its cause ("not confirmed").
   `asyncio.wait_for(anext(tracks), timeout)`), the `RemoteTrack` is dropped and
   the SDK unsubscribes from it. The track is lost until it is published again.
   `EventStream` and `next_pcm()` can lose one item in the same way.
-- `getstream-rtc/rustsrc/logging.rs:291-309` (low, not confirmed):
+- `getstream-rtc/rustsrc/logging.rs:305-330` (low, not confirmed):
   `configure_logging` waits for the forwarding thread. If a handler or filter
   of the `getstream` logger calls it, the forwarding thread waits for itself.
   If the caller holds `logging._lock` or a handler lock, the forwarding thread
   waits for that lock. No caller in the repository does this.
-- `getstream-rtc/rustsrc/logging.rs:278` (low, confirmed):
+- `getstream-rtc/rustsrc/logging.rs:292` (low, confirmed):
   `SINK.get().expect(...)` in a `#[pyfunction]` breaks the AGENTS.md rule
   against `expect` in library code. It cannot fail at this time.
 - `getstream-rtc/rustsrc/call_end.rs:28` (low, confirmed): the watcher ignores
   `RecvError::Lagged`, so a skipped `LEFT` state is never counted, and the
   streams that wait for that end do not end.
 - Python calls from Rust that AGENTS.md does not document (low, confirmed):
-  `atexit.register` (`logging.rs:259-262`), `PyObject_Repr` in each `__repr__`
+  `atexit.register` (`logging.rs:273-276`), `PyObject_Repr` in each `__repr__`
   (`repr.rs:7`) and `import_exception!` of `getstream_rtc.errors`
-  (`errors.rs:4-12`). Also, `logging.rs:349` imports `getstream_rtc.logging`
+  (`errors.rs:4-12`). Also, `logging.rs:370` imports `getstream_rtc.logging`
   again for each record.
 
 ### Python and type stubs
@@ -465,13 +465,13 @@ in a test run ("confirmed") or found only its cause ("not confirmed").
   stub declares `CallingState(Enum)` and `TrackType(Enum)`. Type checkers accept
   `hash()`, `.name`, `.value` and iteration, which fail at runtime (see
   "Connection state").
-- `getstream/video/rtc/connection_manager.py:280-286` and `:185` (low, not
+- `getstream/video/rtc/connection_manager.py:284-290` and `:189` (low, not
   confirmed): `leave()` handles no exception. If `call.leave()` or a task in
   `gather()` raises, the audio and publish tasks are not cancelled, and
   `__aexit__` replaces the exception of the `async with` body. In `connect()`,
   a `call.leave()` that raises replaces the join error. One confirmed cause is
   the track queue overflow (see "Handlers, failures and lost events").
-- `getstream/video/rtc/connection_manager.py:351-371` (low, not confirmed):
+- `getstream/video/rtc/connection_manager.py:355-375` (low, not confirmed):
   `_stop_forwarding()` can cancel a task that is already in its
   `finally: await stop_publish(...)` because its source ended. The SDK stop is
   then dropped, and the old track can stay published. Two concurrent
@@ -485,7 +485,7 @@ in a test run ("confirmed") or found only its cause ("not confirmed").
   `duration` given for a frame is the gap since the previous frame, so each
   value is one frame late. This is wrong if the SDK reads it as the duration of
   the current frame.
-- `getstream/video/rtc/connection_manager.py:258` (low, confirmed):
+- `getstream/video/rtc/connection_manager.py:262` (low, confirmed):
   `_emit_audio` reads `track.participant` for each 20 ms frame, and each read
   allocates a new `RemoteParticipant`.
 - `getstream-rtc/getstream_rtc/__init__.py:14-52` (low, confirmed): 14 classes
@@ -502,7 +502,7 @@ in a test run ("confirmed") or found only its cause ("not confirmed").
 - `getstream/video/rtc/audio_forwarder.py:50-51` (low, confirmed): the comment
   says that the aiortc Opus encoder accepts only `s16`. It converts every
   format to `s16` (see "Publishing audio").
-- `getstream/video/rtc/connection_manager.py:67,175` (low, confirmed): the
+- `getstream/video/rtc/connection_manager.py:67,179` (low, confirmed): the
   comments "as in the aiortc version" describe the migration, not the code.
 
 ### Tests
@@ -518,13 +518,13 @@ in a test run ("confirmed") or found only its cause ("not confirmed").
 - `async for ... break` loops without `else: pytest.fail(...)` (low, not
   confirmed): `getstream-rtc/tests/test_call.py:295, 317, 337, 346, 372, 397,
   415, 479, 501, 521, 542, 558, 712` and
-  `tests/rtc/test_connection_manager.py:516, 525`. If the stream ends before the
+  `tests/rtc/test_connection_manager.py:579, 588`. If the stream ends before the
   expected event, `test_calling_state_changed_to_joined` (397) and
   `test_track_published` (479) pass with no assertion. The other tests assert
   on the last event.
 - Writer tasks that are cancelled and never awaited (low, not confirmed):
   `getstream-rtc/tests/test_call.py:79-81, 97-99, 367/370, 382/385` and
-  `tests/rtc/test_connection_manager.py:84-86`. If `write_pcm` or
+  `tests/rtc/test_connection_manager.py:86-88`. If `write_pcm` or
   `write_i420` raises, the receiving test waits for the 120 s timeout and does
   not show the cause.
 - Type annotations (low, confirmed): the test methods in
@@ -532,9 +532,9 @@ in a test run ("confirmed") or found only its cause ("not confirmed").
   and `tests/rtc/test_connection_manager.py`, and in
   `tests/rtc/test_audio_forwarder.py:36,60` and
   `tests/rtc/test_video_forwarder.py:29`, have no `-> None`. The fixture
-  `client()` in `tests/rtc/test_connection_manager.py:29` has no return type.
+  `client()` in `tests/rtc/test_connection_manager.py:31` has no return type.
 - Issues that existed before this branch (low, confirmed):
-  - `tests/rtc/test_connection_manager.py:20` calls `load_dotenv()` at module
+  - `tests/rtc/test_connection_manager.py:22` calls `load_dotenv()` at module
     level, not in a fixture.
   - `tests/test_audio_stream_track.py:284` requests `monkeypatch` and does not
     use it.
@@ -567,7 +567,7 @@ in a test run ("confirmed") or found only its cause ("not confirmed").
   `numpy`, because `getstream-rtc` depends on it. It removes `aiortc`, `av`
   and `aiohttp`.
 - Lines 79-81 (low, confirmed): records of other crates use the less verbose
-  of `level` and `third_party_level` (`logging.rs:285-286`), not only
+  of `level` and `third_party_level` (`logging.rs:299-300`), not only
   `third_party_level`.
 - Line 7 (low, confirmed): the version text does not mention the range
   `getstream-rtc>=0.1.0,<0.2` in the root `pyproject.toml:38`.

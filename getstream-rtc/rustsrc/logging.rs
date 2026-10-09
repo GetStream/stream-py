@@ -9,6 +9,7 @@
 
 use std::error::Error as StdError;
 use std::fmt;
+use std::io;
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicU8, AtomicU64, Ordering};
 use std::sync::mpsc::{Receiver, SyncSender, sync_channel};
@@ -43,7 +44,10 @@ const FILTERS: [LevelFilter; 6] = [
 static SINK: OnceLock<Sink> = OnceLock::new();
 
 struct Sink {
-    sender: SyncSender<Message>,
+    /// Set when the first `configure_logging` with a logger starts the
+    /// forwarding thread, not at import: `fork()` copies only the calling
+    /// thread, so a process forked after the import starts its own.
+    sender: OnceLock<SyncSender<Message>>,
     dropped: AtomicU64,
     sdk_filter: AtomicU8,
     third_party_filter: AtomicU8,
@@ -99,17 +103,32 @@ impl Sink {
 
     /// Never blocks: a record that does not fit into the queue is counted.
     fn send(&self, record: Captured) {
+        // Records are enabled only after the forwarding thread has started.
+        let Some(sender) = self.sender.get() else {
+            return;
+        };
         let dropped = self.dropped.swap(0, Ordering::Relaxed);
-        if dropped > 0 && self.sender.try_send(Message::Dropped(dropped)).is_err() {
+        if dropped > 0 && sender.try_send(Message::Dropped(dropped)).is_err() {
             self.dropped.fetch_add(dropped, Ordering::Relaxed);
         }
-        if self
-            .sender
-            .try_send(Message::Record(Box::new(record)))
-            .is_err()
-        {
+        if sender.try_send(Message::Record(Box::new(record))).is_err() {
             self.dropped.fetch_add(1, Ordering::Relaxed);
         }
+    }
+
+    /// The queue of the forwarding thread, which this starts on the first
+    /// call.
+    fn start(&self) -> io::Result<&SyncSender<Message>> {
+        if let Some(sender) = self.sender.get() {
+            return Ok(sender);
+        }
+        let (sender, receiver) = sync_channel(QUEUE_CAPACITY);
+        thread::Builder::new()
+            .name("getstream-logging".to_owned())
+            .spawn(move || forward(receiver))?;
+        // If a concurrent call stored its sender first, this sender is
+        // dropped and its thread ends.
+        Ok(self.sender.get_or_init(|| sender))
     }
 }
 
@@ -231,12 +250,11 @@ impl FieldValue {
     }
 }
 
-/// Installs the `tracing` subscriber, `LogTracer` and the forwarding thread.
-/// Nothing is forwarded until `configure_logging` sets a logger.
+/// Installs the `tracing` subscriber and `LogTracer`. Nothing is forwarded
+/// until `configure_logging` sets a logger.
 pub fn install(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    let (sender, receiver) = sync_channel(QUEUE_CAPACITY);
     let sink = Sink {
-        sender,
+        sender: OnceLock::new(),
         dropped: AtomicU64::new(0),
         sdk_filter: AtomicU8::new(encode(LevelFilter::OFF)),
         third_party_filter: AtomicU8::new(encode(LevelFilter::OFF)),
@@ -244,10 +262,6 @@ pub fn install(module: &Bound<'_, PyModule>) -> PyResult<()> {
     if SINK.set(sink).is_err() {
         return Ok(());
     }
-    thread::Builder::new()
-        .name("getstream-logging".to_owned())
-        .spawn(move || forward(receiver))
-        .map_err(|error| PyRuntimeError::new_err(error.to_string()))?;
     tracing::subscriber::set_global_default(tracing_subscriber::registry().with(ForwardingLayer))
         .map_err(|error| PyRuntimeError::new_err(error.to_string()))?;
     tracing_log::LogTracer::builder()
@@ -274,7 +288,7 @@ pub fn configure_logging(
     logger: Option<Py<PyAny>>,
     level: i32,
     third_party_level: i32,
-) {
+) -> PyResult<()> {
     let sink = SINK.get().expect("installed when the module is imported");
     let enable = logger.is_some();
     let sdk = if enable {
@@ -288,25 +302,32 @@ pub fn configure_logging(
         LevelFilter::OFF
     };
     // GIL released: the forwarding thread may be waiting for the GIL.
-    py.detach(|| {
+    py.detach(|| -> io::Result<()> {
         if !enable {
             sink.set_filters(sdk, third_party);
         }
-        let (done, delivered) = sync_channel(1);
-        if sink
-            .sender
-            .send(Message::Configure { logger, done })
-            .is_ok()
-        {
-            // Err only if the forwarding thread has stopped.
-            let _ = delivered.recv();
+        // Without a forwarding thread, no logger is set and no record is
+        // queued.
+        let sender = if enable {
+            Some(sink.start()?)
+        } else {
+            sink.sender.get()
+        };
+        if let Some(sender) = sender {
+            let (done, delivered) = sync_channel(1);
+            if sender.send(Message::Configure { logger, done }).is_ok() {
+                // Err only if the forwarding thread has stopped.
+                let _ = delivered.recv();
+            }
         }
         if enable {
             sink.set_filters(sdk, third_party);
         }
         tracing::callsite::rebuild_interest_cache();
         log::set_max_level(sdk.max(third_party).as_log());
-    });
+        Ok(())
+    })
+    .map_err(|error| PyRuntimeError::new_err(error.to_string()))
 }
 
 fn forward(receiver: Receiver<Message>) {
@@ -439,9 +460,8 @@ mod tests {
 
     #[test]
     fn wrapper_records_use_the_sdk_level() {
-        let (sender, _receiver) = sync_channel(1);
         let sink = Sink {
-            sender,
+            sender: OnceLock::new(),
             dropped: AtomicU64::new(0),
             sdk_filter: AtomicU8::new(0),
             third_party_filter: AtomicU8::new(0),
