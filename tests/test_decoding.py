@@ -37,7 +37,7 @@ def test_build_query_param_with_various_types():
         "num": "123",
         "text": "hello",
         "flag": "true",
-        "list_val": "1,2,three%2C%20maybe",
+        "list_val": "1,2,three, maybe",
         "obj": '{"type": "Mock"}',
         "dict_val": '{"a": 1, "b": "two"}',
     }
