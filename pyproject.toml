@@ -59,7 +59,7 @@ dev = [
     "python-dotenv>=1.1.1,<2",
     "pytest>=8.4.1",
     "pytest-timeout>=2.4.0",
-    "ruff>=0.12.1",
+    "ruff>=0.12.1,<0.16",  # Pinned: 0.16 enables more default rules. Review the rule set before you bump the version.
     "pre-commit>=4.2.0",
     "pytest-asyncio>=1.0.0",
     "grpcio-tools==1.76.0",  # Pinned: controls protoc version for code generation
