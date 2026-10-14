@@ -65,7 +65,7 @@ test-video:
 
 ## Run all tests (non-video + video), excluding manual tests
 test-all:
-	uv run pytest -m "$(MARKER)" tests/ getstream/ $(MANUAL_IGNORE)
+	uv run pytest -m "$(MARKER)" tests/ getstream/ getstream-rtc/tests $(MANUAL_IGNORE)
 
 ## Run integration tests for both groups
 test-integration:
