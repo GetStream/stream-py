@@ -27,5 +27,5 @@ __pycache__/
 target/
 getstream-rtc/getstream_rtc/*.so
 getstream-rtc/getstream_rtc/*.pyd
-\n+# Local protocol folder (handled by generate_webrtc.sh)
+# Local protocol folder (handled by generate_webrtc.sh)
 protocol/
