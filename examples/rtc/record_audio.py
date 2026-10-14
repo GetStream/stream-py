@@ -7,7 +7,7 @@ event, whose `PcmData` has the participant and 48 kHz mono samples.
 It reads the credentials (STREAM_API_KEY and STREAM_API_SECRET) from the
 environment or from the `.env` file of the repository:
 
-    uv run python examples/rtc/record_audio.py
+    uv run --extra webrtc python examples/rtc/record_audio.py
 
 It opens the Stream demo app in the browser for a new call. Allow the
 microphone and speak, then stop it with Ctrl+C. The files are written to the

@@ -8,7 +8,7 @@ subscription config, the `audio` and `track_added` events,
 It reads the credentials (STREAM_API_KEY and STREAM_API_SECRET) from the
 environment or from the `.env` file of the repository:
 
-    uv run python examples/rtc/echo_agent.py
+    uv run --extra webrtc python examples/rtc/echo_agent.py
 
 It opens the Stream demo app in the browser for a new call. Allow the
 microphone and the camera, then speak: the agent plays back your audio and
