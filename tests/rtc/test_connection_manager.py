@@ -496,6 +496,28 @@ def float_audio() -> aiortc.MediaStreamTrack:
     return FloatAudio()
 
 
+class IdleAudio(aiortc.MediaStreamTrack):
+    """An aiortc audio track that gives no frames. `read_stopped` is set when a
+    `recv()` stops waiting."""
+
+    kind = "audio"
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.read_stopped = asyncio.Event()
+
+    async def recv(self) -> av.AudioFrame:
+        try:
+            return await asyncio.get_running_loop().create_future()
+        finally:
+            self.read_stopped.set()
+
+
+@pytest.fixture
+def idle_audio() -> IdleAudio:
+    return IdleAudio()
+
+
 @pytest.fixture
 async def peer_video_tracks(
     peer_call: getstream_rtc.Call, call_users: list[FullUserResponse]
@@ -582,6 +604,20 @@ class TestConnectionManagerPublishing:
         )
         assert record.exc_info is not None
         assert record.exc_info[0] is TypeError
+
+    async def test_cancelled_leave_stops_the_forwarding(
+        self, connection: ConnectionManager, idle_audio: IdleAudio
+    ) -> None:
+        await connection.add_tracks(audio=idle_audio)
+        leave = asyncio.create_task(connection.leave())
+        # The forwarder starts to read, and leave() waits for the SDK leave.
+        await asyncio.sleep(0)
+
+        leave.cancel()
+
+        with pytest.raises(asyncio.CancelledError):
+            await leave
+        await asyncio.wait_for(idle_audio.read_stopped.wait(), timeout=5)
 
 
 @pytest.mark.integration

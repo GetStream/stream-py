@@ -296,9 +296,10 @@ windowed-sinc filter (`getstream_rtc.StreamResampler`), not with PyAV
   skipped with a `stream.rtc.events.lagged` WARNING (field `skipped`), and
   `participants_state` is filled again from the SDK's participant list.
 - If the event loop is blocked long enough that more than 64 new remote tracks
-  wait to be read, the SDK unsubscribes from the tracks that do not fit. Then
-  `ConnectionManager` emits no `track_added` and no `audio` for new tracks
-  until the end of the call, and `leave()` raises `RtcError`.
+  wait to be read, the SDK unsubscribes from the tracks that do not fit, and
+  `ConnectionManager` logs a WARNING. These tracks give no `track_added` and no
+  `audio` until they are published again. The tracks that come after them
+  arrive as usual.
 
 ### `participants_state`
 
@@ -488,13 +489,11 @@ in a test run ("confirmed") or found only its cause ("not confirmed").
   stub declares `CallingState(Enum)` and `TrackType(Enum)`. Type checkers accept
   `hash()`, `.name`, `.value` and iteration, which fail at runtime (see
   "Connection state").
-- `getstream/video/rtc/connection_manager.py:284-290` and `:189` (low, not
-  confirmed): `leave()` handles no exception. If `call.leave()` or a task in
-  `gather()` raises, the audio and publish tasks are not cancelled, and
-  `__aexit__` replaces the exception of the `async with` body. In `connect()`,
-  a `call.leave()` that raises replaces the join error. One confirmed cause is
-  the track queue overflow (see "Handlers, failures and lost events").
-- `getstream/video/rtc/connection_manager.py:359-381` (low, not confirmed):
+- `getstream/video/rtc/connection_manager.py:309-311` and `:189` (low, not
+  confirmed): if `leave()` raises, `__aexit__` replaces the exception of the
+  `async with` body. In `connect()`, a `call.leave()` that raises replaces the
+  join error.
+- `getstream/video/rtc/connection_manager.py:370-392` (low, not confirmed):
   `_stop_forwarding()` can cancel a task that is already in its
   `finally: await stop_publish(...)` because its source ended. The SDK stop is
   then dropped. If this occurs during the mute request to the SFU, the old
@@ -508,7 +507,7 @@ in a test run ("confirmed") or found only its cause ("not confirmed").
   timestamp after that frame. The forwarder gives the gap since the previous
   frame, so each value is one frame late. The RTP timestamps are wrong only
   when the frame rate changes.
-- `getstream/video/rtc/connection_manager.py:262` (low, confirmed):
+- `getstream/video/rtc/connection_manager.py:271` (low, confirmed):
   `_emit_audio` reads `track.participant` for each 20 ms frame, and each read
   allocates a new `RemoteParticipant`.
 - `getstream-rtc/getstream_rtc/__init__.py:14-52` (low, confirmed): 14 classes
@@ -539,7 +538,7 @@ in a test run ("confirmed") or found only its cause ("not confirmed").
 - `async for ... break` loops without `else: pytest.fail(...)` (low, not
   confirmed): `getstream-rtc/tests/test_call.py:295, 317, 337, 346, 372, 397,
   415, 479, 501, 521, 542, 558, 712` and
-  `tests/rtc/test_connection_manager.py:627, 636`. If the stream ends before the
+  `tests/rtc/test_connection_manager.py:663, 672`. If the stream ends before the
   expected event, `test_calling_state_changed_to_joined` (397) and
   `test_track_published` (479) pass with no assertion. The other tests assert
   on the last event.

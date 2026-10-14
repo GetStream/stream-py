@@ -238,7 +238,16 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             self.emit("call_ended", event)
 
     async def _emit_tracks(self, tracks: getstream_rtc.TrackStream) -> None:
-        async for track in tracks:
+        while True:
+            try:
+                track = await anext(tracks)
+            except StopAsyncIteration:
+                return
+            except getstream_rtc.RtcError as error:
+                # Raised once for each overflow of the track queue; the SDK
+                # unsubscribed from the dropped tracks.
+                logger.warning(str(error))
+                continue
             self.emit("track_added", track)
             if track.track_type in _AUDIO_TRACK_TYPES:
                 task = asyncio.create_task(self._emit_audio(track))
@@ -281,13 +290,15 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         logger.info("Leaving the call")
         self._leaving = True
         self._stop_event.set()
-        await self._rust_call.leave()
-        await asyncio.gather(*self._event_tasks)
-        media_tasks = [*self._audio_tasks, *self._publish_tasks.values()]
-        for task in media_tasks:
-            task.cancel()
-        if media_tasks:
-            await asyncio.wait(media_tasks)
+        try:
+            await self._rust_call.leave()
+            await asyncio.gather(*self._event_tasks)
+        finally:
+            media_tasks = [*self._audio_tasks, *self._publish_tasks.values()]
+            for task in media_tasks:
+                task.cancel()
+            if media_tasks:
+                await asyncio.wait(media_tasks)
         logger.info("Call left and connections closed")
 
     async def __aenter__(self):
