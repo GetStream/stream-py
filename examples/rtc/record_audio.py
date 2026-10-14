@@ -4,10 +4,10 @@ WAV file, one file for each participant session.
 It uses the public `getstream.video.rtc` API: `rtc.join` and the `audio`
 event, whose `PcmData` has the participant and 48 kHz mono samples.
 
-Run it with the credentials in the environment (STREAM_API_KEY and
-STREAM_API_SECRET), for example from a `.env` file:
+It reads the credentials (STREAM_API_KEY and STREAM_API_SECRET) from the
+environment or from the `.env` file of the repository:
 
-    uv run --env-file .env python examples/rtc/record_audio.py
+    uv run python examples/rtc/record_audio.py
 
 It opens the Stream demo app in the browser for a new call. Allow the
 microphone and speak, then stop it with Ctrl+C. The files are written to the
@@ -21,9 +21,12 @@ Two limits:
 """
 
 import asyncio
+import contextlib
 import logging
 import uuid
 import wave
+
+from dotenv import load_dotenv
 
 from getstream import AsyncStream
 from getstream.models import CallRequest, UserRequest
@@ -86,4 +89,6 @@ async def main() -> None:
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    asyncio.run(main())
+    load_dotenv()
+    with contextlib.suppress(KeyboardInterrupt):
+        asyncio.run(main())

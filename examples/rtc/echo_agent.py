@@ -5,10 +5,10 @@ It uses only the public `getstream.video.rtc` API: `rtc.join` with a
 subscription config, the `audio` and `track_added` events,
 `RemoteTrack.video_frames()`, `add_tracks` and `wait`.
 
-Run it with the credentials in the environment (STREAM_API_KEY and
-STREAM_API_SECRET), for example from a `.env` file:
+It reads the credentials (STREAM_API_KEY and STREAM_API_SECRET) from the
+environment or from the `.env` file of the repository:
 
-    uv run --env-file .env python examples/rtc/echo_agent.py
+    uv run python examples/rtc/echo_agent.py
 
 It opens the Stream demo app in the browser for a new call. Allow the
 microphone and the camera, then speak: the agent plays back your audio and
@@ -18,6 +18,7 @@ mixed.
 """
 
 import asyncio
+import contextlib
 import logging
 import uuid
 from fractions import Fraction
@@ -26,6 +27,7 @@ from typing import Optional
 import aiortc
 import av
 import numpy as np
+from dotenv import load_dotenv
 
 from getstream import AsyncStream
 from getstream.models import CallRequest, UserRequest
@@ -149,4 +151,6 @@ async def main() -> None:
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    asyncio.run(main())
+    load_dotenv()
+    with contextlib.suppress(KeyboardInterrupt):
+        asyncio.run(main())
