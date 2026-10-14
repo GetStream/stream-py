@@ -23,6 +23,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - name: Install dependencies
         uses: ./.github/actions/python-uv-setup
         with:
@@ -36,6 +38,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - name: Install dependencies
         uses: ./.github/actions/python-uv-setup
         # ty reads getstream_rtc from getstream-rtc/ (see make typecheck), not the built extension.
@@ -57,6 +61,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - name: Install the native build dependencies
         # The tests link libpython of the system Python.
         run: |
@@ -89,6 +95,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - name: Install dependencies
         uses: ./.github/actions/python-uv-setup
         with:
@@ -110,6 +118,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - name: Install dependencies
         uses: ./.github/actions/python-uv-setup
         with:

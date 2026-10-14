@@ -576,7 +576,7 @@ in a test run ("confirmed") or found only its cause ("not confirmed").
   builds or publishes getstream-rtc wheels or an sdist. The `webrtc` extra
   requires `getstream-rtc>=0.1.0,<0.2`, so `pip install "getstream[webrtc]"`
   fails until the package is on PyPI.
-- `.github/workflows/run_tests.yml:47` (low, confirmed): the `rust` job has no
+- `.github/workflows/run_tests.yml:51` (low, confirmed): the `rust` job has no
   `timeout-minutes`. The test jobs use 30.
 
 ### AGENTS.md
@@ -592,7 +592,7 @@ in a test run ("confirmed") or found only its cause ("not confirmed").
 - Line 7 (low, confirmed): the version text does not mention the range
   `getstream-rtc>=0.1.0,<0.2` in the root `pyproject.toml:38`.
 - Line 7 (low, confirmed): on Debian/Ubuntu, `cargo test --lib` also needs
-  `python3-dev`. CI installs it in `run_tests.yml:50-64`.
+  `python3-dev`. CI installs it in `run_tests.yml:54-70`.
 - Style (low): item 5 (line 7) has sentences of 40 to 70 words. "for no
   reason" (line 30) and "Keep both halves impossible" (line 43) are not clear.
 
