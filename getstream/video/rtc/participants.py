@@ -19,11 +19,9 @@ class ParticipantsState(AsyncIOEventEmitter):
         self._participant_by_session_id = {}
         self._map_handlers = []  # List of weak references to handler functions
 
-    def emit(self, event: str, *args: Any, unsafe: bool = False, **kwargs: Any) -> bool:
-        """Calls the handlers of `event`. Unless `unsafe`, a handler that raises
-        is logged, so it cannot stop the task that emits."""
-        if unsafe:
-            return super().emit(event, *args, **kwargs)
+    def emit(self, event: str, *args: Any, **kwargs: Any) -> bool:
+        """Calls the handlers of `event`. A handler that raises is logged, so it
+        cannot stop the task that emits."""
         try:
             return super().emit(event, *args, **kwargs)
         except Exception:

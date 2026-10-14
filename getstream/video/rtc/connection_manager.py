@@ -135,11 +135,9 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         """Get the current connection state."""
         return self._rust_call.calling_state
 
-    def emit(self, event: str, *args: Any, unsafe: bool = False, **kwargs: Any) -> bool:
-        """Calls the handlers of `event`. Unless `unsafe`, a handler that raises
-        is logged, so it cannot stop the task that emits."""
-        if unsafe:
-            return super().emit(event, *args, **kwargs)
+    def emit(self, event: str, *args: Any, **kwargs: Any) -> bool:
+        """Calls the handlers of `event`. A handler that raises is logged, so it
+        cannot stop the task that emits."""
         try:
             return super().emit(event, *args, **kwargs)
         except Exception:
@@ -150,6 +148,10 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
     async def connect(self):
         """
         Join the call. The SDK retries the join and chooses the SFU.
+
+        Calls `getstream_rtc.configure_logging` with the "getstream" logger and
+        its effective level, which replaces an earlier configuration. To use
+        other settings, call `getstream_rtc.configure_logging` after this.
         """
         logger.info("Joining the call")
         # Process-wide. Rust drops records below this level before it formats
@@ -206,6 +208,13 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                 self._emit_call_ended(event)
             else:
                 self.emit(event.name, event)
+        # The SDK leaves on the SFU `call_ended` and on the coordinator
+        # `call.ended`; after the latter the SFU `call_ended` may not come. The
+        # stream ends after its buffered events, so a SFU `call_ended` is
+        # emitted before this one.
+        if not self._leaving:
+            self._emit_call_ended(getstream_rtc.CallEnded())
+        self._stop_event.set()
 
     async def _emit_coordinator_events(self, events: getstream_rtc.EventStream) -> None:
         async for event in events:
@@ -224,13 +233,17 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             # The stream gives only `CallingStateChanged` and `EventsLagged`.
             if not isinstance(event, getstream_rtc.CallingStateChanged):
                 continue
+            # A reconnect can change the local session, and the SDK sends no
+            # events for the local sessions.
+            if (
+                event.state == getstream_rtc.CallingState.JOINED
+                and old != getstream_rtc.CallingState.JOINING
+            ):
+                self._participants_state._replace_participants(
+                    self._rust_call.participants()
+                )
             self.emit("connection.state_changed", {"old": old, "new": event.state})
             old = event.state
-            # The SDK leaves on the SFU `call_ended` and on the coordinator
-            # `call.ended`; after the latter the SFU `call_ended` may not come.
-            if event.state == getstream_rtc.CallingState.LEFT and not self._leaving:
-                self._emit_call_ended(getstream_rtc.CallEnded())
-        self._stop_event.set()
 
     def _emit_call_ended(self, event: getstream_rtc.CallEnded) -> None:
         if not self._call_ended_sent:
@@ -257,6 +270,8 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             del track
 
     async def _emit_audio(self, track: getstream_rtc.RemoteTrack) -> None:
+        # Each read makes a new Python object.
+        participant = track.participant
         # Reads every frame of the track, so no other reader may read it.
         while (frame := await track.next_pcm()) is not None:
             self.emit(
@@ -268,7 +283,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
                     channels=frame.channels,
                     pts=frame.pts,
                     time_base=_OPUS_TIME_BASE,
-                    participant=track.participant,
+                    participant=participant,
                 ),
             )
 
