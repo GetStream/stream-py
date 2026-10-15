@@ -157,11 +157,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         # Process-wide. Rust drops records below this level before it formats
         # them, so a later level change applies at the next connect().
         sdk_logger = logging.getLogger("getstream")
-        # Not on the loop: it waits until the handlers of the queued records
-        # have run, and a handler can wait for the loop.
-        await asyncio.to_thread(
-            getstream_rtc.configure_logging, sdk_logger, sdk_logger.getEffectiveLevel()
-        )
+        getstream_rtc.configure_logging(sdk_logger, sdk_logger.getEffectiveLevel())
         # The streams are created before the join, so the events and tracks of
         # the join are kept. Both end when the call ends or is left.
         call = self._rust_call

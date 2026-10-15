@@ -1,25 +1,23 @@
-//! Forwards Rust log records to Python `logging`.
+//! Queues Rust log records for Python `logging`.
 //!
 //! The SDK emits `tracing` events and third-party crates emit `log` records
-//! (routed into `tracing` by `LogTracer`). Threads that log only put records
-//! into a bounded queue; one forwarding thread, which holds no SDK locks, takes
-//! the GIL and calls Python. A thread that logs never waits for the GIL, so a
-//! Python thread that holds the GIL and waits for an SDK lock cannot deadlock
-//! with it.
+//! (routed into `tracing` by `LogTracer`). A thread that logs only puts the
+//! record into a bounded queue: it never blocks and never takes the GIL, so it
+//! may hold an SDK lock. The Python thread `getstream-logging`
+//! (`getstream_rtc/logging.py`) takes the records with `_next_logs`, which
+//! waits without the GIL. Rust never calls Python to log.
 
 use std::error::Error as StdError;
 use std::fmt;
-use std::io;
-use std::sync::OnceLock;
 use std::sync::atomic::{AtomicU8, AtomicU64, Ordering};
-use std::sync::mpsc::{Receiver, SyncSender, sync_channel};
-use std::thread;
+use std::sync::mpsc::{Receiver, RecvError, SyncSender, TryRecvError, sync_channel};
+use std::sync::{Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use pyo3::IntoPyObjectExt;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
-use pyo3::types::PyDict;
+use pyo3::types::{PyDict, PyTuple};
 use tracing::field::{Field, Visit};
 use tracing::level_filters::LevelFilter;
 use tracing::{Event, Level, Metadata, Subscriber};
@@ -27,10 +25,12 @@ use tracing_log::{AsLog, NormalizeEvent};
 use tracing_subscriber::layer::{Context, Layer, SubscriberExt};
 
 const QUEUE_CAPACITY: usize = 1024;
+/// The most records that one `_next_logs` returns, so the Python thread soon
+/// reaches a marker and holds the GIL for a bounded time.
+const BATCH_SIZE: usize = 256;
 const SDK_CRATE: &str = "getstream";
 /// Records of this crate use the SDK level.
 const WRAPPER_CRATE: &str = env!("CARGO_CRATE_NAME");
-const PYTHON_WARNING: i32 = 30;
 /// Index = the value stored in the filter atomics.
 const FILTERS: [LevelFilter; 6] = [
     LevelFilter::OFF,
@@ -44,10 +44,9 @@ const FILTERS: [LevelFilter; 6] = [
 static SINK: OnceLock<Sink> = OnceLock::new();
 
 struct Sink {
-    /// Set when the first `configure_logging` with a logger starts the
-    /// forwarding thread, not at import: `fork()` copies only the calling
-    /// thread, so a process forked after the import starts its own.
-    sender: OnceLock<SyncSender<Message>>,
+    sender: SyncSender<Message>,
+    /// Taken only by the Python thread `getstream-logging`, without the GIL.
+    receiver: Mutex<Receiver<Message>>,
     dropped: AtomicU64,
     sdk_filter: AtomicU8,
     third_party_filter: AtomicU8,
@@ -55,11 +54,8 @@ struct Sink {
 
 enum Message {
     Record(Box<Captured>),
-    Dropped(u64),
-    Configure {
-        logger: Option<Py<PyAny>>,
-        done: SyncSender<()>,
-    },
+    /// Put by `_push_log_marker`; it ends the batch that contains it.
+    Marker(u64),
 }
 
 struct Captured {
@@ -81,6 +77,18 @@ enum FieldValue {
 }
 
 impl Sink {
+    /// Queues nothing until `_set_log_filters` enables a level.
+    fn new() -> Self {
+        let (sender, receiver) = sync_channel(QUEUE_CAPACITY);
+        Self {
+            sender,
+            receiver: Mutex::new(receiver),
+            dropped: AtomicU64::new(0),
+            sdk_filter: AtomicU8::new(encode(LevelFilter::OFF)),
+            third_party_filter: AtomicU8::new(encode(LevelFilter::OFF)),
+        }
+    }
+
     fn enabled(&self, target: &str, level: &Level) -> bool {
         let filter = if is_sdk_target(target) {
             &self.sdk_filter
@@ -103,32 +111,13 @@ impl Sink {
 
     /// Never blocks: a record that does not fit into the queue is counted.
     fn send(&self, record: Captured) {
-        // Records are enabled only after the forwarding thread has started.
-        let Some(sender) = self.sender.get() else {
-            return;
-        };
-        let dropped = self.dropped.swap(0, Ordering::Relaxed);
-        if dropped > 0 && sender.try_send(Message::Dropped(dropped)).is_err() {
-            self.dropped.fetch_add(dropped, Ordering::Relaxed);
-        }
-        if sender.try_send(Message::Record(Box::new(record))).is_err() {
+        if self
+            .sender
+            .try_send(Message::Record(Box::new(record)))
+            .is_err()
+        {
             self.dropped.fetch_add(1, Ordering::Relaxed);
         }
-    }
-
-    /// The queue of the forwarding thread, which this starts on the first
-    /// call.
-    fn start(&self) -> io::Result<&SyncSender<Message>> {
-        if let Some(sender) = self.sender.get() {
-            return Ok(sender);
-        }
-        let (sender, receiver) = sync_channel(QUEUE_CAPACITY);
-        thread::Builder::new()
-            .name("getstream-logging".to_owned())
-            .spawn(move || forward(receiver))?;
-        // If a concurrent call stored its sender first, this sender is
-        // dropped and its thread ends.
-        Ok(self.sender.get_or_init(|| sender))
     }
 }
 
@@ -250,16 +239,10 @@ impl FieldValue {
     }
 }
 
-/// Installs the `tracing` subscriber and `LogTracer`. Nothing is forwarded
-/// until `configure_logging` sets a logger.
-pub fn install(module: &Bound<'_, PyModule>) -> PyResult<()> {
-    let sink = Sink {
-        sender: OnceLock::new(),
-        dropped: AtomicU64::new(0),
-        sdk_filter: AtomicU8::new(encode(LevelFilter::OFF)),
-        third_party_filter: AtomicU8::new(encode(LevelFilter::OFF)),
-    };
-    if SINK.set(sink).is_err() {
+/// Installs the `tracing` subscriber and `LogTracer`. Nothing is queued until
+/// `_set_log_filters` enables a level.
+pub fn install() -> PyResult<()> {
+    if SINK.get().is_some() {
         return Ok(());
     }
     tracing::subscriber::set_global_default(tracing_subscriber::registry().with(ForwardingLayer))
@@ -268,134 +251,105 @@ pub fn install(module: &Bound<'_, PyModule>) -> PyResult<()> {
         .with_max_level(log::LevelFilter::Off)
         .init()
         .map_err(|error| PyRuntimeError::new_err(error.to_string()))?;
-    // The forwarding thread must not call into Python after finalization.
-    let py = module.py();
-    py.import("atexit")?.call_method1(
-        "register",
-        (module.getattr("configure_logging")?, py.None(), 0),
-    )?;
+    // Last: if a global subscriber or logger was already set, each import
+    // raises instead of running without a subscriber.
+    let _ = SINK.set(Sink::new());
     Ok(())
 }
 
-/// Sends SDK records at `level` or above, and third-party records at the less
-/// verbose of `level` and `third_party_level`, to `logger` and the loggers
-/// below it. `logger=None` stops forwarding. Returns after the records queued
-/// before the call have been delivered.
+/// Queues SDK records at `level` or above, and third-party records at the less
+/// verbose of `level` and `third_party_level`; `level=None` queues none.
 #[pyfunction]
-#[pyo3(signature = (logger, level, third_party_level = PYTHON_WARNING))]
-pub fn configure_logging(
-    py: Python<'_>,
-    logger: Option<Py<PyAny>>,
-    level: i32,
-    third_party_level: i32,
-) -> PyResult<()> {
-    let sink = SINK.get().expect("installed when the module is imported");
-    let enable = logger.is_some();
-    let sdk = if enable {
-        filter_from_python(level)
-    } else {
-        LevelFilter::OFF
-    };
-    let third_party = if enable {
-        sdk.min(filter_from_python(third_party_level))
-    } else {
-        LevelFilter::OFF
-    };
-    // GIL released: the forwarding thread may be waiting for the GIL.
-    py.detach(|| -> io::Result<()> {
-        if !enable {
-            sink.set_filters(sdk, third_party);
-        }
-        // Without a forwarding thread, no logger is set and no record is
-        // queued.
-        let sender = if enable {
-            Some(sink.start()?)
-        } else {
-            sink.sender.get()
-        };
-        if let Some(sender) = sender {
-            let (done, delivered) = sync_channel(1);
-            if sender.send(Message::Configure { logger, done }).is_ok() {
-                // Err only if the forwarding thread has stopped.
-                let _ = delivered.recv();
-            }
-        }
-        if enable {
-            sink.set_filters(sdk, third_party);
-        }
+#[pyo3(name = "_set_log_filters")]
+pub fn set_log_filters(py: Python<'_>, level: Option<i32>, third_party_level: i32) -> PyResult<()> {
+    let sink = sink()?;
+    let sdk = level.map_or(LevelFilter::OFF, filter_from_python);
+    let third_party = sdk.min(filter_from_python(third_party_level));
+    py.detach(|| {
+        sink.set_filters(sdk, third_party);
         tracing::callsite::rebuild_interest_cache();
         log::set_max_level(sdk.max(third_party).as_log());
-        Ok(())
-    })
-    .map_err(|error| PyRuntimeError::new_err(error.to_string()))
+    });
+    Ok(())
 }
 
-fn forward(receiver: Receiver<Message>) {
-    let mut logger: Option<Py<PyAny>> = None;
-    for message in receiver {
+/// Waits without the GIL for queued records. Returns the number of records
+/// dropped since the last call, at most `BATCH_SIZE` records as the arguments
+/// of `getstream_rtc.logging.handle_record` after its logger, and the marker
+/// that ended the batch, if any.
+#[pyfunction]
+#[pyo3(name = "_next_logs")]
+pub fn next_logs(py: Python<'_>) -> PyResult<(u64, Vec<Bound<'_, PyTuple>>, Option<u64>)> {
+    let sink = sink()?;
+    let (records, marker) = py
+        .detach(|| {
+            let receiver = sink
+                .receiver
+                .lock()
+                .unwrap_or_else(|error| error.into_inner());
+            take_batch(&receiver)
+        })
+        .map_err(|error| PyRuntimeError::new_err(error.to_string()))?;
+    let dropped = sink.dropped.swap(0, Ordering::Relaxed);
+    let records = records
+        .into_iter()
+        .map(|record| record_args(py, record))
+        .collect::<PyResult<_>>()?;
+    Ok((dropped, records, marker))
+}
+
+/// Puts `marker` into the queue after the records queued before it. Waits
+/// without the GIL while the queue is full.
+#[pyfunction]
+#[pyo3(name = "_push_log_marker")]
+pub fn push_log_marker(py: Python<'_>, marker: u64) -> PyResult<()> {
+    let sink = sink()?;
+    py.detach(|| sink.sender.send(Message::Marker(marker)))
+        .map_err(|error| PyRuntimeError::new_err(error.to_string()))
+}
+
+fn sink() -> PyResult<&'static Sink> {
+    SINK.get()
+        .ok_or_else(|| PyRuntimeError::new_err("the logging is not installed"))
+}
+
+/// Waits for the first message, then takes the queued messages until the
+/// batch has `BATCH_SIZE` records or a marker ends it.
+fn take_batch(receiver: &Receiver<Message>) -> Result<(Vec<Captured>, Option<u64>), RecvError> {
+    let mut records = Vec::new();
+    let mut message = receiver.recv()?;
+    loop {
         match message {
-            Message::Configure { logger: next, done } => {
-                logger = next;
-                // Err only if the caller that waits for it is gone.
-                let _ = done.send(());
-            }
-            Message::Record(record) => {
-                if let Some(logger) = &logger {
-                    Python::attach(|py| report(py, deliver(logger.bind(py), *record)));
-                }
-            }
-            Message::Dropped(dropped) => {
-                if let Some(logger) = &logger {
-                    Python::attach(|py| report(py, deliver_dropped(logger.bind(py), dropped)));
-                }
-            }
+            Message::Marker(marker) => return Ok((records, Some(marker))),
+            Message::Record(record) => records.push(*record),
         }
+        if records.len() == BATCH_SIZE {
+            return Ok((records, None));
+        }
+        message = match receiver.try_recv() {
+            Ok(message) => message,
+            Err(TryRecvError::Empty | TryRecvError::Disconnected) => return Ok((records, None)),
+        };
     }
 }
 
-fn report(py: Python<'_>, result: PyResult<()>) {
-    if let Err(error) = result {
-        error.write_unraisable(py, None);
-    }
-}
-
-/// `getstream_rtc.logging.handle_record` builds and handles the Python
-/// record.
-fn deliver(logger: &Bound<'_, PyAny>, record: Captured) -> PyResult<()> {
-    let py = logger.py();
+/// The arguments of `getstream_rtc.logging.handle_record` after its logger.
+fn record_args(py: Python<'_>, record: Captured) -> PyResult<Bound<'_, PyTuple>> {
     let fields = PyDict::new(py);
     for (name, value) in record.fields {
         fields.set_item(name.replace('.', "_"), value.into_python(py)?)?;
     }
-    py.import("getstream_rtc.logging")?.call_method1(
-        "handle_record",
-        (
-            logger,
-            logger_name(&record.target),
-            python_level(record.level),
-            record.file.unwrap_or_default(),
-            record.line.unwrap_or_default(),
-            record.message,
-            record.created_ns,
-            record.target,
-            fields,
-        ),
-    )?;
-    Ok(())
-}
-
-fn deliver_dropped(logger: &Bound<'_, PyAny>, dropped: u64) -> PyResult<()> {
-    let py = logger.py();
-    let extra = PyDict::new(py);
-    extra.set_item("dropped", dropped)?;
-    let kwargs = PyDict::new(py);
-    kwargs.set_item("extra", extra)?;
-    logger.call_method(
-        "warning",
-        ("stream.rust.log_records_dropped",),
-        Some(&kwargs),
-    )?;
-    Ok(())
+    (
+        logger_name(&record.target),
+        python_level(record.level),
+        record.file.unwrap_or_default(),
+        record.line.unwrap_or_default(),
+        record.message,
+        record.created_ns,
+        record.target,
+        fields,
+    )
+        .into_pyobject(py)
 }
 
 /// The Python logger name below the configured logger, or `None` for the
@@ -458,18 +412,76 @@ fn decode(value: u8) -> LevelFilter {
 mod tests {
     use super::*;
 
+    fn captured(message: &str) -> Captured {
+        Captured {
+            level: Level::INFO,
+            target: "getstream::rtc".to_owned(),
+            file: None,
+            line: None,
+            message: message.to_owned(),
+            fields: Vec::new(),
+            created_ns: 0,
+        }
+    }
+
+    fn messages(records: &[Captured]) -> Vec<&str> {
+        records
+            .iter()
+            .map(|record| record.message.as_str())
+            .collect()
+    }
+
     #[test]
     fn wrapper_records_use_the_sdk_level() {
-        let sink = Sink {
-            sender: OnceLock::new(),
-            dropped: AtomicU64::new(0),
-            sdk_filter: AtomicU8::new(0),
-            third_party_filter: AtomicU8::new(0),
-        };
+        let sink = Sink::new();
         sink.set_filters(LevelFilter::DEBUG, LevelFilter::WARN);
 
         assert!(sink.enabled("_bindings::call", &Level::DEBUG));
         assert!(sink.enabled("getstream::rtc::join", &Level::DEBUG));
         assert!(!sink.enabled("webrtc_ice::agent", &Level::DEBUG));
+    }
+
+    #[test]
+    fn a_marker_ends_the_batch() {
+        let sink = Sink::new();
+        sink.send(captured("before"));
+        sink.sender
+            .send(Message::Marker(7))
+            .expect("room in the queue");
+        sink.send(captured("after"));
+        let receiver = sink.receiver.lock().expect("an unpoisoned lock");
+
+        let (records, marker) = take_batch(&receiver).expect("a batch");
+        assert_eq!(messages(&records), ["before"]);
+        assert_eq!(marker, Some(7));
+
+        let (records, marker) = take_batch(&receiver).expect("a batch");
+        assert_eq!(messages(&records), ["after"]);
+        assert_eq!(marker, None);
+    }
+
+    #[test]
+    fn a_batch_holds_at_most_batch_size_records() {
+        let sink = Sink::new();
+        for _ in 0..=BATCH_SIZE {
+            sink.send(captured("record"));
+        }
+        let receiver = sink.receiver.lock().expect("an unpoisoned lock");
+
+        let (records, _) = take_batch(&receiver).expect("a batch");
+        assert_eq!(records.len(), BATCH_SIZE);
+
+        let (records, _) = take_batch(&receiver).expect("a batch");
+        assert_eq!(records.len(), 1);
+    }
+
+    #[test]
+    fn records_that_do_not_fit_are_counted() {
+        let sink = Sink::new();
+        for _ in 0..QUEUE_CAPACITY + 2 {
+            sink.send(captured("record"));
+        }
+
+        assert_eq!(sink.dropped.load(Ordering::Relaxed), 2);
     }
 }

@@ -35,12 +35,11 @@
 
 ## Rust wrapper: GIL, locks and deadlocks
 
-Python threads, tokio worker threads and the logging forwarding thread all use
-SDK locks (`std::sync::Mutex`, tokio locks and channels) and the GIL. A deadlock
-needs a thread that holds an SDK lock and waits for the GIL while another thread
-holds the GIL and waits for that lock. Before you add or change a binding, read
-the SDK functions it calls and find the locks they take. Keep both halves
-impossible:
+Python threads and tokio worker threads use SDK locks (`std::sync::Mutex`,
+tokio locks and channels) and the GIL. A deadlock needs a thread that holds an
+SDK lock and waits for the GIL while another thread holds the GIL and waits for
+that lock. Before you add or change a binding, read the SDK functions it calls
+and find the locks they take. Keep both halves impossible:
 
 - A Python thread must not hold the GIL while it waits for an SDK lock. Release
   the GIL with `py.detach` in every synchronous method that reads or changes SDK
@@ -53,9 +52,11 @@ impossible:
 - `future_into_py` futures run on tokio without the GIL. Do not call
   `Python::attach` in them; return the value and let pyo3-async-runtimes convert
   it.
-- Never call Python from a `tracing` layer or a `log` logger. Records go through
-  the bounded queue in `getstream-rtc/rustsrc/logging.rs`; only its forwarding
-  thread, which holds no SDK lock, takes the GIL.
+- Never call Python from a `tracing` layer or a `log` logger. Records go
+  through the bounded queue in `getstream-rtc/rustsrc/logging.rs`. The Python
+  thread `getstream-logging` (`getstream-rtc/getstream_rtc/logging.py`) takes
+  them with `_next_logs()`, which waits without the GIL; Rust never calls
+  Python to log.
 - Python destructors drop the SDK objects they own with the GIL held. When you
   update the SDK, check that these drops (`Call`, `RemoteTrack`,
   `VideoFrameStream`, local tracks, tracks in the track queue) still take no
@@ -93,12 +94,16 @@ impossible:
 - Levels map to Python as ERROR 40, WARN 30, INFO 20, DEBUG 10, TRACE 5.
 - A log call never blocks and never takes the GIL, so it is safe while a lock or
   the GIL is held. When the queue (1024 records) is full, records are dropped and
-  counted; a `stream.rust.log_records_dropped` warning with `dropped` comes before the
-  next delivered record.
-- Nothing is forwarded until `configure_logging` sets a logger. Disabled records
-  are filtered before their fields are formatted.
+  counted; a `stream.rust.log_records_dropped` warning with `dropped` comes with
+  the next batch that the Python thread takes, before its records.
+- Nothing is forwarded until `configure_logging` sets a logger. Disabled
+  records are filtered before their fields are formatted. `configure_logging`
+  returns at once. In a process forked after the logging thread started,
+  `configure_logging` with a logger raises `RuntimeError`.
 - Never log secrets or tokens.
 - To assert on records in tests, including DEBUG ones, use the `sdk_logs`
   fixture in `getstream-rtc/tests/conftest.py`, and call
-  `getstream_rtc.configure_logging(None, logging.NOTSET)` before you assert: it
-  returns after the queued records are delivered.
+  `getstream_rtc.logging._flush()` before you assert: it returns after the
+  records queued before the call are delivered. Do not call it on a thread
+  that a handler waits for, such as an event loop that a handler runs
+  coroutines on; there, use `await asyncio.to_thread(getstream_rtc.logging._flush)`.

@@ -398,6 +398,8 @@ class TestConnectionManagerLogging:
 
         with pytest.raises(getstream_rtc.RtcError):
             await write
+        # The handler of `overflow_handler_waits_for_the_loop` needs the loop.
+        await asyncio.to_thread(getstream_rtc.logging._flush)
         assert "stream.rtc.audio.pcm_queue_overflow" in caplog.messages
 
     async def test_sdk_logs_reach_python_logging(
@@ -414,8 +416,7 @@ class TestConnectionManagerLogging:
         call = client.video.call("default", call_id)
         async with await rtc.join(call, call_users[0].id):
             pass
-        # Returns after the queued records are delivered.
-        getstream_rtc.configure_logging(None, logging.NOTSET)
+        getstream_rtc.logging._flush()
 
         assert any(
             record.name.startswith("getstream.rtc.") for record in caplog.records

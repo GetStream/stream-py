@@ -1,18 +1,27 @@
-import logging
 from enum import Enum
 from typing import Any, Awaitable
 
 import numpy as np
 import numpy.typing as npt
 
-def configure_logging(
-    logger: logging.Logger | None, level: int, third_party_level: int = 30
-) -> None:
-    """Send SDK records at `level` or above, and records of third-party Rust
-    crates at the less verbose of `level` and `third_party_level`, to `logger`
-    and the loggers below it. `logger=None` stops forwarding. Process-wide: the
-    last call wins. Returns after the records queued before the call have been
-    delivered."""
+def _set_log_filters(level: int | None, third_party_level: int) -> None:
+    """Queue SDK records at `level` or above, and third-party records at the
+    less verbose of `level` and `third_party_level`; `level=None` queues
+    none."""
+
+def _next_logs() -> tuple[
+    int,
+    list[tuple[str | None, int, str, int, str, int, str, dict[str, object]]],
+    int | None,
+]:
+    """Wait without the GIL for queued records. Return the number of records
+    dropped since the last call, at most 256 records as the arguments of
+    `getstream_rtc.logging.handle_record` after its logger, and the marker that
+    ended the batch, if any."""
+
+def _push_log_marker(marker: int) -> None:
+    """Put `marker` into the queue after the queued records; wait without the
+    GIL while the queue is full."""
 
 class CallingState(Enum):
     IDLE = ...

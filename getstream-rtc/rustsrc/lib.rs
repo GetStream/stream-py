@@ -64,7 +64,9 @@ fn _bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<tracks::LocalAudioTrack>()?;
     m.add_class::<tracks::LocalVideoTrack>()?;
     m.add_class::<resample::StreamResampler>()?;
-    m.add_function(wrap_pyfunction!(logging::configure_logging, m)?)?;
-    logging::install(m)?;
+    m.add_function(wrap_pyfunction!(logging::set_log_filters, m)?)?;
+    m.add_function(wrap_pyfunction!(logging::next_logs, m)?)?;
+    m.add_function(wrap_pyfunction!(logging::push_log_marker, m)?)?;
+    logging::install()?;
     Ok(())
 }

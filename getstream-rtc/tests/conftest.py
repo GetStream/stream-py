@@ -39,7 +39,9 @@ def forward_sdk_logs() -> Iterator[None]:
     logger = logging.getLogger("getstream")
     getstream_rtc.configure_logging(logger, logger.getEffectiveLevel())
     yield
+    # The records of this test must not reach the next test.
     getstream_rtc.configure_logging(None, logging.NOTSET)
+    getstream_rtc.logging._flush()
 
 
 @pytest.fixture
@@ -55,4 +57,6 @@ def sdk_logs(caplog: pytest.LogCaptureFixture) -> Iterator[pytest.LogCaptureFixt
     logger = logging.getLogger("getstream")
     getstream_rtc.configure_logging(logger, logger.getEffectiveLevel())
     yield caplog
+    # The records of this test must not reach the next test.
     getstream_rtc.configure_logging(None, logging.NOTSET)
+    getstream_rtc.logging._flush()

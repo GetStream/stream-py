@@ -50,8 +50,8 @@ from getstream_rtc._bindings import (
     TrackUnpublished,
     VideoFrame,
     VideoFrameStream,
-    configure_logging,
 )
+from getstream_rtc.logging import configure_logging
 
 __version__ = importlib.metadata.version("getstream-rtc")
 
