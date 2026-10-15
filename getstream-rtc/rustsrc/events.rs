@@ -1030,7 +1030,10 @@ impl Event {
                 },
                 reconnect_strategy: error.reconnect_strategy,
             }),
-            _ => return None,
+            other => {
+                tracing::debug!(event = other.name(), "stream.rtc.events.unsupported");
+                return None;
+            }
         })
     }
 
@@ -1042,7 +1045,10 @@ impl Event {
                     state: state.into(),
                 }))
             }
-            _ => None,
+            other => {
+                tracing::debug!(event = other.name(), "stream.rtc.events.unsupported");
+                None
+            }
         }
     }
 }
