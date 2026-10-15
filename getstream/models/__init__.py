@@ -27051,7 +27051,7 @@ class ScheduledMessageResponse(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         )
     )
-    # Status of the scheduled message. One of: scheduled, sending, failed, canceled, sent
+    # Status of the scheduled message. One of: scheduled, sending, failed, canceled, sent. A message is sending from its first send attempt until it is sent or fails, including while it waits to retry a failed attempt; it cannot be edited, canceled or sent now while sending
     status: str = dc_field(metadata=dc_config(field_name="status"))
     # Date/time of the last update
     updated_at: datetime = dc_field(
@@ -27118,7 +27118,7 @@ class ScheduledMessageSentEvent(DataClassJsonMixin):
 class ScheduledMessagesFilter(DataClassJsonMixin):
     # Only scheduled messages of this channel
     cid: str | None = dc_field(default=None, metadata=dc_config(field_name="cid"))
-    # Only these statuses. One or more of: scheduled, sending, failed
+    # Only these statuses, as reported in each scheduled message's status. One or more of: scheduled, sending, failed
     status: list[str] | None = dc_field(
         default=None, metadata=dc_config(field_name="status")
     )
