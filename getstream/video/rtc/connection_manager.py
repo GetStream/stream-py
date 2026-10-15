@@ -336,6 +336,12 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         be paced (`AudioStreamTrack(pace=False)`). The video track paces itself;
         it is sent as VP9 at the size of its first frame. A track that ends is
         unpublished. A new track replaces the published track of its kind.
+
+        When the `send-audio` or `send-video` capability is removed, the SDK
+        unpublishes the track of that kind; when the SFU removes the grant
+        (`call_grants_updated`), it mutes the track. It does not publish or
+        unmute the track when the permission is given back: call `add_tracks()`
+        again.
         """
         with telemetry.start_as_current_span("rtc.add_tracks"):
             if audio is not None:
