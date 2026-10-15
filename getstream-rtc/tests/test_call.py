@@ -504,6 +504,26 @@ class TestCallEvents:
         assert isinstance(event, getstream_rtc.CoordinatorEvent)
         assert event.data["custom"]["type"] == "test_event"
 
+    async def test_coordinator_event_keeps_the_custom_payload(
+        self,
+        client: Stream,
+        joined_call: getstream_rtc.Call,
+        call_id: str,
+        call_users: list[FullUserResponse],
+    ):
+        events = joined_call.coordinator_events()
+        # A float that a parser without correct rounding changes in the last bit.
+        custom = {"type": "test_event", "ratio": 0.9856906946328695}
+
+        client.video.call("default", call_id).send_call_event(
+            user_id=call_users[1].id, custom=custom
+        )
+
+        async for event in events:
+            if event.name == "custom":
+                break
+        assert event.data["custom"] == custom
+
     async def test_pins_changed(
         self,
         client: Stream,
