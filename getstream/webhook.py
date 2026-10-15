@@ -2,43 +2,21 @@
 
 import base64
 import gzip
-import hashlib
 import hmac
+import hashlib
 import json
 import zlib
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
-
 from .models import (
-    ActivityAddedEvent,
-    ActivityDeletedEvent,
-    ActivityFeedbackEvent,
-    ActivityMarkEvent,
-    ActivityPinnedEvent,
-    ActivityReactionAddedEvent,
-    ActivityReactionDeletedEvent,
-    ActivityReactionUpdatedEvent,
-    ActivityRemovedFromFeedEvent,
-    ActivityRestoredEvent,
-    ActivityUnpinnedEvent,
-    ActivityUpdatedEvent,
+    CustomEvent,
     AppealAcceptedEvent,
     AppealCreatedEvent,
     AppealRejectedEvent,
-    AsyncBulkImageModerationEvent,
-    AsyncExportChannelsEvent,
-    AsyncExportErrorEvent,
-    AsyncExportModerationLogsEvent,
-    AsyncExportReviewQueueEvent,
-    AsyncExportUsersEvent,
-    BlockedUserEvent,
-    BookmarkAddedEvent,
-    BookmarkDeletedEvent,
-    BookmarkFolderDeletedEvent,
-    BookmarkFolderUpdatedEvent,
-    BookmarkUpdatedEvent,
     CallAcceptedEvent,
+    BlockedUserEvent,
+    ClosedCaptionEvent,
     CallClosedCaptionsFailedEvent,
     CallClosedCaptionsStartedEvent,
     CallClosedCaptionsStoppedEvent,
@@ -53,6 +31,7 @@ from .models import (
     CallHLSBroadcastingFailedEvent,
     CallHLSBroadcastingStartedEvent,
     CallHLSBroadcastingStoppedEvent,
+    KickedUserEvent,
     CallLiveStartedEvent,
     CallMemberAddedEvent,
     CallMemberRemovedEvent,
@@ -62,6 +41,8 @@ from .models import (
     CallModerationBlurEvent,
     CallModerationWarningEvent,
     CallNotificationEvent,
+    PermissionRequestEvent,
+    UpdatedCallPermissionsEvent,
     CallReactionEvent,
     CallRecordingFailedEvent,
     CallRecordingReadyEvent,
@@ -69,6 +50,7 @@ from .models import (
     CallRecordingStoppedEvent,
     CallRejectedEvent,
     CallRingEvent,
+    CallRingSettledEvent,
     CallRtmpBroadcastFailedEvent,
     CallRtmpBroadcastStartedEvent,
     CallRtmpBroadcastStoppedEvent,
@@ -82,96 +64,121 @@ from .models import (
     CallTranscriptionReadyEvent,
     CallTranscriptionStartedEvent,
     CallTranscriptionStoppedEvent,
+    UnblockedUserEvent,
     CallUpdatedEvent,
     CallUserFeedbackSubmittedEvent,
     CallUserMutedEvent,
     CampaignCompletedEvent,
     CampaignStartedEvent,
-    ChannelBatchCompletedEvent,
-    ChannelBatchStartedEvent,
     ChannelCreatedEvent,
     ChannelDeletedEvent,
     ChannelFrozenEvent,
     ChannelHiddenEvent,
+    MaxStreakChangedEvent,
     ChannelMutedEvent,
     ChannelTruncatedEvent,
     ChannelUnFrozenEvent,
     ChannelUnmutedEvent,
     ChannelUpdatedEvent,
     ChannelVisibleEvent,
-    ClosedCaptionEvent,
+    ChannelBatchCompletedEvent,
+    ChannelBatchStartedEvent,
+    CustomVideoEvent,
+    AsyncBulkImageModerationEvent,
+    AsyncExportChannelsEvent,
+    AsyncExportLabelResultsEvent,
+    AsyncExportModerationLogsEvent,
+    AsyncExportReviewQueueEvent,
+    AsyncExportErrorEvent,
+    AsyncExportUsersEvent,
+    ActivityAddedEvent,
+    ActivityDeletedEvent,
+    ActivityFeedbackEvent,
+    ActivityMarkEvent,
+    ActivityPinnedEvent,
+    ActivityReactionAddedEvent,
+    ActivityReactionDeletedEvent,
+    ActivityReactionUpdatedEvent,
+    ActivityRemovedFromFeedEvent,
+    ActivityRestoredEvent,
+    ActivityUnpinnedEvent,
+    ActivityUpdatedEvent,
+    BookmarkAddedEvent,
+    BookmarkDeletedEvent,
+    BookmarkUpdatedEvent,
+    BookmarkFolderDeletedEvent,
+    BookmarkFolderUpdatedEvent,
     CommentAddedEvent,
     CommentDeletedEvent,
+    CommentFeedbackEvent,
     CommentReactionAddedEvent,
     CommentReactionDeletedEvent,
     CommentReactionUpdatedEvent,
     CommentRestoredEvent,
     CommentUpdatedEvent,
-    CustomEvent,
-    CustomVideoEvent,
     FeedCreatedEvent,
     FeedDeletedEvent,
+    FeedUpdatedEvent,
     FeedGroupChangedEvent,
     FeedGroupDeletedEvent,
     FeedGroupRestoredEvent,
     FeedMemberAddedEvent,
     FeedMemberRemovedEvent,
     FeedMemberUpdatedEvent,
-    FeedUpdatedEvent,
-    FlagUpdatedEvent,
     FollowCreatedEvent,
     FollowDeletedEvent,
     FollowUpdatedEvent,
+    NotificationFeedUpdatedEvent,
+    StoriesFeedUpdatedEvent,
+    FlagUpdatedEvent,
+    AsyncImportErrorEvent,
+    AsyncImportSuccessEvent,
     IngressErrorEvent,
     IngressStartedEvent,
     IngressStoppedEvent,
-    KickedUserEvent,
-    MaxStreakChangedEvent,
     MemberAddedEvent,
     MemberRemovedEvent,
     MemberUpdatedEvent,
     MessageDeletedEvent,
     MessageFlaggedEvent,
     MessageNewEvent,
+    PendingMessageEvent,
     MessageReadEvent,
     MessageUnblockedEvent,
     MessageUndeletedEvent,
     MessageUpdatedEvent,
     ModerationAnalysisFailedEvent,
-    ModerationCheckCompletedEvent,
     ModerationCustomActionEvent,
     ModerationFlaggedEvent,
     ModerationImageAnalysisCompleteEvent,
     ModerationMarkReviewedEvent,
-    ModerationRulesTriggeredEvent,
     ModerationTextAnalysisCompleteEvent,
-    NotificationFeedUpdatedEvent,
+    ModerationCheckCompletedEvent,
+    ModerationRulesTriggeredEvent,
     NotificationMarkUnreadEvent,
+    ReminderNotificationEvent,
     NotificationThreadMessageNewEvent,
-    PendingMessageEvent,
-    PermissionRequestEvent,
+    PollClosedEvent,
+    PollDeletedEvent,
+    PollUpdatedEvent,
+    PollVoteCastedEvent,
+    PollVoteChangedEvent,
+    PollVoteRemovedEvent,
     ReactionDeletedEvent,
     ReactionNewEvent,
     ReactionUpdatedEvent,
     ReminderCreatedEvent,
     ReminderDeletedEvent,
-    ReminderNotificationEvent,
     ReminderUpdatedEvent,
     ReviewQueueItemNewEvent,
     ReviewQueueItemUpdatedEvent,
-    StoriesFeedUpdatedEvent,
+    ScheduledMessageFailedEvent,
+    ScheduledMessageSentEvent,
     ThreadUpdatedEvent,
-    UnblockedUserEvent,
-    UpdatedCallPermissionsEvent,
     UserBannedEvent,
     UserDeactivatedEvent,
     UserDeletedEvent,
     UserFlaggedEvent,
-    UserGroupCreatedEvent,
-    UserGroupDeletedEvent,
-    UserGroupMemberAddedEvent,
-    UserGroupMemberRemovedEvent,
-    UserGroupUpdatedEvent,
     UserMessagesDeletedEvent,
     UserMutedEvent,
     UserReactivatedEvent,
@@ -179,7 +186,13 @@ from .models import (
     UserUnmutedEvent,
     UserUnreadReminderEvent,
     UserUpdatedEvent,
+    UserGroupCreatedEvent,
+    UserGroupDeletedEvent,
+    UserGroupMemberAddedEvent,
+    UserGroupMemberRemovedEvent,
+    UserGroupUpdatedEvent,
 )
+
 
 # Webhook event type constants
 EVENT_TYPE_WILDCARD = "*"
@@ -222,6 +235,7 @@ EVENT_TYPE_CALL_RECORDING_STARTED = "call.recording_started"
 EVENT_TYPE_CALL_RECORDING_STOPPED = "call.recording_stopped"
 EVENT_TYPE_CALL_REJECTED = "call.rejected"
 EVENT_TYPE_CALL_RING = "call.ring"
+EVENT_TYPE_CALL_RING_SETTLED = "call.ring_settled"
 EVENT_TYPE_CALL_RTMP_BROADCAST_FAILED = "call.rtmp_broadcast_failed"
 EVENT_TYPE_CALL_RTMP_BROADCAST_STARTED = "call.rtmp_broadcast_started"
 EVENT_TYPE_CALL_RTMP_BROADCAST_STOPPED = "call.rtmp_broadcast_stopped"
@@ -261,6 +275,8 @@ EVENT_TYPE_EXPORT_BULK_IMAGE_MODERATION_ERROR = "export.bulk_image_moderation.er
 EVENT_TYPE_EXPORT_BULK_IMAGE_MODERATION_SUCCESS = "export.bulk_image_moderation.success"
 EVENT_TYPE_EXPORT_CHANNELS_ERROR = "export.channels.error"
 EVENT_TYPE_EXPORT_CHANNELS_SUCCESS = "export.channels.success"
+EVENT_TYPE_EXPORT_LABEL_RESULTS_ERROR = "export.label_results.error"
+EVENT_TYPE_EXPORT_LABEL_RESULTS_SUCCESS = "export.label_results.success"
 EVENT_TYPE_EXPORT_MODERATION_LOGS_ERROR = "export.moderation_logs.error"
 EVENT_TYPE_EXPORT_MODERATION_LOGS_SUCCESS = "export.moderation_logs.success"
 EVENT_TYPE_EXPORT_REVIEW_QUEUE_ERROR = "export.review_queue.error"
@@ -286,6 +302,7 @@ EVENT_TYPE_FEEDS_BOOKMARK_FOLDER_DELETED = "feeds.bookmark_folder.deleted"
 EVENT_TYPE_FEEDS_BOOKMARK_FOLDER_UPDATED = "feeds.bookmark_folder.updated"
 EVENT_TYPE_FEEDS_COMMENT_ADDED = "feeds.comment.added"
 EVENT_TYPE_FEEDS_COMMENT_DELETED = "feeds.comment.deleted"
+EVENT_TYPE_FEEDS_COMMENT_FEEDBACK = "feeds.comment.feedback"
 EVENT_TYPE_FEEDS_COMMENT_REACTION_ADDED = "feeds.comment.reaction.added"
 EVENT_TYPE_FEEDS_COMMENT_REACTION_DELETED = "feeds.comment.reaction.deleted"
 EVENT_TYPE_FEEDS_COMMENT_REACTION_UPDATED = "feeds.comment.reaction.updated"
@@ -306,6 +323,8 @@ EVENT_TYPE_FEEDS_FOLLOW_UPDATED = "feeds.follow.updated"
 EVENT_TYPE_FEEDS_NOTIFICATION_FEED_UPDATED = "feeds.notification_feed.updated"
 EVENT_TYPE_FEEDS_STORIES_FEED_UPDATED = "feeds.stories_feed.updated"
 EVENT_TYPE_FLAG_UPDATED = "flag.updated"
+EVENT_TYPE_IMPORT_ERROR = "import.error"
+EVENT_TYPE_IMPORT_SUCCESS = "import.success"
 EVENT_TYPE_INGRESS_ERROR = "ingress.error"
 EVENT_TYPE_INGRESS_STARTED = "ingress.started"
 EVENT_TYPE_INGRESS_STOPPED = "ingress.stopped"
@@ -331,6 +350,12 @@ EVENT_TYPE_MODERATION_RULE_TRIGGERED = "moderation_rule.triggered"
 EVENT_TYPE_NOTIFICATION_MARK_UNREAD = "notification.mark_unread"
 EVENT_TYPE_NOTIFICATION_REMINDER_DUE = "notification.reminder_due"
 EVENT_TYPE_NOTIFICATION_THREAD_MESSAGE_NEW = "notification.thread_message_new"
+EVENT_TYPE_POLL_CLOSED = "poll.closed"
+EVENT_TYPE_POLL_DELETED = "poll.deleted"
+EVENT_TYPE_POLL_UPDATED = "poll.updated"
+EVENT_TYPE_POLL_VOTE_CASTED = "poll.vote_casted"
+EVENT_TYPE_POLL_VOTE_CHANGED = "poll.vote_changed"
+EVENT_TYPE_POLL_VOTE_REMOVED = "poll.vote_removed"
 EVENT_TYPE_REACTION_DELETED = "reaction.deleted"
 EVENT_TYPE_REACTION_NEW = "reaction.new"
 EVENT_TYPE_REACTION_UPDATED = "reaction.updated"
@@ -339,6 +364,8 @@ EVENT_TYPE_REMINDER_DELETED = "reminder.deleted"
 EVENT_TYPE_REMINDER_UPDATED = "reminder.updated"
 EVENT_TYPE_REVIEW_QUEUE_ITEM_NEW = "review_queue_item.new"
 EVENT_TYPE_REVIEW_QUEUE_ITEM_UPDATED = "review_queue_item.updated"
+EVENT_TYPE_SCHEDULED_MESSAGE_FAILED = "scheduled_message.failed"
+EVENT_TYPE_SCHEDULED_MESSAGE_SENT = "scheduled_message.sent"
 EVENT_TYPE_THREAD_UPDATED = "thread.updated"
 EVENT_TYPE_USER_BANNED = "user.banned"
 EVENT_TYPE_USER_DEACTIVATED = "user.deactivated"
@@ -492,6 +519,7 @@ def _get_event_class(event_type: str):
         "call.recording_stopped": CallRecordingStoppedEvent,
         "call.rejected": CallRejectedEvent,
         "call.ring": CallRingEvent,
+        "call.ring_settled": CallRingSettledEvent,
         "call.rtmp_broadcast_failed": CallRtmpBroadcastFailedEvent,
         "call.rtmp_broadcast_started": CallRtmpBroadcastStartedEvent,
         "call.rtmp_broadcast_stopped": CallRtmpBroadcastStoppedEvent,
@@ -529,6 +557,8 @@ def _get_event_class(event_type: str):
         "export.bulk_image_moderation.success": AsyncBulkImageModerationEvent,
         "export.channels.error": AsyncExportErrorEvent,
         "export.channels.success": AsyncExportChannelsEvent,
+        "export.label_results.error": AsyncExportErrorEvent,
+        "export.label_results.success": AsyncExportLabelResultsEvent,
         "export.moderation_logs.error": AsyncExportErrorEvent,
         "export.moderation_logs.success": AsyncExportModerationLogsEvent,
         "export.review_queue.error": AsyncExportErrorEvent,
@@ -554,6 +584,7 @@ def _get_event_class(event_type: str):
         "feeds.bookmark_folder.updated": BookmarkFolderUpdatedEvent,
         "feeds.comment.added": CommentAddedEvent,
         "feeds.comment.deleted": CommentDeletedEvent,
+        "feeds.comment.feedback": CommentFeedbackEvent,
         "feeds.comment.reaction.added": CommentReactionAddedEvent,
         "feeds.comment.reaction.deleted": CommentReactionDeletedEvent,
         "feeds.comment.reaction.updated": CommentReactionUpdatedEvent,
@@ -574,6 +605,8 @@ def _get_event_class(event_type: str):
         "feeds.notification_feed.updated": NotificationFeedUpdatedEvent,
         "feeds.stories_feed.updated": StoriesFeedUpdatedEvent,
         "flag.updated": FlagUpdatedEvent,
+        "import.error": AsyncImportErrorEvent,
+        "import.success": AsyncImportSuccessEvent,
         "ingress.error": IngressErrorEvent,
         "ingress.started": IngressStartedEvent,
         "ingress.stopped": IngressStoppedEvent,
@@ -599,6 +632,12 @@ def _get_event_class(event_type: str):
         "notification.mark_unread": NotificationMarkUnreadEvent,
         "notification.reminder_due": ReminderNotificationEvent,
         "notification.thread_message_new": NotificationThreadMessageNewEvent,
+        "poll.closed": PollClosedEvent,
+        "poll.deleted": PollDeletedEvent,
+        "poll.updated": PollUpdatedEvent,
+        "poll.vote_casted": PollVoteCastedEvent,
+        "poll.vote_changed": PollVoteChangedEvent,
+        "poll.vote_removed": PollVoteRemovedEvent,
         "reaction.deleted": ReactionDeletedEvent,
         "reaction.new": ReactionNewEvent,
         "reaction.updated": ReactionUpdatedEvent,
@@ -607,6 +646,8 @@ def _get_event_class(event_type: str):
         "reminder.updated": ReminderUpdatedEvent,
         "review_queue_item.new": ReviewQueueItemNewEvent,
         "review_queue_item.updated": ReviewQueueItemUpdatedEvent,
+        "scheduled_message.failed": ScheduledMessageFailedEvent,
+        "scheduled_message.sent": ScheduledMessageSentEvent,
         "thread.updated": ThreadUpdatedEvent,
         "user.banned": UserBannedEvent,
         "user.deactivated": UserDeactivatedEvent,

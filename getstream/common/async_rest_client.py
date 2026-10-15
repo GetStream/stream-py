@@ -172,7 +172,9 @@ class CommonRestClient(AsyncBaseClient):
         cursor: Optional[str] = None,
         limit: Optional[int] = None,
     ) -> StreamResponse[ListBlockListResponse]:
-        query_params = build_query_param(team=team, cursor=cursor, limit=limit)
+        query_params = build_query_param(
+            **{"team": team, "cursor": cursor, "limit": limit}
+        )
         return await self.get(
             "/api/v2/blocklists", ListBlockListResponse, query_params=query_params
         )
@@ -224,7 +226,7 @@ class CommonRestClient(AsyncBaseClient):
     async def delete_block_list(
         self, name: str, team: Optional[str] = None, user_id: Optional[str] = None
     ) -> StreamResponse[Response]:
-        query_params = build_query_param(team=team, user_id=user_id)
+        query_params = build_query_param(**{"team": team, "user_id": user_id})
         path_params = {
             "name": name,
         }
@@ -239,7 +241,7 @@ class CommonRestClient(AsyncBaseClient):
     async def get_block_list(
         self, name: str, team: Optional[str] = None
     ) -> StreamResponse[GetBlockListResponse]:
-        query_params = build_query_param(team=team)
+        query_params = build_query_param(**{"team": team})
         path_params = {
             "name": name,
         }
@@ -281,6 +283,22 @@ class CommonRestClient(AsyncBaseClient):
             UpdateBlockListResponse,
             path_params=path_params,
             json=json,
+        )
+
+    @telemetry.operation_name("getstream.api.common.check_gcp_pub_sub")
+    async def check_gcp_pub_sub(
+        self,
+        gcp_pubsub_event_based_ordering_key_enabled: Optional[bool] = None,
+        gcp_pubsub_region: Optional[str] = None,
+        gcp_pubsub_topic: Optional[str] = None,
+    ) -> StreamResponse[CheckGCPPubSubResponse]:
+        json = CheckGCPPubSubRequest(
+            gcp_pubsub_event_based_ordering_key_enabled=gcp_pubsub_event_based_ordering_key_enabled,
+            gcp_pubsub_region=gcp_pubsub_region,
+            gcp_pubsub_topic=gcp_pubsub_topic,
+        ).to_dict()
+        return await self.post(
+            "/api/v2/check_gcp_pubsub", CheckGCPPubSubResponse, json=json
         )
 
     @telemetry.operation_name("getstream.api.common.check_push")
@@ -339,14 +357,14 @@ class CommonRestClient(AsyncBaseClient):
     async def delete_device(
         self, id: str, user_id: Optional[str] = None
     ) -> StreamResponse[Response]:
-        query_params = build_query_param(id=id, user_id=user_id)
+        query_params = build_query_param(**{"id": id, "user_id": user_id})
         return await self.delete("/api/v2/devices", Response, query_params=query_params)
 
     @telemetry.operation_name("getstream.api.common.list_devices")
     async def list_devices(
         self, user_id: Optional[str] = None
     ) -> StreamResponse[ListDevicesResponse]:
-        query_params = build_query_param(user_id=user_id)
+        query_params = build_query_param(**{"user_id": user_id})
         return await self.get(
             "/api/v2/devices", ListDevicesResponse, query_params=query_params
         )
@@ -498,7 +516,7 @@ class CommonRestClient(AsyncBaseClient):
     async def list_import_v2_tasks(
         self, state: Optional[int] = None
     ) -> StreamResponse[ListImportV2TasksResponse]:
-        query_params = build_query_param(state=state)
+        query_params = build_query_param(**{"state": state})
         return await self.get(
             "/api/v2/imports/v2", ListImportV2TasksResponse, query_params=query_params
         )
@@ -605,7 +623,7 @@ class CommonRestClient(AsyncBaseClient):
 
     @telemetry.operation_name("getstream.api.common.get_og")
     async def get_og(self, url: str) -> StreamResponse[GetOGResponse]:
-        query_params = build_query_param(url=url)
+        query_params = build_query_param(**{"url": url})
         return await self.get("/api/v2/og", GetOGResponse, query_params=query_params)
 
     @telemetry.operation_name("getstream.api.common.list_permissions")
@@ -688,11 +706,14 @@ class CommonRestClient(AsyncBaseClient):
         name: str,
         allow_answers: Optional[bool] = None,
         allow_user_suggested_options: Optional[bool] = None,
+        config_key: Optional[str] = None,
+        config_team: Optional[str] = None,
         description: Optional[str] = None,
         enforce_unique_vote: Optional[bool] = None,
         id: Optional[str] = None,
         is_closed: Optional[bool] = None,
         max_votes_allowed: Optional[int] = None,
+        team: Optional[str] = None,
         user_id: Optional[str] = None,
         voting_visibility: Optional[str] = None,
         options: Optional[List[PollOptionInput]] = None,
@@ -703,11 +724,14 @@ class CommonRestClient(AsyncBaseClient):
             name=name,
             allow_answers=allow_answers,
             allow_user_suggested_options=allow_user_suggested_options,
+            config_key=config_key,
+            config_team=config_team,
             description=description,
             enforce_unique_vote=enforce_unique_vote,
             id=id,
             is_closed=is_closed,
             max_votes_allowed=max_votes_allowed,
+            team=team,
             user_id=user_id,
             voting_visibility=voting_visibility,
             options=options,
@@ -723,6 +747,8 @@ class CommonRestClient(AsyncBaseClient):
         name: str,
         allow_answers: Optional[bool] = None,
         allow_user_suggested_options: Optional[bool] = None,
+        config_key: Optional[str] = None,
+        config_team: Optional[str] = None,
         description: Optional[str] = None,
         enforce_unique_vote: Optional[bool] = None,
         is_closed: Optional[bool] = None,
@@ -738,6 +764,8 @@ class CommonRestClient(AsyncBaseClient):
             name=name,
             allow_answers=allow_answers,
             allow_user_suggested_options=allow_user_suggested_options,
+            config_key=config_key,
+            config_team=config_team,
             description=description,
             enforce_unique_vote=enforce_unique_vote,
             is_closed=is_closed,
@@ -760,7 +788,7 @@ class CommonRestClient(AsyncBaseClient):
         sort: Optional[List[SortParamRequest]] = None,
         filter: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[QueryPollsResponse]:
-        query_params = build_query_param(user_id=user_id)
+        query_params = build_query_param(**{"user_id": user_id})
         json = QueryPollsRequest(
             limit=limit, next=next, prev=prev, sort=sort, filter=filter
         ).to_dict()
@@ -775,7 +803,7 @@ class CommonRestClient(AsyncBaseClient):
     async def delete_poll(
         self, poll_id: str, user_id: Optional[str] = None
     ) -> StreamResponse[Response]:
-        query_params = build_query_param(user_id=user_id)
+        query_params = build_query_param(**{"user_id": user_id})
         path_params = {
             "poll_id": poll_id,
         }
@@ -790,7 +818,7 @@ class CommonRestClient(AsyncBaseClient):
     async def get_poll(
         self, poll_id: str, user_id: Optional[str] = None
     ) -> StreamResponse[PollResponse]:
-        query_params = build_query_param(user_id=user_id)
+        query_params = build_query_param(**{"user_id": user_id})
         path_params = {
             "poll_id": poll_id,
         }
@@ -805,6 +833,8 @@ class CommonRestClient(AsyncBaseClient):
     async def update_poll_partial(
         self,
         poll_id: str,
+        config_key: Optional[str] = None,
+        config_team: Optional[str] = None,
         user_id: Optional[str] = None,
         unset: Optional[List[str]] = None,
         set: Optional[Dict[str, object]] = None,
@@ -814,7 +844,12 @@ class CommonRestClient(AsyncBaseClient):
             "poll_id": poll_id,
         }
         json = UpdatePollPartialRequest(
-            user_id=user_id, unset=unset, set=set, user=user
+            config_key=config_key,
+            config_team=config_team,
+            user_id=user_id,
+            unset=unset,
+            set=set,
+            user=user,
         ).to_dict()
         return await self.patch(
             "/api/v2/polls/{poll_id}", PollResponse, path_params=path_params, json=json
@@ -825,6 +860,8 @@ class CommonRestClient(AsyncBaseClient):
         self,
         poll_id: str,
         text: str,
+        config_key: Optional[str] = None,
+        config_team: Optional[str] = None,
         user_id: Optional[str] = None,
         custom: Optional[Dict[str, object]] = None,
         user: Optional[UserRequest] = None,
@@ -833,7 +870,12 @@ class CommonRestClient(AsyncBaseClient):
             "poll_id": poll_id,
         }
         json = CreatePollOptionRequest(
-            text=text, user_id=user_id, custom=custom, user=user
+            text=text,
+            config_key=config_key,
+            config_team=config_team,
+            user_id=user_id,
+            custom=custom,
+            user=user,
         ).to_dict()
         return await self.post(
             "/api/v2/polls/{poll_id}/options",
@@ -848,6 +890,8 @@ class CommonRestClient(AsyncBaseClient):
         poll_id: str,
         id: str,
         text: str,
+        config_key: Optional[str] = None,
+        config_team: Optional[str] = None,
         user_id: Optional[str] = None,
         custom: Optional[Dict[str, object]] = None,
         user: Optional[UserRequest] = None,
@@ -856,7 +900,13 @@ class CommonRestClient(AsyncBaseClient):
             "poll_id": poll_id,
         }
         json = UpdatePollOptionRequest(
-            id=id, text=text, user_id=user_id, custom=custom, user=user
+            id=id,
+            text=text,
+            config_key=config_key,
+            config_team=config_team,
+            user_id=user_id,
+            custom=custom,
+            user=user,
         ).to_dict()
         return await self.put(
             "/api/v2/polls/{poll_id}/options",
@@ -869,7 +919,7 @@ class CommonRestClient(AsyncBaseClient):
     async def delete_poll_option(
         self, poll_id: str, option_id: str, user_id: Optional[str] = None
     ) -> StreamResponse[Response]:
-        query_params = build_query_param(user_id=user_id)
+        query_params = build_query_param(**{"user_id": user_id})
         path_params = {
             "poll_id": poll_id,
             "option_id": option_id,
@@ -883,8 +933,9 @@ class CommonRestClient(AsyncBaseClient):
 
     @telemetry.operation_name("getstream.api.common.get_poll_option")
     async def get_poll_option(
-        self, poll_id: str, option_id: str
+        self, poll_id: str, option_id: str, user_id: Optional[str] = None
     ) -> StreamResponse[PollOptionResponse]:
+        query_params = build_query_param(**{"user_id": user_id})
         path_params = {
             "poll_id": poll_id,
             "option_id": option_id,
@@ -892,6 +943,7 @@ class CommonRestClient(AsyncBaseClient):
         return await self.get(
             "/api/v2/polls/{poll_id}/options/{option_id}",
             PollOptionResponse,
+            query_params=query_params,
             path_params=path_params,
         )
 
@@ -906,7 +958,7 @@ class CommonRestClient(AsyncBaseClient):
         sort: Optional[List[SortParamRequest]] = None,
         filter: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[PollVotesResponse]:
-        query_params = build_query_param(user_id=user_id)
+        query_params = build_query_param(**{"user_id": user_id})
         path_params = {
             "poll_id": poll_id,
         }
@@ -962,7 +1014,10 @@ class CommonRestClient(AsyncBaseClient):
         self, push_provider_type: str, push_provider_name: Optional[str] = None
     ) -> StreamResponse[GetPushTemplatesResponse]:
         query_params = build_query_param(
-            push_provider_type=push_provider_type, push_provider_name=push_provider_name
+            **{
+                "push_provider_type": push_provider_type,
+                "push_provider_name": push_provider_name,
+            }
         )
         return await self.get(
             "/api/v2/push_templates",
@@ -1003,14 +1058,16 @@ class CommonRestClient(AsyncBaseClient):
         endpoints: Optional[str] = None,
     ) -> StreamResponse[GetRateLimitsResponse]:
         query_params = build_query_param(
-            server_side=server_side,
-            android=android,
-            ios=ios,
-            web=web,
-            unity=unity,
-            unity_desktop=unity_desktop,
-            unity_console=unity_console,
-            endpoints=endpoints,
+            **{
+                "server_side": server_side,
+                "android": android,
+                "ios": ios,
+                "web": web,
+                "unity": unity,
+                "unity_desktop": unity_desktop,
+                "unity_console": unity_console,
+                "endpoints": endpoints,
+            }
         )
         return await self.get(
             "/api/v2/rate_limits", GetRateLimitsResponse, query_params=query_params
@@ -1035,11 +1092,13 @@ class CommonRestClient(AsyncBaseClient):
         include_global_roles: Optional[bool] = None,
     ) -> StreamResponse[SearchRolesResponse]:
         query_params = build_query_param(
-            query=query,
-            limit=limit,
-            name_gt=name_gt,
-            role_type=role_type,
-            include_global_roles=include_global_roles,
+            **{
+                "query": query,
+                "limit": limit,
+                "name_gt": name_gt,
+                "role_type": role_type,
+                "include_global_roles": include_global_roles,
+            }
         )
         return await self.get(
             "/api/v2/roles/search", SearchRolesResponse, query_params=query_params
@@ -1065,7 +1124,7 @@ class CommonRestClient(AsyncBaseClient):
 
     @telemetry.operation_name("getstream.api.common.delete_file")
     async def delete_file(self, url: Optional[str] = None) -> StreamResponse[Response]:
-        query_params = build_query_param(url=url)
+        query_params = build_query_param(**{"url": url})
         return await self.delete(
             "/api/v2/uploads/file", Response, query_params=query_params
         )
@@ -1075,11 +1134,13 @@ class CommonRestClient(AsyncBaseClient):
         self, file: Optional[str] = None, user: Optional[OnlyUserID] = None
     ) -> StreamResponse[FileUploadResponse]:
         json = FileUploadRequest(file=file, user=user).to_dict()
-        return await self.post("/api/v2/uploads/file", FileUploadResponse, json=json)
+        return await self._upload_multipart(
+            "/api/v2/uploads/file", FileUploadResponse, json=json
+        )
 
     @telemetry.operation_name("getstream.api.common.delete_image")
     async def delete_image(self, url: Optional[str] = None) -> StreamResponse[Response]:
-        query_params = build_query_param(url=url)
+        query_params = build_query_param(**{"url": url})
         return await self.delete(
             "/api/v2/uploads/image", Response, query_params=query_params
         )
@@ -1094,7 +1155,9 @@ class CommonRestClient(AsyncBaseClient):
         json = ImageUploadRequest(
             file=file, upload_sizes=upload_sizes, user=user
         ).to_dict()
-        return await self.post("/api/v2/uploads/image", ImageUploadResponse, json=json)
+        return await self._upload_multipart(
+            "/api/v2/uploads/image", ImageUploadResponse, json=json
+        )
 
     @telemetry.operation_name("getstream.api.common.list_user_groups")
     async def list_user_groups(
@@ -1105,7 +1168,12 @@ class CommonRestClient(AsyncBaseClient):
         team_id: Optional[str] = None,
     ) -> StreamResponse[ListUserGroupsResponse]:
         query_params = build_query_param(
-            limit=limit, id_gt=id_gt, created_at_gt=created_at_gt, team_id=team_id
+            **{
+                "limit": limit,
+                "id_gt": id_gt,
+                "created_at_gt": created_at_gt,
+                "team_id": team_id,
+            }
         )
         return await self.get(
             "/api/v2/usergroups", ListUserGroupsResponse, query_params=query_params
@@ -1139,7 +1207,13 @@ class CommonRestClient(AsyncBaseClient):
         team_id: Optional[str] = None,
     ) -> StreamResponse[SearchUserGroupsResponse]:
         query_params = build_query_param(
-            query=query, limit=limit, name_gt=name_gt, id_gt=id_gt, team_id=team_id
+            **{
+                "query": query,
+                "limit": limit,
+                "name_gt": name_gt,
+                "id_gt": id_gt,
+                "team_id": team_id,
+            }
         )
         return await self.get(
             "/api/v2/usergroups/search",
@@ -1151,7 +1225,7 @@ class CommonRestClient(AsyncBaseClient):
     async def delete_user_group(
         self, id: str, team_id: Optional[str] = None
     ) -> StreamResponse[Response]:
-        query_params = build_query_param(team_id=team_id)
+        query_params = build_query_param(**{"team_id": team_id})
         path_params = {
             "id": id,
         }
@@ -1166,7 +1240,7 @@ class CommonRestClient(AsyncBaseClient):
     async def get_user_group(
         self, id: str, team_id: Optional[str] = None
     ) -> StreamResponse[GetUserGroupResponse]:
-        query_params = build_query_param(team_id=team_id)
+        query_params = build_query_param(**{"team_id": team_id})
         path_params = {
             "id": id,
         }
@@ -1240,7 +1314,7 @@ class CommonRestClient(AsyncBaseClient):
     async def query_users(
         self, payload: Optional[QueryUsersPayload] = None
     ) -> StreamResponse[QueryUsersResponse]:
-        query_params = build_query_param(payload=payload)
+        query_params = build_query_param(**{"payload": payload})
         return await self.get(
             "/api/v2/users", QueryUsersResponse, query_params=query_params
         )
@@ -1263,7 +1337,7 @@ class CommonRestClient(AsyncBaseClient):
     async def get_blocked_users(
         self, user_id: Optional[str] = None
     ) -> StreamResponse[GetBlockedUsersResponse]:
-        query_params = build_query_param(user_id=user_id)
+        query_params = build_query_param(**{"user_id": user_id})
         return await self.get(
             "/api/v2/users/block", GetBlockedUsersResponse, query_params=query_params
         )
@@ -1326,7 +1400,7 @@ class CommonRestClient(AsyncBaseClient):
     async def get_user_live_locations(
         self, user_id: Optional[str] = None
     ) -> StreamResponse[SharedLocationsResponse]:
-        query_params = build_query_param(user_id=user_id)
+        query_params = build_query_param(**{"user_id": user_id})
         return await self.get(
             "/api/v2/users/live_locations",
             SharedLocationsResponse,
@@ -1342,7 +1416,7 @@ class CommonRestClient(AsyncBaseClient):
         longitude: Optional[float] = None,
         user_id: Optional[str] = None,
     ) -> StreamResponse[SharedLocationResponse]:
-        query_params = build_query_param(user_id=user_id)
+        query_params = build_query_param(**{"user_id": user_id})
         json = UpdateLiveLocationRequest(
             message_id=message_id, end_at=end_at, latitude=latitude, longitude=longitude
         ).to_dict()
