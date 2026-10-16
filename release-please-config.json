@@ -5,6 +5,7 @@
     ".": {
       "release-type": "python",
       "include-component-in-tag": false,
+      "exclude-paths": ["getstream-rtc"],
       "extra-files": [
         {
           "type": "toml",
@@ -12,6 +13,12 @@
           "jsonpath": "$.package[?(@.name.value=='getstream')].version"
         }
       ]
+    },
+    "getstream-rtc": {
+      "release-type": "python",
+      "component": "getstream-rtc",
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": true
     }
   }
 }

@@ -17,7 +17,7 @@ def open_browser(api_key: str, token: str, call_id: str) -> str:
     Returns:
         The URL that was opened
     """
-    base_url = "https://pronto.getstream.io/bare/join/"
+    base_url = "https://pronto.getstream.io/join/"
     params = {"api_key": api_key, "token": token, "skip_lobby": "true"}
 
     url = f"{base_url}{call_id}?{urlencode(params)}"

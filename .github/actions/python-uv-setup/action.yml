@@ -13,9 +13,34 @@ inputs:
     description: Directory to run in
     required: false
     default: "."
+  build-extension:
+    description: Build getstream-rtc (the Rust extension) into the environment; "false" installs everything else
+    required: false
+    default: "true"
 runs:
   using: composite
   steps:
+    - name: Install the native build dependencies
+      if: ${{ inputs.build-extension == 'true' }}
+      shell: bash
+      # libvpx is linked from the system; bindgen needs libclang to generate its bindings.
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends libvpx-dev libclang-dev
+
+    - name: Install the Rust toolchain
+      if: ${{ inputs.build-extension == 'true' }}
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}/getstream-rtc
+      # Installs the toolchain pinned in getstream-rtc/rust-toolchain.toml.
+      run: rustup toolchain install
+
+    - name: Cache the Rust build
+      if: ${{ inputs.build-extension == 'true' }}
+      uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: ${{ inputs.working-directory }}/getstream-rtc
+
     - name: Install the latest version of uv
       id: setup_uv
       uses: astral-sh/setup-uv@v7
@@ -38,5 +63,4 @@ runs:
     - name: Install the project dependencies
       shell: bash
       working-directory: ${{ inputs.working-directory }}
-      run: uv sync ${{ inputs.sync-flags }}
-
+      run: uv sync ${{ inputs.sync-flags }} ${{ inputs.build-extension != 'true' && '--no-install-package getstream-rtc' || '' }}
