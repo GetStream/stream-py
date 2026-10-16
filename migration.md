@@ -37,6 +37,8 @@ toolchain pinned in `getstream-rtc/rust-toolchain.toml`, a C compiler, `cmake`,
 - macOS: `brew install libvpx cmake pkg-config` (libclang comes with Xcode)
 - Debian/Ubuntu: `apt install libvpx-dev libclang-dev cmake pkg-config build-essential`
 
+`getstream-rtc` needs Python 3.10 or later, as `getstream` does.
+
 The `webrtc` extra no longer installs `scipy`, `soundfile`, `websockets`,
 `websocket-client`, `structlog`, `tenacity` and `ping3`; no stream-py code uses
 them. Code that imports one of them must declare it itself.
@@ -115,7 +117,10 @@ Field changes:
   by value.
 - The other protobuf enum fields keep their `int` values, as in 6.1.1:
   `participant.connection_quality`, `participant.source`,
-  `TrackUnpublished.cause`, `CallEnded.reason`.
+  `TrackUnpublished.cause`, `CallEnded.reason`. A `connection_quality` or
+  `source` value that the SDK protocol does not know (from a newer SFU)
+  becomes 0, and an unknown track type is not in `published_tracks`. 6.1.1
+  kept these `int` values.
 - `TrackPublished.participant`, `TrackUnpublished.participant` and
   `CallGrantsUpdated.current_grants` are `None` when the SFU does not send
   them; in 6.1.1 they were always an object.
@@ -134,10 +139,9 @@ Field changes:
   in 6.1.1 it was the request itself.
 - A `call_ended` after a coordinator end, or after the SDK leaves the call by
   itself (see "Joining, waiting and leaving"), carries `reason` 0
-  (`CALL_ENDED_REASON_UNSPECIFIED`). `call_ended` is emitted once, by the first
-  event stream that reports the end. If `ConnectionManager` reads the `LEFT`
-  state before the SFU's `call_ended` (for example while SFU events wait to be
-  read), `reason` is 0 also after an SFU end.
+  (`CALL_ENDED_REASON_UNSPECIFIED`). `call_ended` is emitted once, after the
+  SFU events that arrived before the end, so an SFU `call_ended` keeps its
+  `reason`.
 
 ### Events that are no longer emitted
 
@@ -187,7 +191,7 @@ Behavior of a track object:
 | after an SFU `error` with the `DISCONNECT` strategy, only the `error` event; a failed reconnection gives `RECONNECTING_FAILED` and `reconnection_failed` | the SDK leaves the call: `connection.state_changed` gives `LEFT`, `call_ended` comes with `reason` 0, and `wait()` returns | The SDK also leaves when ICE never connects after several tries, when it reaches its rejoin rate limit, and after too many failed negotiations. Other reconnection failures give `RECONNECTING_FAILED`. |
 | the join continues when the coordinator WebSocket cannot connect; the failure is logged | `connect()` raises, for example `CoordinatorError` | After the join, a closed coordinator WebSocket or a failed coordinator health check makes the SDK rejoin the call with a new session (see "Remote tracks"). 6.1.1 reconnected only the WebSocket. |
 | `connect()` retries with `max_join_retries` and other SFUs | the SDK retries | The `max_join_retries` argument is removed. |
-| `rtc.join(call, user_id, **kwargs)` passes `kwargs` to the join request | `rtc.join(call, user_id, create, subscription_config)` | Other keyword arguments raise `TypeError`. |
+| `rtc.join(call, user_id, **kwargs)` passes `kwargs` to the join request | `rtc.join(call, user_id, create, subscription_config)` | Other keyword arguments raise `TypeError`. For the join request arguments `data`, `ring`, `notify` and `video`, call `await call.get_or_create(...)` with them before `rtc.join()`; it takes the same arguments. |
 | `user_id=None` raises `ValueError` | raises `TypeError` | `user_id` of `rtc.join` and `ConnectionManager` has no default now. A call without an id raises `TypeError`. |
 | `drain_video_frames` | removed | The SDK decodes a remote track only while it is read. |
 | `connect()` again on the same `ConnectionManager` | not supported | After `leave()`, or after a `connect()` that failed or was cancelled, a new `connect()` joins the call, but no events and no tracks arrive, and `wait()` returns at once. Use a new `rtc.join()` for each join. |
@@ -250,8 +254,13 @@ windowed-sinc filter (`getstream_rtc.StreamResampler`), not with PyAV
   `ValueError`. PyAV converted between all layouts.
 - `FrameResampler` accepts only the output format `s16`; another `format`
   raises `ValueError`.
-- `PyAVResampler` is removed. For a stream of `PcmData`, use
-  `FrameResampler`.
+- `PyAVResampler` is removed. No replacement works the same:
+  - `Resampler(format, sample_rate, channels).resample(pcm)` takes the same
+    arguments (without `frame_size`) and returns `PcmData`, but it
+    interpolates linearly and keeps no state between calls.
+  - `FrameResampler(rate, layout, format, frame_size)` keeps state between
+    calls, as `PyAVResampler` did, but it returns a `list` of `av.AudioFrame`
+    without `pts`, and its only output format is `s16`.
 
 ### Publishing video
 
@@ -275,6 +284,18 @@ windowed-sinc filter (`getstream_rtc.StreamResampler`), not with PyAV
   participants get the new frames on their existing `RemoteTrack`. In 6.1.1
   each call added one more video track.
 
+### Permissions to publish
+
+In 6.1.1, stream-py did not change the published tracks when the permissions
+of the user changed. Now the SDK does:
+
+- When the `send-audio` or `send-video` capability is removed, the SDK
+  unpublishes the track of that kind.
+- When the SFU removes the grant (`call_grants_updated`), the SDK mutes the
+  track.
+- When the permission is given back, the SDK does not publish or unmute the
+  track. Call `add_tracks()` again.
+
 ### Handlers, failures and lost events
 
 - A handler that raises does not stop the other events, `wait()` or
@@ -283,8 +304,6 @@ windowed-sinc filter (`getstream_rtc.StreamResampler`), not with PyAV
   message "A 'error' handler failed". With an `error` handler (for example for
   the SFU `Error` event), that handler gets the exception, and nothing is
   logged. This is true for `ConnectionManager` and `participants_state`.
-  `emit(event, *args, unsafe=True)` does not raise the handler's exception
-  either.
 - If `connect()` fails or is cancelled after the SDK join, it leaves the call
   before it raises.
 - If the forwarding of a track from `add_tracks` raises, for example for the
@@ -305,12 +324,14 @@ windowed-sinc filter (`getstream_rtc.StreamResampler`), not with PyAV
 
 - `get_participants()` and the `map()` handlers give a list of
   `RemoteParticipant`, not `models_pb2.Participant`. The list includes this
-  participant (the agent) and is keyed by `session_id`. The
-  `participant_joined` and `participant_left` events of `participants_state`
-  also give a `RemoteParticipant`.
-- After the join, the list is filled from the SDK's participants; then
-  `participant_joined` and `participant_left` update it. `participant_updated`
-  does not change it, as in 6.1.1.
+  participant (the agent) and is keyed by `session_id`. To skip the agent,
+  compare `participant.user_id` with `connection.user_id`; this also skips the
+  other sessions of the same user. The `participant_joined` and
+  `participant_left` events of `participants_state` also give a
+  `RemoteParticipant`.
+- After the join, and again after each reconnect, the list is filled from the
+  SDK's participants; then `participant_joined` and `participant_left` update
+  it. `participant_updated` does not change it, as in 6.1.1.
 - `track_published` does not change the list. In 6.1.1 it replaced the
   participant (with its new `published_tracks`) and called the `map()`
   handlers. Now `published_tracks` in the list keeps the value from the join
@@ -321,11 +342,18 @@ windowed-sinc filter (`getstream_rtc.StreamResampler`), not with PyAV
 
 ### Subscriptions
 
-`subscription_config` of `rtc.join` works as in 6.1.1 (`default`,
-`role_filters`, `max_subscriptions`, separate video and screen share sizes).
-The SDK applies it again on each participant and track event. Differences in
-rare cases:
+`subscription_config` of `rtc.join` has the same fields as in 6.1.1
+(`default`, `role_filters`, `max_subscriptions`, separate video and screen
+share sizes). The SDK applies it again on each participant and track event.
+The differences:
 
+- `role_filters` also applies to the tracks that are published after the
+  join. In 6.1.1 these tracks got the `default` rule, except in large calls:
+  the SFU sends the participant of `track_published` only in large calls.
+- The SDK makes the list of matching tracks again on each event and keeps the
+  first `max_subscriptions` of them, so a new track can take the place of a
+  track that is already subscribed. In 6.1.1 the tracks that were subscribed
+  first stayed, and a track over the limit was skipped.
 - A participant with two roles that both have a rule in `role_filters` gets
   the rule of the first role in its `roles` list. In 6.1.1 the choice was not
   defined.
@@ -350,6 +378,16 @@ rare cases:
 client configuration they raise `ConfigError`, and for other client errors
 `RustError` itself, before `connect()`.
 
+`add_tracks()` raised `SfuRpcError` when the SFU rejected the publish and
+`TimeoutError` when the publisher did not connect in 15 s. Now it raises:
+
+- `PermissionDeniedError` when the user does not have the `send-audio` or
+  `send-video` capability.
+- `IllegalStateError` before the join.
+- `MediaError` when the SFU has no unused publish option for the codec of the
+  track.
+- `RtcError` for other publish failures.
+
 ### `ConnectionManager` attributes
 
 These attributes and methods of the aiortc transport are removed:
@@ -361,6 +399,8 @@ These attributes and methods of the aiortc transport are removed:
 - `pc_id()`, `sfu_id()`, `republish_tracks()`.
 
 `call`, `user_id`, `create`, `participants_state` and `connection_state` stay.
+For the call data of `join_response`, use `await call.get()`. `session_id` has
+no replacement.
 
 ### Removed modules and names
 
@@ -395,11 +435,13 @@ connections, so the aiortc transport code is removed:
 - `connect()` reads the effective level of the `getstream` logger. A later
   level change takes effect at the next `connect()`.
 - `rtc.join()` starts the threads of the SDK runtime, and the first
-  `connect()` starts the thread that forwards the Rust records to `logging`.
-  An import starts no thread. `fork()` copies only the calling thread, so a
-  process forked after that cannot use the SDK: SDK calls in the child never
-  complete, and `connect()` never returns (on macOS the child stops with
-  `SIGTRAP`). Start the worker processes before the first `rtc.join()`, as
+  `connect()` (or `getstream_rtc.configure_logging()`) starts the thread
+  `getstream-logging`, which hands the Rust records to `logging`. An import
+  starts no thread. `fork()` copies only the calling thread, so a process
+  forked after that cannot use the SDK. In a process forked after `connect()`,
+  `connect()` raises `RuntimeError`. In a process forked after `rtc.join()`
+  only, SDK calls never complete, and `connect()` never returns. Start the
+  worker processes before the first `rtc.join()`, as
   `gunicorn --preload` and the Celery prefork pool do, or use the `spawn` or
   `forkserver` start method of `multiprocessing`.
 
@@ -434,10 +476,13 @@ not have local call recording either.
 | `connection.recording_manager` and the module `getstream.video.rtc.recording` (`RecordingManager`, `RecordingType`, `RecordingConfig` and the recorder classes) | removed |
 | the `recording_manager` events `recording_started`, `recording_stopped`, `user_recording_started`, `user_recording_stopped`, `composite_recording_started`, `composite_recording_stopped`, `recording_error` | removed |
 
-To record a call, use the server recording: `call.start_recording()` and
-`call.stop_recording()`. The `call.recording_ready` event tells when a file is
-ready. To write files locally, read the `audio` event (`PcmData` with
-`participant`, `pts` and `time_base`) and `track.video_frames()`.
+To record a call, use the server recording:
+`call.start_recording(recording_type)` and
+`call.stop_recording(recording_type)`. The coordinator event
+`call.recording_ready` tells when a file is ready; `ConnectionManager` does not
+emit it, so receive it with a webhook. To write files locally, read the `audio`
+event (`PcmData` with `participant`, `pts` and `time_base`) and
+`track.video_frames()`.
 
 ## Other bugs
 
@@ -453,47 +498,23 @@ in a test run ("confirmed") or found only its cause ("not confirmed").
   `TrackQueue`, which lives as long as the `Call`. After a new join on the same
   `Call`, a new `TrackStream` first returns the dead tracks of the old session.
   Until they are read, these tracks keep their decoders.
-- `getstream-rtc/rustsrc/logging.rs:262-270` (low, not reachable at this
-  time): `SINK.set` comes before `set_global_default` and
-  `LogTracer::init`. If a global `tracing` subscriber or `log` logger is
-  already set, `import getstream_rtc` raises. A second import then succeeds
-  with no subscriber, and the Rust logs are lost. Another extension cannot
-  set these globals, because each extension module links its own copy of
-  `tracing` and `log`. In this module, only SDK test code sets a subscriber.
 - `getstream-rtc/rustsrc/tracks.rs:93` (low, confirmed): if Python cancels
   the awaitable after the Rust future is complete (for example
   `asyncio.wait_for(anext(tracks), timeout)`), pyo3-async-runtimes discards
   the result (`generic.rs:348`). The `RemoteTrack` is dropped and the SDK
   unsubscribes from it. The track is lost until it is published again.
   `EventStream` and `next_pcm()` can lose one item in the same way.
-- `getstream-rtc/rustsrc/logging.rs:305-330` (low, not confirmed):
-  `configure_logging` waits for the forwarding thread. If a handler or filter
-  of the `getstream` logger calls it, the forwarding thread waits for itself.
-  If the caller holds `logging._lock` or a handler lock, the forwarding thread
-  waits for that lock. No caller in the repository does this.
-- `getstream-rtc/rustsrc/logging.rs:292` (low, confirmed):
-  `SINK.get().expect(...)` in a `#[pyfunction]` breaks the AGENTS.md rule
-  against `expect` in library code. It cannot fail at this time.
-- `getstream-rtc/rustsrc/call_end.rs:28` (low, confirmed): the watcher ignores
-  `RecvError::Lagged`, so a skipped `LEFT` state is never counted, and the
-  streams that wait for that end do not end.
 - Python calls from Rust that AGENTS.md does not document (low, confirmed):
-  `atexit.register` (`logging.rs:273-276`), `PyObject_Repr` in each `__repr__`
-  (`repr.rs:7`) and `import_exception!` of `getstream_rtc.errors`
-  (`errors.rs:4-12`). Also, `logging.rs:370` imports `getstream_rtc.logging`
-  again for each record.
+  `PyObject_Repr` in each `__repr__` (`repr.rs:7`) and `import_exception!` of
+  `getstream_rtc.errors` (`errors.rs:4-13`).
 
 ### Python and type stubs
 
-- `getstream-rtc/getstream_rtc/_bindings.pyi:17,26` (medium, confirmed): the
+- `getstream-rtc/getstream_rtc/_bindings.pyi:26,35` (medium, confirmed): the
   stub declares `CallingState(Enum)` and `TrackType(Enum)`. Type checkers accept
   `hash()`, `.name`, `.value` and iteration, which fail at runtime (see
   "Connection state").
-- `getstream/video/rtc/connection_manager.py:309-311` and `:189` (low, not
-  confirmed): if `leave()` raises, `__aexit__` replaces the exception of the
-  `async with` body. In `connect()`, a `call.leave()` that raises replaces the
-  join error.
-- `getstream/video/rtc/connection_manager.py:370-392` (low, not confirmed):
+- `getstream/video/rtc/connection_manager.py:391-409` (low, not confirmed):
   `_stop_forwarding()` can cancel a task that is already in its
   `finally: await stop_publish(...)` because its source ended. The SDK stop is
   then dropped. If this occurs during the mute request to the SFU, the old
@@ -507,27 +528,24 @@ in a test run ("confirmed") or found only its cause ("not confirmed").
   timestamp after that frame. The forwarder gives the gap since the previous
   frame, so each value is one frame late. The RTP timestamps are wrong only
   when the frame rate changes.
-- `getstream/video/rtc/connection_manager.py:271` (low, confirmed):
-  `_emit_audio` reads `track.participant` for each 20 ms frame, and each read
-  allocates a new `RemoteParticipant`.
-- `getstream-rtc/getstream_rtc/__init__.py:14-52` (low, confirmed): 14 classes
+- `getstream-rtc/getstream_rtc/__init__.py:15-53` (low, confirmed): 14 classes
   of `_bindings` are not exported at the package root: `AudioBitrate`,
   `AudioLevel`, `AudioSender`, `CallGrants`, `CallStateSnapshot`, `Codec`,
   `ConnectionQualityInfo`, `ErrorDetails`, `InboundVideoState`, `Pin`,
   `PublishOption`, `VideoDimension`, `VideoLayerSetting`, `VideoSender`.
   AGENTS.md says that the root exports every class.
-- `getstream-rtc/getstream_rtc/_bindings.pyi:465-469` (low, confirmed): the
+- `getstream-rtc/getstream_rtc/_bindings.pyi:475-478` (low, confirmed): the
   docstring says only that a capacity below 0.02 s raises `MediaError`. A
   negative or NaN value raises `ValueError`.
 - `getstream/video/rtc/audio_forwarder.py:50-51` (low, confirmed): the comment
   says that the aiortc Opus encoder accepts only `s16`. It converts every
   format to `s16` (see "Publishing audio").
-- `getstream/video/rtc/connection_manager.py:67,179` (low, confirmed): the
+- `getstream/video/rtc/connection_manager.py:67,177` (low, confirmed): the
   comments "as in the aiortc version" describe the migration, not the code.
 
 ### Tests
 
-- `getstream-rtc/tests/test_logging.py:88-98` (medium, confirmed):
+- `getstream-rtc/tests/test_logging.py:200-211` (medium, confirmed):
   `test_no_records_after_logging_is_stopped` cannot fail. The autouse fixture
   `forward_sdk_logs` forwards at INFO, and the `pcm_queue_overflow` record is
   DEBUG, so Rust filters it also while forwarding is on. Without the
@@ -537,8 +555,8 @@ in a test run ("confirmed") or found only its cause ("not confirmed").
   join completes faster, `pytest.raises(CancelledError)` fails.
 - `async for ... break` loops without `else: pytest.fail(...)` (low, not
   confirmed): `getstream-rtc/tests/test_call.py:295, 317, 337, 346, 372, 397,
-  415, 479, 501, 521, 542, 558, 712` and
-  `tests/rtc/test_connection_manager.py:663, 672`. If the stream ends before the
+  415, 479, 501, 528, 547, 568, 584, 738` and
+  `tests/rtc/test_connection_manager.py:664, 673`. If the stream ends before the
   expected event, `test_calling_state_changed_to_joined` (397) and
   `test_track_published` (479) pass with no assertion. The other tests assert
   on the last event.
@@ -606,5 +624,3 @@ The review did not check these points:
   block.
 - The lock behavior inside tokio, and how pyo3 drops a `Py<PyAny>` without the
   GIL.
-- The integration tests did not run (they need credentials), and no Rust code
-  was compiled.
