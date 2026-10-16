@@ -512,8 +512,14 @@ class TestCallEvents:
         call_users: list[FullUserResponse],
     ):
         events = joined_call.coordinator_events()
-        # A float that a parser without correct rounding changes in the last bit.
-        custom = {"type": "test_event", "ratio": 0.9856906946328695}
+        custom = {
+            "type": "test_event",
+            # A float that a parser without correct rounding changes in the last bit.
+            "ratio": 0.9856906946328695,
+            "count": 3,
+            "enabled": True,
+            "items": [1, "a", None, {"nested": [False]}],
+        }
 
         client.video.call("default", call_id).send_call_event(
             user_id=call_users[1].id, custom=custom
