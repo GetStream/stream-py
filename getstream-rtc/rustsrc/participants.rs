@@ -143,13 +143,17 @@ impl From<models::Participant> for RemoteParticipant {
             published_tracks: participant
                 .published_tracks
                 .into_iter()
-                .map(TrackType::from_i32)
+                .filter_map(|value| models::TrackType::try_from(value).ok())
+                .map(TrackType::from)
                 .collect(),
-            connection_quality: participant.connection_quality,
+            connection_quality: models::ConnectionQuality::try_from(participant.connection_quality)
+                .unwrap_or(models::ConnectionQuality::Unspecified)
+                as i32,
             is_speaking: participant.is_speaking,
             is_dominant_speaker: participant.is_dominant_speaker,
             audio_level: participant.audio_level,
-            source: participant.source,
+            source: models::ParticipantSource::try_from(participant.source)
+                .unwrap_or(models::ParticipantSource::WebrtcUnspecified) as i32,
             joined_at: participant.joined_at.map(unix_seconds),
             custom: participant.custom,
         }
@@ -213,5 +217,29 @@ impl From<getstream::rtc::CallStateSnapshot> for CallStateSnapshot {
             participants: state.participants.into_iter().map(Into::into).collect(),
             own_capabilities: state.own_capabilities,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unknown_enum_values_are_converted_as_in_the_sdk() {
+        let participant = RemoteParticipant::from(models::Participant {
+            published_tracks: vec![models::TrackType::Audio as i32, 99],
+            connection_quality: 99,
+            source: 99,
+            ..Default::default()
+        });
+
+        assert!(participant.published_tracks == [TrackType::Audio]);
+        assert_eq!(
+            (participant.connection_quality, participant.source),
+            (
+                models::ConnectionQuality::Unspecified as i32,
+                models::ParticipantSource::WebrtcUnspecified as i32
+            )
+        );
     }
 }
