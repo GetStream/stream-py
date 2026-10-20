@@ -52,6 +52,7 @@ class TestInvalidRateLimitHeaders:
             assert isinstance(error, StreamRateLimitException)
             assert error.status_code == 429
             assert error.rate_limit_info is None
+            assert error.retry_after is not None
             assert error.retry_after.total_seconds() == 5
 
     @pytest.mark.parametrize("prefix", ["", " , "])
@@ -66,6 +67,7 @@ class TestInvalidRateLimitHeaders:
         )
         result = StreamResponse(response, {})
         info = result.rate_limit()
+        assert info is not None
         assert info.limit == 100
         assert info.remaining == 80
         assert info.reset == datetime(2022, 1, 1, tzinfo=timezone.utc)
