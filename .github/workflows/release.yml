@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       publish_tag:
-        description: 'Existing tag to (re)publish to PyPI, e.g. v6.1.1. Leave empty for a normal release run.'
+        description: 'Existing tag to (re)publish to PyPI, e.g. v6.1.1 or getstream-rtc-v0.1.0. Leave empty for a normal release run.'
         required: false
         default: ''
 
@@ -176,6 +176,8 @@ jobs:
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
+      rtc_release_created: ${{ steps.release.outputs['getstream-rtc--release_created'] }}
+      rtc_tag_name: ${{ steps.release.outputs['getstream-rtc--tag_name'] }}
     steps:
       - uses: googleapis/release-please-action@v4
         id: release
@@ -189,12 +191,85 @@ jobs:
   # created with GITHUB_TOKEN starts no new workflow run. Also reachable on its own
   # through workflow_dispatch with publish_tag, which is the recovery path once
   # GitHub has retired the original run and "Re-run failed jobs" is gone.
-  publish:
-    name: 📦 Publish to PyPI
+  # Each platform builds its wheel from the tag and uploads it in the same job, with no
+  # cache and no artifact. --check-url skips the wheels that PyPI already has, so a run
+  # with publish_tag uploads only the missing wheels of an incomplete release.
+  publish-rtc:
+    name: 📦 Publish getstream-rtc (${{ matrix.platform }})
     needs: release
     if: >-
       !cancelled() &&
-      (inputs.publish_tag != '' || needs.release.outputs.release_created == 'true')
+      (startsWith(inputs.publish_tag, 'getstream-rtc-v') || needs.release.outputs.rtc_release_created == 'true')
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-x86_64
+            runner: ubuntu-latest
+          - platform: linux-aarch64
+            runner: ubuntu-24.04-arm
+          - platform: macos-arm64
+            runner: macos-latest
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    environment: pypi
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Resolve tag
+        id: target
+        env:
+          PUBLISH_TAG: ${{ inputs.publish_tag }}
+          RELEASE_TAG: ${{ needs.release.outputs.rtc_tag_name }}
+        run: |
+          tag="${PUBLISH_TAG:-$RELEASE_TAG}"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "version=${tag#getstream-rtc-v}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ steps.target.outputs.tag }}
+          persist-credentials: false
+
+      - name: Build and check the wheel
+        id: wheel
+        uses: ./.github/actions/build-rtc-wheel
+
+      - name: Publish to PyPI (Trusted Publishing)
+        env:
+          WHEEL_DIR: ${{ steps.wheel.outputs.wheel-dir }}
+        run: uv publish --check-url https://pypi.org/simple/ "$WHEEL_DIR"/*.whl
+
+      - name: Verify pip install
+        env:
+          REQUIREMENT: getstream-rtc==${{ steps.target.outputs.version }}
+          MODULE: getstream_rtc
+        run: |
+          # Outside the checkout, so that no project file or source directory is used.
+          cd "$RUNNER_TEMP"
+          uv venv --quiet --python 3.12 verify
+          # PyPI can take a few minutes to list a new release.
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            if uv pip install --quiet --no-cache --python verify "$REQUIREMENT"; then
+              verify/bin/python -c "import $MODULE"
+              exit
+            fi
+            sleep 30
+          done
+          echo "::error::$REQUIREMENT could not be installed from PyPI."
+          exit 1
+
+  # Waits for publish-rtc, so that PyPI never has a getstream that requires a
+  # getstream-rtc which is not uploaded.
+  publish:
+    name: 📦 Publish to PyPI
+    needs: [release, publish-rtc]
+    if: >-
+      !cancelled() &&
+      (needs.publish-rtc.result == 'success' || needs.publish-rtc.result == 'skipped') &&
+      ((inputs.publish_tag != '' && !startsWith(inputs.publish_tag, 'getstream-rtc-v')) ||
+      needs.release.outputs.release_created == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # PyPI Trusted Publishing is bound to this workflow file name and this environment.
@@ -221,6 +296,8 @@ jobs:
           persist-credentials: false
 
       - uses: ./.github/actions/python-uv-setup
+        with:
+          build-extension: "false"
 
       - name: Build distributions
         run: uv build
@@ -230,7 +307,19 @@ jobs:
 
       - name: Verify pip install
         env:
-          UV_NO_SOURCES: "1"
+          REQUIREMENT: getstream[webrtc]==${{ steps.target.outputs.version }}
+          MODULE: getstream.video.rtc
         run: |
-          uv pip install "getstream==${{ steps.target.outputs.version }}" || \
-            echo "WARNING: pip install verification failed (PyPI index may need a moment to propagate)"
+          # Outside the checkout, so that no project file or source directory is used.
+          cd "$RUNNER_TEMP"
+          uv venv --quiet --python 3.12 verify
+          # PyPI can take a few minutes to list a new release.
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            if uv pip install --quiet --no-cache --python verify "$REQUIREMENT"; then
+              verify/bin/python -c "import $MODULE"
+              exit
+            fi
+            sleep 30
+          done
+          echo "::error::$REQUIREMENT could not be installed from PyPI."
+          exit 1
