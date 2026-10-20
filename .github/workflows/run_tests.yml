@@ -67,7 +67,7 @@ jobs:
         # The tests link libpython of the system Python.
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libvpx-dev libclang-dev python3-dev
+          sudo apt-get install -y --no-install-recommends python3-dev
       - name: Install the Rust toolchain
         run: rustup toolchain install
       - name: Cache the Rust build

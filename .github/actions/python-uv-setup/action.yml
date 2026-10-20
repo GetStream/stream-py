@@ -20,14 +20,6 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Install the native build dependencies
-      if: ${{ inputs.build-extension == 'true' }}
-      shell: bash
-      # libvpx is linked from the system; bindgen needs libclang to generate its bindings.
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y --no-install-recommends libvpx-dev libclang-dev
-
     - name: Install the Rust toolchain
       if: ${{ inputs.build-extension == 'true' }}
       shell: bash
