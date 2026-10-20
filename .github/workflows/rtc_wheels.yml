@@ -1,0 +1,42 @@
+name: getstream-rtc wheels
+# Builds and checks the wheels of the release platforms; nothing is uploaded.
+# The release builds them again from the tag (release.yml).
+on:
+  pull_request:
+    paths:
+      - "getstream-rtc/**"
+      - ".github/actions/build-rtc-wheel/**"
+      - ".github/workflows/rtc_wheels.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rtc-wheels-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  wheel:
+    name: 🦀 Wheel (${{ matrix.platform }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-x86_64
+            runner: ubuntu-latest
+          - platform: linux-aarch64
+            runner: ubuntu-24.04-arm
+          - platform: macos-arm64
+            runner: macos-latest
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Build and check the wheel
+        uses: ./.github/actions/build-rtc-wheel
+        with:
+          cache: "true"
