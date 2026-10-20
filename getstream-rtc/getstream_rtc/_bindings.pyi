@@ -571,5 +571,5 @@ class Client:
 
         ``call_event_capacity``: the events that each event stream of a call
         buffers for a reader that falls behind (``None``: the SDK default, 256);
-        0 raises ``ConfigError``."""
+        0 or more than 65536 raises ``ConfigError``."""
     def call(self, call_type: str, call_id: str) -> Call: ...
