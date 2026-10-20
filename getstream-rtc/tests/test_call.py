@@ -261,6 +261,29 @@ class TestCallJoin:
         assert call.calling_state == getstream_rtc.CallingState.JOINED
         await call.leave()
 
+    async def test_a_freed_call_leaves(
+        self,
+        rust_client: getstream_rtc.Client,
+        joining_call: getstream_rtc.Call,
+        call_id: str,
+        call_users: list[FullUserResponse],
+    ):
+        call = rust_client.call("default", call_id)
+        await call.join(call_users[0].id)
+        await joining_call.join(call_users[1].id)
+        events = joining_call.sfu_events()
+
+        del call
+
+        async for event in events:
+            if (
+                isinstance(event, getstream_rtc.ParticipantLeft)
+                and event.participant.user_id == call_users[0].id
+            ):
+                break
+        else:
+            pytest.fail("the freed call did not leave")
+
 
 class TestCallPublish:
     async def test_publish_before_join_raises(self, call_id: str):

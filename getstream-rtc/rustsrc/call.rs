@@ -292,6 +292,18 @@ impl Call {
     }
 }
 
+impl Drop for Call {
+    /// The SDK tasks keep a joined call alive, so a call that Python frees
+    /// without `leave()` would stay in the call until the process exits. The
+    /// leave runs on the runtime: this takes no SDK lock with the GIL held.
+    fn drop(&mut self) {
+        let call = self.inner.clone();
+        pyo3_async_runtimes::tokio::get_runtime().spawn(async move {
+            let _ = call.leave().await;
+        });
+    }
+}
+
 #[pyclass(
     frozen,
     module = "getstream_rtc",
