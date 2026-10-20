@@ -55,4 +55,8 @@ runs:
     - name: Install the project dependencies
       shell: bash
       working-directory: ${{ inputs.working-directory }}
+      env:
+        # A Cargo.lock that does not match Cargo.toml fails the build of getstream-rtc
+        # instead of being updated.
+        MATURIN_PEP517_ARGS: --locked
       run: uv sync ${{ inputs.sync-flags }} ${{ inputs.build-extension != 'true' && '--no-install-package getstream-rtc' || '' }}

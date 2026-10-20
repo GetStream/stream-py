@@ -51,6 +51,7 @@ jobs:
   rust:
     name: 🦀 Rust
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     env:
       # The same interpreter for clippy and the tests, so the PyO3 build is reused.
       PYO3_PYTHON: /usr/bin/python3
@@ -77,9 +78,9 @@ jobs:
       - name: Check formatting
         run: cargo fmt --check
       - name: Run clippy
-        run: cargo clippy --all-targets -- -D warnings
+        run: cargo clippy --locked --all-targets -- -D warnings
       - name: Run the unit tests
-        run: cargo test --lib
+        run: cargo test --locked --lib
 
   # ── Non-video tests (chat, feeds, etc.) ────────────────────────────
   # Uses STREAM_CHAT_* credentials which do NOT have video enabled.
