@@ -171,6 +171,10 @@ We use [uv](https://github.com/astral-sh/uv) to manage dependencies and run test
 **Prerequisites:**
 - Python 3.10+ (recommended: 3.12.2)
 - [uv](https://github.com/astral-sh/uv) package manager
+- [rustup](https://rustup.rs) and a C compiler (macOS: `xcode-select --install`;
+  Debian/Ubuntu: `apt install build-essential`): `uv sync --all-extras` compiles
+  the Rust extension `getstream-rtc`. Run `rustup toolchain install` in
+  `getstream-rtc/` to install the Rust version that it pins.
 
 **Setup:**
 ```sh

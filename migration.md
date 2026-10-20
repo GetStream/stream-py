@@ -29,15 +29,18 @@ The main changes for consumers:
 
 The `webrtc` extra now also installs `getstream-rtc` (import name
 `getstream_rtc`), a separate package that contains the native extension.
-`getstream` itself stays pure Python. Building `getstream-rtc` from source (a
-git checkout, or its sdist on a platform without a wheel) needs the Rust
-toolchain pinned in `getstream-rtc/rust-toolchain.toml`, a C compiler, `cmake`,
-`pkg-config`, `libvpx` and libclang:
+`getstream` itself stays pure Python.
 
-- macOS: `brew install libvpx cmake pkg-config` (libclang comes with Xcode)
-- Debian/Ubuntu: `apt install libvpx-dev libclang-dev cmake pkg-config build-essential`
+`getstream-rtc` needs Python 3.10 or later, as `getstream` does. PyPI has
+`getstream-rtc` wheels for Linux x86_64 and aarch64 (glibc 2.28 or later) and
+for macOS arm64 (macOS 11 or later), and no sdist. On other platforms, for
+example Windows and Intel macOS, `pip install "getstream[webrtc]"` fails; 6.1.1
+installed there.
 
-`getstream-rtc` needs Python 3.10 or later, as `getstream` does.
+Building `getstream-rtc` from a git checkout needs the Rust toolchain pinned in
+`getstream-rtc/rust-toolchain.toml` and a C compiler (macOS:
+`xcode-select --install`; Debian/Ubuntu: `apt install build-essential`). The
+Rust SDK crate links its own static libvpx and libopus.
 
 The `webrtc` extra no longer installs `scipy`, `soundfile`, `websockets`,
 `websocket-client`, `structlog`, `tenacity` and `ping3`; no stream-py code uses
@@ -504,9 +507,6 @@ in a test run ("confirmed") or found only its cause ("not confirmed").
   the result (`generic.rs:348`). The `RemoteTrack` is dropped and the SDK
   unsubscribes from it. The track is lost until it is published again.
   `EventStream` and `next_pcm()` can lose one item in the same way.
-- Python calls from Rust that AGENTS.md does not document (low, confirmed):
-  `PyObject_Repr` in each `__repr__` (`repr.rs:7`) and `import_exception!` of
-  `getstream_rtc.errors` (`errors.rs:4-13`).
 
 ### Python and type stubs
 
@@ -528,12 +528,6 @@ in a test run ("confirmed") or found only its cause ("not confirmed").
   timestamp after that frame. The forwarder gives the gap since the previous
   frame, so each value is one frame late. The RTP timestamps are wrong only
   when the frame rate changes.
-- `getstream-rtc/getstream_rtc/__init__.py:15-53` (low, confirmed): 14 classes
-  of `_bindings` are not exported at the package root: `AudioBitrate`,
-  `AudioLevel`, `AudioSender`, `CallGrants`, `CallStateSnapshot`, `Codec`,
-  `ConnectionQualityInfo`, `ErrorDetails`, `InboundVideoState`, `Pin`,
-  `PublishOption`, `VideoDimension`, `VideoLayerSetting`, `VideoSender`.
-  AGENTS.md says that the root exports every class.
 - `getstream-rtc/getstream_rtc/_bindings.pyi:475-478` (low, confirmed): the
   docstring says only that a capacity below 0.02 s raises `MediaError`. A
   negative or NaN value raises `ValueError`.
@@ -581,38 +575,6 @@ in a test run ("confirmed") or found only its cause ("not confirmed").
   - `tests/assets/` has 4 files over 256 KB that no test uses:
     `speech_48k.wav`, `speech_16k.wav`, `test_tone_48k.wav` and
     `formant_speech_48k.wav`.
-
-### CI and release
-
-- `.github/workflows/release.yml:222` (medium, confirmed): the `publish` job
-  calls `python-uv-setup` without `build-extension: "false"`, so it compiles
-  getstream-rtc, which `uv build` does not use. An apt, rustup or Rust build
-  failure stops the PyPI release of `getstream`. The default of
-  `build-extension` is `"true"`, so each new job that uses the action compiles
-  getstream-rtc unless it sets the input.
-- `.github/workflows/release.yml:225-229` (medium, confirmed): no workflow
-  builds or publishes getstream-rtc wheels or an sdist. The `webrtc` extra
-  requires `getstream-rtc>=0.1.0,<0.2`, so `pip install "getstream[webrtc]"`
-  fails until the package is on PyPI.
-- `.github/workflows/run_tests.yml:51` (low, confirmed): the `rust` job has no
-  `timeout-minutes`. The test jobs use 30.
-
-### AGENTS.md
-
-- Line 7 (low, confirmed): "exports every class at its root" is false (see the
-  `__init__.py` item above).
-- Line 4 (low, confirmed): `uv sync` without `--all-extras` does not remove
-  `numpy`, because `getstream-rtc` depends on it. It removes `aiortc`, `av`
-  and `aiohttp`.
-- Lines 79-81 (low, confirmed): records of other crates use the less verbose
-  of `level` and `third_party_level` (`logging.rs:299-300`), not only
-  `third_party_level`.
-- Line 7 (low, confirmed): the version text does not mention the range
-  `getstream-rtc>=0.1.0,<0.2` in the root `pyproject.toml:38`.
-- Line 7 (low, confirmed): on Debian/Ubuntu, `cargo test --lib` also needs
-  `python3-dev`. CI installs it in `run_tests.yml:54-70`.
-- Style (low): item 5 (line 7) has sentences of 40 to 70 words. "for no
-  reason" (line 30) and "Keep both halves impossible" (line 43) are not clear.
 
 ### Not verified
 
