@@ -64,7 +64,7 @@ def _rust_track_subscription_config(
     rule: TrackSubscriptionConfig,
 ) -> getstream_rtc.TrackSubscriptionConfig:
     return getstream_rtc.TrackSubscriptionConfig(
-        # An unknown value matches no track, as in the aiortc version.
+        # An unknown value matches no track.
         track_types=[
             _TRACK_TYPES[track_type]
             for track_type in rule.track_types
@@ -174,8 +174,8 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
             # Includes this participant, which gets no `participant_joined`.
             for participant in call.participants():
                 self._participants_state._add_participant(participant)
-            # Without a config nothing is requested, as in the aiortc version;
-            # the SFU sends remote audio without a request.
+            # Without a config nothing is requested; the SFU sends remote audio
+            # without a request.
             if self._subscription_config is not None:
                 await call.update_subscriptions(
                     _rust_subscription_config(self._subscription_config)

@@ -508,19 +508,12 @@ in a test run ("confirmed") or found only its cause ("not confirmed").
 
 ### Python and type stubs
 
-- `getstream/video/rtc/video_forwarder.py:41-48` (low, confirmed): the SDK
+- `getstream/video/rtc/video_forwarder.py:44-51` (low, confirmed): the SDK
   uses `duration` as the length of the frame and adds it to the RTP
   timestamp after that frame. The forwarder gives the gap since the previous
   frame, so each value is one frame late. The RTP timestamps are wrong only
-  when the frame rate changes.
-- `getstream-rtc/getstream_rtc/_bindings.pyi:475-478` (low, confirmed): the
-  docstring says only that a capacity below 0.02 s raises `MediaError`. A
-  negative or NaN value raises `ValueError`.
-- `getstream/video/rtc/audio_forwarder.py:50-51` (low, confirmed): the comment
-  says that the aiortc Opus encoder accepts only `s16`. It converts every
-  format to `s16` (see "Publishing audio").
-- `getstream/video/rtc/connection_manager.py:67,177` (low, confirmed): the
-  comments "as in the aiortc version" describe the migration, not the code.
+  when the frame rate changes. The exact value needs an SDK change: a
+  `write_i420` that takes the capture time of the frame.
 
 ### Tests
 

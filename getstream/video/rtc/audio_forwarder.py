@@ -47,8 +47,8 @@ class AudioForwarder:
                 frame = cast(av.AudioFrame, await self.source.recv())
             except aiortc.mediastreams.MediaStreamError:
                 return
-            # aiortc audio tracks give packed s16 frames: aiortc's own Opus
-            # encoder accepts only s16.
+            # aiortc's own audio tracks give packed s16 frames; other formats
+            # are not converted.
             samples = cast(NDArray[np.int16], frame.to_ndarray())
             try:
                 await self.target.write_pcm(

@@ -38,6 +38,9 @@ class VideoForwarder:
             if size is None:
                 size = (_even(frame.width), _even(frame.height))
             # `time` is pts * time_base, or None when the frame has no pts.
+            # The SDK takes `duration` as the length of this frame, which is
+            # known only at the next frame; the gap since the previous frame
+            # is the estimate, so a change of the frame rate is one frame late.
             time = frame.time
             duration = (
                 time - previous_time
