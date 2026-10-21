@@ -145,7 +145,7 @@ def exiting_handler() -> Iterator[ExitOnce]:
 class TestLogging:
     async def test_sdk_events_reach_python_logging(
         self, sdk_logs: pytest.LogCaptureFixture, overflowing_samples: np.ndarray
-    ):
+    ) -> None:
         track = getstream_rtc.LocalAudioTrack()
         with pytest.raises(getstream_rtc.RtcError):
             await track.write_pcm(overflowing_samples, SAMPLE_RATE, 1)
@@ -167,7 +167,7 @@ class TestLogging:
         sdk_logs: pytest.LogCaptureFixture,
         overflowing_samples: np.ndarray,
         long_switch_interval: None,
-    ):
+    ) -> None:
         track = getstream_rtc.LocalAudioTrack()
         write = track.write_pcm(overflowing_samples, SAMPLE_RATE, 1)
         started = time.time()
@@ -188,7 +188,7 @@ class TestLogging:
 
     async def test_flush_during_logged_overflow_does_not_hang(
         self, sdk_logs: pytest.LogCaptureFixture, overflowing_samples: np.ndarray
-    ):
+    ) -> None:
         track = getstream_rtc.LocalAudioTrack()
 
         for _ in range(20):
@@ -199,7 +199,7 @@ class TestLogging:
 
     async def test_no_records_after_logging_is_stopped(
         self, sdk_logs: pytest.LogCaptureFixture, overflowing_samples: np.ndarray
-    ):
+    ) -> None:
         getstream_rtc.configure_logging(None, logging.NOTSET)
         track = getstream_rtc.LocalAudioTrack()
 
@@ -214,7 +214,7 @@ class TestLogging:
         sdk_logs: pytest.LogCaptureFixture,
         small_track: getstream_rtc.LocalAudioTrack,
         overflowing_chunk: np.ndarray,
-    ):
+    ) -> None:
         with contextlib.suppress(getstream_rtc.PcmQueueOverflowError):
             await small_track.write_pcm(overflowing_chunk, SAMPLE_RATE, 1)
         getstream_rtc.logging._flush()
@@ -232,7 +232,7 @@ class TestLogging:
         blocking_handler: BlockingHandler,
         small_track: getstream_rtc.LocalAudioTrack,
         overflowing_chunk: np.ndarray,
-    ):
+    ) -> None:
         with contextlib.suppress(getstream_rtc.PcmQueueOverflowError):
             await small_track.write_pcm(overflowing_chunk, SAMPLE_RATE, 1)
         assert blocking_handler.entered.wait(timeout=5)
@@ -251,7 +251,7 @@ class TestLogging:
         flushing_handler: FlushingHandler,
         small_track: getstream_rtc.LocalAudioTrack,
         overflowing_chunk: np.ndarray,
-    ):
+    ) -> None:
         with contextlib.suppress(getstream_rtc.PcmQueueOverflowError):
             await small_track.write_pcm(overflowing_chunk, SAMPLE_RATE, 1)
 
@@ -263,7 +263,7 @@ class TestLogging:
         blocking_handler: BlockingHandler,
         small_track: getstream_rtc.LocalAudioTrack,
         overflowing_chunk: np.ndarray,
-    ):
+    ) -> None:
         # While the handler blocks the logging thread, the queue (1024) and one
         # batch (256) fill up, and the last records are dropped.
         for _ in range(1500):
@@ -286,7 +286,7 @@ class TestLogging:
         failing_filter: None,
         small_track: getstream_rtc.LocalAudioTrack,
         overflowing_chunk: np.ndarray,
-    ):
+    ) -> None:
         for _ in range(2):
             with contextlib.suppress(getstream_rtc.PcmQueueOverflowError):
                 await small_track.write_pcm(overflowing_chunk, SAMPLE_RATE, 1)
@@ -299,7 +299,7 @@ class TestLogging:
         sdk_logs: pytest.LogCaptureFixture,
         small_track: getstream_rtc.LocalAudioTrack,
         overflowing_chunk: np.ndarray,
-    ):
+    ) -> None:
         getstream_rtc.configure_logging(None, logging.NOTSET)
         getstream_rtc.configure_logging(logging.getLogger("getstream"), logging.DEBUG)
 
@@ -316,7 +316,7 @@ class TestLogging:
         exiting_handler: ExitOnce,
         small_track: getstream_rtc.LocalAudioTrack,
         overflowing_chunk: np.ndarray,
-    ):
+    ) -> None:
         with contextlib.suppress(getstream_rtc.PcmQueueOverflowError):
             await small_track.write_pcm(overflowing_chunk, SAMPLE_RATE, 1)
         assert exiting_handler.raised.wait(timeout=5)
@@ -336,7 +336,7 @@ class TestLogging:
         sdk_logs: pytest.LogCaptureFixture,
         small_track: getstream_rtc.LocalAudioTrack,
         overflowing_chunk: np.ndarray,
-    ):
+    ) -> None:
         with pytest.raises(TypeError):
             getstream_rtc.configure_logging(
                 logging.getLogger("other"), logging.INFO, "WARNING"
@@ -351,7 +351,7 @@ class TestLogging:
     @pytest.mark.integration
     async def test_log_bodies_logs_request_bodies(
         self, sdk_logs: pytest.LogCaptureFixture, call_users: list[FullUserResponse]
-    ):
+    ) -> None:
         client = getstream_rtc.Client(
             os.environ["STREAM_API_KEY"],
             os.environ["STREAM_API_SECRET"],
@@ -373,7 +373,7 @@ class TestLogging:
         sdk_logs: pytest.LogCaptureFixture,
         rust_client: getstream_rtc.Client,
         call_users: list[FullUserResponse],
-    ):
+    ) -> None:
         call = rust_client.call("default", str(uuid.uuid4()))
         await call.join(call_users[0].id)
         await call.leave()
@@ -393,7 +393,7 @@ class TestLogging:
         sdk_logs: pytest.LogCaptureFixture,
         rust_client: getstream_rtc.Client,
         call_users: list[FullUserResponse],
-    ):
+    ) -> None:
         logger = logging.getLogger("getstream")
         getstream_rtc.configure_logging(logger, logging.DEBUG, logging.DEBUG)
         call = rust_client.call("default", str(uuid.uuid4()))

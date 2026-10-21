@@ -8,14 +8,14 @@ from tests.rtc.video_source import FrameSource
 
 
 class TestVideoForwarder:
-    async def test_run_returns_when_the_source_ends(self):
+    async def test_run_returns_when_the_source_ends(self) -> None:
         source = FrameSource([(320, 240)])
 
         await asyncio.wait_for(
             VideoForwarder(source, getstream_rtc.LocalVideoTrack.vp9()).run(), timeout=5
         )
 
-    async def test_odd_and_changed_sizes_are_written(self):
+    async def test_odd_and_changed_sizes_are_written(self) -> None:
         # The SDK encoder rejects odd sizes; the forwarder scales them.
         source = FrameSource([(321, 241), (640, 480), (320, 240)])
 
@@ -28,7 +28,7 @@ class TestVideoForwarder:
 class TestVideoForwarderOnACall:
     async def test_run_returns_when_the_call_is_left(
         self, joined_call: getstream_rtc.Call
-    ):
+    ) -> None:
         target = getstream_rtc.LocalVideoTrack.vp9()
         await joined_call.publish_video(target)
         # 10 s of video, so only the stopped track can end the run in time.

@@ -28,7 +28,7 @@ VIDEO_FPS = 15
 
 
 @pytest.fixture
-def client():
+def client() -> AsyncStream:
     return AsyncStream(timeout=10.0)
 
 
@@ -93,7 +93,7 @@ async def peer_video(
 class TestConnectionManager:
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_leave_twice_does_not_hang(self, client: AsyncStream):
+    async def test_leave_twice_does_not_hang(self, client: AsyncStream) -> None:
         """Integration test: join a real call and leave twice without hanging."""
         call_id = str(uuid.uuid4())
         call = client.video.call("default", call_id)
@@ -112,7 +112,7 @@ class TestConnectionManager:
 
     @pytest.mark.asyncio
     @pytest.mark.integration
-    async def test_token_only_client_can_join_call(self, client: AsyncStream):
+    async def test_token_only_client_can_join_call(self, client: AsyncStream) -> None:
         """A token-only AsyncStream can join a call created by a secret-holding client."""
         call_id = str(uuid.uuid4())
         user_id = f"test-user-{uuid.uuid4()}"
@@ -149,7 +149,7 @@ class TestConnectionManagerEvents:
         connection: ConnectionManager,
         peer_call: getstream_rtc.Call,
         call_users: list[FullUserResponse],
-    ):
+    ) -> None:
         events: asyncio.Queue[getstream_rtc.ParticipantJoined] = asyncio.Queue()
         connection.on("participant_joined", events.put_nowait)
 
@@ -164,7 +164,7 @@ class TestConnectionManagerEvents:
         peer_call: getstream_rtc.Call,
         call_users: list[FullUserResponse],
         tone: np.ndarray,
-    ):
+    ) -> None:
         tracks: asyncio.Queue[getstream_rtc.RemoteTrack] = asyncio.Queue()
         connection.on("track_added", tracks.put_nowait)
         await peer_call.join(call_users[1].id)
@@ -183,7 +183,7 @@ class TestConnectionManagerEvents:
         peer_call: getstream_rtc.Call,
         call_users: list[FullUserResponse],
         tone: np.ndarray,
-    ):
+    ) -> None:
         frames: asyncio.Queue[PcmData] = asyncio.Queue()
         connection.on("audio", frames.put_nowait)
         await peer_call.join(call_users[1].id)
@@ -207,7 +207,7 @@ class TestConnectionManagerEvents:
         connection: ConnectionManager,
         peer_call: getstream_rtc.Call,
         call_users: list[FullUserResponse],
-    ):
+    ) -> None:
         lists: asyncio.Queue[list[getstream_rtc.RemoteParticipant]] = asyncio.Queue()
         # The subscription keeps the weakly referenced handler alive.
         subscription = connection.participants_state.map(lists.put_nowait)
@@ -228,7 +228,7 @@ class TestConnectionManagerEvents:
         connection: ConnectionManager,
         peer_call: getstream_rtc.Call,
         call_users: list[FullUserResponse],
-    ):
+    ) -> None:
         left: asyncio.Queue[getstream_rtc.ParticipantLeft] = asyncio.Queue()
 
         def fail(event: getstream_rtc.ParticipantJoined) -> None:
@@ -245,7 +245,7 @@ class TestConnectionManagerEvents:
 
     async def test_failing_state_handler_does_not_stop_wait(
         self, client: AsyncStream, call_id: str, call_users: list[FullUserResponse]
-    ):
+    ) -> None:
         def fail(change: dict[str, CallingState]) -> None:
             raise RuntimeError("handler failed")
 
@@ -259,7 +259,7 @@ class TestConnectionManagerEvents:
 
     async def test_cancelled_connect_leaves_the_call(
         self, client: AsyncStream, call_id: str, call_users: list[FullUserResponse]
-    ):
+    ) -> None:
         config = SubscriptionConfig(
             default=TrackSubscriptionConfig(track_types=[models_pb2.TRACK_TYPE_AUDIO])
         )
@@ -283,7 +283,7 @@ class TestConnectionManagerEvents:
 
     async def test_wait_returns_after_a_failed_connect(
         self, client: AsyncStream, call_id: str, call_users: list[FullUserResponse]
-    ):
+    ) -> None:
         wrong_client = AsyncStream(api_key=client.api_key, api_secret="x" * 32)
         call = wrong_client.video.call("default", call_id)
         connection = await rtc.join(call, call_users[0].id)
@@ -294,7 +294,7 @@ class TestConnectionManagerEvents:
 
     async def test_unknown_track_type_in_subscription_config_is_ignored(
         self, client: AsyncStream, call_id: str, call_users: list[FullUserResponse]
-    ):
+    ) -> None:
         config = SubscriptionConfig(
             default=TrackSubscriptionConfig(
                 track_types=[
@@ -312,14 +312,14 @@ class TestConnectionManagerEvents:
 
     async def test_wait_returns_when_call_ends(
         self, client: AsyncStream, connection: ConnectionManager, call_id: str
-    ):
+    ) -> None:
         await client.video.call("default", call_id).end()
 
         await asyncio.wait_for(connection.wait(), timeout=10)
 
     async def test_connection_state_changed(
         self, client: AsyncStream, call_id: str, call_users: list[FullUserResponse]
-    ):
+    ) -> None:
         changes: list[dict[str, CallingState]] = []
         call = client.video.call("default", call_id)
         connection = await rtc.join(call, call_users[0].id)
@@ -336,7 +336,7 @@ class TestConnectionManagerEvents:
 
     async def test_call_ended_is_emitted_once_when_call_ends(
         self, client: AsyncStream, connection: ConnectionManager, call_id: str
-    ):
+    ) -> None:
         ended: list[getstream_rtc.CallEnded] = []
         connection.on("call_ended", ended.append)
 
@@ -419,7 +419,7 @@ class TestConnectionManagerLogging:
         call_id: str,
         call_users: list[FullUserResponse],
         caplog: pytest.LogCaptureFixture,
-    ):
+    ) -> None:
         # Stops the forwarding that the autouse fixture set up.
         getstream_rtc.configure_logging(None, logging.NOTSET)
         caplog.set_level(logging.DEBUG, logger="getstream")
@@ -576,7 +576,7 @@ class TestConnectionManagerPublishing:
         agent_audio: tuple[AudioStreamTrack, getstream_rtc.TrackStream],
         call_users: list[FullUserResponse],
         tone: np.ndarray,
-    ):
+    ) -> None:
         audio, tracks = agent_audio
         pcm = PcmData(samples=tone, sample_rate=SAMPLE_RATE, format="s16", channels=1)
 
@@ -591,7 +591,7 @@ class TestConnectionManagerPublishing:
         self,
         agent_audio: tuple[AudioStreamTrack, getstream_rtc.TrackStream],
         tone: np.ndarray,
-    ):
+    ) -> None:
         audio, tracks = agent_audio
         pcm = PcmData(samples=tone, sample_rate=SAMPLE_RATE, format="s16", channels=1)
         for _ in range(20):
@@ -609,7 +609,7 @@ class TestConnectionManagerPublishing:
         agent_audio: tuple[AudioStreamTrack, getstream_rtc.TrackStream],
         connection: ConnectionManager,
         tone: np.ndarray,
-    ):
+    ) -> None:
         audio, tracks = agent_audio
         pcm = PcmData(samples=tone, sample_rate=SAMPLE_RATE, format="s16", channels=1)
         await audio.write(pcm)
@@ -671,7 +671,7 @@ class TestConnectionManagerVideoPublishing:
         connection: ConnectionManager,
         peer_call: getstream_rtc.Call,
         call_users: list[FullUserResponse],
-    ):
+    ) -> None:
         tracks = peer_call.tracks()
         await peer_call.join(call_users[1].id)
         await peer_call.update_subscriptions(
@@ -699,7 +699,7 @@ class TestConnectionManagerVideoPublishing:
         connection: ConnectionManager,
         peer_call: getstream_rtc.Call,
         call_users: list[FullUserResponse],
-    ):
+    ) -> None:
         events = peer_call.sfu_events()
         await peer_call.join(call_users[1].id)
         source = FrameSource([(320, 240)] * 300)
@@ -725,7 +725,7 @@ class TestConnectionManagerVideoPublishing:
         self,
         connection: ConnectionManager,
         peer_video_tracks: getstream_rtc.TrackStream,
-    ):
+    ) -> None:
         first = FrameSource([(320, 240)] * 300)
         await connection.add_tracks(video=first)
         track = await asyncio.wait_for(anext(peer_video_tracks), timeout=15)
@@ -741,7 +741,7 @@ class TestConnectionManagerVideoPublishing:
         self,
         connection: ConnectionManager,
         peer_video_tracks: getstream_rtc.TrackStream,
-    ):
+    ) -> None:
         await connection.add_tracks(video=FrameSource([(320, 240)] * 300))
         track = await asyncio.wait_for(anext(peer_video_tracks), timeout=15)
         frames = track.video_frames()
@@ -760,7 +760,7 @@ class TestConnectionManagerSubscriptions:
         call_id: str,
         call_users: list[FullUserResponse],
         peer_video: None,
-    ):
+    ) -> None:
         config = SubscriptionConfig(
             default=TrackSubscriptionConfig(track_types=[models_pb2.TRACK_TYPE_VIDEO])
         )
@@ -783,7 +783,7 @@ class TestConnectionManagerSubscriptions:
         call_id: str,
         call_users: list[FullUserResponse],
         peer_video: None,
-    ):
+    ) -> None:
         config = SubscriptionConfig(
             role_filters={
                 "user": TrackSubscriptionConfig(

@@ -22,7 +22,7 @@ def one_second() -> PcmData:
 
 
 class TestAudioForwarder:
-    async def test_run_returns_when_the_source_stops(self):
+    async def test_run_returns_when_the_source_stops(self) -> None:
         source = AudioStreamTrack()
         run = asyncio.create_task(
             AudioForwarder(source, getstream_rtc.LocalAudioTrack()).run()
@@ -35,7 +35,7 @@ class TestAudioForwarder:
 
     async def test_overflow_is_logged_and_the_copy_continues(
         self, caplog: pytest.LogCaptureFixture, one_second: PcmData
-    ):
+    ) -> None:
         source = AudioStreamTrack()
         # Not published, so nothing drains the 100 ms queue.
         target = getstream_rtc.LocalAudioTrack(pcm_queue_capacity=0.1)
@@ -59,7 +59,7 @@ class TestAudioForwarder:
 class TestAudioForwarderOnACall:
     async def test_run_returns_when_the_call_is_left(
         self, joined_call: getstream_rtc.Call, one_second: PcmData
-    ):
+    ) -> None:
         source = AudioStreamTrack()
         target = getstream_rtc.LocalAudioTrack()
         await joined_call.publish_audio(target)

@@ -515,15 +515,6 @@ in a test run ("confirmed") or found only its cause ("not confirmed").
   when the frame rate changes. The exact value needs an SDK change: a
   `write_i420` that takes the capture time of the frame.
 
-### Tests
-
-- Type annotations (low, confirmed): the test methods in
-  `getstream-rtc/tests/test_call.py`, `getstream-rtc/tests/test_logging.py`
-  and `tests/rtc/test_connection_manager.py`, and in
-  `tests/rtc/test_audio_forwarder.py:36,60` and
-  `tests/rtc/test_video_forwarder.py:29`, have no `-> None`. The fixture
-  `client()` in `tests/rtc/test_connection_manager.py:30` has no return type.
-
 ### Not verified
 
 The review did not check these points:

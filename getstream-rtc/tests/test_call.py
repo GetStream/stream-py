@@ -166,7 +166,7 @@ async def viewer_call(
 class TestCallJoin:
     async def test_join_and_leave(
         self, rust_client: getstream_rtc.Client, call_users: list[FullUserResponse]
-    ):
+    ) -> None:
         call = rust_client.call("default", str(uuid.uuid4()))
 
         await call.join(call_users[0].id)
@@ -182,7 +182,7 @@ class TestCallJoin:
         joined_call: getstream_rtc.Call,
         call_id: str,
         call_users: list[FullUserResponse],
-    ):
+    ) -> None:
         token = client.create_call_token(
             call_users[1].id, call_cids=[f"default:{call_id}"]
         )
@@ -196,7 +196,7 @@ class TestCallJoin:
 
     async def test_join_with_wrong_secret_raises(
         self, call_users: list[FullUserResponse]
-    ):
+    ) -> None:
         client = getstream_rtc.Client(os.environ["STREAM_API_KEY"], "wrong-secret")
         call = client.call("default", str(uuid.uuid4()))
 
@@ -205,7 +205,7 @@ class TestCallJoin:
 
     async def test_join_with_unknown_call_type_raises(
         self, rust_client: getstream_rtc.Client, call_users: list[FullUserResponse]
-    ):
+    ) -> None:
         call = rust_client.call("missingtype", str(uuid.uuid4()))
 
         with pytest.raises(getstream_rtc.ApiError) as exc_info:
@@ -217,7 +217,7 @@ class TestCallJoin:
 
     async def test_cancelled_join_allows_new_join(
         self, rust_client: getstream_rtc.Client, call_users: list[FullUserResponse]
-    ):
+    ) -> None:
         call = rust_client.call("default", str(uuid.uuid4()))
         events = call.client_events()
 
@@ -234,7 +234,7 @@ class TestCallJoin:
 
     async def test_leave_during_join(
         self, rust_client: getstream_rtc.Client, call_users: list[FullUserResponse]
-    ):
+    ) -> None:
         call = rust_client.call("default", str(uuid.uuid4()))
 
         join = call.join(call_users[0].id)
@@ -251,7 +251,7 @@ class TestCallJoin:
 
     async def test_join_during_leave(
         self, rust_client: getstream_rtc.Client, call_users: list[FullUserResponse]
-    ):
+    ) -> None:
         call = rust_client.call("default", str(uuid.uuid4()))
         await call.join(call_users[0].id)
 
@@ -273,7 +273,7 @@ class TestCallJoin:
         joining_call: getstream_rtc.Call,
         call_id: str,
         call_users: list[FullUserResponse],
-    ):
+    ) -> None:
         call = rust_client.call("default", call_id)
         await call.join(call_users[0].id)
         await joining_call.join(call_users[1].id)
@@ -292,7 +292,7 @@ class TestCallJoin:
 
 
 class TestCallPublish:
-    async def test_publish_before_join_raises(self, call_id: str):
+    async def test_publish_before_join_raises(self, call_id: str) -> None:
         call = getstream_rtc.Client("key", "secret").call("default", call_id)
 
         with pytest.raises(getstream_rtc.IllegalStateError):
@@ -301,7 +301,7 @@ class TestCallPublish:
     @pytest.mark.integration
     async def test_publish_without_capability_raises(
         self, viewer_call: getstream_rtc.Call
-    ):
+    ) -> None:
         with pytest.raises(getstream_rtc.PermissionDeniedError) as exc_info:
             await viewer_call.publish_audio(getstream_rtc.LocalAudioTrack())
 
@@ -314,7 +314,7 @@ class TestCallPublish:
         joining_call: getstream_rtc.Call,
         call_users: list[FullUserResponse],
         tone: np.ndarray,
-    ):
+    ) -> None:
         track = getstream_rtc.LocalAudioTrack()
         await joined_call.publish_audio(track)
         await joining_call.join(call_users[1].id)
@@ -338,7 +338,7 @@ class TestCallPublish:
         joined_call: getstream_rtc.Call,
         joining_call: getstream_rtc.Call,
         call_users: list[FullUserResponse],
-    ):
+    ) -> None:
         await joining_call.join(call_users[1].id)
         events = joining_call.sfu_events()
 
@@ -357,7 +357,7 @@ class TestCallPublish:
         joined_call: getstream_rtc.Call,
         joining_call: getstream_rtc.Call,
         call_users: list[FullUserResponse],
-    ):
+    ) -> None:
         await joining_call.join(call_users[1].id)
         events = joining_call.sfu_events()
         track = getstream_rtc.LocalVideoTrack.vp8()
@@ -386,7 +386,7 @@ class TestCallPublish:
         joined_call: getstream_rtc.Call,
         joining_call: getstream_rtc.Call,
         call_users: list[FullUserResponse],
-    ):
+    ) -> None:
         events = joining_call.sfu_events()
         tracks = joining_call.tracks()
         await joining_call.join(call_users[1].id)
@@ -422,7 +422,7 @@ class TestCallPublish:
 class TestCallEvents:
     async def test_calling_state_changed_to_joined(
         self, rust_client: getstream_rtc.Client, call_users: list[FullUserResponse]
-    ):
+    ) -> None:
         call = rust_client.call("default", str(uuid.uuid4()))
         events = call.client_events()
 
@@ -443,7 +443,7 @@ class TestCallEvents:
         joining_call: getstream_rtc.Call,
         call_id: str,
         call_users: list[FullUserResponse],
-    ):
+    ) -> None:
         events = joined_call.sfu_events()
 
         await joining_call.join(call_users[1].id)
@@ -462,7 +462,7 @@ class TestCallEvents:
 
     async def test_events_end_when_call_is_left(
         self, rust_client: getstream_rtc.Client, call_users: list[FullUserResponse]
-    ):
+    ) -> None:
         call = rust_client.call("default", str(uuid.uuid4()))
         events = call.client_events()
 
@@ -475,7 +475,7 @@ class TestCallEvents:
 
     async def test_events_created_after_leave_are_empty(
         self, rust_client: getstream_rtc.Client, call_users: list[FullUserResponse]
-    ):
+    ) -> None:
         call = rust_client.call("default", str(uuid.uuid4()))
         await call.join(call_users[0].id)
         await call.leave()
@@ -489,7 +489,7 @@ class TestCallEvents:
 
     async def test_events_end_when_call_ends(
         self, client: Stream, joined_call: getstream_rtc.Call, call_id: str
-    ):
+    ) -> None:
         sfu_events = joined_call.sfu_events()
         client_events = joined_call.client_events()
 
@@ -506,7 +506,7 @@ class TestCallEvents:
         joined_call: getstream_rtc.Call,
         joining_call: getstream_rtc.Call,
         call_users: list[FullUserResponse],
-    ):
+    ) -> None:
         await joining_call.join(call_users[1].id)
         events = joining_call.sfu_events()
 
@@ -528,7 +528,7 @@ class TestCallEvents:
         joined_call: getstream_rtc.Call,
         call_id: str,
         call_users: list[FullUserResponse],
-    ):
+    ) -> None:
         events = joined_call.coordinator_events()
 
         client.video.call("default", call_id).send_call_event(
@@ -547,7 +547,7 @@ class TestCallEvents:
         joined_call: getstream_rtc.Call,
         call_id: str,
         call_users: list[FullUserResponse],
-    ):
+    ) -> None:
         events = joined_call.coordinator_events()
         custom = {
             "type": "test_event",
@@ -573,7 +573,7 @@ class TestCallEvents:
         joined_call: getstream_rtc.Call,
         call_id: str,
         call_users: list[FullUserResponse],
-    ):
+    ) -> None:
         events = joined_call.sfu_events()
         session_id = await joined_call.session_id()
 
@@ -595,7 +595,7 @@ class TestCallEvents:
         joined_call: getstream_rtc.Call,
         call_id: str,
         call_users: list[FullUserResponse],
-    ):
+    ) -> None:
         events = joined_call.sfu_events()
 
         client.video.call("default", call_id).update_user_permissions(
@@ -615,7 +615,7 @@ class TestCallParticipants:
         joined_call: getstream_rtc.Call,
         joining_call: getstream_rtc.Call,
         call_users: list[FullUserResponse],
-    ):
+    ) -> None:
         events = joined_call.sfu_events()
         await joining_call.join(call_users[1].id)
         async for event in events:
@@ -627,7 +627,7 @@ class TestCallParticipants:
 
     async def test_call_state(
         self, joined_call: getstream_rtc.Call, call_users: list[FullUserResponse]
-    ):
+    ) -> None:
         state = joined_call.call_state()
 
         assert call_users[0].id in {p.user_id for p in state.participants}
@@ -638,7 +638,7 @@ class TestCallParticipants:
 class TestCallMedia:
     async def test_tracks_end_when_call_is_left(
         self, rust_client: getstream_rtc.Client, call_users: list[FullUserResponse]
-    ):
+    ) -> None:
         call = rust_client.call("default", str(uuid.uuid4()))
         tracks = call.tracks()
 
@@ -652,7 +652,7 @@ class TestCallMedia:
         published_audio: getstream_rtc.LocalAudioTrack,
         joining_call: getstream_rtc.Call,
         call_users: list[FullUserResponse],
-    ):
+    ) -> None:
         tracks = joining_call.tracks()
         await joining_call.join(call_users[1].id)
         await joining_call.update_subscriptions(AUDIO)
@@ -675,7 +675,7 @@ class TestCallMedia:
         joining_call: getstream_rtc.Call,
         call_users: list[FullUserResponse],
         sdk_logs: pytest.LogCaptureFixture,
-    ):
+    ) -> None:
         await joining_call.join(call_users[1].id)
         await joining_call.update_subscriptions(AUDIO)
         # The track of the first join reaches the track queue and stays unread.
@@ -700,7 +700,7 @@ class TestCallMedia:
         published_video: getstream_rtc.LocalVideoTrack,
         joining_call: getstream_rtc.Call,
         call_users: list[FullUserResponse],
-    ):
+    ) -> None:
         tracks = joining_call.tracks()
         await joining_call.join(call_users[1].id)
         await joining_call.update_subscriptions(AUDIO_AND_VIDEO)
@@ -716,7 +716,7 @@ class TestCallMedia:
 
     async def test_frame_streams_of_one_track_get_the_same_frames(
         self, remote_video: getstream_rtc.RemoteTrack
-    ):
+    ) -> None:
         first, second = remote_video.video_frames(), remote_video.video_frames()
 
         first_timestamps, second_timestamps = await asyncio.wait_for(
@@ -728,7 +728,7 @@ class TestCallMedia:
 
     async def test_an_unread_frame_stream_gets_the_latest_frame(
         self, remote_video: getstream_rtc.RemoteTrack
-    ):
+    ) -> None:
         read, unread = remote_video.video_frames(), remote_video.video_frames()
 
         timestamps = await asyncio.wait_for(rtp_timestamps(read, 10), timeout=15)
@@ -738,7 +738,7 @@ class TestCallMedia:
 
     async def test_a_cancelled_read_leaves_the_frame_stream_usable(
         self, remote_video: getstream_rtc.RemoteTrack
-    ):
+    ) -> None:
         frames = remote_video.video_frames()
         await asyncio.wait_for(anext(frames), timeout=10)
 
@@ -749,7 +749,7 @@ class TestCallMedia:
 
     async def test_a_new_frame_stream_gets_frames_after_the_old_one_is_dropped(
         self, remote_video: getstream_rtc.RemoteTrack
-    ):
+    ) -> None:
         frames = remote_video.video_frames()
         await asyncio.wait_for(anext(frames), timeout=10)
         del frames
@@ -763,7 +763,7 @@ class TestCallMedia:
         published_video: getstream_rtc.LocalVideoTrack,
         joining_call: getstream_rtc.Call,
         call_users: list[FullUserResponse],
-    ):
+    ) -> None:
         tracks = joining_call.tracks()
         await joining_call.join(call_users[1].id)
         await joining_call.update_subscriptions(AUDIO_AND_VIDEO)
@@ -774,7 +774,7 @@ class TestCallMedia:
 
     async def test_frame_stream_ends_when_the_call_is_left(
         self, remote_video: getstream_rtc.RemoteTrack, joining_call: getstream_rtc.Call
-    ):
+    ) -> None:
         frames = remote_video.video_frames()
         await asyncio.wait_for(anext(frames), timeout=10)
 
@@ -788,7 +788,7 @@ class TestCallMedia:
         joined_call: getstream_rtc.Call,
         joining_call: getstream_rtc.Call,
         call_users: list[FullUserResponse],
-    ):
+    ) -> None:
         events = joining_call.sfu_events()
         tracks = joining_call.tracks()
         await joining_call.join(call_users[1].id)
