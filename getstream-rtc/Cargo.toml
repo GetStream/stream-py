@@ -10,7 +10,7 @@ path = "rustsrc/lib.rs"
 crate-type = ["cdylib"]
 
 [dependencies]
-getstream = "=0.1.0"
+getstream = "=0.2.0-preview.1"
 log = "0.4"
 numpy = "0.29"
 prost-types = "0.14"

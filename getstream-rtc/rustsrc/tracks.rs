@@ -412,22 +412,22 @@ impl LocalVideoTrack {
         })
     }
 
-    /// Copies `data` (packed I420) and encodes it; `duration` is in seconds.
-    fn write_i420<'py>(
+    /// Copies `data` (packed I420) and encodes it; `pts` is in seconds.
+    fn write_i420_at<'py>(
         &self,
         py: Python<'py>,
         data: PyReadonlyArray1<'py, u8>,
         width: u32,
         height: u32,
-        duration: f64,
+        pts: f64,
     ) -> PyResult<Bound<'py, PyAny>> {
-        let duration = Duration::try_from_secs_f64(duration)
+        let pts = Duration::try_from_secs_f64(pts)
             .map_err(|error| PyValueError::new_err(error.to_string()))?;
         let data = data.as_array().to_vec();
         let track = self.inner.clone();
         future_into_py(py, async move {
             track
-                .write_i420(&data, width, height, duration)
+                .write_i420_at(&data, width, height, pts)
                 .await
                 .map_err(rtc_error)
         })

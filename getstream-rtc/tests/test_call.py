@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import itertools
 import os
 import time
 import uuid
@@ -92,8 +93,10 @@ async def published_video(
     frame = np.full(VIDEO_WIDTH * VIDEO_HEIGHT * 3 // 2, 128, dtype=np.uint8)
 
     async def write_forever() -> None:
-        while True:
-            await track.write_i420(frame, VIDEO_WIDTH, VIDEO_HEIGHT, 1 / VIDEO_FPS)
+        for number in itertools.count():
+            await track.write_i420_at(
+                frame, VIDEO_WIDTH, VIDEO_HEIGHT, number / VIDEO_FPS
+            )
             await asyncio.sleep(1 / VIDEO_FPS)
 
     task = asyncio.create_task(write_forever())
@@ -134,8 +137,8 @@ async def read_to_end(
 
 async def write_gray_video(track: getstream_rtc.LocalVideoTrack) -> None:
     frame = np.full(VIDEO_WIDTH * VIDEO_HEIGHT * 3 // 2, 128, dtype=np.uint8)
-    while True:
-        await track.write_i420(frame, VIDEO_WIDTH, VIDEO_HEIGHT, 1 / VIDEO_FPS)
+    for number in itertools.count():
+        await track.write_i420_at(frame, VIDEO_WIDTH, VIDEO_HEIGHT, number / VIDEO_FPS)
         await asyncio.sleep(1 / VIDEO_FPS)
 
 

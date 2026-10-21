@@ -48,4 +48,4 @@ class TestLocalTracks:
         frame = np.zeros(321 * 240 * 3 // 2, dtype=np.uint8)
 
         with pytest.raises(getstream_rtc.MediaError):
-            await track.write_i420(frame, 321, 240, 1 / VIDEO_FPS)
+            await track.write_i420_at(frame, 321, 240, 0.0)

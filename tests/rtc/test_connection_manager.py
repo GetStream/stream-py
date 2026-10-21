@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import itertools
 import logging
 import sys
 import time
@@ -19,7 +20,7 @@ from getstream.video.rtc import AudioStreamTrack, CallingState, PcmData
 from getstream.video.rtc.connection_manager import ConnectionManager
 from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
 from getstream.video.rtc.tracks import SubscriptionConfig, TrackSubscriptionConfig
-from tests.rtc.video_source import FrameSource
+from tests.rtc.video_source import FrameSource, TimedFrameSource, frame_number
 
 SAMPLE_RATE = 48000
 VIDEO_WIDTH = 320
@@ -79,8 +80,10 @@ async def peer_video(
     frame = np.full(VIDEO_WIDTH * VIDEO_HEIGHT * 3 // 2, 128, dtype=np.uint8)
 
     async def write_forever() -> None:
-        while True:
-            await video.write_i420(frame, VIDEO_WIDTH, VIDEO_HEIGHT, 1 / VIDEO_FPS)
+        for number in itertools.count():
+            await video.write_i420_at(
+                frame, VIDEO_WIDTH, VIDEO_HEIGHT, number / VIDEO_FPS
+            )
             await asyncio.sleep(1 / VIDEO_FPS)
 
     task = asyncio.create_task(write_forever())
@@ -478,6 +481,18 @@ async def next_frame_of_size(
     raise AssertionError(f"the stream ended before a {size} frame")
 
 
+async def frames_until_idle(
+    frames: getstream_rtc.VideoFrameStream,
+) -> list[getstream_rtc.VideoFrame]:
+    """The frames until no frame comes for 2 s."""
+    received = [await asyncio.wait_for(anext(frames), timeout=10)]
+    while True:
+        try:
+            received.append(await asyncio.wait_for(anext(frames), timeout=2))
+        except (asyncio.TimeoutError, StopAsyncIteration):
+            return received
+
+
 async def next_error_record(
     caplog: pytest.LogCaptureFixture, logger: str
 ) -> logging.LogRecord:
@@ -750,6 +765,29 @@ class TestConnectionManagerVideoPublishing:
         await connection.add_tracks(video=FrameSource([(640, 480)] * 300))
 
         await asyncio.wait_for(next_frame_of_size(frames, (640, 480)), timeout=15)
+
+    async def test_rtp_timestamps_follow_the_frame_times(
+        self,
+        connection: ConnectionManager,
+        peer_video_tracks: getstream_rtc.TrackStream,
+    ) -> None:
+        # 2 s at 10 fps, then 2 s at 5 fps.
+        pts_values = [i * 9000 for i in range(20)] + [
+            180000 + i * 18000 for i in range(1, 11)
+        ]
+        await connection.add_tracks(video=TimedFrameSource(pts_values))
+        track = await asyncio.wait_for(anext(peer_video_tracks), timeout=15)
+
+        received = await frames_until_idle(track.video_frames())
+
+        first = received[0]
+        for frame in received:
+            offset = (frame.rtp_timestamp - first.rtp_timestamp) % 2**32
+            sent = pts_values[frame_number(frame)] - pts_values[frame_number(first)]
+            # ±1 for rounding.
+            assert abs(offset - sent) <= 1
+        # The received frames include frames at 5 fps.
+        assert frame_number(received[-1]) > 20
 
 
 @pytest.mark.integration

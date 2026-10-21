@@ -528,11 +528,15 @@ class LocalVideoTrack:
     def vp8() -> LocalVideoTrack: ...
     @staticmethod
     def vp9() -> LocalVideoTrack: ...
-    def write_i420(
-        self, data: npt.NDArray[np.uint8], width: int, height: int, duration: float
+    def write_i420_at(
+        self, data: npt.NDArray[np.uint8], width: int, height: int, pts: float
     ) -> Awaitable[None]:
-        """Await each write before the next; writes that run at the same time
-        can reach the SDK out of order."""
+        """``pts``: the time of the frame in seconds on a clock of the caller,
+        for example its capture time. The RTP timestamps keep the spacing of
+        the ``pts`` values. A frame whose ``pts`` is not after the previous one
+        is dropped; a negative or NaN ``pts`` raises ``ValueError``. Await each
+        write before the next; writes that run at the same time can reach the
+        SDK out of order."""
 
 class Call:
     """A call that Python frees leaves the call, as ``leave()`` does."""

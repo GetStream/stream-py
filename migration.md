@@ -281,8 +281,9 @@ windowed-sinc filter (`getstream_rtc.StreamResampler`), not with PyAV
 - The whole track has the size of its first frame. Later frames of another
   size are scaled to it, and an odd width or height is raised to the next
   even value. In 6.1.1 each frame kept its own size.
-- The frame duration comes from the `pts` difference; frames without `pts`
-  count as 1/30 s.
+- The RTP timestamps keep the spacing of the frames' `pts`. A frame without
+  `pts`, or with a `pts` that is not after the previous frame, comes 1/30 s
+  after the previous frame.
 - After `track.stop()`, the track is unpublished, so other participants get
   `track_unpublished`.
 - A new `add_tracks(video=new_track)` replaces the published video track: the
@@ -506,12 +507,3 @@ in a test run ("confirmed") or found only its cause ("not confirmed").
   the result (`generic.rs:348`). The `RemoteTrack` is dropped and the SDK
   unsubscribes from it. The track is lost until it is published again.
   `EventStream` and `next_pcm()` can lose one item in the same way.
-
-### Python and type stubs
-
-- `getstream/video/rtc/video_forwarder.py:44-51` (low, confirmed): the SDK
-  uses `duration` as the length of the frame and adds it to the RTP
-  timestamp after that frame. The forwarder gives the gap since the previous
-  frame, so each value is one frame late. The RTP timestamps are wrong only
-  when the frame rate changes. The exact value needs an SDK change: a
-  `write_i420` that takes the capture time of the frame.

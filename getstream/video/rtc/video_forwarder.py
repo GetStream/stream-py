@@ -28,6 +28,7 @@ class VideoForwarder:
         """Copy frames until the source ends or the SDK stops the target."""
         size: tuple[int, int] | None = None
         previous_time: float | None = None
+        pts: float | None = None
         while True:
             try:
                 # aiortc types recv() as a frame or a packet; a video track
@@ -37,27 +38,26 @@ class VideoForwarder:
                 return
             if size is None:
                 size = (_even(frame.width), _even(frame.height))
-            # `time` is pts * time_base, or None when the frame has no pts.
-            # The SDK takes `duration` as the length of this frame, which is
-            # known only at the next frame; the gap since the previous frame
-            # is the estimate, so a change of the frame rate is one frame late.
+            # `time` is pts * time_base, or None when the frame has no pts. The
+            # SDK drops a frame whose pts is not after the previous one, so a
+            # frame without a later time than the previous frame comes one
+            # default frame length after it.
             time = frame.time
-            duration = (
+            gap = (
                 time - previous_time
                 if time is not None
                 and previous_time is not None
                 and time > previous_time
                 else _DEFAULT_FRAME_DURATION
             )
+            pts = 0.0 if pts is None else pts + gap
             previous_time = time
             width, height = size
             frame = frame.reformat(width=width, height=height, format="yuv420p")
             # A yuv420p frame gives uint8 planes.
             pixels = cast(NDArray[np.uint8], frame.to_ndarray())
             try:
-                await self.target.write_i420(
-                    pixels.reshape(-1), width, height, duration
-                )
+                await self.target.write_i420_at(pixels.reshape(-1), width, height, pts)
             except getstream_rtc.IllegalStateError:
                 # The only cause is a stopped track: it was unpublished, or the
                 # call was left or ended.
