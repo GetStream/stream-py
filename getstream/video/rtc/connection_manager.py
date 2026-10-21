@@ -406,5 +406,12 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         except Exception:
             logger.exception("The forwarding of a published track failed")
         finally:
-            # The source track ended, or the forwarding was cancelled.
-            await stop_publish(forwarder.target)
+            # The source track ended, or the forwarding was cancelled. A cancel
+            # must not drop a stop in progress: the SDK would keep the track and
+            # the only publish option of its kind.
+            stop = stop_publish(forwarder.target)
+            try:
+                await asyncio.shield(stop)
+            except asyncio.CancelledError:
+                await stop
+                raise

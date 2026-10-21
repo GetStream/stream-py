@@ -527,6 +527,28 @@ def idle_audio() -> IdleAudio:
     return IdleAudio()
 
 
+class EndingAudio(aiortc.MediaStreamTrack):
+    """An aiortc audio track that gives no frames and ends when `end` is set.
+    `ended` is set when `recv()` raises."""
+
+    kind = "audio"
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.end = asyncio.Event()
+        self.ended = asyncio.Event()
+
+    async def recv(self) -> av.AudioFrame:
+        await self.end.wait()
+        self.ended.set()
+        raise aiortc.mediastreams.MediaStreamError
+
+
+@pytest.fixture
+def ending_audio() -> EndingAudio:
+    return EndingAudio()
+
+
 @pytest.fixture
 async def peer_video_tracks(
     peer_call: getstream_rtc.Call, call_users: list[FullUserResponse]
@@ -597,6 +619,16 @@ class TestConnectionManagerPublishing:
         await second.write(pcm)
 
         await asyncio.wait_for(next_loud_frame(track), timeout=10)
+
+    async def test_audio_added_while_the_ended_audio_stops_is_published(
+        self, connection: ConnectionManager, ending_audio: EndingAudio
+    ) -> None:
+        await connection.add_tracks(audio=ending_audio)
+        ending_audio.end.set()
+        # The forwarding of the ended track now waits for the SDK stop.
+        await ending_audio.ended.wait()
+
+        await connection.add_tracks(audio=AudioStreamTrack())
 
     async def test_failed_forwarding_is_logged(
         self,

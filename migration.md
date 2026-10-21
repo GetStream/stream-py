@@ -232,7 +232,9 @@ Behavior of a track object:
   `track_unpublished`. In 6.1.1 the packets only stopped.
 - A new `add_tracks(audio=new_track)` replaces the published audio track: the
   earlier track is unpublished first, also while it is still live. In 6.1.1
-  each call added one more audio track.
+  each call added one more audio track. Of two calls that run at the same
+  time, the second raises `MediaError`: the first track has the only audio
+  publish option.
 
 ### Resampling
 
@@ -285,7 +287,8 @@ windowed-sinc filter (`getstream_rtc.StreamResampler`), not with PyAV
 - A new `add_tracks(video=new_track)` replaces the published video track: the
   earlier track is unpublished first, also while it is still live. Other
   participants get the new frames on their existing `RemoteTrack`. In 6.1.1
-  each call added one more video track.
+  each call added one more video track. Of two calls that run at the same
+  time, the second raises `MediaError`, as for audio.
 
 ### Permissions to publish
 
@@ -505,15 +508,6 @@ in a test run ("confirmed") or found only its cause ("not confirmed").
 
 ### Python and type stubs
 
-- `getstream/video/rtc/connection_manager.py:391-409` (low, not confirmed):
-  `_stop_forwarding()` can cancel a task that is already in its
-  `finally: await stop_publish(...)` because its source ended. The SDK stop is
-  then dropped. If this occurs during the mute request to the SFU, the old
-  track stays in the SDK with a pending stop and keeps the publish option of
-  its kind, so the publish of the new track raises `MediaError`. Two
-  concurrent `add_tracks(audio=...)` calls do not leave a forwarder that runs:
-  the second publish raises `MediaError`, because the first track has the
-  only audio publish option.
 - `getstream/video/rtc/video_forwarder.py:41-48` (low, confirmed): the SDK
   uses `duration` as the length of the frame and adds it to the RTP
   timestamp after that frame. The forwarder gives the gap since the previous
