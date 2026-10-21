@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import logging
 import sys
 import time
@@ -85,6 +86,8 @@ async def peer_video(
     task = asyncio.create_task(write_forever())
     yield
     task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await task
 
 
 class TestConnectionManager:

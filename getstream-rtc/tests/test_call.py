@@ -79,6 +79,8 @@ async def published_audio(
     task = asyncio.create_task(write_forever())
     yield track
     task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await task
 
 
 @pytest.fixture
@@ -97,6 +99,8 @@ async def published_video(
     task = asyncio.create_task(write_forever())
     yield track
     task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await task
 
 
 @pytest.fixture
@@ -393,6 +397,8 @@ class TestCallPublish:
         remote = await asyncio.wait_for(anext(tracks), timeout=15)
         await asyncio.wait_for(anext(remote.video_frames()), timeout=10)
         writing.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await writing
         await joined_call.stop_publish_video(first)
         async for event in events:
             if (
@@ -408,6 +414,8 @@ class TestCallPublish:
 
         await asyncio.wait_for(anext(frames), timeout=15)
         writing.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await writing
 
 
 @pytest.mark.integration
@@ -425,6 +433,8 @@ class TestCallEvents:
                 and event.state == getstream_rtc.CallingState.JOINED
             ):
                 break
+        else:
+            pytest.fail("the event stream ended before JOINED")
         await call.leave()
 
     async def test_participant_joined(
@@ -509,6 +519,8 @@ class TestCallEvents:
                 assert event.track_type == getstream_rtc.TrackType.AUDIO
                 assert event.participant.user_id == call_users[0].id
                 break
+        else:
+            pytest.fail("the event stream ended before TrackPublished")
 
     async def test_coordinator_event(
         self,
@@ -645,13 +657,12 @@ class TestCallMedia:
         await joining_call.join(call_users[1].id)
         await joining_call.update_subscriptions(AUDIO)
 
-        async for track in tracks:
-            if track.track_type == getstream_rtc.TrackType.AUDIO:
-                break
+        track = await asyncio.wait_for(anext(tracks), timeout=15)
+        assert track.track_type == getstream_rtc.TrackType.AUDIO
         assert track.participant.user_id == call_users[0].id
 
         while True:
-            frame = await track.next_pcm()
+            frame = await asyncio.wait_for(track.next_pcm(), timeout=10)
             if np.abs(frame.samples).max() > 1000:
                 break
         assert frame.sample_rate == SAMPLE_RATE
@@ -678,11 +689,11 @@ class TestCallMedia:
 
         await joining_call.join(call_users[1].id)
         await joining_call.update_subscriptions(AUDIO)
-        track = await anext(joining_call.tracks())
+        track = await asyncio.wait_for(anext(joining_call.tracks()), timeout=15)
 
         # A track of the earlier join ends after the frames it still holds.
         for _ in range(10):
-            assert await track.next_pcm() is not None
+            assert await asyncio.wait_for(track.next_pcm(), timeout=10) is not None
 
     async def test_receives_published_video(
         self,
@@ -694,12 +705,11 @@ class TestCallMedia:
         await joining_call.join(call_users[1].id)
         await joining_call.update_subscriptions(AUDIO_AND_VIDEO)
 
-        async for track in tracks:
-            if track.track_type == getstream_rtc.TrackType.VIDEO:
-                break
+        track = await asyncio.wait_for(anext(tracks), timeout=15)
+        assert track.track_type == getstream_rtc.TrackType.VIDEO
         assert track.participant.user_id == call_users[0].id
 
-        frame = await anext(track.video_frames())
+        frame = await asyncio.wait_for(anext(track.video_frames()), timeout=10)
         assert (frame.width, frame.height) == (VIDEO_WIDTH, VIDEO_HEIGHT)
         assert frame.data.dtype == np.uint8
         assert frame.data.size == VIDEO_WIDTH * VIDEO_HEIGHT * 3 // 2

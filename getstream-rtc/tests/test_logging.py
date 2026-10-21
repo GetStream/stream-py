@@ -198,9 +198,8 @@ class TestLogging:
                 await write
 
     async def test_no_records_after_logging_is_stopped(
-        self, caplog: pytest.LogCaptureFixture, overflowing_samples: np.ndarray
+        self, sdk_logs: pytest.LogCaptureFixture, overflowing_samples: np.ndarray
     ):
-        caplog.set_level(logging.DEBUG, logger="getstream")
         getstream_rtc.configure_logging(None, logging.NOTSET)
         track = getstream_rtc.LocalAudioTrack()
 
@@ -208,7 +207,7 @@ class TestLogging:
             await track.write_pcm(overflowing_samples, SAMPLE_RATE, 1)
         getstream_rtc.logging._flush()
 
-        assert not [r for r in caplog.records if r.name.startswith("getstream.rtc")]
+        assert not [r for r in sdk_logs.records if r.name.startswith("getstream.rtc")]
 
     async def test_records_come_from_the_logging_thread(
         self,

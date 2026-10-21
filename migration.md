@@ -517,23 +517,6 @@ in a test run ("confirmed") or found only its cause ("not confirmed").
 
 ### Tests
 
-- `getstream-rtc/tests/test_logging.py:200-211` (medium, confirmed):
-  `test_no_records_after_logging_is_stopped` cannot fail. The autouse fixture
-  `forward_sdk_logs` forwards at INFO, and the `pcm_queue_overflow` record is
-  DEBUG, so Rust filters it also while forwarding is on. Without the
-  `configure_logging(None, logging.NOTSET)` call, the test still passes.
-- `async for ... break` loops without `else: pytest.fail(...)` (low, not
-  confirmed): `getstream-rtc/tests/test_call.py:295, 317, 337, 346, 372, 397,
-  415, 479, 501, 528, 547, 568, 584, 738` and
-  `tests/rtc/test_connection_manager.py:664, 673`. If the stream ends before the
-  expected event, `test_calling_state_changed_to_joined` (397) and
-  `test_track_published` (479) pass with no assertion. The other tests assert
-  on the last event.
-- Writer tasks that are cancelled and never awaited (low, not confirmed):
-  `getstream-rtc/tests/test_call.py:79-81, 97-99, 367/370, 382/385` and
-  `tests/rtc/test_connection_manager.py:88-90`. If `write_pcm` or
-  `write_i420` raises, the receiving test waits for the 120 s timeout and does
-  not show the cause.
 - Type annotations (low, confirmed): the test methods in
   `getstream-rtc/tests/test_call.py`, `getstream-rtc/tests/test_logging.py`
   and `tests/rtc/test_connection_manager.py`, and in
