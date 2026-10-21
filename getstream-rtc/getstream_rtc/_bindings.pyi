@@ -416,7 +416,9 @@ Event = (
 class EventStream:
     """Ends when the call ends (``CallingStateChanged(LEFT)``), after the events
     that are already buffered, or at once if the call had already ended when
-    the stream was created."""
+    the stream was created. A cancel of a pending ``__anext__`` can lose the
+    event that it was about to return: read in one task, and cancel it only
+    when you stop reading."""
 
     def __aiter__(self) -> EventStream: ...
     def __anext__(self) -> Awaitable[Event]: ...
@@ -458,7 +460,11 @@ class RemoteTrack:
     def participant(self) -> RemoteParticipant: ...
     @property
     def track_type(self) -> TrackType: ...
-    def next_pcm(self) -> Awaitable[PcmFrame | None]: ...
+    def next_pcm(self) -> Awaitable[PcmFrame | None]:
+        """The next decoded audio frame, or ``None`` when the track has ended
+        or is not an audio track. A cancel of a pending call can lose the frame
+        that it was about to return: read in one task, and cancel it only when
+        you stop reading."""
     def video_frames(self) -> VideoFrameStream:
         """A new stream of the frames decoded after this call. The track stays
         subscribed while one of its streams exists."""
@@ -468,7 +474,10 @@ class TrackStream:
     once if the call had already ended when the stream was created. A new
     ``join()`` drops the unread tracks of the earlier join. When more than 64
     tracks wait to be read, the SDK unsubscribes from the tracks that do not
-    fit, and the next ``__anext__`` raises ``RtcError`` once."""
+    fit, and the next ``__anext__`` raises ``RtcError`` once. A cancel of a
+    pending ``__anext__`` can lose the track that it was about to return, and
+    the SDK then unsubscribes from that track: read in one task, and cancel it
+    only when you stop reading."""
 
     def __aiter__(self) -> TrackStream: ...
     def __anext__(self) -> Awaitable[RemoteTrack]: ...
