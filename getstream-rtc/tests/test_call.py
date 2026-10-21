@@ -215,9 +215,11 @@ class TestCallJoin:
         self, rust_client: getstream_rtc.Client, call_users: list[FullUserResponse]
     ):
         call = rust_client.call("default", str(uuid.uuid4()))
+        events = call.client_events()
 
         join = call.join(call_users[0].id)
-        await asyncio.sleep(0.1)
+        event = await anext(events)
+        assert event.state == getstream_rtc.CallingState.JOINING
         join.cancel()
         with pytest.raises(asyncio.CancelledError):
             await join

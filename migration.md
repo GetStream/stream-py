@@ -539,9 +539,6 @@ in a test run ("confirmed") or found only its cause ("not confirmed").
   `forward_sdk_logs` forwards at INFO, and the `pcm_queue_overflow` record is
   DEBUG, so Rust filters it also while forwarding is on. Without the
   `configure_logging(None, logging.NOTSET)` call, the test still passes.
-- `getstream-rtc/tests/test_call.py:214-223` (low, not confirmed):
-  `test_cancelled_join_allows_new_join` cancels the join after 0.1 s. If the
-  join completes faster, `pytest.raises(CancelledError)` fails.
 - `async for ... break` loops without `else: pytest.fail(...)` (low, not
   confirmed): `getstream-rtc/tests/test_call.py:295, 317, 337, 346, 372, 397,
   415, 479, 501, 528, 547, 568, 584, 738` and
