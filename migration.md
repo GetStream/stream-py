@@ -491,19 +491,3 @@ To record a call, use the server recording:
 emit it, so receive it with a webhook. To write files locally, read the `audio`
 event (`PcmData` with `participant`, `pts` and `time_base`) and
 `track.video_frames()`.
-
-## Other bugs
-
-The code review of this branch found these issues in addition to the changes
-that the sections above describe. They are not addressed yet. Each item gives
-its location, its severity, and whether the review confirmed it in the code or
-in a test run ("confirmed") or found only its cause ("not confirmed").
-
-### Rust bindings
-
-- `getstream-rtc/rustsrc/tracks.rs:100` (low, confirmed): if Python cancels
-  the awaitable after the Rust future is complete (for example
-  `asyncio.wait_for(anext(tracks), timeout)`), pyo3-async-runtimes discards
-  the result (`generic.rs:348`). The `RemoteTrack` is dropped and the SDK
-  unsubscribes from it. The track is lost until it is published again.
-  `EventStream` and `next_pcm()` can lose one item in the same way.
