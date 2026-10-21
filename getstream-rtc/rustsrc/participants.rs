@@ -54,6 +54,15 @@ impl TrackType {
     }
 }
 
+#[pymethods]
+impl TrackType {
+    // A member compares equal to its `int` value (`eq_int`), so it must have
+    // the hash of that value.
+    fn __hash__(&self) -> isize {
+        *self as isize
+    }
+}
+
 /// The fields of the SFU `Participant` message, except `track_lookup_prefix`.
 /// Protobuf enum fields keep their `int` values.
 #[pyclass(frozen, module = "getstream_rtc", skip_from_py_object)]

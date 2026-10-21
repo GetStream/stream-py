@@ -332,6 +332,15 @@ pub enum CallingState {
     Left,
 }
 
+#[pymethods]
+impl CallingState {
+    // A member compares equal to its `int` value (`eq_int`), so it must have
+    // the hash of that value.
+    fn __hash__(&self) -> isize {
+        *self as isize
+    }
+}
+
 impl From<getstream::rtc::CallingState> for CallingState {
     fn from(state: getstream::rtc::CallingState) -> Self {
         use getstream::rtc::CallingState as Sdk;

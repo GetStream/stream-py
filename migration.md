@@ -55,7 +55,7 @@ them. Code that imports one of them must declare it itself.
 | `connection.connection_state` returns `ConnectionState` | returns `CallingState` | Import it from `getstream.video.rtc`. |
 | `ConnectionState.JOINED` | `CallingState.JOINED` | Values: `IDLE`, `JOINING`, `JOINED`, `RECONNECTING`, `MIGRATING`, `RECONNECTING_FAILED`, `LEFT`. |
 | `ConnectionState.RINGING`, `ConnectionState.OFFLINE` | removed | stream-py never set these values. |
-| `ConnectionState` is an `Enum` with string values (`"joined"`) | `CallingState` is not an `Enum` | The members have no `name` or `value`, cannot be hashed (as `dict` keys or in a `set`) and cannot be iterated. They compare equal to their `int` values. Compare with the members: `state == CallingState.JOINED`. |
+| `ConnectionState` is an `Enum` with string values (`"joined"`) | `CallingState` is not an `Enum` | The members have no `name` or `value`, and the class cannot be iterated. They compare equal to their `int` values and have the same hash, so they can be `dict` keys and `set` members. Compare with the members: `state == CallingState.JOINED`. |
 | `connection.connection_state = ...` | read only | The SDK owns the state. |
 | event `connection.state_changed` with `{"old": ConnectionState, "new": ConnectionState}` | the same event and dict, with `CallingState` values | The first event is `{"old": IDLE, "new": JOINING}`. |
 | after a failed join, `connection.state_changed` with `{"old": JOINING, "new": IDLE}` | no `connection.state_changed` after `connect()` fails | `connect()` stops its event tasks and leaves the call before it raises. |
@@ -111,9 +111,9 @@ Field changes:
 - `track_type` and `published_tracks` use the `TrackType` enum (`AUDIO`,
   `VIDEO`, `SCREEN_SHARE`, `SCREEN_SHARE_AUDIO`, `UNSPECIFIED`), not
   `models_pb2.TrackType` integers. As with `CallingState`, the members are not
-  `Enum` members and cannot be hashed: `set(participant.published_tracks)`
-  raises `TypeError`. They compare equal to the `models_pb2.TrackType`
-  integers.
+  `Enum` members. They compare equal to the `models_pb2.TrackType` integers
+  and have the same hash, so `set(participant.published_tracks)` works as in
+  6.1.1.
 - `RemoteParticipant` compares by identity, and each read of a `participant`
   attribute gives a new object, so `track.participant == track.participant` is
   `False`. Compare `session_id`. In 6.1.1 the protobuf `Participant` compared
@@ -505,10 +505,6 @@ in a test run ("confirmed") or found only its cause ("not confirmed").
 
 ### Python and type stubs
 
-- `getstream-rtc/getstream_rtc/_bindings.pyi:26,35` (medium, confirmed): the
-  stub declares `CallingState(Enum)` and `TrackType(Enum)`. Type checkers accept
-  `hash()`, `.name`, `.value` and iteration, which fail at runtime (see
-  "Connection state").
 - `getstream/video/rtc/connection_manager.py:391-409` (low, not confirmed):
   `_stop_forwarding()` can cancel a task that is already in its
   `finally: await stop_publish(...)` because its source ended. The SDK stop is
