@@ -183,6 +183,7 @@ class ConnectionManager(StreamAsyncIOEventEmitter):
         except BaseException:
             for task in tasks:
                 task.cancel()
+            self._stop_event.set()
             # A failure after the SDK join must not keep this session in the call.
             await call.leave()
             raise

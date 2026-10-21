@@ -281,6 +281,17 @@ class TestConnectionManagerEvents:
 
         assert connection.connection_state == CallingState.LEFT
 
+    async def test_wait_returns_after_a_failed_connect(
+        self, client: AsyncStream, call_id: str, call_users: list[FullUserResponse]
+    ):
+        wrong_client = AsyncStream(api_key=client.api_key, api_secret="x" * 32)
+        call = wrong_client.video.call("default", call_id)
+        connection = await rtc.join(call, call_users[0].id)
+        with pytest.raises(getstream_rtc.CoordinatorError):
+            await connection.connect()
+
+        await asyncio.wait_for(connection.wait(), timeout=10)
+
     async def test_unknown_track_type_in_subscription_config_is_ignored(
         self, client: AsyncStream, call_id: str, call_users: list[FullUserResponse]
     ):
