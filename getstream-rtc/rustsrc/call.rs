@@ -108,6 +108,7 @@ impl Call {
     ) -> PyResult<Bound<'py, PyAny>> {
         let call = self.inner.clone();
         let join_lock = self.join_lock.clone();
+        let tracks = self.tracks.clone();
         let data = if create {
             JoinCallData::create(user_id)
         } else {
@@ -115,6 +116,14 @@ impl Call {
         };
         future_into_py(py, async move {
             let _join_guard = join_lock.lock_owned().await;
+            // In another state the SDK rejects the join, and the queued tracks
+            // are still live.
+            if matches!(
+                call.calling_state(),
+                getstream::rtc::CallingState::Idle | getstream::rtc::CallingState::Left
+            ) {
+                tracks.clear();
+            }
             // Pinned in a local declared after the guard, so a cancelled join
             // drops the SDK future before it releases the lock.
             let join = call.join(data);

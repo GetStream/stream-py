@@ -465,7 +465,10 @@ class RemoteTrack:
 
 class TrackStream:
     """All streams of one call share one queue. Ends when the call ends, or at
-    once if the call had already ended when the stream was created."""
+    once if the call had already ended when the stream was created. A new
+    ``join()`` drops the unread tracks of the earlier join. When more than 64
+    tracks wait to be read, the SDK unsubscribes from the tracks that do not
+    fit, and the next ``__anext__`` raises ``RtcError`` once."""
 
     def __aiter__(self) -> TrackStream: ...
     def __anext__(self) -> Awaitable[RemoteTrack]: ...

@@ -43,6 +43,15 @@ impl TrackQueue {
         });
         queue
     }
+
+    /// Drops the unread tracks of an earlier join, which ended with it. A
+    /// stream that holds the receiver waits for a track, so the queue is empty.
+    pub fn clear(&self) {
+        if let Ok(mut receiver) = self.receiver.try_lock() {
+            while receiver.try_recv().is_ok() {}
+        }
+        self.overflowed.store(false, Ordering::Relaxed);
+    }
 }
 
 /// Async iterator over remote tracks. All streams of one call share a single

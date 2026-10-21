@@ -656,6 +656,32 @@ class TestCallMedia:
         assert frame.samples.dtype == np.int16
         assert frame.pts is not None
 
+    async def test_a_new_join_gets_no_track_of_the_earlier_join(
+        self,
+        published_audio: getstream_rtc.LocalAudioTrack,
+        joining_call: getstream_rtc.Call,
+        call_users: list[FullUserResponse],
+        sdk_logs: pytest.LogCaptureFixture,
+    ):
+        await joining_call.join(call_users[1].id)
+        await joining_call.update_subscriptions(AUDIO)
+        # The track of the first join reaches the track queue and stays unread.
+        while not any(
+            r.getMessage() == "stream.rtc.on_track.delivered"
+            and r.user_id == call_users[0].id
+            for r in sdk_logs.records
+        ):
+            await asyncio.to_thread(getstream_rtc.logging._flush)
+        await joining_call.leave()
+
+        await joining_call.join(call_users[1].id)
+        await joining_call.update_subscriptions(AUDIO)
+        track = await anext(joining_call.tracks())
+
+        # A track of the earlier join ends after the frames it still holds.
+        for _ in range(10):
+            assert await track.next_pcm() is not None
+
     async def test_receives_published_video(
         self,
         published_video: getstream_rtc.LocalVideoTrack,

@@ -496,12 +496,7 @@ in a test run ("confirmed") or found only its cause ("not confirmed").
 
 ### Rust bindings
 
-- `getstream-rtc/rustsrc/tracks.rs:87-91` (medium, confirmed): when the call
-  ends, the `TrackStream` stops, but the unread tracks stay in the
-  `TrackQueue`, which lives as long as the `Call`. After a new join on the same
-  `Call`, a new `TrackStream` first returns the dead tracks of the old session.
-  Until they are read, these tracks keep their decoders.
-- `getstream-rtc/rustsrc/tracks.rs:93` (low, confirmed): if Python cancels
+- `getstream-rtc/rustsrc/tracks.rs:100` (low, confirmed): if Python cancels
   the awaitable after the Rust future is complete (for example
   `asyncio.wait_for(anext(tracks), timeout)`), pyo3-async-runtimes discards
   the result (`generic.rs:348`). The `RemoteTrack` is dropped and the SDK
