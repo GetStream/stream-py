@@ -44,12 +44,12 @@ def overflowing_chunk() -> np.ndarray:
 
 class BlockingHandler(logging.Handler):
     """Blocks the thread that handles the first audio overflow record until
-    `release` is set."""
+    `released` is set."""
 
     def __init__(self) -> None:
         super().__init__()
         self.entered = threading.Event()
-        self.release = threading.Event()
+        self.released = threading.Event()
 
     def emit(self, record: logging.LogRecord) -> None:
         if (
@@ -57,7 +57,7 @@ class BlockingHandler(logging.Handler):
             and not self.entered.is_set()
         ):
             self.entered.set()
-            self.release.wait()
+            self.released.wait()
 
 
 @pytest.fixture
@@ -66,7 +66,7 @@ def blocking_handler() -> Iterator[BlockingHandler]:
     handler = BlockingHandler()
     logger.addHandler(handler)
     yield handler
-    handler.release.set()
+    handler.released.set()
     logger.removeHandler(handler)
 
 
@@ -269,7 +269,7 @@ class TestLogging:
         for _ in range(1500):
             with contextlib.suppress(getstream_rtc.PcmQueueOverflowError):
                 await small_track.write_pcm(overflowing_chunk, SAMPLE_RATE, 1)
-        blocking_handler.release.set()
+        blocking_handler.released.set()
         getstream_rtc.logging._flush()
 
         dropped = [
