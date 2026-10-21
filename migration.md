@@ -192,6 +192,7 @@ Behavior of a track object:
 | `wait()` returns after `leave()` | also returns when the call ends or the SDK leaves the call | It does not return at `RECONNECTING_FAILED`; call `leave()`. |
 | `call_ended` only from the SFU | also when the coordinator ends the call | Emitted once. After a coordinator end, the payload is a `CallEnded` that stream-py makes. |
 | after an SFU `error` with the `DISCONNECT` strategy, only the `error` event; a failed reconnection gives `RECONNECTING_FAILED` and `reconnection_failed` | the SDK leaves the call: `connection.state_changed` gives `LEFT`, `call_ended` comes with `reason` 0, and `wait()` returns | The SDK also leaves when ICE never connects after several tries, when it reaches its rejoin rate limit, and after too many failed negotiations. Other reconnection failures give `RECONNECTING_FAILED`. |
+| after a kick or a block (`call.kick_user()`, `call.block_user()`), the SFU `call_ended` (`reason` 3, `CALL_ENDED_REASON_KICKED`) and `error` events; `wait()` returned only after `leave()` | the same two events, then the SDK leaves the call: `connection.state_changed` gives `LEFT`, and `wait()` returns | The SFU sends `call_ended` and then an `error` with code 403 and no reconnect strategy, not `DISCONNECT`. The SDK leaves because of the `call_ended`. After `kick_user(block=True)`, `connection.state_changed` gives `RECONNECTING` before `LEFT`. |
 | the join continues when the coordinator WebSocket cannot connect; the failure is logged | `connect()` raises, for example `CoordinatorError` | After the join, a closed coordinator WebSocket or a failed coordinator health check makes the SDK rejoin the call with a new session (see "Remote tracks"). 6.1.1 reconnected only the WebSocket. |
 | `connect()` retries with `max_join_retries` and other SFUs | the SDK retries | The `max_join_retries` argument is removed. |
 | `rtc.join(call, user_id, **kwargs)` passes `kwargs` to the join request | `rtc.join(call, user_id, create, subscription_config)` | Other keyword arguments raise `TypeError`. For the join request arguments `data`, `ring`, `notify` and `video`, call `await call.get_or_create(...)` with them before `rtc.join()`; it takes the same arguments. |
@@ -514,14 +515,3 @@ in a test run ("confirmed") or found only its cause ("not confirmed").
   frame, so each value is one frame late. The RTP timestamps are wrong only
   when the frame rate changes. The exact value needs an SDK change: a
   `write_i420` that takes the capture time of the frame.
-
-### Not verified
-
-The review did not check these points:
-
-- The event names that the SDK emits.
-- Whether the SFU sends an `Error` with the `DISCONNECT` strategy when it
-  kicks or blocks a participant. The SDK has no other handling for a kick or a
-  block.
-- The lock behavior inside tokio, and how pyo3 drops a `Py<PyAny>` without the
-  GIL.
