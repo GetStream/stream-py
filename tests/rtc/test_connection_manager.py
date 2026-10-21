@@ -10,7 +10,6 @@ import av
 import getstream_rtc
 import numpy as np
 import pytest
-from dotenv import load_dotenv
 
 from getstream import AsyncStream
 from getstream.models import CallRequest, FullUserResponse, UserRequest
@@ -20,8 +19,6 @@ from getstream.video.rtc.connection_manager import ConnectionManager
 from getstream.video.rtc.pb.stream.video.sfu.models import models_pb2
 from getstream.video.rtc.tracks import SubscriptionConfig, TrackSubscriptionConfig
 from tests.rtc.video_source import FrameSource
-
-load_dotenv()
 
 SAMPLE_RATE = 48000
 VIDEO_WIDTH = 320

@@ -281,7 +281,7 @@ class TestAudioStreamTrack:
         assert np.all(frame.to_ndarray() == 0)
 
     @pytest.mark.asyncio
-    async def test_frame_timing(self, monkeypatch):
+    async def test_frame_timing(self):
         """Test that frames are emitted at 20ms intervals."""
         track = AudioStreamTrack(sample_rate=48000, channels=1, format="s16", pace=True)
 

@@ -559,17 +559,7 @@ in a test run ("confirmed") or found only its cause ("not confirmed").
   and `tests/rtc/test_connection_manager.py`, and in
   `tests/rtc/test_audio_forwarder.py:36,60` and
   `tests/rtc/test_video_forwarder.py:29`, have no `-> None`. The fixture
-  `client()` in `tests/rtc/test_connection_manager.py:33` has no return type.
-- Issues that existed before this branch (low, confirmed):
-  - `tests/rtc/test_connection_manager.py:24` calls `load_dotenv()` at module
-    level, not in a fixture.
-  - `tests/test_audio_stream_track.py:284` requests `monkeypatch` and does not
-    use it.
-  - `tests/rtc/coordinator/test_custom_events.py:26,40` has a test outside a
-    class and a fixture without annotations.
-  - `tests/assets/` has 4 files over 256 KB that no test uses:
-    `speech_48k.wav`, `speech_16k.wav`, `test_tone_48k.wav` and
-    `formant_speech_48k.wav`.
+  `client()` in `tests/rtc/test_connection_manager.py:30` has no return type.
 
 ### Not verified
 
