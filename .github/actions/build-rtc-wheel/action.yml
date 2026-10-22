@@ -19,7 +19,7 @@ runs:
   steps:
     - name: Cache the Cargo downloads
       if: inputs.cache == 'true' && runner.os == 'Linux'
-      uses: actions/cache@v4
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
       with:
         # Mounted at /root/.cargo in the container (docker-options below).
         path: ${{ github.workspace }}/.cargo-container
@@ -28,7 +28,7 @@ runs:
 
     - name: Cache the Cargo downloads
       if: inputs.cache == 'true' && runner.os == 'macOS'
-      uses: actions/cache@v4
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
       with:
         path: |
           ~/.cargo/registry/index
@@ -38,7 +38,7 @@ runs:
         restore-keys: cargo-${{ runner.os }}-${{ runner.arch }}-
 
     - name: Build the wheel
-      uses: PyO3/maturin-action@v1
+      uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
       env:
         MACOSX_DEPLOYMENT_TARGET: "11.0"
       with:
@@ -49,7 +49,7 @@ runs:
         docker-options: >-
           ${{ inputs.cache == 'true' && format('-v {0}/.cargo-container/registry:/root/.cargo/registry -v {0}/.cargo-container/git:/root/.cargo/git', github.workspace) || '' }}
 
-    - uses: astral-sh/setup-uv@v7
+    - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
       with:
         enable-cache: false
 
