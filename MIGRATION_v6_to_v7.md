@@ -1,10 +1,9 @@
-# Migration Guide: aiortc transport → Rust Video SDK
+# Migration Guide: v6 → v7
 
 This guide lists the breaking changes in `getstream.video.rtc` when the WebRTC
 transport moves from aiortc to the Rust Video SDK
 ([stream-video-rust](https://github.com/GetStream/stream-video-rust)). It
-compares with stream-py 6.1.1. The work is not released yet; this guide is
-updated with each change.
+compares with stream-py 6.1.1.
 
 ## Overview
 
@@ -27,9 +26,13 @@ The main changes for consumers:
 
 ## Installation
 
+```bash
+pip install "getstream[webrtc]==7.*"
+```
+
 The `webrtc` extra now also installs `getstream-rtc` (import name
-`getstream_rtc`), a separate package that contains the native extension.
-`getstream` itself stays pure Python.
+`getstream_rtc`), a separate package that contains the native extension. It
+requires `getstream-rtc>=0.1.0,<0.2`. `getstream` itself stays pure Python.
 
 `getstream-rtc` needs Python 3.10 or later, as `getstream` does. PyPI has
 `getstream-rtc` wheels for Linux x86_64 and aarch64 (glibc 2.28 or later) and
@@ -183,6 +186,10 @@ Behavior of a track object:
 - A track ends (`None`, or the end of its `VideoFrameStream`s) when its
   participant leaves, when this client leaves, or when this client rejoins
   with a new session; after a rejoin a new `track_added` arrives.
+- A cancel of a pending `next_pcm()`, for example by `asyncio.wait_for()` with
+  a timeout, can lose the frame that it was about to return. Read in one task,
+  and cancel it only when you stop reading. In 6.1.1 a cancelled `recv()` of
+  the aiortc relay proxy lost no frame.
 
 ### Joining, waiting and leaving
 
