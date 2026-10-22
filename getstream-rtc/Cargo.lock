@@ -970,9 +970,9 @@ dependencies = [
 
 [[package]]
 name = "getstream"
-version = "0.2.0-preview.1"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2cf8c4d0077f004f582a0d6f819d906cb0e1fec1e35330f540fe6dcdc0017b55"
+checksum = "ef62a1a229fdb6ce9a337630fcf12bb4c61fcbe479a23a5e8107697a8c6bc7fa"
 dependencies = [
  "base64 0.23.1",
  "bytes",
