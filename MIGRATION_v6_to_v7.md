@@ -470,8 +470,10 @@ connections, so the aiortc transport code is removed:
 
 ### Network
 
-- TURN works only over UDP. Networks that allow only TCP or TLS (for example
-  port 443 only) cannot connect; aiortc supported TURN over TCP and TLS.
+- TURN works only over UDP, as in 6.1.1. Networks that allow only TCP or TLS
+  (for example port 443 only) cannot connect. aiortc supports TURN over TCP
+  and TLS, but it uses only the first TURN URL, so 6.1.1 did not use them
+  either.
 - When the `Stream` client has the API secret, the SDK creates a new user
   token for each join, rejoin and migration. Each token is valid for 10
   minutes.
