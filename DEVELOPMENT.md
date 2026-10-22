@@ -2,10 +2,14 @@
 
 ### Setup
 
-Clone the repo and install dependencies:
+Clone the repo and install dependencies. `uv sync` compiles the Rust extension
+`getstream-rtc`, so install [rustup](https://rustup.rs) and a C compiler first
+(macOS: `xcode-select --install`; Debian/Ubuntu: `apt install build-essential`):
 
 ```
 git clone git@github.com:GetStream/stream-py.git
+cd stream-py
+(cd getstream-rtc && rustup toolchain install)   # the pinned Rust version
 uv sync --no-sources --all-packages --all-extras --dev
 cp .env.example .env   # fill in your Stream credentials
 pre-commit install      # optional: enable commit hooks
@@ -42,9 +46,10 @@ make test-prometheus   # requires getstream[telemetry] deps
 
 | Trigger | What runs | Gates anything? |
 | --- | --- | --- |
-| Pull request | `run_tests.yml`: ruff, ty, and `-m "not integration"` on five Python versions | yes, `🧪 Tests` is the required check |
+| Pull request | `run_tests.yml`: ruff, ty, the Rust checks of `getstream-rtc` (`cargo fmt`, `cargo clippy`, `cargo test --lib`), and `-m "not integration"` on five Python versions | yes, `🧪 Tests` is the required check |
+| Pull request that changes `getstream-rtc/` or the wheel build | `rtc_wheels.yml`: builds and checks the `getstream-rtc` wheels for Linux x86_64, Linux aarch64 and macOS arm64; uploads nothing | no |
 | Daily at 09:00 UTC | `run_integration.yml`: `-m integration`, both credential sets | no |
-| Release PR merged | nothing on the default branch, the unit lane on `N.x` | `N.x` only |
+| Release PR merged | nothing on the default branch, the unit lane on `N.x`; `release.yml` builds each `getstream-rtc` wheel again from the tag and checks it before it uploads it | `N.x` only; a failed wheel stops the `getstream` upload |
 
 `@pytest.mark.integration` means one thing: the test talks to a live Stream app. The unit
 lane therefore runs with no credentials, no `environment:` and no `STREAM_*`. Keep it that
@@ -107,4 +112,3 @@ Use these commands to regenerate:
 ./generate.sh
 ./generate_webrtc.sh
 ```
-
