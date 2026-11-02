@@ -275,7 +275,9 @@ class Call(BaseCall):
 
     @attach_call_cid_async
     async def start_recording(
-        self, recording_type: str, recording_external_storage: Optional[str] = None
+        self,
+        recording_type: RecordingType,
+        recording_external_storage: Optional[str] = None,
     ) -> StreamResponse[StartRecordingResponse]:
         response = await self.client.start_recording(
             type=self.call_type,
@@ -289,7 +291,7 @@ class Call(BaseCall):
     @attach_call_cid_async
     async def stop_recording(
         self,
-        recording_type: str,
+        recording_type: RecordingType,
     ) -> StreamResponse[StopRecordingResponse]:
         response = await self.client.stop_recording(
             type=self.call_type,
@@ -311,10 +313,17 @@ class Call(BaseCall):
 
     @attach_call_cid_async
     async def ring(
-        self, video: Optional[bool] = None, members_ids: Optional[List[str]] = None
+        self,
+        video: Optional[bool] = None,
+        members_ids: Optional[List[str]] = None,
+        custom: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[RingCallResponse]:
         response = await self.client.ring_call(
-            type=self.call_type, id=self.id, video=video, members_ids=members_ids
+            type=self.call_type,
+            id=self.id,
+            video=video,
+            members_ids=members_ids,
+            custom=custom,
         )
         self._sync_from_response(response.data)
         return response
@@ -409,7 +418,7 @@ class Call(BaseCall):
         self,
         enable_transcription: Optional[bool] = None,
         external_storage: Optional[str] = None,
-        language: Optional[str] = None,
+        language: Optional[TranscriptionLanguage] = None,
         speech_segment_config: Optional[SpeechSegmentConfig] = None,
     ) -> StreamResponse[StartClosedCaptionsResponse]:
         response = await self.client.start_closed_captions(
@@ -439,7 +448,7 @@ class Call(BaseCall):
     async def start_transcription(
         self,
         enable_closed_captions: Optional[bool] = None,
-        language: Optional[str] = None,
+        language: Optional[TranscriptionLanguage] = None,
         transcription_external_storage: Optional[str] = None,
     ) -> StreamResponse[StartTranscriptionResponse]:
         response = await self.client.start_transcription(
