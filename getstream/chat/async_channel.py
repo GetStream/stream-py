@@ -132,6 +132,33 @@ class Channel:
         return response
 
     @attach_channel_cid_async
+    async def query_channel_bans(
+        self,
+        exclude_expired_bans: Optional[bool] = None,
+        include_total: Optional[bool] = None,
+        limit: Optional[int] = None,
+        next: Optional[str] = None,
+        prev: Optional[str] = None,
+        user_id: Optional[str] = None,
+        filter_conditions: Optional[Dict[str, object]] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[QueryChannelBansResponse]:
+        response = await self.client.query_channel_bans(
+            type=self.channel_type,
+            id=self.channel_id,
+            exclude_expired_bans=exclude_expired_bans,
+            include_total=include_total,
+            limit=limit,
+            next=next,
+            prev=prev,
+            user_id=user_id,
+            filter_conditions=filter_conditions,
+            user=user,
+        )
+        self._sync_from_response(response.data)
+        return response
+
+    @attach_channel_cid_async
     async def delete_draft(
         self, parent_id: Optional[str] = None, user_id: Optional[str] = None
     ) -> StreamResponse[Response]:
@@ -255,6 +282,7 @@ class Channel:
         include_mentioned_members: Optional[bool] = None,
         keep_channel_hidden: Optional[bool] = None,
         pending: Optional[bool] = None,
+        scheduled_at: Optional[datetime] = None,
         skip_enrich_url: Optional[bool] = None,
         skip_push: Optional[bool] = None,
         pending_message_metadata: Optional[Dict[str, str]] = None,
@@ -268,6 +296,7 @@ class Channel:
             include_mentioned_members=include_mentioned_members,
             keep_channel_hidden=keep_channel_hidden,
             pending=pending,
+            scheduled_at=scheduled_at,
             skip_enrich_url=skip_enrich_url,
             skip_push=skip_push,
             pending_message_metadata=pending_message_metadata,
