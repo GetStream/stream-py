@@ -1,3 +1,4 @@
+import enum
 import json
 import logging
 import mimetypes
@@ -142,9 +143,21 @@ def _read_file_bytes(file_path: str) -> bytes:
         return f.read()
 
 
+# An Enum member because dataclasses-json deep-copies dict values, and a deep copy of an Enum member is the member itself.
+class _Null(enum.Enum):
+    NULL = "NULL"
+
+
+NULL = _Null.NULL
+"""Sends an explicit JSON ``null``. Request bodies drop plain ``None`` values, so use ``NULL`` where ``null`` must reach the API, for example inside custom data."""
+
+
 def _strip_none(obj):
     """Recursively remove None values from dicts so unset optional fields
-    are omitted from the JSON body instead of being sent as null."""
+    are omitted from the JSON body instead of being sent as null. ``NULL``
+    becomes null."""
+    if obj is NULL:
+        return None
     if isinstance(obj, dict):
         return {k: _strip_none(v) for k, v in obj.items() if v is not None}
     if isinstance(obj, list):
