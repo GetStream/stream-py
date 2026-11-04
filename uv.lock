@@ -863,7 +863,7 @@ wheels = [
 
 [[package]]
 name = "getstream"
-version = "7.0.0"
+version = "7.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "dataclasses-json" },
