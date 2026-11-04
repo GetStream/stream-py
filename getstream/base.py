@@ -1,4 +1,3 @@
-import enum
 import json
 import logging
 import mimetypes
@@ -23,6 +22,7 @@ from getstream.generic import T
 import httpx
 from getstream.config import BaseConfig
 from getstream.version import VERSION
+from getstream.utils import NULL
 from urllib.parse import quote
 from abc import ABC
 from getstream.common.telemetry import (
@@ -141,15 +141,6 @@ def _response_body_for_log(response: httpx.Response):
 def _read_file_bytes(file_path: str) -> bytes:
     with open(file_path, "rb") as f:
         return f.read()
-
-
-# An Enum member because dataclasses-json deep-copies dict values, and a deep copy of an Enum member is the member itself.
-class _Null(enum.Enum):
-    NULL = "NULL"
-
-
-NULL = _Null.NULL
-"""Sends an explicit JSON ``null``. Request bodies drop plain ``None`` values, so use ``NULL`` where ``null`` must reach the API, for example inside custom data."""
 
 
 def _strip_none(obj):

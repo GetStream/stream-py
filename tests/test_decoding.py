@@ -9,8 +9,10 @@ import pytest
 from getstream import NULL
 from getstream.models import (
     GetCallResponse,
+    MessageRequest,
     OwnCapability,
     OwnCapabilityType,
+    QueryUsersPayload,
     UpdateChannelPartialRequest,
 )
 from getstream.base import _strip_none
@@ -376,6 +378,13 @@ def test_strip_none_sends_explicit_null():
     assert _strip_none(body) == {
         "set": {"follow_ups": {"count": 3, "expires_at": None}}
     }
+    assert _strip_none(MessageRequest(pin_expires=NULL).to_dict()) == {
+        "pin_expires": None
+    }
+    payload = build_query_param(
+        payload=QueryUsersPayload(filter_conditions={"x": NULL})
+    )["payload"]
+    assert json.loads(payload)["filter_conditions"] == {"x": None}
 
 
 @pytest.mark.skip("fixture is not longer valid, skip for now")

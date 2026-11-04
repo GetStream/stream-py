@@ -1,6 +1,6 @@
 import logging
 
-from getstream.base import NULL  # noqa: F401
+from getstream.utils import NULL  # noqa: F401
 from getstream.config import RetryConfig  # noqa: F401
 from getstream.exceptions import (  # noqa: F401
     StreamApiException,

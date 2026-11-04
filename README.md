@@ -145,7 +145,7 @@ Only idempotent `GET`/`HEAD` requests are retried, and only on HTTP 429 (unless 
 
 ### Sending null
 
-Request bodies drop `None` values, so an unset optional field never overwrites stored data. To store an explicit `null`, for example inside custom data, pass `NULL`:
+Request bodies drop `None` values inside objects, so an unset optional field never overwrites stored data. `None` items in a list are kept and sent as `null`. To store an explicit `null`, for example inside custom data, pass `NULL`:
 
 ```python
 from getstream import NULL
