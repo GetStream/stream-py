@@ -1,4 +1,5 @@
 from __future__ import annotations
+import warnings
 from typing import TYPE_CHECKING
 
 from dataclasses import dataclass
@@ -38,6 +39,21 @@ class BaseCall:
     def connect_openai(
         self, openai_api_key, agent_user_id, model="gpt-4o-realtime-preview"
     ):
+        """Connect an OpenAI Realtime agent to this call through Stream's
+        ``/video/connect_agent`` proxy.
+
+        .. deprecated::
+            The OpenAI Realtime proxy is deprecated and will be removed in a
+            future major release. Build voice and video AI agents with Vision
+            Agents instead: https://visionagents.ai/integrations/llm/openai
+        """
+        warnings.warn(
+            "connect_openai is deprecated and will be removed in a future major "
+            "release. Build voice and video AI agents with Vision Agents instead: "
+            "https://visionagents.ai/integrations/llm/openai",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         from .openai import get_openai_realtime_client, ConnectionManagerWrapper
 
         client = get_openai_realtime_client(openai_api_key, self.client.base_url or "")
