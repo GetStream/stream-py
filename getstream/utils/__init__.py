@@ -2,7 +2,6 @@ import enum
 import json
 import asyncio
 from typing import Dict, List, Optional, Union, cast
-from urllib.parse import quote
 from datetime import datetime
 from datetime import timezone
 from urllib.parse import urlparse, urlunparse
@@ -120,7 +119,7 @@ def build_query_param(**kwargs):
     - JSON-serializable objects with a `to_json` method will be serialized using that method.
     - datetime objects are converted to ISO 8601 strings.
     - Booleans are converted to lowercase strings.
-    - Lists are converted to comma-separated strings with URL-encoded values.
+    - Lists are converted to comma-separated strings.
     - Other types (strings, integers, dictionaries) are handled appropriately.
 
     Args:
@@ -142,7 +141,7 @@ def build_query_param(**kwargs):
         elif isinstance(value, (str, int)):
             params[key] = str(value)
         elif isinstance(value, list):
-            params[key] = ",".join(quote(_serialize_query_value(v)) for v in value)
+            params[key] = ",".join(_serialize_query_value(v) for v in value)
         else:
             # For dictionaries or any other types of objects
             params[key] = json.dumps(value)
@@ -158,7 +157,7 @@ async def build_query_param_async(**kwargs):
     This function handles various data types:
     - JSON-serializable objects with a `to_json` method will be serialized using that method.
     - Booleans are converted to lowercase strings.
-    - Lists are converted to comma-separated strings with URL-encoded values.
+    - Lists are converted to comma-separated strings.
     - Other types (strings, integers, dictionaries) are handled appropriately.
 
     Args:
