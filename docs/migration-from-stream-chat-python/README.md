@@ -20,6 +20,7 @@
 | Custom fields | Top-level dict keys | Nested in `custom` dict |
 | Response access | Dict keys (`response["users"]`) | Typed properties (`response.data.users`) |
 | Env vars | `STREAM_CHAT_TIMEOUT` | `STREAM_API_KEY`, `STREAM_API_SECRET`, `STREAM_TIMEOUT` |
+| `None` in request data | Sent as `null` | Dropped from objects, kept in lists; pass `getstream.NULL` to send `null` |
 
 ## Quick Example
 
