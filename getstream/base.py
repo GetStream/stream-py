@@ -7,7 +7,7 @@ import time
 import uuid
 import warnings
 import asyncio
-from typing import Any, Dict, List, Optional, Tuple, Type, cast, get_origin
+from typing import Any, Dict, Optional, Tuple, Type, cast, get_origin
 
 from getstream.exceptions import (
     StreamApiException,
@@ -141,6 +141,20 @@ def _response_body_for_log(response: httpx.Response):
 def _read_file_bytes(file_path: str) -> bytes:
     with open(file_path, "rb") as f:
         return f.read()
+
+
+def _multipart_form(body: Dict[str, Any]) -> Tuple[str, Dict[str, str]]:
+    """Split an upload body into the file path and the other set fields as form
+    values: strings as-is, anything else JSON-encoded, which is how the API reads
+    "user" and "upload_sizes"."""
+    fields = _strip_none(body)
+    file_path = fields.pop("file", None)
+    if not file_path:
+        raise ValueError("file path must be provided")
+    return file_path, {
+        name: value if isinstance(value, str) else json.dumps(value)
+        for name, value in fields.items()
+    }
 
 
 def _strip_none(obj):
@@ -569,23 +583,19 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
         self,
         path: str,
         data_type: Type[T],
-        file_path: str,
         *,
         path_params: Optional[Dict[str, str]] = None,
         query_params: Optional[Dict[str, str]] = None,
-        form_fields: Optional[List[Tuple[str, str]]] = None,
+        json: Dict[str, Any],
     ) -> StreamResponse[T]:
         """Send a multipart/form-data upload request, matching Go/PHP SDK behavior."""
+        file_path, data = _multipart_form(json)
         file_name = os.path.basename(file_path)
         content_type = mimetypes.guess_type(file_path)[0] or "application/octet-stream"
         with open(file_path, "rb") as f:
             file_content = f.read()
 
         files = {"file": (file_name, file_content, content_type)}
-        data: Dict[str, str] = {}
-        for field_name, field_value in form_fields or []:
-            data[field_name] = field_value
-
         kwargs: Dict[str, Any] = {"files": files}
         if data:
             kwargs["data"] = data
@@ -700,23 +710,19 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
         self,
         path: str,
         data_type: Type[T],
-        file_path: str,
         *,
         path_params: Optional[Dict[str, str]] = None,
         query_params: Optional[Dict[str, str]] = None,
-        form_fields: Optional[List[Tuple[str, str]]] = None,
+        json: Dict[str, Any],
     ) -> StreamResponse[T]:
         """Send a multipart/form-data upload request, matching Go/PHP SDK behavior."""
+        file_path, data = _multipart_form(json)
         file_name = os.path.basename(file_path)
         content_type = mimetypes.guess_type(file_path)[0] or "application/octet-stream"
 
         file_content = await asyncio.to_thread(_read_file_bytes, file_path)
 
         files = {"file": (file_name, file_content, content_type)}
-        data: Dict[str, str] = {}
-        for field_name, field_value in form_fields or []:
-            data[field_name] = field_value
-
         kwargs: Dict[str, Any] = {"files": files}
         if data:
             kwargs["data"] = data
