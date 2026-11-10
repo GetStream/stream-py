@@ -29,9 +29,12 @@ def call_users() -> Iterator[list[FullUserResponse]]:
         users={user_id: UserRequest(id=user_id, name=user_id) for user_id in user_ids}
     )
     yield [response.data.users[user_id] for user_id in user_ids]
-    client.delete_users(
-        user_ids=user_ids, user="hard", conversations="hard", messages="hard"
-    )
+    try:
+        client.delete_users(
+            user_ids=user_ids, user="hard", conversations="hard", messages="hard"
+        )
+    except Exception:
+        pass
 
 
 @pytest.fixture(autouse=True)
