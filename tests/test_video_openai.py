@@ -330,3 +330,15 @@ class TestOpenAIPatching:
 
             # Verify that the API key was passed correctly
             mock_openai.AsyncOpenAI.assert_called_once_with(api_key=openai_api_key)
+
+    def test_connect_openai_emits_deprecation_warning(self):
+        """Test that connect_openai warns that the OpenAI Realtime proxy is deprecated."""
+        from getstream.video import BaseCall
+
+        call = BaseCall(MagicMock(), "default", "test-call")
+
+        with (
+            patch("getstream.video.openai.get_openai_realtime_client"),
+            pytest.warns(DeprecationWarning, match="Vision Agents"),
+        ):
+            call.connect_openai("fake-api-key", "test-agent")
