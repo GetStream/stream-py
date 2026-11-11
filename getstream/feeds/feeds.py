@@ -40,6 +40,7 @@ class Feed:
         user_id: Optional[str] = None,
         view: Optional[str] = None,
         watch: Optional[bool] = None,
+        discard_actors: Optional[List[str]] = None,
         data: Optional[FeedInput] = None,
         enrichment_options: Optional[EnrichmentOptions] = None,
         external_ranking: Optional[Dict[str, object]] = None,
@@ -50,6 +51,7 @@ class Feed:
         interest_weights: Optional[Dict[str, float]] = None,
         member_pagination: Optional[PagerRequest] = None,
         user: Optional[UserRequest] = None,
+        viewer_location: Optional[Location] = None,
     ) -> StreamResponse[GetOrCreateFeedResponse]:
         response = self.client.get_or_create_feed(
             feed_group_id=self.feed_group,
@@ -64,6 +66,7 @@ class Feed:
             user_id=user_id,
             view=view,
             watch=watch,
+            discard_actors=discard_actors,
             data=data,
             enrichment_options=enrichment_options,
             external_ranking=external_ranking,
@@ -74,6 +77,7 @@ class Feed:
             interest_weights=interest_weights,
             member_pagination=member_pagination,
             user=user,
+            viewer_location=viewer_location,
         )
         self._sync_from_response(response.data)
         return response
@@ -163,7 +167,7 @@ class Feed:
         return response
 
     def change_feed_visibility(
-        self, visibility: str, pending_follows_action: Optional[str] = None
+        self, visibility: FeedVisibility, pending_follows_action: Optional[str] = None
     ) -> StreamResponse[ChangeFeedVisibilityResponse]:
         response = self.client.change_feed_visibility(
             feed_group_id=self.feed_group,
@@ -239,16 +243,30 @@ class Feed:
         self._sync_from_response(response.data)
         return response
 
+    def get_notification_status(
+        self, view: Optional[str] = None, user_id: Optional[str] = None
+    ) -> StreamResponse[GetNotificationStatusResponse]:
+        response = self.client.get_notification_status(
+            feed_group_id=self.feed_group, feed_id=self.id, view=view, user_id=user_id
+        )
+        self._sync_from_response(response.data)
+        return response
+
     def query_pinned_activities(
         self,
         language: Optional[str] = None,
         translate_text: Optional[bool] = None,
         enrich_own_fields: Optional[bool] = None,
+        include_expired_activities: Optional[bool] = None,
+        include_moderated_activities: Optional[bool] = None,
+        include_soft_deleted_activities: Optional[bool] = None,
         limit: Optional[int] = None,
         next: Optional[str] = None,
         prev: Optional[str] = None,
+        user_id: Optional[str] = None,
         sort: Optional[List[SortParamRequest]] = None,
         filter: Optional[Dict[str, object]] = None,
+        user: Optional[UserRequest] = None,
     ) -> StreamResponse[QueryPinnedActivitiesResponse]:
         response = self.client.query_pinned_activities(
             feed_group_id=self.feed_group,
@@ -256,11 +274,16 @@ class Feed:
             language=language,
             translate_text=translate_text,
             enrich_own_fields=enrich_own_fields,
+            include_expired_activities=include_expired_activities,
+            include_moderated_activities=include_moderated_activities,
+            include_soft_deleted_activities=include_soft_deleted_activities,
             limit=limit,
             next=next,
             prev=prev,
+            user_id=user_id,
             sort=sort,
             filter=filter,
+            user=user,
         )
         self._sync_from_response(response.data)
         return response
