@@ -18,7 +18,12 @@ class Channel:
         self.custom_data = custom_data or {}
 
     def _sync_from_response(self, data):
-        if hasattr(data, "channel") and isinstance(data.channel, ChannelResponse):
+        # A fork's response carries the new channel, not this one.
+        if (
+            hasattr(data, "channel")
+            and isinstance(data.channel, ChannelResponse)
+            and data.channel.cid == f"{self.channel_type}:{self.channel_id}"
+        ):
             self.custom_data = data.channel.custom
 
     @attach_channel_cid
@@ -132,6 +137,33 @@ class Channel:
         return response
 
     @attach_channel_cid
+    def query_channel_bans(
+        self,
+        exclude_expired_bans: Optional[bool] = None,
+        include_total: Optional[bool] = None,
+        limit: Optional[int] = None,
+        next: Optional[str] = None,
+        prev: Optional[str] = None,
+        user_id: Optional[str] = None,
+        filter_conditions: Optional[Dict[str, object]] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[QueryChannelBansResponse]:
+        response = self.client.query_channel_bans(
+            type=self.channel_type,
+            id=self.channel_id,
+            exclude_expired_bans=exclude_expired_bans,
+            include_total=include_total,
+            limit=limit,
+            next=next,
+            prev=prev,
+            user_id=user_id,
+            filter_conditions=filter_conditions,
+            user=user,
+        )
+        self._sync_from_response(response.data)
+        return response
+
+    @attach_channel_cid
     def delete_draft(
         self, parent_id: Optional[str] = None, user_id: Optional[str] = None
     ) -> StreamResponse[Response]:
@@ -181,6 +213,44 @@ class Channel:
     ) -> StreamResponse[UploadChannelFileResponse]:
         response = self.client.upload_channel_file(
             type=self.channel_type, id=self.channel_id, file=file, user=user
+        )
+        self._sync_from_response(response.data)
+        return response
+
+    @attach_channel_cid
+    def fork(
+        self,
+        message_id: str,
+        channel: ForkChannelTarget,
+        exclude_attachments: Optional[bool] = None,
+        user_id: Optional[str] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[ForkChannelResponse]:
+        response = self.client.fork_channel(
+            type=self.channel_type,
+            id=self.channel_id,
+            message_id=message_id,
+            channel=channel,
+            exclude_attachments=exclude_attachments,
+            user_id=user_id,
+            user=user,
+        )
+        self._sync_from_response(response.data)
+        return response
+
+    @attach_channel_cid
+    def fork_message_ids(
+        self,
+        source_message_ids: List[str],
+        user_id: Optional[str] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[ForkMessageIDsResponse]:
+        response = self.client.fork_message_ids(
+            type=self.channel_type,
+            id=self.channel_id,
+            source_message_ids=source_message_ids,
+            user_id=user_id,
+            user=user,
         )
         self._sync_from_response(response.data)
         return response
@@ -255,6 +325,7 @@ class Channel:
         include_mentioned_members: Optional[bool] = None,
         keep_channel_hidden: Optional[bool] = None,
         pending: Optional[bool] = None,
+        scheduled_at: Optional[datetime] = None,
         skip_enrich_url: Optional[bool] = None,
         skip_push: Optional[bool] = None,
         pending_message_metadata: Optional[Dict[str, str]] = None,
@@ -268,6 +339,7 @@ class Channel:
             include_mentioned_members=include_mentioned_members,
             keep_channel_hidden=keep_channel_hidden,
             pending=pending,
+            scheduled_at=scheduled_at,
             skip_enrich_url=skip_enrich_url,
             skip_push=skip_push,
             pending_message_metadata=pending_message_metadata,
@@ -333,6 +405,7 @@ class Channel:
     def get_or_create(
         self,
         hide_for_creator: Optional[bool] = None,
+        include_scheduled_messages: Optional[bool] = None,
         state: Optional[bool] = None,
         thread_unread_counts: Optional[bool] = None,
         member_custom_include: Optional[List[str]] = None,
@@ -345,6 +418,7 @@ class Channel:
             type=self.channel_type,
             id=self.channel_id,
             hide_for_creator=hide_for_creator,
+            include_scheduled_messages=include_scheduled_messages,
             state=state,
             thread_unread_counts=thread_unread_counts,
             member_custom_include=member_custom_include,
@@ -369,6 +443,27 @@ class Channel:
             id=self.channel_id,
             message_id=message_id,
             thread_id=thread_id,
+            user_id=user_id,
+            user=user,
+        )
+        self._sync_from_response(response.data)
+        return response
+
+    @attach_channel_cid
+    def rewind(
+        self,
+        expected_last_message_id: str,
+        message_id: str,
+        inclusive: Optional[bool] = None,
+        user_id: Optional[str] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[RewindChannelResponse]:
+        response = self.client.rewind_channel(
+            type=self.channel_type,
+            id=self.channel_id,
+            expected_last_message_id=expected_last_message_id,
+            message_id=message_id,
+            inclusive=inclusive,
             user_id=user_id,
             user=user,
         )

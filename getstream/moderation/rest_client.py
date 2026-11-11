@@ -41,11 +41,13 @@ class ModerationRestClient(BaseClient):
         user_id: Optional[str] = None,
     ) -> StreamResponse[GetActionConfigResponse]:
         query_params = build_query_param(
-            queue_type=queue_type,
-            entity_type=entity_type,
-            exclude_defaults=exclude_defaults,
-            only_defaults=only_defaults,
-            user_id=user_id,
+            **{
+                "queue_type": queue_type,
+                "entity_type": entity_type,
+                "exclude_defaults": exclude_defaults,
+                "only_defaults": only_defaults,
+                "user_id": user_id,
+            }
         )
         return self.get(
             "/api/v2/moderation/action_config",
@@ -119,7 +121,7 @@ class ModerationRestClient(BaseClient):
     def delete_action_config(
         self, id: str, user_id: Optional[str] = None
     ) -> StreamResponse[DeleteActionConfigResponse]:
-        query_params = build_query_param(user_id=user_id)
+        query_params = build_query_param(**{"user_id": user_id})
         path_params = {
             "id": id,
         }
@@ -162,10 +164,12 @@ class ModerationRestClient(BaseClient):
         async_response: Optional[bool] = None,
         config_key: Optional[str] = None,
         content_published_at: Optional[datetime] = None,
+        country_code: Optional[str] = None,
         entity_creator_id: Optional[str] = None,
         entity_id: Optional[str] = None,
         entity_type: Optional[str] = None,
         user_id: Optional[str] = None,
+        country_codes: Optional[List[str]] = None,
         content_ids: Optional[Dict[str, str]] = None,
         custom: Optional[Dict[str, object]] = None,
         texts: Optional[Dict[str, str]] = None,
@@ -175,10 +179,12 @@ class ModerationRestClient(BaseClient):
             async_response=async_response,
             config_key=config_key,
             content_published_at=content_published_at,
+            country_code=country_code,
             entity_creator_id=entity_creator_id,
             entity_id=entity_id,
             entity_type=entity_type,
             user_id=user_id,
+            country_codes=country_codes,
             content_ids=content_ids,
             custom=custom,
             texts=texts,
@@ -192,6 +198,7 @@ class ModerationRestClient(BaseClient):
         appeal_reason: str,
         entity_id: str,
         entity_type: str,
+        channel_cid: Optional[str] = None,
         review_queue_item_id: Optional[str] = None,
         user_id: Optional[str] = None,
         attachments: Optional[List[str]] = None,
@@ -201,6 +208,7 @@ class ModerationRestClient(BaseClient):
             appeal_reason=appeal_reason,
             entity_id=entity_id,
             entity_type=entity_type,
+            channel_cid=channel_cid,
             review_queue_item_id=review_queue_item_id,
             user_id=user_id,
             attachments=attachments,
@@ -273,9 +281,11 @@ class ModerationRestClient(BaseClient):
     def ban(
         self,
         target_user_id: str,
+        ban_from_future_channels: Optional[bool] = None,
         banned_by_id: Optional[str] = None,
         channel_cid: Optional[str] = None,
         delete_messages: Optional[str] = None,
+        delete_reactions: Optional[bool] = None,
         ip_ban: Optional[bool] = None,
         reason: Optional[str] = None,
         shadow: Optional[bool] = None,
@@ -284,9 +294,11 @@ class ModerationRestClient(BaseClient):
     ) -> StreamResponse[ModerationBanResponse]:
         json = BanRequest(
             target_user_id=target_user_id,
+            ban_from_future_channels=ban_from_future_channels,
             banned_by_id=banned_by_id,
             channel_cid=channel_cid,
             delete_messages=delete_messages,
+            delete_reactions=delete_reactions,
             ip_ban=ip_ban,
             reason=reason,
             shadow=shadow,
@@ -322,8 +334,10 @@ class ModerationRestClient(BaseClient):
         config_key: Optional[str] = None,
         config_team: Optional[str] = None,
         content_published_at: Optional[datetime] = None,
+        country_code: Optional[str] = None,
         test_mode: Optional[bool] = None,
         user_id: Optional[str] = None,
+        country_codes: Optional[List[str]] = None,
         config: Optional[ModerationConfig] = None,
         moderation_payload: Optional[ModerationPayload] = None,
         options: Optional[Dict[str, object]] = None,
@@ -336,8 +350,10 @@ class ModerationRestClient(BaseClient):
             config_key=config_key,
             config_team=config_team,
             content_published_at=content_published_at,
+            country_code=country_code,
             test_mode=test_mode,
             user_id=user_id,
+            country_codes=country_codes,
             config=config,
             moderation_payload=moderation_payload,
             options=options,
@@ -373,8 +389,10 @@ class ModerationRestClient(BaseClient):
         aws_rekognition_config: Optional[AIImageConfig] = None,
         block_list_config: Optional[BlockListConfig] = None,
         bodyguard_config: Optional[AITextConfig] = None,
+        engine: Optional[ModerationEngineConfigRequest] = None,
         flood_config: Optional[FloodConfig] = None,
         google_vision_config: Optional[GoogleVisionConfig] = None,
+        intent_config: Optional[IntentConfigRequest] = None,
         llm_config: Optional[LLMConfig] = None,
         rule_builder_config: Optional[RuleBuilderConfig] = None,
         user: Optional[UserRequest] = None,
@@ -396,8 +414,10 @@ class ModerationRestClient(BaseClient):
             aws_rekognition_config=aws_rekognition_config,
             block_list_config=block_list_config,
             bodyguard_config=bodyguard_config,
+            engine=engine,
             flood_config=flood_config,
             google_vision_config=google_vision_config,
+            intent_config=intent_config,
             llm_config=llm_config,
             rule_builder_config=rule_builder_config,
             user=user,
@@ -406,11 +426,71 @@ class ModerationRestClient(BaseClient):
         ).to_dict()
         return self.post("/api/v2/moderation/config", UpsertConfigResponse, json=json)
 
+    @telemetry.operation_name("getstream.api.moderation.save_config_version")
+    def save_config_version(
+        self,
+        base_version: int,
+        key: str,
+        _async: Optional[bool] = None,
+        team: Optional[str] = None,
+        user_id: Optional[str] = None,
+        ai_audio_config: Optional[AIAudioConfigRequest] = None,
+        ai_image_config: Optional[AIImageConfig] = None,
+        ai_text_config: Optional[AITextConfig] = None,
+        ai_video_config: Optional[AIVideoConfigRequest] = None,
+        automod_platform_circumvention_config: Optional[
+            AutomodPlatformCircumventionConfig
+        ] = None,
+        automod_semantic_filters_config: Optional[AutomodSemanticFiltersConfig] = None,
+        automod_toxicity_config: Optional[AutomodToxicityConfig] = None,
+        aws_rekognition_config: Optional[AIImageConfig] = None,
+        block_list_config: Optional[BlockListConfig] = None,
+        bodyguard_config: Optional[AITextConfig] = None,
+        engine: Optional[ModerationEngineConfigRequest] = None,
+        flood_config: Optional[FloodConfig] = None,
+        google_vision_config: Optional[GoogleVisionConfig] = None,
+        intent_config: Optional[IntentConfigRequest] = None,
+        llm_config: Optional[LLMConfig] = None,
+        rule_builder_config: Optional[RuleBuilderConfig] = None,
+        user: Optional[UserRequest] = None,
+        velocity_filter_config: Optional[VelocityFilterConfig] = None,
+        video_call_rule_config: Optional[VideoCallRuleConfig] = None,
+    ) -> StreamResponse[SaveConfigVersionResponse]:
+        json = SaveConfigVersionRequest(
+            base_version=base_version,
+            key=key,
+            _async=_async,
+            team=team,
+            user_id=user_id,
+            ai_audio_config=ai_audio_config,
+            ai_image_config=ai_image_config,
+            ai_text_config=ai_text_config,
+            ai_video_config=ai_video_config,
+            automod_platform_circumvention_config=automod_platform_circumvention_config,
+            automod_semantic_filters_config=automod_semantic_filters_config,
+            automod_toxicity_config=automod_toxicity_config,
+            aws_rekognition_config=aws_rekognition_config,
+            block_list_config=block_list_config,
+            bodyguard_config=bodyguard_config,
+            engine=engine,
+            flood_config=flood_config,
+            google_vision_config=google_vision_config,
+            intent_config=intent_config,
+            llm_config=llm_config,
+            rule_builder_config=rule_builder_config,
+            user=user,
+            velocity_filter_config=velocity_filter_config,
+            video_call_rule_config=video_call_rule_config,
+        ).to_dict()
+        return self.post(
+            "/api/v2/moderation/config/versions", SaveConfigVersionResponse, json=json
+        )
+
     @telemetry.operation_name("getstream.api.moderation.delete_config")
     def delete_config(
         self, key: str, team: Optional[str] = None, user_id: Optional[str] = None
     ) -> StreamResponse[DeleteModerationConfigResponse]:
-        query_params = build_query_param(team=team, user_id=user_id)
+        query_params = build_query_param(**{"team": team, "user_id": user_id})
         path_params = {
             "key": key,
         }
@@ -425,7 +505,7 @@ class ModerationRestClient(BaseClient):
     def get_config(
         self, key: str, team: Optional[str] = None
     ) -> StreamResponse[GetConfigResponse]:
-        query_params = build_query_param(team=team)
+        query_params = build_query_param(**{"team": team})
         path_params = {
             "key": key,
         }
@@ -434,6 +514,60 @@ class ModerationRestClient(BaseClient):
             GetConfigResponse,
             query_params=query_params,
             path_params=path_params,
+        )
+
+    @telemetry.operation_name("getstream.api.moderation.list_config_versions")
+    def list_config_versions(
+        self, key: str, team: Optional[str] = None
+    ) -> StreamResponse[ListConfigVersionsResponse]:
+        query_params = build_query_param(**{"team": team})
+        path_params = {
+            "key": key,
+        }
+        return self.get(
+            "/api/v2/moderation/config/{key}/versions",
+            ListConfigVersionsResponse,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
+    @telemetry.operation_name("getstream.api.moderation.get_config_version")
+    def get_config_version(
+        self, key: str, version: int, team: Optional[str] = None
+    ) -> StreamResponse[GetConfigVersionResponse]:
+        query_params = build_query_param(**{"team": team})
+        path_params = {
+            "key": key,
+            "version": version,
+        }
+        return self.get(
+            "/api/v2/moderation/config/{key}/versions/{version}",
+            GetConfigVersionResponse,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
+    @telemetry.operation_name("getstream.api.moderation.publish_config_version")
+    def publish_config_version(
+        self,
+        key: str,
+        version: int,
+        team: Optional[str] = None,
+        user_id: Optional[str] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[PublishConfigVersionResponse]:
+        path_params = {
+            "key": key,
+            "version": version,
+        }
+        json = PublishConfigVersionRequest(
+            team=team, user_id=user_id, user=user
+        ).to_dict()
+        return self.post(
+            "/api/v2/moderation/config/{key}/versions/{version}/publish",
+            PublishConfigVersionResponse,
+            path_params=path_params,
+            json=json,
         )
 
     @telemetry.operation_name("getstream.api.moderation.query_moderation_configs")
@@ -484,11 +618,43 @@ class ModerationRestClient(BaseClient):
             "/api/v2/moderation/custom_check", CustomCheckResponse, json=json
         )
 
+    @telemetry.operation_name("getstream.api.moderation.query_moderation_feedback")
+    def query_moderation_feedback(
+        self,
+        item_limit: Optional[int] = None,
+        limit: Optional[int] = None,
+        next: Optional[str] = None,
+        prev: Optional[str] = None,
+        user_id: Optional[str] = None,
+        sort: Optional[List[SortParamRequest]] = None,
+        filter: Optional[Dict[str, object]] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[QueryModerationFeedbackResponse]:
+        json = QueryModerationFeedbackRequest(
+            item_limit=item_limit,
+            limit=limit,
+            next=next,
+            prev=prev,
+            user_id=user_id,
+            sort=sort,
+            filter=filter,
+            user=user,
+        ).to_dict()
+        return self.post(
+            "/api/v2/moderation/feedback_items",
+            QueryModerationFeedbackResponse,
+            json=json,
+        )
+
     @telemetry.operation_name("getstream.api.moderation.v2_delete_template")
-    def v2_delete_template(self) -> StreamResponse[DeleteModerationTemplateResponse]:
+    def v2_delete_template(
+        self, name: Optional[str] = None
+    ) -> StreamResponse[DeleteModerationTemplateResponse]:
+        query_params = build_query_param(**{"name": name})
         return self.delete(
             "/api/v2/moderation/feeds_moderation_template",
             DeleteModerationTemplateResponse,
+            query_params=query_params,
         )
 
     @telemetry.operation_name("getstream.api.moderation.v2_query_templates")
@@ -676,7 +842,7 @@ class ModerationRestClient(BaseClient):
     def delete_moderation_rule(
         self, id: str, user_id: Optional[str] = None
     ) -> StreamResponse[DeleteModerationRuleResponse]:
-        query_params = build_query_param(user_id=user_id)
+        query_params = build_query_param(**{"user_id": user_id})
         path_params = {
             "id": id,
         }
@@ -749,9 +915,14 @@ class ModerationRestClient(BaseClient):
         )
 
     @telemetry.operation_name("getstream.api.moderation.list_policy_test_sets")
-    def list_policy_test_sets(self) -> StreamResponse[PolicyTestSetListResponse]:
+    def list_policy_test_sets(
+        self, limit: Optional[int] = None, offset: Optional[int] = None
+    ) -> StreamResponse[PolicyTestSetListResponse]:
+        query_params = build_query_param(**{"limit": limit, "offset": offset})
         return self.get(
-            "/api/v2/moderation/policy_tests/sets", PolicyTestSetListResponse
+            "/api/v2/moderation/policy_tests/sets",
+            PolicyTestSetListResponse,
+            query_params=query_params,
         )
 
     @telemetry.operation_name("getstream.api.moderation.create_policy_test_set")
@@ -808,7 +979,7 @@ class ModerationRestClient(BaseClient):
     def list_queues(
         self, user_id: Optional[str] = None
     ) -> StreamResponse[ListQueuesResponse]:
-        query_params = build_query_param(user_id=user_id)
+        query_params = build_query_param(**{"user_id": user_id})
         return self.get(
             "/api/v2/moderation/queues", ListQueuesResponse, query_params=query_params
         )
@@ -839,7 +1010,7 @@ class ModerationRestClient(BaseClient):
     def get_queue(
         self, id: str, user_id: Optional[str] = None
     ) -> StreamResponse[QueueResponse]:
-        query_params = build_query_param(user_id=user_id)
+        query_params = build_query_param(**{"user_id": user_id})
         path_params = {
             "id": id,
         }
@@ -892,6 +1063,18 @@ class ModerationRestClient(BaseClient):
             QueueResponse,
             path_params=path_params,
             json=json,
+        )
+
+    @telemetry.operation_name("getstream.api.moderation.reveal_media")
+    def reveal_media(
+        self,
+        item_id: str,
+        user_id: Optional[str] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[RevealMediaResponse]:
+        json = RevealMediaRequest(item_id=item_id, user_id=user_id, user=user).to_dict()
+        return self.post(
+            "/api/v2/moderation/reveal_media", RevealMediaResponse, json=json
         )
 
     @telemetry.operation_name("getstream.api.moderation.query_review_queue")
@@ -973,6 +1156,9 @@ class ModerationRestClient(BaseClient):
         delete_activity: Optional[DeleteActivityRequestPayload] = None,
         delete_comment: Optional[DeleteCommentRequestPayload] = None,
         delete_message: Optional[DeleteMessageRequestPayload] = None,
+        delete_poll: Optional[DeletePollRequestPayload] = None,
+        delete_poll_answer: Optional[DeletePollAnswerRequestPayload] = None,
+        delete_poll_option: Optional[DeletePollOptionRequestPayload] = None,
         delete_reaction: Optional[DeleteReactionRequestPayload] = None,
         delete_user: Optional[DeleteUserRequestPayload] = None,
         delete_user_messages: Optional[DeleteUserMessagesRequestPayload] = None,
@@ -998,6 +1184,9 @@ class ModerationRestClient(BaseClient):
             delete_activity=delete_activity,
             delete_comment=delete_comment,
             delete_message=delete_message,
+            delete_poll=delete_poll,
+            delete_poll_answer=delete_poll_answer,
+            delete_poll_option=delete_poll_option,
             delete_reaction=delete_reaction,
             delete_user=delete_user,
             delete_user_messages=delete_user_messages,
@@ -1018,26 +1207,46 @@ class ModerationRestClient(BaseClient):
     @telemetry.operation_name("getstream.api.moderation.submit_moderation_feedback")
     def submit_moderation_feedback(
         self,
-        message: str,
-        published_at: str,
-        reference: str,
         channel_id: Optional[str] = None,
+        confidence: Optional[str] = None,
         current_recommended_action: Optional[str] = None,
         description: Optional[str] = None,
+        entity_creator_id: Optional[str] = None,
+        entity_id: Optional[str] = None,
+        entity_type: Optional[str] = None,
         expected_recommended_action: Optional[str] = None,
+        false_positive: Optional[bool] = None,
+        feedback_type: Optional[str] = None,
+        message: Optional[str] = None,
+        published_at: Optional[str] = None,
+        reference: Optional[str] = None,
+        review_queue_item_id: Optional[str] = None,
+        user_id: Optional[str] = None,
         current_labels: Optional[List[str]] = None,
         expected_labels: Optional[List[str]] = None,
+        items: Optional[List[SubmitModerationFeedbackItem]] = None,
+        user: Optional[UserRequest] = None,
     ) -> StreamResponse[SubmitModerationFeedbackResponse]:
         json = SubmitModerationFeedbackRequest(
+            channel_id=channel_id,
+            confidence=confidence,
+            current_recommended_action=current_recommended_action,
+            description=description,
+            entity_creator_id=entity_creator_id,
+            entity_id=entity_id,
+            entity_type=entity_type,
+            expected_recommended_action=expected_recommended_action,
+            false_positive=false_positive,
+            feedback_type=feedback_type,
             message=message,
             published_at=published_at,
             reference=reference,
-            channel_id=channel_id,
-            current_recommended_action=current_recommended_action,
-            description=description,
-            expected_recommended_action=expected_recommended_action,
+            review_queue_item_id=review_queue_item_id,
+            user_id=user_id,
             current_labels=current_labels,
             expected_labels=expected_labels,
+            items=items,
+            user=user,
         ).to_dict()
         return self.post(
             "/api/v2/moderation/submit_moderation_feedback",
@@ -1051,13 +1260,17 @@ class ModerationRestClient(BaseClient):
         target_user_id: str,
         channel_cid: Optional[str] = None,
         created_by: Optional[str] = None,
+        remove_future_channels_ban: Optional[bool] = None,
         unbanned_by_id: Optional[str] = None,
         unbanned_by: Optional[UserRequest] = None,
     ) -> StreamResponse[UnbanResponse]:
         query_params = build_query_param(
-            target_user_id=target_user_id,
-            channel_cid=channel_cid,
-            created_by=created_by,
+            **{
+                "target_user_id": target_user_id,
+                "channel_cid": channel_cid,
+                "created_by": created_by,
+                "remove_future_channels_ban": remove_future_channels_ban,
+            }
         )
         json = UnbanRequest(
             unbanned_by_id=unbanned_by_id, unbanned_by=unbanned_by
