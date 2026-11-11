@@ -56,7 +56,7 @@ These methods have new parameters before existing ones. Each async client has th
 These parameters are now optional, so they moved behind the required ones. Pass them by keyword.
 
 - `chat.update_channel_type`: `automod`, `automod_behavior` and `max_message_length`. `max_message_length` now comes after `mark_messages_pending`.
-- `moderation.submit_moderation_feedback`: `message`, `published_at` and `reference`. They now come after the new `confidence`, `entity_creator_id`, `entity_id`, `entity_type`, `false_positive`, `feedback_type`, `review_queue_item_id` and `user_id` parameters.
+- `moderation.submit_moderation_feedback`: `message`, `published_at` and `reference`. They now come after `channel_id` and the new `confidence`, `entity_creator_id`, `entity_id`, `entity_type`, `false_positive` and `feedback_type` parameters, and before the new `review_queue_item_id` and `user_id`.
 
 The matching request models, `UpdateChannelTypeRequest` and `SubmitModerationFeedbackRequest`, give these fields a `None` default, so they also moved in the dataclass field order.
 
@@ -103,8 +103,11 @@ These request models had no fields, because their endpoints take no request body
 These changes affect only type checkers. Runtime values are unchanged.
 
 - `own_capabilities` on call, channel and feed responses is annotated as `List[str]`. The constants classes `OwnCapability`, `ChannelOwnCapability` and `FeedOwnCapability` still exist, and their values are strings.
-- `ChannelMemberResponse.user_id` and `OwnUserResponse.blocked_user_ids` are no longer `Optional`.
 - `CampaignResponse.sender_mode` and `CampaignResponse.sender_visibility` are now `Optional[str]`.
+
+## Required response fields
+
+`ChannelMemberResponse.user_id` and `OwnUserResponse.blocked_user_ids` are now required and have no default. Responses the SDK decodes are unaffected, but code that builds these models itself, such as test fixtures, must pass both fields, or the constructor raises `TypeError` and a direct `from_dict` without `infer_missing=True` raises `KeyError`.
 
 ## Uploads
 
