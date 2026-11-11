@@ -167,7 +167,7 @@ class Feed:
         return response
 
     def change_feed_visibility(
-        self, visibility: FeedVisibility, pending_follows_action: Optional[str] = None
+        self, visibility: str, pending_follows_action: Optional[str] = None
     ) -> StreamResponse[ChangeFeedVisibilityResponse]:
         response = self.client.change_feed_visibility(
             feed_group_id=self.feed_group,
@@ -239,6 +239,15 @@ class Feed:
     ) -> StreamResponse[RejectFeedMemberInviteResponse]:
         response = self.client.reject_feed_member_invite(
             feed_group_id=self.feed_group, feed_id=self.id, user_id=user_id, user=user
+        )
+        self._sync_from_response(response.data)
+        return response
+
+    def get_notification_status(
+        self, view: Optional[str] = None, user_id: Optional[str] = None
+    ) -> StreamResponse[GetNotificationStatusResponse]:
+        response = self.client.get_notification_status(
+            feed_group_id=self.feed_group, feed_id=self.id, view=view, user_id=user_id
         )
         self._sync_from_response(response.data)
         return response

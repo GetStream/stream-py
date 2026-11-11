@@ -510,7 +510,7 @@ class VideoRestClient(AsyncBaseClient):
         self,
         type: str,
         id: str,
-        recording_type: RecordingType,
+        recording_type: str,
         recording_external_storage: Optional[str] = None,
     ) -> StreamResponse[StartRecordingResponse]:
         path_params = {
@@ -533,7 +533,7 @@ class VideoRestClient(AsyncBaseClient):
         self,
         type: str,
         id: str,
-        recording_type: RecordingType,
+        recording_type: str,
     ) -> StreamResponse[StopRecordingResponse]:
         path_params = {
             "type": type,
@@ -717,7 +717,7 @@ class VideoRestClient(AsyncBaseClient):
         id: str,
         enable_transcription: Optional[bool] = None,
         external_storage: Optional[str] = None,
-        language: Optional[TranscriptionLanguage] = None,
+        language: Optional[str] = None,
         speech_segment_config: Optional[SpeechSegmentConfig] = None,
     ) -> StreamResponse[StartClosedCaptionsResponse]:
         path_params = {
@@ -761,7 +761,7 @@ class VideoRestClient(AsyncBaseClient):
         type: str,
         id: str,
         enable_closed_captions: Optional[bool] = None,
-        language: Optional[TranscriptionLanguage] = None,
+        language: Optional[str] = None,
         transcription_external_storage: Optional[str] = None,
     ) -> StreamResponse[StartTranscriptionResponse]:
         path_params = {

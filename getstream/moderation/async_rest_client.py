@@ -286,7 +286,7 @@ class ModerationRestClient(AsyncBaseClient):
         ban_from_future_channels: Optional[bool] = None,
         banned_by_id: Optional[str] = None,
         channel_cid: Optional[str] = None,
-        delete_messages: Optional[DeleteMessages] = None,
+        delete_messages: Optional[str] = None,
         delete_reactions: Optional[bool] = None,
         ip_ban: Optional[bool] = None,
         reason: Optional[str] = None,
@@ -393,6 +393,7 @@ class ModerationRestClient(AsyncBaseClient):
         aws_rekognition_config: Optional[AIImageConfig] = None,
         block_list_config: Optional[BlockListConfig] = None,
         bodyguard_config: Optional[AITextConfig] = None,
+        engine: Optional[ModerationEngineConfigRequest] = None,
         flood_config: Optional[FloodConfig] = None,
         google_vision_config: Optional[GoogleVisionConfig] = None,
         intent_config: Optional[IntentConfigRequest] = None,
@@ -417,6 +418,7 @@ class ModerationRestClient(AsyncBaseClient):
             aws_rekognition_config=aws_rekognition_config,
             block_list_config=block_list_config,
             bodyguard_config=bodyguard_config,
+            engine=engine,
             flood_config=flood_config,
             google_vision_config=google_vision_config,
             intent_config=intent_config,
@@ -428,6 +430,66 @@ class ModerationRestClient(AsyncBaseClient):
         ).to_dict()
         return await self.post(
             "/api/v2/moderation/config", UpsertConfigResponse, json=json
+        )
+
+    @telemetry.operation_name("getstream.api.moderation.save_config_version")
+    async def save_config_version(
+        self,
+        base_version: int,
+        key: str,
+        _async: Optional[bool] = None,
+        team: Optional[str] = None,
+        user_id: Optional[str] = None,
+        ai_audio_config: Optional[AIAudioConfigRequest] = None,
+        ai_image_config: Optional[AIImageConfig] = None,
+        ai_text_config: Optional[AITextConfig] = None,
+        ai_video_config: Optional[AIVideoConfigRequest] = None,
+        automod_platform_circumvention_config: Optional[
+            AutomodPlatformCircumventionConfig
+        ] = None,
+        automod_semantic_filters_config: Optional[AutomodSemanticFiltersConfig] = None,
+        automod_toxicity_config: Optional[AutomodToxicityConfig] = None,
+        aws_rekognition_config: Optional[AIImageConfig] = None,
+        block_list_config: Optional[BlockListConfig] = None,
+        bodyguard_config: Optional[AITextConfig] = None,
+        engine: Optional[ModerationEngineConfigRequest] = None,
+        flood_config: Optional[FloodConfig] = None,
+        google_vision_config: Optional[GoogleVisionConfig] = None,
+        intent_config: Optional[IntentConfigRequest] = None,
+        llm_config: Optional[LLMConfig] = None,
+        rule_builder_config: Optional[RuleBuilderConfig] = None,
+        user: Optional[UserRequest] = None,
+        velocity_filter_config: Optional[VelocityFilterConfig] = None,
+        video_call_rule_config: Optional[VideoCallRuleConfig] = None,
+    ) -> StreamResponse[SaveConfigVersionResponse]:
+        json = SaveConfigVersionRequest(
+            base_version=base_version,
+            key=key,
+            _async=_async,
+            team=team,
+            user_id=user_id,
+            ai_audio_config=ai_audio_config,
+            ai_image_config=ai_image_config,
+            ai_text_config=ai_text_config,
+            ai_video_config=ai_video_config,
+            automod_platform_circumvention_config=automod_platform_circumvention_config,
+            automod_semantic_filters_config=automod_semantic_filters_config,
+            automod_toxicity_config=automod_toxicity_config,
+            aws_rekognition_config=aws_rekognition_config,
+            block_list_config=block_list_config,
+            bodyguard_config=bodyguard_config,
+            engine=engine,
+            flood_config=flood_config,
+            google_vision_config=google_vision_config,
+            intent_config=intent_config,
+            llm_config=llm_config,
+            rule_builder_config=rule_builder_config,
+            user=user,
+            velocity_filter_config=velocity_filter_config,
+            video_call_rule_config=video_call_rule_config,
+        ).to_dict()
+        return await self.post(
+            "/api/v2/moderation/config/versions", SaveConfigVersionResponse, json=json
         )
 
     @telemetry.operation_name("getstream.api.moderation.delete_config")
@@ -458,6 +520,60 @@ class ModerationRestClient(AsyncBaseClient):
             GetConfigResponse,
             query_params=query_params,
             path_params=path_params,
+        )
+
+    @telemetry.operation_name("getstream.api.moderation.list_config_versions")
+    async def list_config_versions(
+        self, key: str, team: Optional[str] = None
+    ) -> StreamResponse[ListConfigVersionsResponse]:
+        query_params = build_query_param(**{"team": team})
+        path_params = {
+            "key": key,
+        }
+        return await self.get(
+            "/api/v2/moderation/config/{key}/versions",
+            ListConfigVersionsResponse,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
+    @telemetry.operation_name("getstream.api.moderation.get_config_version")
+    async def get_config_version(
+        self, key: str, version: int, team: Optional[str] = None
+    ) -> StreamResponse[GetConfigVersionResponse]:
+        query_params = build_query_param(**{"team": team})
+        path_params = {
+            "key": key,
+            "version": version,
+        }
+        return await self.get(
+            "/api/v2/moderation/config/{key}/versions/{version}",
+            GetConfigVersionResponse,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
+    @telemetry.operation_name("getstream.api.moderation.publish_config_version")
+    async def publish_config_version(
+        self,
+        key: str,
+        version: int,
+        team: Optional[str] = None,
+        user_id: Optional[str] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[PublishConfigVersionResponse]:
+        path_params = {
+            "key": key,
+            "version": version,
+        }
+        json = PublishConfigVersionRequest(
+            team=team, user_id=user_id, user=user
+        ).to_dict()
+        return await self.post(
+            "/api/v2/moderation/config/{key}/versions/{version}/publish",
+            PublishConfigVersionResponse,
+            path_params=path_params,
+            json=json,
         )
 
     @telemetry.operation_name("getstream.api.moderation.query_moderation_configs")
@@ -538,11 +654,13 @@ class ModerationRestClient(AsyncBaseClient):
 
     @telemetry.operation_name("getstream.api.moderation.v2_delete_template")
     async def v2_delete_template(
-        self,
+        self, name: Optional[str] = None
     ) -> StreamResponse[DeleteModerationTemplateResponse]:
+        query_params = build_query_param(**{"name": name})
         return await self.delete(
             "/api/v2/moderation/feeds_moderation_template",
             DeleteModerationTemplateResponse,
+            query_params=query_params,
         )
 
     @telemetry.operation_name("getstream.api.moderation.v2_query_templates")
@@ -807,9 +925,14 @@ class ModerationRestClient(AsyncBaseClient):
         )
 
     @telemetry.operation_name("getstream.api.moderation.list_policy_test_sets")
-    async def list_policy_test_sets(self) -> StreamResponse[PolicyTestSetListResponse]:
+    async def list_policy_test_sets(
+        self, limit: Optional[int] = None, offset: Optional[int] = None
+    ) -> StreamResponse[PolicyTestSetListResponse]:
+        query_params = build_query_param(**{"limit": limit, "offset": offset})
         return await self.get(
-            "/api/v2/moderation/policy_tests/sets", PolicyTestSetListResponse
+            "/api/v2/moderation/policy_tests/sets",
+            PolicyTestSetListResponse,
+            query_params=query_params,
         )
 
     @telemetry.operation_name("getstream.api.moderation.create_policy_test_set")
@@ -1022,8 +1145,8 @@ class ModerationRestClient(AsyncBaseClient):
     @telemetry.operation_name("getstream.api.moderation.upsert_setup_session")
     async def upsert_setup_session(
         self,
-        current_step: SetupStep,
-        status: SetupStatus,
+        current_step: str,
+        status: str,
         setup_data: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[UpsertSetupSessionResponse]:
         json = UpsertSetupSessionRequest(
@@ -1151,6 +1274,7 @@ class ModerationRestClient(AsyncBaseClient):
         target_user_id: str,
         channel_cid: Optional[str] = None,
         created_by: Optional[str] = None,
+        remove_future_channels_ban: Optional[bool] = None,
         unbanned_by_id: Optional[str] = None,
         unbanned_by: Optional[UserRequest] = None,
     ) -> StreamResponse[UnbanResponse]:
@@ -1159,6 +1283,7 @@ class ModerationRestClient(AsyncBaseClient):
                 "target_user_id": target_user_id,
                 "channel_cid": channel_cid,
                 "created_by": created_by,
+                "remove_future_channels_ban": remove_future_channels_ban,
             }
         )
         json = UnbanRequest(

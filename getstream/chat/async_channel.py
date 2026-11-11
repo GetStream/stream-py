@@ -18,7 +18,12 @@ class Channel:
         self.custom_data = custom_data or {}
 
     def _sync_from_response(self, data):
-        if hasattr(data, "channel") and isinstance(data.channel, ChannelResponse):
+        # A fork's response carries the new channel, not this one.
+        if (
+            hasattr(data, "channel")
+            and isinstance(data.channel, ChannelResponse)
+            and data.channel.cid == f"{self.channel_type}:{self.channel_id}"
+        ):
             self.custom_data = data.channel.custom
 
     @attach_channel_cid_async
@@ -234,13 +239,13 @@ class Channel:
         return response
 
     @attach_channel_cid_async
-    async def fork_message_i_ds(
+    async def fork_message_ids(
         self,
         source_message_ids: List[str],
         user_id: Optional[str] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[ForkMessageIDsResponse]:
-        response = await self.client.fork_message_i_ds(
+        response = await self.client.fork_message_ids(
             type=self.channel_type,
             id=self.channel_id,
             source_message_ids=source_message_ids,

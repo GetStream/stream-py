@@ -45,13 +45,13 @@ class FeedsRestClient(BaseClient):
         id: Optional[str] = None,
         parent_id: Optional[str] = None,
         poll_id: Optional[str] = None,
-        restrict_replies: Optional[RestrictReplies] = None,
+        restrict_replies: Optional[str] = None,
         skip_enrich_url: Optional[bool] = None,
         skip_existing: Optional[bool] = None,
         skip_push: Optional[bool] = None,
         text: Optional[str] = None,
         user_id: Optional[str] = None,
-        visibility: Optional[ActivityVisibility] = None,
+        visibility: Optional[str] = None,
         visibility_tag: Optional[str] = None,
         attachments: Optional[List[Attachment]] = None,
         collection_refs: Optional[List[str]] = None,
@@ -527,6 +527,7 @@ class FeedsRestClient(BaseClient):
         include_top_level_comment_count: Optional[bool] = None,
         include_soft_deleted_activities: Optional[bool] = None,
         include_moderated_activities: Optional[bool] = None,
+        skip_viewer_visibility: Optional[bool] = None,
     ) -> StreamResponse[GetActivityResponse]:
         query_params = build_query_param(
             **{
@@ -539,6 +540,7 @@ class FeedsRestClient(BaseClient):
                 "include_top_level_comment_count": include_top_level_comment_count,
                 "include_soft_deleted_activities": include_soft_deleted_activities,
                 "include_moderated_activities": include_moderated_activities,
+                "skip_viewer_visibility": skip_viewer_visibility,
             }
         )
         path_params = {
@@ -596,12 +598,12 @@ class FeedsRestClient(BaseClient):
         force_moderation: Optional[bool] = None,
         handle_mention_notifications: Optional[bool] = None,
         poll_id: Optional[str] = None,
-        restrict_replies: Optional[RestrictReplies] = None,
+        restrict_replies: Optional[str] = None,
         run_activity_processors: Optional[bool] = None,
         skip_enrich_url: Optional[bool] = None,
         text: Optional[str] = None,
         user_id: Optional[str] = None,
-        visibility: Optional[ActivityVisibility] = None,
+        visibility: Optional[str] = None,
         visibility_tag: Optional[str] = None,
         attachments: Optional[List[Attachment]] = None,
         collection_refs: Optional[List[str]] = None,
@@ -1376,8 +1378,13 @@ class FeedsRestClient(BaseClient):
         )
 
     @telemetry.operation_name("getstream.api.feeds.export_feeds_app")
-    def export_feeds_app(self) -> StreamResponse[ExportFeedsResponse]:
-        return self.post("/api/v2/feeds/export/app", ExportFeedsResponse)
+    def export_feeds_app(
+        self, include_deleted: Optional[bool] = None, types: Optional[List[str]] = None
+    ) -> StreamResponse[ExportFeedsResponse]:
+        json = ExportFeedsAppRequest(
+            include_deleted=include_deleted, types=types
+        ).to_dict()
+        return self.post("/api/v2/feeds/export/app", ExportFeedsResponse, json=json)
 
     @telemetry.operation_name("getstream.api.feeds.cancel_export_feeds")
     def cancel_export_feeds(
@@ -1398,7 +1405,9 @@ class FeedsRestClient(BaseClient):
         type: str,
         created_at_from: Optional[datetime] = None,
         created_at_to: Optional[datetime] = None,
+        include_deleted: Optional[bool] = None,
         user_id: Optional[str] = None,
+        activity_ids: Optional[List[str]] = None,
     ) -> StreamResponse[ExportFeedsResponse]:
         path_params = {
             "type": type,
@@ -1406,7 +1415,9 @@ class FeedsRestClient(BaseClient):
         json = ExportFeedsByTypeRequest(
             created_at_from=created_at_from,
             created_at_to=created_at_to,
+            include_deleted=include_deleted,
             user_id=user_id,
+            activity_ids=activity_ids,
         ).to_dict()
         return self.post(
             "/api/v2/feeds/export/{type}",
@@ -1433,7 +1444,7 @@ class FeedsRestClient(BaseClient):
         self,
         id: str,
         default_follower_role: Optional[str] = None,
-        default_visibility: Optional[FeedVisibility] = None,
+        default_visibility: Optional[str] = None,
         activity_processors: Optional[List[ActivityProcessorConfig]] = None,
         activity_selectors: Optional[List[ActivitySelectorConfig]] = None,
         activity_filter: Optional[ActivityFilterConfig] = None,
@@ -1678,7 +1689,7 @@ class FeedsRestClient(BaseClient):
         self,
         feed_group_id: str,
         feed_id: str,
-        visibility: FeedVisibility,
+        visibility: str,
         pending_follows_action: Optional[str] = None,
     ) -> StreamResponse[ChangeFeedVisibilityResponse]:
         path_params = {
@@ -1799,6 +1810,26 @@ class FeedsRestClient(BaseClient):
             json=json,
         )
 
+    @telemetry.operation_name("getstream.api.feeds.get_notification_status")
+    def get_notification_status(
+        self,
+        feed_group_id: str,
+        feed_id: str,
+        view: Optional[str] = None,
+        user_id: Optional[str] = None,
+    ) -> StreamResponse[GetNotificationStatusResponse]:
+        query_params = build_query_param(**{"view": view, "user_id": user_id})
+        path_params = {
+            "feed_group_id": feed_group_id,
+            "feed_id": feed_id,
+        }
+        return self.get(
+            "/api/v2/feeds/feed_groups/{feed_group_id}/feeds/{feed_id}/notification_status",
+            GetNotificationStatusResponse,
+            query_params=query_params,
+            path_params=path_params,
+        )
+
     @telemetry.operation_name("getstream.api.feeds.query_pinned_activities")
     def query_pinned_activities(
         self,
@@ -1914,7 +1945,7 @@ class FeedsRestClient(BaseClient):
         self,
         id: str,
         default_follower_role: Optional[str] = None,
-        default_visibility: Optional[FeedVisibility] = None,
+        default_visibility: Optional[str] = None,
         activity_processors: Optional[List[ActivityProcessorConfig]] = None,
         activity_selectors: Optional[List[ActivitySelectorConfig]] = None,
         activity_filter: Optional[ActivityFilterConfig] = None,
@@ -1957,7 +1988,7 @@ class FeedsRestClient(BaseClient):
         self,
         id: str,
         default_follower_role: Optional[str] = None,
-        default_visibility: Optional[FeedVisibility] = None,
+        default_visibility: Optional[str] = None,
         activity_processors: Optional[List[ActivityProcessorConfig]] = None,
         activity_selectors: Optional[List[ActivitySelectorConfig]] = None,
         activity_filter: Optional[ActivityFilterConfig] = None,
@@ -2089,7 +2120,7 @@ class FeedsRestClient(BaseClient):
 
     @telemetry.operation_name("getstream.api.feeds.get_feed_visibility")
     def get_feed_visibility(
-        self, name: FeedVisibility
+        self, name: str
     ) -> StreamResponse[GetFeedVisibilityResponse]:
         path_params = {
             "name": name,
@@ -2102,7 +2133,7 @@ class FeedsRestClient(BaseClient):
 
     @telemetry.operation_name("getstream.api.feeds.update_feed_visibility")
     def update_feed_visibility(
-        self, name: FeedVisibility, grants: Optional[Dict[str, List[str]]] = None
+        self, name: str, grants: Optional[Dict[str, List[str]]] = None
     ) -> StreamResponse[UpdateFeedVisibilityResponse]:
         path_params = {
             "name": name,
@@ -2221,9 +2252,9 @@ class FeedsRestClient(BaseClient):
         create_users: Optional[bool] = None,
         enrich_own_fields: Optional[bool] = None,
         follower_role: Optional[str] = None,
-        push_preference: Optional[FollowPushPreference] = None,
+        push_preference: Optional[str] = None,
         skip_push: Optional[bool] = None,
-        status: Optional[FollowStatus] = None,
+        status: Optional[str] = None,
         custom: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[UpdateFollowResponse]:
         json = UpdateFollowRequest(
@@ -2252,9 +2283,9 @@ class FeedsRestClient(BaseClient):
         create_notification_activity: Optional[bool] = None,
         create_users: Optional[bool] = None,
         enrich_own_fields: Optional[bool] = None,
-        push_preference: Optional[FollowPushPreference] = None,
+        push_preference: Optional[str] = None,
         skip_push: Optional[bool] = None,
-        status: Optional[FollowStatus] = None,
+        status: Optional[str] = None,
         custom: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[SingleFollowResponse]:
         json = FollowRequest(
@@ -2357,9 +2388,9 @@ class FeedsRestClient(BaseClient):
         create_notification_activity: Optional[bool] = None,
         create_users: Optional[bool] = None,
         enrich_own_fields: Optional[bool] = None,
-        push_preference: Optional[FollowPushPreference] = None,
+        push_preference: Optional[str] = None,
         skip_push: Optional[bool] = None,
-        status: Optional[FollowStatus] = None,
+        status: Optional[str] = None,
         custom: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[GetOrCreateFollowResponse]:
         json = FollowRequest(

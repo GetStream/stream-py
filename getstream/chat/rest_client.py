@@ -40,8 +40,8 @@ class ChatRestClient(BaseClient):
         description: Optional[str] = None,
         id: Optional[str] = None,
         name: Optional[str] = None,
-        sender_mode: Optional[CampaignSenderMode] = None,
-        sender_visibility: Optional[CampaignSenderVisibility] = None,
+        sender_mode: Optional[str] = None,
+        sender_visibility: Optional[str] = None,
         show_channels: Optional[bool] = None,
         skip_push: Optional[bool] = None,
         skip_webhook: Optional[bool] = None,
@@ -129,8 +129,8 @@ class ChatRestClient(BaseClient):
         description: Optional[str] = None,
         id_: Optional[str] = None,
         name: Optional[str] = None,
-        sender_mode: Optional[CampaignSenderMode] = None,
-        sender_visibility: Optional[CampaignSenderVisibility] = None,
+        sender_mode: Optional[str] = None,
+        sender_visibility: Optional[str] = None,
         show_channels: Optional[bool] = None,
         skip_push: Optional[bool] = None,
         skip_webhook: Optional[bool] = None,
@@ -669,8 +669,8 @@ class ChatRestClient(BaseClient):
             json=json,
         )
 
-    @telemetry.operation_name("getstream.api.chat.fork_message_i_ds")
-    def fork_message_i_ds(
+    @telemetry.operation_name("getstream.api.chat.fork_message_ids")
+    def fork_message_ids(
         self,
         type: str,
         id: str,
@@ -1068,12 +1068,12 @@ class ChatRestClient(BaseClient):
     @telemetry.operation_name("getstream.api.chat.create_channel_type")
     def create_channel_type(
         self,
-        automod: AutomodMode,
-        automod_behavior: BlocklistBehavior,
+        automod: str,
+        automod_behavior: str,
         max_message_length: int,
         name: str,
         blocklist: Optional[str] = None,
-        blocklist_behavior: Optional[ChannelModerationBehavior] = None,
+        blocklist_behavior: Optional[str] = None,
         connect_events: Optional[bool] = None,
         count_messages: Optional[bool] = None,
         custom_events: Optional[bool] = None,
@@ -1084,7 +1084,7 @@ class ChatRestClient(BaseClient):
         partition_size: Optional[int] = None,
         partition_ttl: Optional[str] = None,
         polls: Optional[bool] = None,
-        push_level: Optional[PushLevel] = None,
+        push_level: Optional[str] = None,
         push_notifications: Optional[bool] = None,
         quotes: Optional[bool] = None,
         reactions: Optional[bool] = None,
@@ -1171,10 +1171,10 @@ class ChatRestClient(BaseClient):
     def update_channel_type(
         self,
         name: str,
-        automod: Optional[AutomodMode] = None,
-        automod_behavior: Optional[ChannelModerationBehavior] = None,
+        automod: Optional[str] = None,
+        automod_behavior: Optional[str] = None,
         blocklist: Optional[str] = None,
-        blocklist_behavior: Optional[ChannelModerationBehavior] = None,
+        blocklist_behavior: Optional[str] = None,
         connect_events: Optional[bool] = None,
         count_messages: Optional[bool] = None,
         custom_events: Optional[bool] = None,
@@ -1186,7 +1186,7 @@ class ChatRestClient(BaseClient):
         partition_size: Optional[int] = None,
         partition_ttl: Optional[str] = None,
         polls: Optional[bool] = None,
-        push_level: Optional[PushLevel] = None,
+        push_level: Optional[str] = None,
         push_notifications: Optional[bool] = None,
         quotes: Optional[bool] = None,
         reactions: Optional[bool] = None,
@@ -1989,10 +1989,10 @@ class ChatRestClient(BaseClient):
 
     @telemetry.operation_name("getstream.api.chat.set_retention_policy")
     def set_retention_policy(
-        self, max_age_hours: int, policy: RetentionPolicyType
+        self, max_age_hours: int, policy: str, channel_type: Optional[str] = None
     ) -> StreamResponse[SetRetentionPolicyResponse]:
         json = SetRetentionPolicyRequest(
-            max_age_hours=max_age_hours, policy=policy
+            max_age_hours=max_age_hours, policy=policy, channel_type=channel_type
         ).to_dict()
         return self.post(
             "/api/v2/chat/retention_policy", SetRetentionPolicyResponse, json=json
@@ -2000,9 +2000,11 @@ class ChatRestClient(BaseClient):
 
     @telemetry.operation_name("getstream.api.chat.delete_retention_policy")
     def delete_retention_policy(
-        self, policy: RetentionPolicyType
+        self, policy: str, channel_type: Optional[str] = None
     ) -> StreamResponse[DeleteRetentionPolicyResponse]:
-        json = DeleteRetentionPolicyRequest(policy=policy).to_dict()
+        json = DeleteRetentionPolicyRequest(
+            policy=policy, channel_type=channel_type
+        ).to_dict()
         return self.post(
             "/api/v2/chat/retention_policy/delete",
             DeleteRetentionPolicyResponse,
@@ -2104,6 +2106,19 @@ class ChatRestClient(BaseClient):
         return self.get(
             "/api/v2/chat/search", SearchResponse, query_params=query_params
         )
+
+    @telemetry.operation_name("getstream.api.chat.search_all")
+    def search_all(
+        self,
+        limit: Optional[int] = None,
+        query: Optional[str] = None,
+        entities: Optional[List[str]] = None,
+        next: Optional[Dict[str, str]] = None,
+    ) -> StreamResponse[SearchAllResponse]:
+        json = SearchAllRequest(
+            limit=limit, query=query, entities=entities, next=next
+        ).to_dict()
+        return self.post("/api/v2/chat/search/all", SearchAllResponse, json=json)
 
     @telemetry.operation_name("getstream.api.chat.create_segment")
     def create_segment(

@@ -310,7 +310,7 @@ class CommonRestClient(BaseClient):
         firebase_template: Optional[str] = None,
         message_id: Optional[str] = None,
         push_provider_name: Optional[str] = None,
-        push_provider_type: Optional[PushProviderName] = None,
+        push_provider_type: Optional[str] = None,
         skip_devices: Optional[bool] = None,
         user_id: Optional[str] = None,
         user: Optional[UserRequest] = None,
@@ -373,7 +373,7 @@ class CommonRestClient(BaseClient):
     def create_device(
         self,
         id: str,
-        push_provider: PushProviderName,
+        push_provider: str,
         hardware_id: Optional[str] = None,
         push_provider_name: Optional[str] = None,
         user_id: Optional[str] = None,
@@ -492,8 +492,13 @@ class CommonRestClient(BaseClient):
         return self.post("/api/v2/import_urls", CreateImportURLResponse, json=json)
 
     @telemetry.operation_name("getstream.api.common.list_imports")
-    def list_imports(self) -> StreamResponse[ListImportsResponse]:
-        return self.get("/api/v2/imports", ListImportsResponse)
+    def list_imports(
+        self, limit: Optional[int] = None, offset: Optional[int] = None
+    ) -> StreamResponse[ListImportsResponse]:
+        query_params = build_query_param(**{"limit": limit, "offset": offset})
+        return self.get(
+            "/api/v2/imports", ListImportsResponse, query_params=query_params
+        )
 
     @telemetry.operation_name("getstream.api.common.create_import")
     def create_import(
@@ -701,7 +706,7 @@ class CommonRestClient(BaseClient):
         max_votes_allowed: Optional[int] = None,
         team: Optional[str] = None,
         user_id: Optional[str] = None,
-        voting_visibility: Optional[VotingVisibility] = None,
+        voting_visibility: Optional[str] = None,
         options: Optional[List[PollOptionInput]] = None,
         custom: Optional[Dict[str, object]] = None,
         user: Optional[UserRequest] = None,
@@ -740,7 +745,7 @@ class CommonRestClient(BaseClient):
         is_closed: Optional[bool] = None,
         max_votes_allowed: Optional[int] = None,
         user_id: Optional[str] = None,
-        voting_visibility: Optional[VotingVisibility] = None,
+        voting_visibility: Optional[str] = None,
         options: Optional[List[PollOptionRequest]] = None,
         custom: Optional[Dict[str, object]] = None,
         user: Optional[UserRequest] = None,
@@ -984,9 +989,7 @@ class CommonRestClient(BaseClient):
         )
 
     @telemetry.operation_name("getstream.api.common.delete_push_provider")
-    def delete_push_provider(
-        self, type: PushProviderName, name: str
-    ) -> StreamResponse[Response]:
+    def delete_push_provider(self, type: str, name: str) -> StreamResponse[Response]:
         path_params = {
             "type": type,
             "name": name,
@@ -997,9 +1000,7 @@ class CommonRestClient(BaseClient):
 
     @telemetry.operation_name("getstream.api.common.get_push_templates")
     def get_push_templates(
-        self,
-        push_provider_type: PushProviderName,
-        push_provider_name: Optional[str] = None,
+        self, push_provider_type: str, push_provider_name: Optional[str] = None
     ) -> StreamResponse[GetPushTemplatesResponse]:
         query_params = build_query_param(
             **{
@@ -1017,7 +1018,7 @@ class CommonRestClient(BaseClient):
     def upsert_push_template(
         self,
         event_type: str,
-        push_provider_type: PushProviderName,
+        push_provider_type: str,
         enable_push: Optional[bool] = None,
         push_provider_name: Optional[str] = None,
         template: Optional[str] = None,
