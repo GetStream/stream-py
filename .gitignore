@@ -22,5 +22,10 @@ build/
 __pycache__/
 *.py[cod]
 *$py.class
-\n+# Local protocol folder (handled by generate_webrtc.sh)
+
+# Rust build artifacts
+target/
+getstream-rtc/getstream_rtc/*.so
+getstream-rtc/getstream_rtc/*.pyd
+# Local protocol folder (handled by generate_webrtc.sh)
 protocol/

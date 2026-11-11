@@ -13,12 +13,29 @@ inputs:
     description: Directory to run in
     required: false
     default: "."
+  build-extension:
+    description: Build getstream-rtc (the Rust extension) into the environment; "false" installs everything else
+    required: false
+    default: "true"
 runs:
   using: composite
   steps:
+    - name: Install the Rust toolchain
+      if: ${{ inputs.build-extension == 'true' }}
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}/getstream-rtc
+      # Installs the toolchain pinned in getstream-rtc/rust-toolchain.toml.
+      run: rustup toolchain install
+
+    - name: Cache the Rust build
+      if: ${{ inputs.build-extension == 'true' }}
+      uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      with:
+        workspaces: ${{ inputs.working-directory }}/getstream-rtc
+
     - name: Install the latest version of uv
       id: setup_uv
-      uses: astral-sh/setup-uv@v7
+      uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
       with:
         python-version: ${{ inputs.python-version }}
         version: "latest"
@@ -38,5 +55,8 @@ runs:
     - name: Install the project dependencies
       shell: bash
       working-directory: ${{ inputs.working-directory }}
-      run: uv sync ${{ inputs.sync-flags }}
-
+      env:
+        # A Cargo.lock that does not match Cargo.toml fails the build of getstream-rtc
+        # instead of being updated.
+        MATURIN_PEP517_ARGS: --locked
+      run: uv sync ${{ inputs.sync-flags }} ${{ inputs.build-extension != 'true' && '--no-install-package getstream-rtc' || '' }}

@@ -1,3 +1,4 @@
+import enum
 import json
 import asyncio
 from typing import Dict, List, Optional, Union, cast
@@ -35,18 +36,27 @@ def validate_and_clean_url(url):
     return cleaned_url
 
 
-def encode_datetime(date: Optional[datetime]) -> Optional[str]:
+# An Enum member because dataclasses-json deep-copies dict values, and a deep copy of an Enum member is the member itself. Its value None makes JSON encoders write null.
+class _Null(enum.Enum):
+    NULL = None
+
+
+NULL = _Null.NULL
+"""Sends an explicit JSON ``null``. Request bodies drop ``None`` values inside objects, so use ``NULL`` where ``null`` must reach the API, for example inside custom data."""
+
+
+def encode_datetime(date: Union[datetime, _Null, None]) -> Union[str, _Null, None]:
     """
     Encodes a datetime object into an ISO 8601 formatted string.
 
     Args:
-    date (Optional[datetime]): The datetime object to encode.
+    date (Union[datetime, _Null, None]): The datetime object to encode.
 
     Returns:
-    Optional[str]: The ISO 8601 string representation of the datetime, or None if input is None.
+    Union[str, _Null, None]: The ISO 8601 string representation of the datetime, or the input unchanged if it is None or NULL.
     """
-    if date is None:
-        return None
+    if not isinstance(date, datetime):
+        return date
     return date.isoformat()
 
 

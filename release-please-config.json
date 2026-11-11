@@ -5,11 +5,26 @@
     ".": {
       "release-type": "python",
       "include-component-in-tag": false,
+      "exclude-paths": ["getstream-rtc"],
       "extra-files": [
         {
           "type": "toml",
           "path": "uv.lock",
           "jsonpath": "$.package[?(@.name.value=='getstream')].version"
+        }
+      ]
+    },
+    "getstream-rtc": {
+      "release-type": "python",
+      "component": "getstream-rtc",
+      "initial-version": "0.1.0",
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": true,
+      "extra-files": [
+        {
+          "type": "toml",
+          "path": "/uv.lock",
+          "jsonpath": "$.package[?(@.name.value=='getstream-rtc')].version"
         }
       ]
     }

@@ -143,6 +143,18 @@ client = Stream(api_key=..., api_secret=..., retry=RetryConfig(enabled=True, max
 
 Only idempotent `GET`/`HEAD` requests are retried, and only on HTTP 429 (unless the backend marked it unrecoverable) or a transport-level failure (timeout, connection reset, DNS, TLS). A 429's `Retry-After` header is honored (clamped to `max_backoff`); otherwise the delay uses full jitter over an exponential backoff. A retried failure logs `http.request.failed` at DEBUG; a final, non-retried failure logs it at ERROR (or not at all for a final 429, since that's already covered by `http.response.received`).
 
+### Sending null
+
+Request bodies drop `None` values inside objects, so an unset optional field never overwrites stored data. `None` items in a list are kept and sent as `null`. To store an explicit `null`, for example inside custom data, pass `NULL`:
+
+```python
+from getstream import NULL
+
+channel.update_channel_partial(set={"expires_at": NULL})
+```
+
+To remove a field instead, use `unset`, for example `unset=["expires_at"]`.
+
 ### App configuration
 
 ```python
@@ -171,6 +183,10 @@ We use [uv](https://github.com/astral-sh/uv) to manage dependencies and run test
 **Prerequisites:**
 - Python 3.10+ (recommended: 3.12.2)
 - [uv](https://github.com/astral-sh/uv) package manager
+- [rustup](https://rustup.rs) and a C compiler (macOS: `xcode-select --install`;
+  Debian/Ubuntu: `apt install build-essential`): `uv sync --all-extras` compiles
+  the Rust extension `getstream-rtc`. Run `rustup toolchain install` in
+  `getstream-rtc/` to install the Rust version that it pins.
 
 **Setup:**
 ```sh

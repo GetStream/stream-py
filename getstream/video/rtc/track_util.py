@@ -1,18 +1,13 @@
-import asyncio
 import base64
 import fractions
 import io
 import logging
-import re
-import time
 import wave
 from enum import Enum
 from fractions import Fraction
 from typing import (
     Any,
     AsyncIterator,
-    Callable,
-    Dict,
     Iterator,
     Literal,
     Optional,
@@ -20,12 +15,9 @@ from typing import (
     cast,
 )
 
-import aiortc
-import aiortc.sdp
 import av
+import getstream_rtc
 import numpy as np
-from aiortc import MediaStreamTrack
-from aiortc.mediastreams import MediaStreamError
 from numpy.typing import NDArray
 
 from getstream.video.rtc.g711 import (
@@ -1681,166 +1673,6 @@ class PcmData:
         return len(self.samples) == 0
 
 
-class PyAVResampler:
-    """
-    A stateful audio resampler.
-    It acts as a thin wrapper around `pyav.AudioResampler`, and it is intended to be
-    created once for the audio track and re-used.
-
-
-    Key differences from the stateless implementation:
-
-    - `pyav.AudioResampler` buffers samples internally, so the number of output samples doesn't always match the input.
-    - `PyAVResampler` keeps its own monotonic PTS clock, and it's meant to be used with a single audio stream only.
-       It ignores the PTS/DTS from `PcmData`.
-       PTS always starts from 0 for the first output.
-    - `pyav.AudioResampler` configures itself based on the first input frame. Feeding data in a different format
-       or sample rate will fail.
-    - `PyAVResampler` is not thread-safe.
-
-    The source PCMs must have the same sample rate, format, and number of channels.
-
-    Example:
-
-        >>> import numpy as np
-        >>> resampler = PyAVResampler(format="s16", sample_rate=48000, channels=1)
-        >>> # Process 20ms chunks at 16kHz (320 samples each)
-        >>> samples = np.random.randint(-1000, 1000, 320, dtype=np.int16)
-        >>> pcm_16k = PcmData(samples=samples, sample_rate=16000, format="s16", channels=1)
-        >>> pcm_48k = resampler.resample(pcm_16k)  # Returns 912 samples at 48kHz without flushing
-        >>> len(pcm_48k.samples)
-        912
-        >>> flushed_pcm = resampler.flush()
-        >>> len(flushed_pcm.samples)
-        48
-    """
-
-    def __init__(
-        self,
-        format: AudioFormatType,
-        sample_rate: int,
-        channels: int,
-        frame_size: int = 0,
-    ):
-        """
-        Initialize a stateful resampler with target audio parameters.
-
-        Args:
-            format: Target format ("s16" or "f32", also `AudioFormat.F32` or `AudioFormat.S16`).
-            sample_rate: Target sample rate (e.g., 48000, 16000, 8000)
-            channels: Target number of channels (1 for mono, 2 for stereo)
-            frame_size: how many samples per channel are produce in each output frame.
-                When set, the underlying resampler will buffer output the specified number of samples is accumulated,
-                and it will output frames of this exact size (except when ".resample(flush=True)").
-                Default - `0` (each frame can be of a variable size).
-        """
-        if isinstance(format, str):
-            AudioFormat.validate(format)
-
-        self.format = AudioFormat(format)
-        self.sample_rate = sample_rate
-        self.channels = channels
-        self.frame_size = frame_size
-        # Determine PyAV format based on original format to preserve it
-        # f32 -> fltp (float32 planar), s16 -> s16p (int16 planar)
-        self._pyav_format = "fltp" if self.format == AudioFormat.F32 else "s16p"
-        self._pts = 0
-        self._set_pyav_resampler()
-
-    def __repr__(self) -> str:
-        return (
-            f"{self.__class__.__name__}(format={self.format.name.lower()!r}, "
-            f"sample_rate={self.sample_rate}, channels={self.channels}, frame_size={self.frame_size})"
-        )
-
-    def _set_pyav_resampler(self):
-        # Create PyAV resampler with format matching the original
-        self._pyav_resampler = av.AudioResampler(
-            format=self._pyav_format,
-            layout="mono" if self.channels == 1 else "stereo",
-            rate=self.sample_rate,
-            frame_size=self.frame_size,
-        )
-
-    def _pyav_resample(self, frame: av.AudioFrame | None) -> list[av.AudioFrame]:
-        if frame is not None and not frame.samples:
-            # pyav resampler fails if audioframe has no samples
-            return []
-        return self._pyav_resampler.resample(frame)
-
-    def resample(self, pcm: PcmData, flush: bool = False) -> PcmData:
-        """
-        Resample using PyAV (libav) for high-quality resampling and downmixing.
-
-        Args:
-            pcm: Input PCM data to resample
-            flush: if True, get the remaining frames from underlying `av.AudioResampler` if there are any.
-                Default - `False`.
-
-        Returns:
-            New PcmData object with resampled audio, potentially empty if the frame size is set and larger
-            than the input PCM.
-        """
-        # Create AudioFrame from PcmData
-        frame = pcm.to_av_frame()
-
-        # Convert each frame to PcmData using from_av_frame and concatenate them
-        # Start with an empty PcmData preserving the original format
-        result = PcmData(
-            sample_rate=self.sample_rate,
-            format=self.format,
-            channels=self.channels,
-            time_base=1 / self.sample_rate,
-        )
-
-        # Resample
-        # Keep the lock because resampler is stateful, and we want to keep PTS in order
-        resampled_frames = self._pyav_resample(frame)
-        if flush:
-            try:
-                resampled_frames.extend(self._pyav_resample(None))
-            finally:
-                # Reset the resampler because it cannot be used after it's flushed,
-                self._set_pyav_resampler()
-
-        for resampled_frame in resampled_frames:
-            self._pts += resampled_frame.samples
-            result = result.append(PcmData.from_av_frame(resampled_frame))
-
-        result.pts = self._pts - len(result.samples)
-        result.dts = result.pts
-        return result
-
-    def flush(self) -> PcmData:
-        """
-        Flush the underlying `av.AudioResampler`
-
-        Returns:
-            New PcmData object with resampled audio, potentially empty.
-        """
-        # Convert each frame to PcmData using from_av_frame and concatenate them
-        # Start with an empty PcmData preserving the original format
-        result = PcmData(
-            sample_rate=self.sample_rate,
-            format=self.format,
-            channels=self.channels,
-        )
-
-        try:
-            # Flush the resampler to get remaining buffered samples
-            resampled_frames = self._pyav_resample(None)
-        finally:
-            # Reset the resampler because it cannot be used after it's flushed,
-            self._set_pyav_resampler()
-
-        # Convert frames to PcmData and update the PTS clock
-        for resampled_frame in resampled_frames:
-            self._pts += resampled_frame.samples
-            result = result.append(PcmData.from_av_frame(resampled_frame))
-        result.pts = self._pts - len(result.samples)
-        return result
-
-
 class Resampler:
     """
     Stateless audio resampler for converting between sample rates, formats, and channels.
@@ -2044,570 +1876,13 @@ class Resampler:
         )
 
 
-def patch_sdp_offer(sdp: str) -> str:
-    """
-    Patches an SDP offer to ensure consistent ICE and DTLS parameters across all media sections.
-
-    This function:
-    1. Ensures all media descriptions have the same ice-ufrag, ice-pwd, and fingerprint values
-       (using values from the first media section)
-    2. Sets all media descriptions' ports to match the first media description's port
-    3. Replaces all media descriptions' candidates with candidates from the first media description
-
-    Args:
-        sdp: The original SDP string.
-
-    Returns:
-        The modified SDP string with consistent parameters across all media sections.
-    """
-    # Parse the SDP
-    session = aiortc.sdp.SessionDescription.parse(sdp)
-
-    # If we have fewer than 2 media sections, nothing to patch
-    if len(session.media) < 2:
-        return sdp
-
-    # Get the values from the first media section
-    first_media = session.media[0]
-    reference_port = first_media.port
-    reference_ice = first_media.ice
-    reference_fingerprints = first_media.dtls.fingerprints if first_media.dtls else []
-    reference_candidates = first_media.ice_candidates
-
-    # Apply to all other media sections
-    for media in session.media[1:]:
-        # Update port
-        media.port = reference_port
-
-        # Update ICE parameters
-        if reference_ice and media.ice:
-            media.ice.usernameFragment = reference_ice.usernameFragment
-            media.ice.password = reference_ice.password
-            media.ice.iceLite = reference_ice.iceLite
-
-        # Update DTLS fingerprints
-        if media.dtls and reference_fingerprints:
-            media.dtls.fingerprints = reference_fingerprints.copy()
-
-        # Replace ICE candidates
-        media.ice_candidates = reference_candidates.copy()
-        if reference_candidates:
-            media.ice_candidates_complete = True
-
-    # Convert back to string
-    return str(session)
-
-
-def fix_sdp_msid_semantic(sdp: str) -> str:
-    """
-    Fix SDP msid-semantic format by ensuring there is a space after "WMS".
-
-    The WebRTC spec requires a space between "WMS" and any identifiers.
-    Some SDPs may incorrectly have "WMS*" instead of "WMS *" which can
-    cause connection issues.
-
-    Args:
-        sdp: The SDP string to fix
-
-    Returns:
-        The fixed SDP string
-    """
-    return re.sub(r"a=msid-semantic:WMS\*", r"a=msid-semantic:WMS *", sdp)
-
-
-def fix_sdp_rtcp_fb(sdp: str) -> str:
-    """
-    Fix SDP rtcp-fb format
-    https://github.com/pion/webrtc/issues/3207
-    """
-    # Some generators (e.g. pion) emit a trailing space after feedback id when no
-    # parameter is present, e.g. "a=rtcp-fb:96 goog-remb ". This breaks some
-    # parsers. Strip only the trailing whitespace before end-of-line on rtcp-fb
-    # lines while preserving CRLF if present.
-    #
-    # Example fix:
-    #   a=rtcp-fb:96 goog-remb \r\n  ->  a=rtcp-fb:96 goog-remb\r\n
-    return re.sub(
-        r"(?m)^(a=rtcp-fb:[^\r\n]*\S)[ \t]+(?=\r?$)",
-        r"\1",
-        sdp,
-    )
-
-
-def parse_track_stream_mapping(sdp: str) -> dict:
-    """Parse SDP to extract track_id to stream_id mapping from msid lines."""
-    mapping = {}
-    for line in sdp.split("\n"):
-        if line.startswith("a=msid:"):
-            parts = line.strip().split(" ")
-            if len(parts) >= 2:
-                # Format: a=msid:stream_id track_id
-                track_id = parts[1]
-                stream_id = parts[0].replace("a=msid:", "")
-                mapping[track_id] = stream_id
-    return mapping
-
-
-class BufferedMediaTrack(aiortc.mediastreams.MediaStreamTrack):
-    """A wrapper for MediaStreamTrack that buffers one peeked frame.
-
-    Also tracks video frame statistics when kind is 'video':
-    - frames_processed: total frames that passed through recv()
-    - frame_width, frame_height: dimensions of the last frame
-    - total_processing_time_ms: cumulative time spent in recv()
-    """
-
-    def __init__(self, track):
-        super().__init__()
-        self._track = track
-        self._buffered_frames = []  # Store multiple frames
-        self._kind = track.kind
-        self._id = track.id
-        self._ended = False
-
-        # Frame statistics (for video tracks)
-        self.frames_processed: int = 0
-        self.frame_width: int = 0
-        self.frame_height: int = 0
-        self.total_processing_time_ms: float = 0.0
-
-    @property
-    def kind(self):
-        return self._kind
-
-    @property
-    def id(self):
-        return self._id
-
-    @property
-    def readyState(self):
-        return "ended" if self._ended else self._track.readyState
-
-    def get_frame_stats(self) -> Dict[str, Any]:
-        """Get current frame statistics for StatsTracer injection."""
-        return {
-            "framesSent": self.frames_processed,
-            "frameWidth": self.frame_width,
-            "frameHeight": self.frame_height,
-            "totalEncodeTime": self.total_processing_time_ms / 1000.0,
-        }
-
-    def _update_frame_stats(self, frame, processing_time_ms: float) -> None:
-        """Update frame statistics from a video frame."""
-        if (
-            self._kind == "video"
-            and hasattr(frame, "width")
-            and hasattr(frame, "height")
-        ):
-            self.frames_processed += 1
-            self.frame_width = frame.width
-            self.frame_height = frame.height
-            self.total_processing_time_ms += processing_time_ms
-
-    async def recv(self):
-        """Returns the next buffered frame if available, otherwise gets a new frame from the track."""
-        if self._ended:
-            raise MediaStreamError("Track is ended")
-
-        if self._buffered_frames:
-            # Return the oldest buffered frame (FIFO order)
-            frame = self._buffered_frames.pop(0)
-            self._update_frame_stats(frame, 0.0)
-            return frame
-
-        start_time = time.monotonic()
-        try:
-            frame = await self._track.recv()
-            elapsed_ms = (time.monotonic() - start_time) * 1000
-            self._update_frame_stats(frame, elapsed_ms)
-            return frame
-        except Exception as e:
-            logger.error(f"Error receiving frame from track: {e}")
-            self._ended = True
-            raise MediaStreamError(f"Error receiving frame: {e}") from e
-
-    async def peek(self):
-        """Peek at the next frame without removing it from the stream."""
-        if self._ended:
-            raise MediaStreamError("Track is ended")
-
-        if not self._buffered_frames:
-            try:
-                # Buffer a new frame
-                frame = await self._track.recv()
-                self._buffered_frames.append(frame)
-            except Exception as e:
-                logger.error(f"Error peeking at frame: {e}")
-                self._ended = True
-                raise MediaStreamError(f"Error peeking at frame: {e}") from e
-
-        # Return the next frame that would be received, but don't remove it
-        if self._buffered_frames:
-            return self._buffered_frames[0]
-        return None
-
-    def stop(self):
-        """Stop the track and clean up resources."""
-        if not self._ended:
-            self._ended = True
-            self._buffered_frames = []  # Clear all buffered frames
-            # Stop the underlying track if it has a stop method
-            if hasattr(self._track, "stop"):
-                try:
-                    self._track.stop()
-                except Exception as e:
-                    logger.error(f"Error stopping track: {e}")
-
-
-class VideoFrameTracker(aiortc.mediastreams.MediaStreamTrack):
-    """A transparent wrapper that tracks video frame statistics.
-
-    Used for subscriber video tracks to capture frame metrics that aiortc
-    doesn't provide natively (dimensions, frame count, decode time).
-    """
-
-    kind = "video"
-
-    def __init__(self, track: MediaStreamTrack):
-        super().__init__()
-        self._track = track
-        self._id = track.id
-        self._ended = False
-
-        # Frame statistics
-        self.frames_processed: int = 0
-        self.frame_width: int = 0
-        self.frame_height: int = 0
-        self.total_processing_time_ms: float = 0.0
-
-    @property
-    def id(self):
-        return self._id
-
-    @property
-    def readyState(self):
-        return "ended" if self._ended else self._track.readyState
-
-    def get_frame_stats(self) -> Dict[str, Any]:
-        """Get current frame statistics for StatsTracer injection."""
-        return {
-            "framesDecoded": self.frames_processed,
-            "frameWidth": self.frame_width,
-            "frameHeight": self.frame_height,
-            "totalDecodeTime": self.total_processing_time_ms / 1000.0,
-        }
-
-    async def recv(self):
-        """Receive a frame, tracking statistics."""
-        if self._ended:
-            raise MediaStreamError("Track is ended")
-
-        start_time = time.monotonic()
-        try:
-            frame = await self._track.recv()
-            elapsed_ms = (time.monotonic() - start_time) * 1000
-
-            # Update stats for video frames
-            if isinstance(frame, av.VideoFrame):
-                self.frames_processed += 1
-                self.frame_width = frame.width
-                self.frame_height = frame.height
-                self.total_processing_time_ms += elapsed_ms
-
-            return frame
-        except MediaStreamError:
-            self._ended = True
-            raise
-        except Exception as e:
-            logger.error(f"Error receiving frame: {e}")
-            self._ended = True
-            raise MediaStreamError(f"Error receiving frame: {e}") from e
-
-    def stop(self):
-        """Stop the track."""
-        if not self._ended:
-            self._ended = True
-            if hasattr(self._track, "stop"):
-                self._track.stop()
-
-
-async def detect_video_properties(
-    video_track: aiortc.mediastreams.MediaStreamTrack,
-) -> Dict[str, Any]:
-    """
-    Detect video track properties by peeking at frames.
-
-    Args:
-        video_track: A video MediaStreamTrack
-
-    Returns:
-        Dict containing width (int), height (int), fps (int), and bitrate (int) in kbps
-    """
-    logger.info("Detecting video track properties")
-
-    # Default properties in case of failure
-    default_properties = {"width": 640, "height": 480, "fps": 30, "bitrate": 800}
-
-    if not video_track or video_track.kind != "video":
-        logger.warning("No video track provided or track is not video")
-        return default_properties
-
-    # Flag to indicate if we created our own buffered track
-    own_buffered_track = False
-    buffered_track = None
-
-    try:
-        # Ensure we're using a buffered track
-        if isinstance(video_track, BufferedMediaTrack):
-            buffered_track = video_track
-        else:
-            buffered_track = BufferedMediaTrack(video_track)
-            own_buffered_track = True
-
-        # Peek at a frame to get dimensions
-        frame1 = await asyncio.wait_for(buffered_track.peek(), timeout=2.0)
-
-        if not frame1:
-            logger.warning("No frame received from video track")
-            return default_properties
-
-        # Extract width and height
-        width = getattr(frame1, "width", default_properties["width"])
-        height = getattr(frame1, "height", default_properties["height"])
-
-        # Calculate FPS based on time delta between consecutive frames
-        fps = 30  # Default value
-        try:
-            # Consume the first frame but store its pts and time_base
-            frame1 = await buffered_track.recv()
-            frame1_pts = getattr(frame1, "pts", None)
-            time_base = getattr(frame1, "time_base", None)
-
-            # Get the second frame
-            frame2 = await asyncio.wait_for(buffered_track.recv(), timeout=2.0)
-            frame2_pts = getattr(frame2, "pts", None)
-
-            # Calculate FPS if we have all the necessary information
-            if (
-                frame1_pts is not None
-                and frame2_pts is not None
-                and time_base is not None
-            ):
-                delta_ticks = frame2_pts - frame1_pts
-                delta_seconds = delta_ticks * time_base
-
-                if delta_seconds > 0:
-                    estimated_fps = 1 / delta_seconds
-                    fps = int(round(estimated_fps))
-                    logger.info(f"Calculated FPS: {fps} (delta: {delta_seconds}s)")
-                else:
-                    logger.warning("Cannot calculate FPS: zero or negative time delta")
-            else:
-                logger.warning(
-                    "Cannot calculate FPS: missing PTS or time_base information"
-                )
-        except Exception as e:
-            logger.warning(f"Error calculating FPS: {e}, using default 30 fps")
-
-        # Calculate a dynamic bitrate based on resolution and fps
-        # This formula accounts for both pixel count and frame rate
-        # Using bits-per-pixel approach for H.264 encoding
-        pixels_per_second = width * height * fps
-
-        # Different quality factors based on resolution
-        if width >= 1920 and height >= 1080:  # Full HD
-            # Higher quality for HD content: ~0.1 bits per pixel
-            bits_per_pixel = 0.1
-        elif width >= 1280 and height >= 720:  # HD
-            # Medium-high quality: ~0.08 bits per pixel
-            bits_per_pixel = 0.08
-        elif width >= 854 and height >= 480:  # SD
-            # Medium quality: ~0.06 bits per pixel
-            bits_per_pixel = 0.06
-        else:  # Lower quality
-            # Lower quality for smaller video: ~0.05 bits per pixel
-            bits_per_pixel = 0.05
-
-        # Calculate bitrate in kbps
-        estimated_bitrate = int(pixels_per_second * bits_per_pixel / 1000)
-
-        # Set reasonable min/max boundaries
-        min_bitrate = 100  # Minimum acceptable bitrate
-        max_bitrate = 5000  # Maximum reasonable bitrate for WebRTC
-
-        bitrate = max(min_bitrate, min(estimated_bitrate, max_bitrate))
-
-        logger.info(f"Detected video properties: {width}x{height} at {fps}fps")
-        logger.info(
-            f"Calculated bitrate: {bitrate} kbps (based on {bits_per_pixel} bits/pixel)"
-        )
-
-        return {"width": width, "height": height, "fps": fps, "bitrate": bitrate}
-    except asyncio.TimeoutError:
-        logger.error("Timeout while waiting for video frame")
-        return default_properties
-    except Exception as e:
-        logger.error(f"Error detecting video properties: {e}")
-        return default_properties
-    finally:
-        # Clean up only if we created our own buffered track
-        if own_buffered_track and buffered_track:
-            try:
-                # Clean up the buffered track but don't stop the original track
-                buffered_track._buffered_frames = []
-                buffered_track._ended = True
-            except Exception as e:
-                logger.error(f"Error cleaning up buffered track: {e}")
-
-
-def _normalize_audio_format(
-    pcm: PcmData, target_sample_rate: int, target_format: AudioFormatType
-) -> PcmData:
-    """
-    Helper function to normalize audio to target sample rate and format.
-
-    Args:
-        pcm: Input audio data
-        target_sample_rate: Target sample rate
-        target_format: Target format (AudioFormat.S16 or AudioFormat.F32)
-
-    Returns:
-        PcmData with target sample rate and format
-    """
-    # Validate format
-    AudioFormat.validate(target_format)
-    # Resample if needed
-    if pcm.sample_rate != target_sample_rate:
-        pcm = pcm.resample(target_sample_rate)
-
-    # Convert format if needed
-    if target_format == "f32" and pcm.format != "f32":
-        pcm = pcm.to_float32()
-    elif target_format == "s16" and pcm.format != "s16":
-        pcm = pcm.to_int16()
-
-    return pcm
-
-
-class AudioTrackHandler:
-    """
-    A helper to receive raw PCM data from an aiortc AudioStreamTrack
-    and feed it into the provided callback.
-    """
-
-    def __init__(
-        self, track: MediaStreamTrack, on_audio_frame: Callable[[PcmData], Any]
-    ):
-        """
-        :param track: The incoming audio track (from `pc.on("track")`).
-        :param on_audio_frame: A callback function that will receive
-                               the PCM data as a NumPy array (int16).
-        """
-        self.track = track
-        self._on_audio_frame = on_audio_frame
-        self._task = None
-        self._stopped = False
-
-    async def start(self):
-        """
-        Start reading frames from the track in a background task.
-        """
-        if self._task is None:
-            self._task = asyncio.create_task(self._run_track())
-
-    async def stop(self):
-        """
-        Stop reading frames and clean up.
-        """
-        self._stopped = True
-        if self._task:
-            self._task.cancel()
-            try:
-                await self._task
-            except asyncio.CancelledError:
-                pass
-            self._task = None
-
-    async def _run_track(self):
-        """
-        Internal coroutine that continuously pulls frames from the track.
-        """
-
-        while not self._stopped:
-            try:
-                frame = await self.track.recv()
-            except asyncio.CancelledError:
-                # Task was cancelled, safe to exit
-                break
-            except MediaStreamError:
-                # Error with the media stream, possibly EOF
-                break
-            except Exception as e:
-                logger.error(f"Error receiving audio frame: {e}")
-                break
-
-            if not isinstance(frame, av.AudioFrame):
-                raise TypeError("Audio frame not received")
-
-            if frame.sample_rate != 48000:
-                raise TypeError("only 48000 sample rate supported")
-
-            try:
-                pcm_ndarray = frame.to_ndarray()
-            except Exception as plane_error:
-                logger.error(
-                    f"Error converting audio frame to ndarray: {plane_error}, dropping frame"
-                )
-                break
-
-            # Handle stereo to mono conversion
-            if len(frame.layout.channels) > 1:
-                try:
-                    # Reshape to separate stereo channels: [L, R, L, R, ...] -> [[L, R], [L, R], ...]
-                    # This assumes the data is interleaved stereo
-                    audio_stereo = pcm_ndarray.reshape(-1, len(frame.layout.channels))
-                    # Take the mean across channels to convert to mono
-                    pcm_ndarray = audio_stereo.mean(axis=1).astype(np.int16)
-                except ValueError as e:
-                    logger.error(
-                        f"Error reshaping stereo audio: {e}. "
-                        f"Original shape: {pcm_ndarray.shape}, channels: {len(frame.layout.channels)}"
-                    )
-                    break
-
-            # Extract timestamp information from the frame
-            pts = getattr(frame, "pts", None)
-            dts = getattr(frame, "dts", None)
-            time_base = None
-
-            # Convert time_base to float if available
-            if hasattr(frame, "time_base") and frame.time_base is not None:
-                try:
-                    # time_base is typically a fractions.Fraction, convert to float
-                    time_base = float(frame.time_base)
-                except (TypeError, ValueError):
-                    logger.warning(
-                        f"Could not convert time_base to float: {frame.time_base}"
-                    )
-                    time_base = None
-
-            self._on_audio_frame(
-                PcmData(
-                    sample_rate=48_000,
-                    format="s16",
-                    samples=pcm_ndarray,
-                    pts=pts,
-                    dts=dts,
-                    time_base=time_base,
-                )
-            )
-
-
 class FrameResampler:
-    """Wraps av.AudioResampler to emit fixed-size packed av.AudioFrames from PcmData.
+    """Resamples PcmData with the SDK's windowed-sinc `StreamResampler` and emits
+    fixed-size packed s16 av.AudioFrames.
 
-    A single av.AudioResampler locks onto its first input frame's rate/layout/format,
-    so this rebuilds the underlying resampler whenever the input signature changes.
+    A `StreamResampler` keeps the rate of its first input, so this rebuilds it
+    whenever the input rate changes. It does not convert channels or formats, so
+    the input is converted to s16 at the output channel count first.
     """
 
     def __init__(
@@ -2617,20 +1892,24 @@ class FrameResampler:
         Args:
             rate: Target output sample rate in Hz.
             layout: Target channel layout, e.g. "mono" or "stereo".
-            format: Output sample format passed to av.AudioResampler (packed, e.g. "s16").
-            frame_size: Samples per channel in each emitted frame; input is buffered
+            format: Output sample format; only packed "s16".
+            frame_size: Samples per channel in each emitted frame; output is buffered
                 until a full frame_size can be emitted. 0 emits variable-size frames.
                 The tail returned by flush() may be shorter than frame_size.
         """
+        if format != AudioFormat.S16:
+            raise ValueError(
+                f"FrameResampler output format must be 's16', got {format!r}"
+            )
         self._rate = rate
         self._layout = layout
-        self._format = format
+        self._channels = len(av.AudioLayout(layout).channels)
         self._frame_size = frame_size
-        self._resampler: Optional[av.AudioResampler] = None
-        # Input signature the current resampler was built for.
-        self._in_rate: Optional[int] = None
-        self._in_channels: Optional[int] = None
-        self._in_format: Optional[str] = None
+        self._resampler: getstream_rtc.StreamResampler | None = None
+        # Input rate the current resampler was built for.
+        self._in_rate: int | None = None
+        # Resampled interleaved samples that no emitted frame holds yet.
+        self._pending: NDArray[np.int16] = np.array([], dtype=np.int16)
 
     def resample(self, pcm: PcmData, flush: bool = False) -> list[av.AudioFrame]:
         """Resample pcm data and return finished av.AudioFrames.
@@ -2638,61 +1917,77 @@ class FrameResampler:
 
         Args:
             pcm: PcmData audio
-            flush: if True, also flush the tail and reset."""
-        frames: list[av.AudioFrame] = []
+            flush: if True, also flush the tail."""
         # Empty input (e.g. the final marker) yields no frames but can still flush.
         if pcm.samples.size:
-            resampler, tail = self._reset_resampler(pcm)
-            # `tail` holds the old resampler's drained buffer when the input
-            # signature changed; emit it before this input's frames.
-            frames = tail + resampler.resample(pcm.to_av_frame())
+            resampler = self._reset_resampler(pcm)
+            self._append(
+                resampler.push(self._interleave(pcm), pcm.sample_rate, self._channels)
+            )
 
         if flush:
-            frames.extend(self.flush())
+            return self.flush()
 
-        return frames
+        return self._take_frames(partial=False)
 
     def flush(self) -> list[av.AudioFrame]:
         """
-        Flush the resampler's buffered tail and reset it.
+        Flush the resampler's buffered tail and the samples of a partial frame.
         """
-        frames: list[av.AudioFrame] = []
-        if self._resampler is not None:
-            # resample(None) flushes swr to EOF: it raises on any further input, so
-            # drop it here and _reset_resampler rebuilds on the next write.
-            frames = self._resampler.resample(None)
-            self._resampler = None
-        return frames
+        self._take_tail()
+        return self._take_frames(partial=True)
 
-    def _reset_resampler(
-        self, pcm: PcmData
-    ) -> tuple[av.AudioResampler, list[av.AudioFrame]]:
-        """Return the resampler for pcm's signature, rebuilding it on a change.
+    def _reset_resampler(self, pcm: PcmData) -> getstream_rtc.StreamResampler:
+        """Return the resampler for pcm's rate, rebuilding it on a change.
 
-        On a rebuild the old resampler's buffered tail is drained and returned so it
-        isn't dropped; the output signature is fixed, so the tail stays compatible.
+        On a rebuild the old resampler's held audio is kept so it isn't dropped; the
+        output rate and channels are fixed, so it stays compatible.
         """
         resampler = self._resampler
-        if (
-            resampler is None
-            or self._in_rate != pcm.sample_rate
-            or self._in_channels != pcm.channels
-            or self._in_format != pcm.format
-        ):
-            tail: list[av.AudioFrame] = []
-            if resampler is not None:
-                # Drain the outgoing resampler before swapping it out.
-                tail = resampler.resample(None)
-            resampler = av.AudioResampler(
-                format=self._format,
-                layout=self._layout,
-                rate=self._rate,
-                # frame_size makes the resampler emit fixed frame_size-sample frames.
-                frame_size=self._frame_size,
-            )
+        if resampler is None or self._in_rate != pcm.sample_rate:
+            self._take_tail()
+            resampler = getstream_rtc.StreamResampler(self._rate, self._channels)
             self._resampler = resampler
             self._in_rate = pcm.sample_rate
-            self._in_channels = pcm.channels
-            self._in_format = pcm.format
-            return resampler, tail
-        return resampler, []
+        return resampler
+
+    def _take_tail(self) -> None:
+        if self._resampler is not None:
+            self._append(self._resampler.flush())
+
+    def _append(self, frame: getstream_rtc.PcmFrame) -> None:
+        self._pending = np.concatenate([self._pending, frame.samples])
+
+    def _interleave(self, pcm: PcmData) -> NDArray[np.int16]:
+        """Return pcm as interleaved s16 samples at the output channel count."""
+        samples = np.frombuffer(pcm.to_int16().to_bytes(), dtype=np.int16)
+        if pcm.channels == self._channels:
+            return samples
+        if self._channels == 1:
+            # Average the channels of each sample frame.
+            mono = samples.reshape(-1, pcm.channels).mean(axis=1)
+            return mono.round().astype(np.int16)
+        if pcm.channels == 1:
+            return np.repeat(samples, self._channels)
+        raise ValueError(
+            f"Unsupported channel conversion: {pcm.channels} -> {self._channels}"
+        )
+
+    def _take_frames(self, partial: bool) -> list[av.AudioFrame]:
+        """Cut the pending samples into frames; `partial` also emits the shorter rest."""
+        pending = self._pending
+        size = self._frame_size * self._channels or len(pending)
+        if not size:
+            return []
+        end = len(pending) if partial else len(pending) - len(pending) % size
+        self._pending = pending[end:]
+        frames = []
+        for start in range(0, end, size):
+            frame = av.AudioFrame.from_ndarray(
+                pending[start : start + size].reshape(1, -1),
+                format="s16",
+                layout=self._layout,
+            )
+            frame.sample_rate = self._rate
+            frames.append(frame)
+        return frames

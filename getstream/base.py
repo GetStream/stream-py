@@ -22,6 +22,7 @@ from getstream.generic import T
 import httpx
 from getstream.config import BaseConfig
 from getstream.version import VERSION
+from getstream.utils import NULL
 from urllib.parse import quote
 from abc import ABC
 from getstream.common.telemetry import (
@@ -144,7 +145,10 @@ def _read_file_bytes(file_path: str) -> bytes:
 
 def _strip_none(obj):
     """Recursively remove None values from dicts so unset optional fields
-    are omitted from the JSON body instead of being sent as null."""
+    are omitted from the JSON body instead of being sent as null. ``NULL``
+    becomes null."""
+    if obj is NULL:
+        return None
     if isinstance(obj, dict):
         return {k: _strip_none(v) for k, v in obj.items() if v is not None}
     if isinstance(obj, list):
