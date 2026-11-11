@@ -2,43 +2,21 @@
 
 import base64
 import gzip
-import hashlib
 import hmac
+import hashlib
 import json
 import zlib
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any
-
+from typing import Any, Dict, Optional, Union
 from .models import (
-    ActivityAddedEvent,
-    ActivityDeletedEvent,
-    ActivityFeedbackEvent,
-    ActivityMarkEvent,
-    ActivityPinnedEvent,
-    ActivityReactionAddedEvent,
-    ActivityReactionDeletedEvent,
-    ActivityReactionUpdatedEvent,
-    ActivityRemovedFromFeedEvent,
-    ActivityRestoredEvent,
-    ActivityUnpinnedEvent,
-    ActivityUpdatedEvent,
+    CustomEvent,
     AppealAcceptedEvent,
     AppealCreatedEvent,
     AppealRejectedEvent,
-    AsyncBulkImageModerationEvent,
-    AsyncExportChannelsEvent,
-    AsyncExportErrorEvent,
-    AsyncExportModerationLogsEvent,
-    AsyncExportReviewQueueEvent,
-    AsyncExportUsersEvent,
-    BlockedUserEvent,
-    BookmarkAddedEvent,
-    BookmarkDeletedEvent,
-    BookmarkFolderDeletedEvent,
-    BookmarkFolderUpdatedEvent,
-    BookmarkUpdatedEvent,
     CallAcceptedEvent,
+    BlockedUserEvent,
+    ClosedCaptionEvent,
     CallClosedCaptionsFailedEvent,
     CallClosedCaptionsStartedEvent,
     CallClosedCaptionsStoppedEvent,
@@ -53,6 +31,7 @@ from .models import (
     CallHLSBroadcastingFailedEvent,
     CallHLSBroadcastingStartedEvent,
     CallHLSBroadcastingStoppedEvent,
+    KickedUserEvent,
     CallLiveStartedEvent,
     CallMemberAddedEvent,
     CallMemberRemovedEvent,
@@ -62,6 +41,8 @@ from .models import (
     CallModerationBlurEvent,
     CallModerationWarningEvent,
     CallNotificationEvent,
+    PermissionRequestEvent,
+    UpdatedCallPermissionsEvent,
     CallReactionEvent,
     CallRecordingFailedEvent,
     CallRecordingReadyEvent,
@@ -69,6 +50,7 @@ from .models import (
     CallRecordingStoppedEvent,
     CallRejectedEvent,
     CallRingEvent,
+    CallRingSettledEvent,
     CallRtmpBroadcastFailedEvent,
     CallRtmpBroadcastStartedEvent,
     CallRtmpBroadcastStoppedEvent,
@@ -82,96 +64,113 @@ from .models import (
     CallTranscriptionReadyEvent,
     CallTranscriptionStartedEvent,
     CallTranscriptionStoppedEvent,
+    UnblockedUserEvent,
     CallUpdatedEvent,
     CallUserFeedbackSubmittedEvent,
     CallUserMutedEvent,
     CampaignCompletedEvent,
     CampaignStartedEvent,
-    ChannelBatchCompletedEvent,
-    ChannelBatchStartedEvent,
     ChannelCreatedEvent,
     ChannelDeletedEvent,
     ChannelFrozenEvent,
     ChannelHiddenEvent,
+    MaxStreakChangedEvent,
     ChannelMutedEvent,
     ChannelTruncatedEvent,
     ChannelUnFrozenEvent,
     ChannelUnmutedEvent,
     ChannelUpdatedEvent,
     ChannelVisibleEvent,
-    ClosedCaptionEvent,
+    ChannelBatchCompletedEvent,
+    ChannelBatchStartedEvent,
+    CustomVideoEvent,
+    AsyncBulkImageModerationEvent,
+    AsyncExportChannelsEvent,
+    AsyncExportLabelResultsEvent,
+    AsyncExportModerationLogsEvent,
+    AsyncExportReviewQueueEvent,
+    AsyncExportErrorEvent,
+    AsyncExportUsersEvent,
+    ActivityAddedEvent,
+    ActivityDeletedEvent,
+    ActivityFeedbackEvent,
+    ActivityMarkEvent,
+    ActivityPinnedEvent,
+    ActivityReactionAddedEvent,
+    ActivityReactionDeletedEvent,
+    ActivityReactionUpdatedEvent,
+    ActivityRemovedFromFeedEvent,
+    ActivityRestoredEvent,
+    ActivityUnpinnedEvent,
+    ActivityUpdatedEvent,
+    BookmarkAddedEvent,
+    BookmarkDeletedEvent,
+    BookmarkUpdatedEvent,
+    BookmarkFolderDeletedEvent,
+    BookmarkFolderUpdatedEvent,
     CommentAddedEvent,
     CommentDeletedEvent,
+    CommentFeedbackEvent,
     CommentReactionAddedEvent,
     CommentReactionDeletedEvent,
     CommentReactionUpdatedEvent,
     CommentRestoredEvent,
     CommentUpdatedEvent,
-    CustomEvent,
-    CustomVideoEvent,
     FeedCreatedEvent,
     FeedDeletedEvent,
+    FeedUpdatedEvent,
     FeedGroupChangedEvent,
     FeedGroupDeletedEvent,
     FeedGroupRestoredEvent,
     FeedMemberAddedEvent,
     FeedMemberRemovedEvent,
     FeedMemberUpdatedEvent,
-    FeedUpdatedEvent,
-    FlagUpdatedEvent,
     FollowCreatedEvent,
     FollowDeletedEvent,
     FollowUpdatedEvent,
+    NotificationFeedUpdatedEvent,
+    StoriesFeedUpdatedEvent,
+    FlagUpdatedEvent,
+    AsyncImportErrorEvent,
+    AsyncImportSuccessEvent,
     IngressErrorEvent,
     IngressStartedEvent,
     IngressStoppedEvent,
-    KickedUserEvent,
-    MaxStreakChangedEvent,
     MemberAddedEvent,
     MemberRemovedEvent,
     MemberUpdatedEvent,
     MessageDeletedEvent,
     MessageFlaggedEvent,
     MessageNewEvent,
+    PendingMessageEvent,
     MessageReadEvent,
     MessageUnblockedEvent,
     MessageUndeletedEvent,
     MessageUpdatedEvent,
     ModerationAnalysisFailedEvent,
-    ModerationCheckCompletedEvent,
     ModerationCustomActionEvent,
     ModerationFlaggedEvent,
     ModerationImageAnalysisCompleteEvent,
     ModerationMarkReviewedEvent,
-    ModerationRulesTriggeredEvent,
     ModerationTextAnalysisCompleteEvent,
-    NotificationFeedUpdatedEvent,
+    ModerationCheckCompletedEvent,
+    ModerationRulesTriggeredEvent,
     NotificationMarkUnreadEvent,
+    ReminderNotificationEvent,
     NotificationThreadMessageNewEvent,
-    PendingMessageEvent,
-    PermissionRequestEvent,
     ReactionDeletedEvent,
     ReactionNewEvent,
     ReactionUpdatedEvent,
     ReminderCreatedEvent,
     ReminderDeletedEvent,
-    ReminderNotificationEvent,
     ReminderUpdatedEvent,
     ReviewQueueItemNewEvent,
     ReviewQueueItemUpdatedEvent,
-    StoriesFeedUpdatedEvent,
     ThreadUpdatedEvent,
-    UnblockedUserEvent,
-    UpdatedCallPermissionsEvent,
     UserBannedEvent,
     UserDeactivatedEvent,
     UserDeletedEvent,
     UserFlaggedEvent,
-    UserGroupCreatedEvent,
-    UserGroupDeletedEvent,
-    UserGroupMemberAddedEvent,
-    UserGroupMemberRemovedEvent,
-    UserGroupUpdatedEvent,
     UserMessagesDeletedEvent,
     UserMutedEvent,
     UserReactivatedEvent,
@@ -179,7 +178,13 @@ from .models import (
     UserUnmutedEvent,
     UserUnreadReminderEvent,
     UserUpdatedEvent,
+    UserGroupCreatedEvent,
+    UserGroupDeletedEvent,
+    UserGroupMemberAddedEvent,
+    UserGroupMemberRemovedEvent,
+    UserGroupUpdatedEvent,
 )
+
 
 # Webhook event type constants
 EVENT_TYPE_WILDCARD = "*"
@@ -222,6 +227,7 @@ EVENT_TYPE_CALL_RECORDING_STARTED = "call.recording_started"
 EVENT_TYPE_CALL_RECORDING_STOPPED = "call.recording_stopped"
 EVENT_TYPE_CALL_REJECTED = "call.rejected"
 EVENT_TYPE_CALL_RING = "call.ring"
+EVENT_TYPE_CALL_RING_SETTLED = "call.ring_settled"
 EVENT_TYPE_CALL_RTMP_BROADCAST_FAILED = "call.rtmp_broadcast_failed"
 EVENT_TYPE_CALL_RTMP_BROADCAST_STARTED = "call.rtmp_broadcast_started"
 EVENT_TYPE_CALL_RTMP_BROADCAST_STOPPED = "call.rtmp_broadcast_stopped"
@@ -261,6 +267,8 @@ EVENT_TYPE_EXPORT_BULK_IMAGE_MODERATION_ERROR = "export.bulk_image_moderation.er
 EVENT_TYPE_EXPORT_BULK_IMAGE_MODERATION_SUCCESS = "export.bulk_image_moderation.success"
 EVENT_TYPE_EXPORT_CHANNELS_ERROR = "export.channels.error"
 EVENT_TYPE_EXPORT_CHANNELS_SUCCESS = "export.channels.success"
+EVENT_TYPE_EXPORT_LABEL_RESULTS_ERROR = "export.label_results.error"
+EVENT_TYPE_EXPORT_LABEL_RESULTS_SUCCESS = "export.label_results.success"
 EVENT_TYPE_EXPORT_MODERATION_LOGS_ERROR = "export.moderation_logs.error"
 EVENT_TYPE_EXPORT_MODERATION_LOGS_SUCCESS = "export.moderation_logs.success"
 EVENT_TYPE_EXPORT_REVIEW_QUEUE_ERROR = "export.review_queue.error"
@@ -286,6 +294,7 @@ EVENT_TYPE_FEEDS_BOOKMARK_FOLDER_DELETED = "feeds.bookmark_folder.deleted"
 EVENT_TYPE_FEEDS_BOOKMARK_FOLDER_UPDATED = "feeds.bookmark_folder.updated"
 EVENT_TYPE_FEEDS_COMMENT_ADDED = "feeds.comment.added"
 EVENT_TYPE_FEEDS_COMMENT_DELETED = "feeds.comment.deleted"
+EVENT_TYPE_FEEDS_COMMENT_FEEDBACK = "feeds.comment.feedback"
 EVENT_TYPE_FEEDS_COMMENT_REACTION_ADDED = "feeds.comment.reaction.added"
 EVENT_TYPE_FEEDS_COMMENT_REACTION_DELETED = "feeds.comment.reaction.deleted"
 EVENT_TYPE_FEEDS_COMMENT_REACTION_UPDATED = "feeds.comment.reaction.updated"
@@ -306,6 +315,8 @@ EVENT_TYPE_FEEDS_FOLLOW_UPDATED = "feeds.follow.updated"
 EVENT_TYPE_FEEDS_NOTIFICATION_FEED_UPDATED = "feeds.notification_feed.updated"
 EVENT_TYPE_FEEDS_STORIES_FEED_UPDATED = "feeds.stories_feed.updated"
 EVENT_TYPE_FLAG_UPDATED = "flag.updated"
+EVENT_TYPE_IMPORT_ERROR = "import.error"
+EVENT_TYPE_IMPORT_SUCCESS = "import.success"
 EVENT_TYPE_INGRESS_ERROR = "ingress.error"
 EVENT_TYPE_INGRESS_STARTED = "ingress.started"
 EVENT_TYPE_INGRESS_STOPPED = "ingress.stopped"
@@ -386,11 +397,11 @@ class UnknownEvent:
     """
 
     type: str
-    created_at: datetime | None = None
-    raw: dict[str, Any] = field(default_factory=dict)
+    created_at: Optional[datetime] = None
+    raw: Dict[str, Any] = field(default_factory=dict)
 
 
-def get_event_type(raw_event: bytes | str | dict[str, Any]) -> str:
+def get_event_type(raw_event: Union[bytes, str, Dict[str, Any]]) -> str:
     """
     Extract the event type from a raw webhook payload.
 
@@ -412,7 +423,7 @@ def get_event_type(raw_event: bytes | str | dict[str, Any]) -> str:
         return ""
 
 
-def parse_webhook_event(raw_event: bytes | str | dict[str, Any]) -> Any:
+def parse_webhook_event(raw_event: Union[bytes, str, Dict[str, Any]]) -> Any:
     """
     Deserialize a raw webhook payload into a typed event object.
 
@@ -492,6 +503,7 @@ def _get_event_class(event_type: str):
         "call.recording_stopped": CallRecordingStoppedEvent,
         "call.rejected": CallRejectedEvent,
         "call.ring": CallRingEvent,
+        "call.ring_settled": CallRingSettledEvent,
         "call.rtmp_broadcast_failed": CallRtmpBroadcastFailedEvent,
         "call.rtmp_broadcast_started": CallRtmpBroadcastStartedEvent,
         "call.rtmp_broadcast_stopped": CallRtmpBroadcastStoppedEvent,
@@ -529,6 +541,8 @@ def _get_event_class(event_type: str):
         "export.bulk_image_moderation.success": AsyncBulkImageModerationEvent,
         "export.channels.error": AsyncExportErrorEvent,
         "export.channels.success": AsyncExportChannelsEvent,
+        "export.label_results.error": AsyncExportErrorEvent,
+        "export.label_results.success": AsyncExportLabelResultsEvent,
         "export.moderation_logs.error": AsyncExportErrorEvent,
         "export.moderation_logs.success": AsyncExportModerationLogsEvent,
         "export.review_queue.error": AsyncExportErrorEvent,
@@ -554,6 +568,7 @@ def _get_event_class(event_type: str):
         "feeds.bookmark_folder.updated": BookmarkFolderUpdatedEvent,
         "feeds.comment.added": CommentAddedEvent,
         "feeds.comment.deleted": CommentDeletedEvent,
+        "feeds.comment.feedback": CommentFeedbackEvent,
         "feeds.comment.reaction.added": CommentReactionAddedEvent,
         "feeds.comment.reaction.deleted": CommentReactionDeletedEvent,
         "feeds.comment.reaction.updated": CommentReactionUpdatedEvent,
@@ -574,6 +589,8 @@ def _get_event_class(event_type: str):
         "feeds.notification_feed.updated": NotificationFeedUpdatedEvent,
         "feeds.stories_feed.updated": StoriesFeedUpdatedEvent,
         "flag.updated": FlagUpdatedEvent,
+        "import.error": AsyncImportErrorEvent,
+        "import.success": AsyncImportSuccessEvent,
         "ingress.error": IngressErrorEvent,
         "ingress.started": IngressStartedEvent,
         "ingress.stopped": IngressStoppedEvent,
@@ -628,7 +645,9 @@ def _get_event_class(event_type: str):
     return event_map.get(event_type)
 
 
-def verify_webhook_signature(body: bytes | str, signature: str, secret: str) -> bool:
+def verify_webhook_signature(
+    body: Union[bytes, str], signature: str, secret: str
+) -> bool:
     """
     Verify the HMAC-SHA256 signature of a webhook payload.
 
@@ -793,9 +812,9 @@ def parse_event(payload: bytes) -> Any:
         ) from e
 
 
-def _build_unknown_event(event_type: str, data: dict[str, Any]) -> UnknownEvent:
+def _build_unknown_event(event_type: str, data: Dict[str, Any]) -> UnknownEvent:
     created_raw = data.get("created_at")
-    created: datetime | None = None
+    created: Optional[datetime] = None
     if isinstance(created_raw, str):
         try:
             # Accept "2026-05-08T00:00:00Z" and full ISO-8601 with offset.
