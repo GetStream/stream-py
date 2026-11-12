@@ -33,6 +33,6 @@ def extract_rate_limit(response: httpx.Response) -> Optional[RateLimitInfo]:
                 remaining=remaining_value,
                 reset=reset_value,
             )
-        except ValueError:
+        except (ValueError, StopIteration, OverflowError, OSError):
             return None
     return None
