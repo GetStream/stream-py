@@ -3927,6 +3927,9 @@ class CallCreatedEvent(DataClassJsonMixin):
 
 @dataclass
 class CallCustomPropertyParameters(DataClassJsonMixin):
+    expected_value: object | None = dc_field(
+        default=None, metadata=dc_config(field_name="expected_value")
+    )
     operator: str | None = dc_field(
         default=None, metadata=dc_config(field_name="operator")
     )
@@ -9268,6 +9271,9 @@ class ContentCountRuleParameters(DataClassJsonMixin):
 
 @dataclass
 class ContentCustomPropertyCountParameters(DataClassJsonMixin):
+    expected_value: object | None = dc_field(
+        default=None, metadata=dc_config(field_name="expected_value")
+    )
     operator: str | None = dc_field(
         default=None, metadata=dc_config(field_name="operator")
     )
@@ -9284,6 +9290,9 @@ class ContentCustomPropertyCountParameters(DataClassJsonMixin):
 
 @dataclass
 class ContentCustomPropertyParameters(DataClassJsonMixin):
+    expected_value: object | None = dc_field(
+        default=None, metadata=dc_config(field_name="expected_value")
+    )
     operator: str | None = dc_field(
         default=None, metadata=dc_config(field_name="operator")
     )
@@ -30303,6 +30312,9 @@ class UserCustomEventRequest(DataClassJsonMixin):
 
 @dataclass
 class UserCustomPropertyParameters(DataClassJsonMixin):
+    expected_value: object | None = dc_field(
+        default=None, metadata=dc_config(field_name="expected_value")
+    )
     operator: str | None = dc_field(
         default=None, metadata=dc_config(field_name="operator")
     )
