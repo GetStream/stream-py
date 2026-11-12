@@ -330,7 +330,7 @@ class ActionLogResponse(DataClassJsonMixin):
     id: str = dc_field(metadata=dc_config(field_name="id"))
     # Reason for the moderation action
     reason: str = dc_field(metadata=dc_config(field_name="reason"))
-    # Classification of who triggered the action (e.g. user, moderator, automod, api_integration)
+    # Classification of who triggered the action (e.g. user, moderator, automod, agent_reviewer, api_integration)
     reporter_type: str = dc_field(metadata=dc_config(field_name="reporter_type"))
     # ID of the user who was the target of the action
     target_user_id: str = dc_field(metadata=dc_config(field_name="target_user_id"))
@@ -339,8 +339,11 @@ class ActionLogResponse(DataClassJsonMixin):
     # ID of the user who performed the action
     user_id: str = dc_field(metadata=dc_config(field_name="user_id"))
     ai_providers: List[str] = dc_field(metadata=dc_config(field_name="ai_providers"))
-    # Additional metadata about the action
+    # Additional metadata about the action. An agent_recommendation log keeps the suggested action under recommended_action
     custom: Dict[str, object] = dc_field(metadata=dc_config(field_name="custom"))
+    agent_recommendation: "Optional[AgentRecommendationResponse]" = dc_field(
+        default=None, metadata=dc_config(field_name="agent_recommendation")
+    )
     review_queue_item: "Optional[ReviewQueueItemResponse]" = dc_field(
         default=None, metadata=dc_config(field_name="review_queue_item")
     )
@@ -1918,6 +1921,211 @@ class AddUserGroupMembersResponse(DataClassJsonMixin):
 
 
 @dataclass
+class AgentFeedbackResponse(DataClassJsonMixin):
+    # Nora review this correction is about
+    agent_review_id: str = dc_field(metadata=dc_config(field_name="agent_review_id"))
+    # Text of the item when the correction was saved
+    content_excerpt: str = dc_field(metadata=dc_config(field_name="content_excerpt"))
+    # When the correction was first saved
+    created_at: datetime = dc_field(
+        metadata=dc_config(
+            field_name="created_at",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        )
+    )
+    # Moderator who submitted the correction
+    created_by: str = dc_field(metadata=dc_config(field_name="created_by"))
+    # Entity type of the queue item
+    entity_type: str = dc_field(metadata=dc_config(field_name="entity_type"))
+    # Feedback row id
+    id: str = dc_field(metadata=dc_config(field_name="id"))
+    # How similar cases should be judged
+    improvement: str = dc_field(metadata=dc_config(field_name="improvement"))
+    # Review queue item the correction is about
+    item_id: str = dc_field(metadata=dc_config(field_name="item_id"))
+    # Action the moderator took
+    moderator_action: str = dc_field(metadata=dc_config(field_name="moderator_action"))
+    # Policy action Nora recommended
+    nora_action: str = dc_field(metadata=dc_config(field_name="nora_action"))
+    # Why the moderator disagreed
+    reason: str = dc_field(metadata=dc_config(field_name="reason"))
+    # When the correction was last saved
+    updated_at: datetime = dc_field(
+        metadata=dc_config(
+            field_name="updated_at",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        )
+    )
+    # Labels Nora matched on this review
+    labels: List[str] = dc_field(metadata=dc_config(field_name="labels"))
+
+
+@dataclass
+class AgentRecommendationPayload(DataClassJsonMixin):
+    # Why Nora suggests this action. Stored on the action log, cut to 500 bytes
+    reason: str = dc_field(metadata=dc_config(field_name="reason"))
+    # Action Nora suggests for the item
+    recommended_action: str = dc_field(
+        metadata=dc_config(field_name="recommended_action")
+    )
+
+
+@dataclass
+class AgentRecommendationResponse(DataClassJsonMixin):
+    # Why Nora suggested this action
+    reason: str = dc_field(metadata=dc_config(field_name="reason"))
+    # Action Nora suggested for the item
+    recommended_action: str = dc_field(
+        metadata=dc_config(field_name="recommended_action")
+    )
+
+
+@dataclass
+class AgentReviewJudgmentResponse(DataClassJsonMixin):
+    # Why the agent matched this label
+    explanation: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="explanation")
+    )
+    # Moderation label this judgment is about
+    label: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="label")
+    )
+    # The agent's verdict for this label
+    verdict: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="verdict")
+    )
+    # Quotes from the content that support the verdict
+    evidence: Optional[List[str]] = dc_field(
+        default=None, metadata=dc_config(field_name="evidence")
+    )
+
+
+@dataclass
+class AgentReviewResponse(DataClassJsonMixin):
+    # True when the agent did not have the full context it needed
+    context_incomplete: bool = dc_field(
+        metadata=dc_config(field_name="context_incomplete")
+    )
+    # When this review was recorded
+    created_at: datetime = dc_field(
+        metadata=dc_config(
+            field_name="created_at",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        )
+    )
+    # Lifecycle status of the review
+    status: str = dc_field(metadata=dc_config(field_name="status"))
+    # Session id of the agent run that produced this review
+    agent_session_id: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="agent_session_id")
+    )
+    # The agent's confidence in its recommended action, from 0 to 1
+    confidence: Optional[float] = dc_field(
+        default=None, metadata=dc_config(field_name="confidence")
+    )
+    # Whether the flag is supported, a likely false positive, or uncertain
+    flag_assessment: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="flag_assessment")
+    )
+    # Model route that produced this review
+    model_route: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="model_route")
+    )
+    # Why Nora chose the recommended action
+    reason: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="reason")
+    )
+    # Action the agent recommends for the item
+    recommended_action: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="recommended_action")
+    )
+    # Why the review was skipped or failed. Set when status is skipped or failed
+    skip_reason: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="skip_reason")
+    )
+    # Short summary of the review
+    summary: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="summary")
+    )
+    # Per-label judgments, with the evidence the agent quoted
+    judgments: "Optional[List[AgentReviewJudgmentResponse]]" = dc_field(
+        default=None, metadata=dc_config(field_name="judgments")
+    )
+    # Token usage reported for this review
+    usage: Optional[Dict[str, object]] = dc_field(
+        default=None, metadata=dc_config(field_name="usage")
+    )
+
+
+@dataclass
+class AgentReviewSettingsPayload(DataClassJsonMixin):
+    # The app's Accelerate agent config with role agent_moderator.
+    agent_config_id: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="agent_config_id")
+    )
+    # Minimum verdict confidence (0-1) for auto_act to apply an action. Defaults to 0.9.
+    auto_act_min_confidence: Optional[float] = dc_field(
+        default=None, metadata=dc_config(field_name="auto_act_min_confidence")
+    )
+    # Days of the user's moderation history given to the agent. Defaults to 7, at most 30.
+    context_days: Optional[int] = dc_field(
+        default=None, metadata=dc_config(field_name="context_days")
+    )
+    # Surrounding items given to the agent on each side of the reviewed one: chat messages, Feeds comments, or the author's other Feeds activities. Defaults to 20, at most 100.
+    context_messages: Optional[int] = dc_field(
+        default=None, metadata=dc_config(field_name="context_messages")
+    )
+    # Turns the agent reviewer on. It only runs when agent_config_id is set too.
+    enabled: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="enabled")
+    )
+    # Maximum reviews in flight for the app. Defaults to 10, at most 100.
+    max_concurrency: Optional[int] = dc_field(
+        default=None, metadata=dc_config(field_name="max_concurrency")
+    )
+    # approve_first records the verdict for a moderator to approve; auto_act applies it when its confidence reaches auto_act_min_confidence; export_only changes nothing on the review queue and only exports each verdict for evaluation. Defaults to approve_first.
+    mode: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="mode"))
+    # Sends the images of the content under review to the agent, so it can judge them alongside the text. The agent config must run on a model that sees images. Defaults to false.
+    review_images: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="review_images")
+    )
+    # Fraction (0-1) of checks reviewed with scope all_checks. Defaults to 1.
+    sample_rate: Optional[float] = dc_field(
+        default=None, metadata=dc_config(field_name="sample_rate")
+    )
+    # Which checks are reviewed: flagged ones only, or all_checks sampled by sample_rate. Defaults to flagged.
+    scope: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="scope")
+    )
+    # Moderation rule IDs: only items flagged by one of these rules are reviewed, and items flagged only by other sources are left to moderators. Empty reviews every flagged item. Only used with scope flagged; at most 100.
+    rule_ids: Optional[List[str]] = dc_field(
+        default=None, metadata=dc_config(field_name="rule_ids")
+    )
+
+
+@dataclass
+class AgentReviewSummaryResponse(DataClassJsonMixin):
+    # Verdict confidence from 0 to 1
+    confidence: float = dc_field(metadata=dc_config(field_name="confidence"))
+    # pending, processing, done, failed, or skipped
+    status: str = dc_field(metadata=dc_config(field_name="status"))
+    # Whether the flag matches the content. Set once the review is done
+    flag_assessment: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="flag_assessment")
+    )
+    # The action Nora recommends. Set once the review is done
+    recommended_action: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="recommended_action")
+    )
+
+
+@dataclass
 class AggregatedActivityResponse(DataClassJsonMixin):
     # Number of activities in this aggregation
     activity_count: int = dc_field(metadata=dc_config(field_name="activity_count"))
@@ -2352,8 +2560,16 @@ class AppResponseFields(DataClassJsonMixin):
     activity_metrics_config: "Optional[Dict[str, int]]" = dc_field(
         default=None, metadata=dc_config(field_name="activity_metrics_config")
     )
+    # Settings for the moderation agent reviewer, which reviews moderation outcomes and proposes or applies an action.
+    agent_review: "Optional[AgentReviewSettingsPayload]" = dc_field(
+        default=None, metadata=dc_config(field_name="agent_review")
+    )
     datadog_info: "Optional[DataDogInfo]" = dc_field(
         default=None, metadata=dc_config(field_name="datadog_info")
+    )
+    # Settings for the moderation agent reviewer, which reviews moderation outcomes and proposes or applies an action.
+    effective_agent_review: "Optional[AgentReviewSettingsPayload]" = dc_field(
+        default=None, metadata=dc_config(field_name="effective_agent_review")
     )
     moderation_dashboard_preferences: "Optional[ModerationDashboardPreferences]" = (
         dc_field(
@@ -4495,6 +4711,9 @@ class CallCreatedEvent(DataClassJsonMixin):
 
 @dataclass
 class CallCustomPropertyParameters(DataClassJsonMixin):
+    expected_value: "Optional[object]" = dc_field(
+        default=None, metadata=dc_config(field_name="expected_value")
+    )
     operator: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="operator")
     )
@@ -10615,6 +10834,9 @@ class ContentCountryCodeParameters(DataClassJsonMixin):
 
 @dataclass
 class ContentCustomPropertyCountParameters(DataClassJsonMixin):
+    expected_value: "Optional[object]" = dc_field(
+        default=None, metadata=dc_config(field_name="expected_value")
+    )
     operator: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="operator")
     )
@@ -10631,6 +10853,9 @@ class ContentCustomPropertyCountParameters(DataClassJsonMixin):
 
 @dataclass
 class ContentCustomPropertyParameters(DataClassJsonMixin):
+    expected_value: "Optional[object]" = dc_field(
+        default=None, metadata=dc_config(field_name="expected_value")
+    )
     operator: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="operator")
     )
@@ -10657,6 +10882,42 @@ class CountByMinuteResponse(DataClassJsonMixin):
             decoder=datetime_from_unix_ns,
             mm_field=fields.DateTime(format="iso"),
         )
+    )
+
+
+@dataclass
+class CountReviewQueueRequest(DataClassJsonMixin):
+    user_id: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="user_id")
+    )
+    # Filter conditions for review queue items, the same filter Query Review Queue takes. The count covers exactly the items that query lists for this filter, ignoring sort, paging and item locks.
+    filter: Optional[Dict[str, object]] = dc_field(
+        default=None, metadata=dc_config(field_name="filter")
+    )
+    # User request object
+    user: "Optional[UserRequest]" = dc_field(
+        default=None, metadata=dc_config(field_name="user")
+    )
+
+
+@dataclass
+class CountReviewQueueResponse(DataClassJsonMixin):
+    # Whether more items match than are counted exactly (50,000), so total is a lower bound
+    capped: bool = dc_field(metadata=dc_config(field_name="capped"))
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    # Whether the count is missing or out of date because the queue changed since it was computed. A later request may return a fresher count.
+    pending: bool = dc_field(metadata=dc_config(field_name="pending"))
+    # Number of review queue items matching the filter. When capped is true, at least this many items match.
+    total: int = dc_field(metadata=dc_config(field_name="total"))
+    # When the count was computed. Counts are refreshed in the background as the review queue changes.
+    computed_at: Optional[datetime] = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="computed_at",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
     )
 
 
@@ -16214,6 +16475,21 @@ class GetActivityResponse(DataClassJsonMixin):
 
 
 @dataclass
+class GetAgentReviewStatusResponse(DataClassJsonMixin):
+    # Actions Nora took in the last 7 days
+    applied: int = dc_field(metadata=dc_config(field_name="applied"))
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    # Items Nora escalated in the last 7 days
+    escalated: int = dc_field(metadata=dc_config(field_name="escalated"))
+    # Reviews that finished in the last 7 days
+    reviewed: int = dc_field(metadata=dc_config(field_name="reviewed"))
+    # Why the latest review failed. Absent unless that review failed
+    last_error: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="last_error")
+    )
+
+
+@dataclass
 class GetAppealResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
     item: "Optional[AppealItemResponse]" = dc_field(
@@ -17383,6 +17659,9 @@ class GetRetentionPolicyRunsResponse(DataClassJsonMixin):
 @dataclass
 class GetReviewQueueItemResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    agent_review: "Optional[AgentReviewResponse]" = dc_field(
+        default=None, metadata=dc_config(field_name="agent_review")
+    )
     item: "Optional[ReviewQueueItemResponse]" = dc_field(
         default=None, metadata=dc_config(field_name="item")
     )
@@ -18761,6 +19040,17 @@ class LimitsSettingsResponse(DataClassJsonMixin):
     max_participants_exclude_owner: Optional[bool] = dc_field(
         default=None, metadata=dc_config(field_name="max_participants_exclude_owner")
     )
+
+
+@dataclass
+class ListAgentFeedbackResponse(DataClassJsonMixin):
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    # Corrections, newest first
+    feedback: "List[AgentFeedbackResponse]" = dc_field(
+        metadata=dc_config(field_name="feedback")
+    )
+    # Cursor for the next page. Absent when this is the last page
+    next: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="next"))
 
 
 @dataclass
@@ -21167,33 +21457,41 @@ class ModerationDashboardPreferences(DataClassJsonMixin):
 
 @dataclass
 class ModerationEngineConfigRequest(DataClassJsonMixin):
-    # LLM model used when the provider resolves to llm. Not allowed with provider nlp. Empty uses the app's moderation settings
+    # LLM model used when the provider resolves to llm, or a Stream model with provider stream (an alias, or a pinned version the server accepts). Not allowed with provider nlp. Empty uses the app's moderation settings, or the latest Stream model
     model: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="model")
     )
-    # llm or nlp. Empty follows the app's LLM moderation setting
+    # llm, nlp or stream. Empty follows the app's LLM moderation setting
     provider: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="provider")
     )
     # OpenAI reasoning effort for model. Requires model, and must be one the model accepts. Empty uses the model's default
     reasoning_effort: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="reasoning_effort")
+    )
+    # How sure a Stream model must be before it flags: relaxed, balanced or strict. Only with provider stream. Empty is balanced
+    strictness: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="strictness")
     )
 
 
 @dataclass
 class ModerationEngineConfigResponse(DataClassJsonMixin):
-    # LLM model used when the provider resolves to llm. Not allowed with provider nlp. Empty uses the app's moderation settings
+    # LLM model used when the provider resolves to llm, or a Stream model with provider stream (an alias, or a pinned version the server accepts). Not allowed with provider nlp. Empty uses the app's moderation settings, or the latest Stream model
     model: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="model")
     )
-    # llm or nlp. Empty follows the app's LLM moderation setting
+    # llm, nlp or stream. Empty follows the app's LLM moderation setting
     provider: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="provider")
     )
     # OpenAI reasoning effort for model. Requires model, and must be one the model accepts. Empty uses the model's default
     reasoning_effort: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="reasoning_effort")
+    )
+    # How sure a Stream model must be before it flags: relaxed, balanced or strict. Only with provider stream. Empty is balanced
+    strictness: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="strictness")
     )
 
 
@@ -21639,6 +21937,12 @@ class ModerationQueueResponse(DataClassJsonMixin):
     description: str = dc_field(metadata=dc_config(field_name="description"))
     id: str = dc_field(metadata=dc_config(field_name="id"))
     item_count: int = dc_field(metadata=dc_config(field_name="item_count"))
+    item_count_capped: bool = dc_field(
+        metadata=dc_config(field_name="item_count_capped")
+    )
+    item_count_pending: bool = dc_field(
+        metadata=dc_config(field_name="item_count_pending")
+    )
     name: str = dc_field(metadata=dc_config(field_name="name"))
     type: str = dc_field(metadata=dc_config(field_name="type"))
     updated_at: datetime = dc_field(
@@ -28107,6 +28411,9 @@ class ReviewQueueItemResponse(DataClassJsonMixin):
     activity: "Optional[EnrichedActivity]" = dc_field(
         default=None, metadata=dc_config(field_name="activity")
     )
+    agent_review: "Optional[AgentReviewSummaryResponse]" = dc_field(
+        default=None, metadata=dc_config(field_name="agent_review")
+    )
     appeal: "Optional[AppealItemResponse]" = dc_field(
         default=None, metadata=dc_config(field_name="appeal")
     )
@@ -30906,7 +31213,7 @@ class StoriesFeedUpdatedEvent(DataClassJsonMixin):
 
 @dataclass
 class SubmitActionRequest(DataClassJsonMixin):
-    # Type of moderation action to perform. One of: mark_reviewed, delete_message, delete_activity, delete_comment, delete_reaction, delete_poll, delete_poll_option, delete_poll_answer, ban, custom, unban, restore, delete_user, delete_user_messages, unblock, block, shadow_block, unmask, kick_user, end_call, escalate, de_escalate
+    # Type of moderation action to perform. One of: mark_reviewed, delete_message, delete_activity, delete_comment, delete_reaction, delete_poll, delete_poll_option, delete_poll_answer, ban, custom, unban, restore, delete_user, delete_user_messages, unblock, block, shadow_block, unmask, kick_user, end_call, escalate, de_escalate, agent_recommendation
     action_type: str = dc_field(metadata=dc_config(field_name="action_type"))
     # UUID of the appeal to act on (required for reject_appeal, optional for other actions)
     appeal_id: Optional[str] = dc_field(
@@ -30918,6 +31225,9 @@ class SubmitActionRequest(DataClassJsonMixin):
     )
     user_id: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="user_id")
+    )
+    agent_recommendation: "Optional[AgentRecommendationPayload]" = dc_field(
+        default=None, metadata=dc_config(field_name="agent_recommendation")
     )
     # Configuration for ban moderation action
     ban: "Optional[BanActionRequestPayload]" = dc_field(
@@ -31021,6 +31331,74 @@ class SubmitActionResponse(DataClassJsonMixin):
     item: "Optional[ReviewQueueItemResponse]" = dc_field(
         default=None, metadata=dc_config(field_name="item")
     )
+
+
+@dataclass
+class SubmitAgentFeedbackRequest(DataClassJsonMixin):
+    # Review queue item Nora reviewed
+    item_id: str = dc_field(metadata=dc_config(field_name="item_id"))
+    # Action the moderator took
+    moderator_action: str = dc_field(metadata=dc_config(field_name="moderator_action"))
+    # How similar cases should be judged, up to 2000 characters
+    improvement: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="improvement")
+    )
+    # Why the moderator disagreed, up to 2000 characters
+    reason: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="reason")
+    )
+    user_id: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="user_id")
+    )
+    # User request object
+    user: "Optional[UserRequest]" = dc_field(
+        default=None, metadata=dc_config(field_name="user")
+    )
+
+
+@dataclass
+class SubmitAgentFeedbackResponse(DataClassJsonMixin):
+    # Nora review this correction is about
+    agent_review_id: str = dc_field(metadata=dc_config(field_name="agent_review_id"))
+    # Text of the item when the correction was saved
+    content_excerpt: str = dc_field(metadata=dc_config(field_name="content_excerpt"))
+    # When the correction was first saved
+    created_at: datetime = dc_field(
+        metadata=dc_config(
+            field_name="created_at",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        )
+    )
+    # Moderator who submitted the correction
+    created_by: str = dc_field(metadata=dc_config(field_name="created_by"))
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    # Entity type of the queue item
+    entity_type: str = dc_field(metadata=dc_config(field_name="entity_type"))
+    # Feedback row id
+    id: str = dc_field(metadata=dc_config(field_name="id"))
+    # How similar cases should be judged
+    improvement: str = dc_field(metadata=dc_config(field_name="improvement"))
+    # Review queue item the correction is about
+    item_id: str = dc_field(metadata=dc_config(field_name="item_id"))
+    # Action the moderator took
+    moderator_action: str = dc_field(metadata=dc_config(field_name="moderator_action"))
+    # Policy action Nora recommended
+    nora_action: str = dc_field(metadata=dc_config(field_name="nora_action"))
+    # Why the moderator disagreed
+    reason: str = dc_field(metadata=dc_config(field_name="reason"))
+    # When the correction was last saved
+    updated_at: datetime = dc_field(
+        metadata=dc_config(
+            field_name="updated_at",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        )
+    )
+    # Labels Nora matched on this review
+    labels: List[str] = dc_field(metadata=dc_config(field_name="labels"))
 
 
 @dataclass
@@ -32729,6 +33107,10 @@ class UpdateAppRequest(DataClassJsonMixin):
     )
     activity_metrics_config: "Optional[Dict[str, int]]" = dc_field(
         default=None, metadata=dc_config(field_name="activity_metrics_config")
+    )
+    # Settings for the moderation agent reviewer, which reviews moderation outcomes and proposes or applies an action.
+    agent_review: "Optional[AgentReviewSettingsPayload]" = dc_field(
+        default=None, metadata=dc_config(field_name="agent_review")
     )
     apn_config: "Optional[APNConfig]" = dc_field(
         default=None, metadata=dc_config(field_name="apn_config")
@@ -35030,6 +35412,9 @@ class UserCustomEventRequest(DataClassJsonMixin):
 
 @dataclass
 class UserCustomPropertyParameters(DataClassJsonMixin):
+    expected_value: "Optional[object]" = dc_field(
+        default=None, metadata=dc_config(field_name="expected_value")
+    )
     operator: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="operator")
     )

@@ -158,6 +158,45 @@ class ModerationRestClient(BaseClient):
             "/api/v2/moderation/action_logs", InsertActionLogResponse, json=json
         )
 
+    @telemetry.operation_name("getstream.api.moderation.list_agent_feedback")
+    def list_agent_feedback(
+        self, limit: Optional[int] = None, next: Optional[str] = None
+    ) -> StreamResponse[ListAgentFeedbackResponse]:
+        query_params = build_query_param(**{"limit": limit, "next": next})
+        return self.get(
+            "/api/v2/moderation/agent_feedback",
+            ListAgentFeedbackResponse,
+            query_params=query_params,
+        )
+
+    @telemetry.operation_name("getstream.api.moderation.submit_agent_feedback")
+    def submit_agent_feedback(
+        self,
+        item_id: str,
+        moderator_action: str,
+        improvement: Optional[str] = None,
+        reason: Optional[str] = None,
+        user_id: Optional[str] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[SubmitAgentFeedbackResponse]:
+        json = SubmitAgentFeedbackRequest(
+            item_id=item_id,
+            moderator_action=moderator_action,
+            improvement=improvement,
+            reason=reason,
+            user_id=user_id,
+            user=user,
+        ).to_dict()
+        return self.post(
+            "/api/v2/moderation/agent_feedback", SubmitAgentFeedbackResponse, json=json
+        )
+
+    @telemetry.operation_name("getstream.api.moderation.get_agent_review_status")
+    def get_agent_review_status(self) -> StreamResponse[GetAgentReviewStatusResponse]:
+        return self.get(
+            "/api/v2/moderation/agent_review_status", GetAgentReviewStatusResponse
+        )
+
     @telemetry.operation_name("getstream.api.moderation.analyze")
     def analyze(
         self,
@@ -1111,6 +1150,20 @@ class ModerationRestClient(BaseClient):
             "/api/v2/moderation/review_queue", QueryReviewQueueResponse, json=json
         )
 
+    @telemetry.operation_name("getstream.api.moderation.count_review_queue")
+    def count_review_queue(
+        self,
+        user_id: Optional[str] = None,
+        filter: Optional[Dict[str, object]] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[CountReviewQueueResponse]:
+        json = CountReviewQueueRequest(
+            user_id=user_id, filter=filter, user=user
+        ).to_dict()
+        return self.post(
+            "/api/v2/moderation/review_queue/count", CountReviewQueueResponse, json=json
+        )
+
     @telemetry.operation_name("getstream.api.moderation.get_review_queue_item")
     def get_review_queue_item(
         self, id: str
@@ -1149,6 +1202,7 @@ class ModerationRestClient(BaseClient):
         appeal_id: Optional[str] = None,
         item_id: Optional[str] = None,
         user_id: Optional[str] = None,
+        agent_recommendation: Optional[AgentRecommendationPayload] = None,
         ban: Optional[BanActionRequestPayload] = None,
         block: Optional[BlockActionRequestPayload] = None,
         bypass: Optional[BypassActionRequest] = None,
@@ -1177,6 +1231,7 @@ class ModerationRestClient(BaseClient):
             appeal_id=appeal_id,
             item_id=item_id,
             user_id=user_id,
+            agent_recommendation=agent_recommendation,
             ban=ban,
             block=block,
             bypass=bypass,
