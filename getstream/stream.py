@@ -582,6 +582,7 @@ class Stream(BaseStream, CommonClient):
             user_agent=self.user_agent,
             logger=self.log,
             log_bodies=self.log_bodies,
+            retry=self.retry,
         )
 
     @cached_property
