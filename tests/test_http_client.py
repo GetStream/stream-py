@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import os
 import threading
@@ -8,7 +9,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import httpx
 import pytest
 
-from getstream import Stream, AsyncStream
+from getstream import AsyncStream, RetryConfig, Stream
+from getstream.exceptions import StreamRateLimitException
 
 
 def _mock_transport(status=200, body=None):
@@ -744,6 +746,90 @@ class TestPoolConfigForwardedOnClone:
         assert aclient.request_timeout == 15.0
         assert aclient.client._transport._pool._max_connections == 20
         await aclient.aclose()
+
+
+class _RetryOnceHandler(BaseHTTPRequestHandler):
+    """First GET is HTTP 429; every later GET is 200 with an empty object."""
+
+    protocol_version = "HTTP/1.1"
+
+    def do_GET(self):
+        server = self.server
+        with server.lock:
+            server.hits += 1
+            hit = server.hits
+        if hit == 1:
+            body = {
+                "code": 9,
+                "duration": "0ms",
+                "message": "too many requests",
+                "more_info": "",
+                "StatusCode": 429,
+                "details": [],
+                "unrecoverable": False,
+            }
+            status = 429
+        else:
+            body = {}
+            status = 200
+        data = json.dumps(body).encode()
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Retry-After", "0")
+        self.end_headers()
+        self.wfile.write(data)
+
+    def log_message(self, *args):
+        pass
+
+
+class _RetryOnceServer(ThreadingHTTPServer):
+    daemon_threads = True
+
+    def __init__(self):
+        super().__init__(("127.0.0.1", 0), _RetryOnceHandler)
+        self.lock = threading.Lock()
+        self.hits = 0
+
+
+class TestAsAsyncPreservesRetry:
+    """as_async() builds a new AsyncStream and must keep the source retry policy.
+
+    A configured sync client recovers a GET that answers 429 and then 200.
+    The client returned by as_async() has to recover the same response, against
+    a real local server.
+    """
+
+    @pytest.mark.asyncio
+    async def test_as_async_retries_rate_limit(self):
+        server = _RetryOnceServer()
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        policy = RetryConfig(enabled=True, max_attempts=2, max_backoff=0)
+        source = Stream(
+            api_key="k",
+            api_secret="s",
+            base_url=f"http://127.0.0.1:{server.server_port}",
+            retry=policy,
+        )
+        converted = source.as_async()
+        try:
+            try:
+                await converted.get("/app")
+            except StreamRateLimitException as exc:
+                raise AssertionError(
+                    "as_async dropped the retry policy: "
+                    f"retry={converted.retry!r} requests={server.hits}"
+                ) from exc
+            assert server.hits == 2
+            assert converted.retry == policy
+        finally:
+            await converted.aclose()
+            source.close()
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
 
 
 class TestConstructsWithoutStreamEnv:
