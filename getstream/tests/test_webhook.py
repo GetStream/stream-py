@@ -860,6 +860,18 @@ class TestParseWebhookEvent:
             event = parse_webhook_event({"type": "feeds.notification_feed.updated"})
         assert type(event).__name__ == "NotificationFeedUpdatedEvent"
 
+    def test_parse_feeds_scheduled_activity_failed(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            event = parse_webhook_event({"type": "feeds.scheduled_activity.failed"})
+        assert type(event).__name__ == "ScheduledActivityFailedEvent"
+
+    def test_parse_feeds_scheduled_activity_published(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            event = parse_webhook_event({"type": "feeds.scheduled_activity.published"})
+        assert type(event).__name__ == "ScheduledActivityPublishedEvent"
+
     def test_parse_feeds_stories_feed_updated(self):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", RuntimeWarning)
