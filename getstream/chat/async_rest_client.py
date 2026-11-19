@@ -413,6 +413,7 @@ class ChatRestClient(AsyncBaseClient):
         messages_id_gt: Optional[str] = None,
         messages_id_gte: Optional[str] = None,
         messages_id_around: Optional[str] = None,
+        include_soft_deleted_channel: Optional[bool] = None,
         user_id: Optional[str] = None,
     ) -> StreamResponse[ChannelStateResponse]:
         query_params = build_query_param(
@@ -426,6 +427,7 @@ class ChatRestClient(AsyncBaseClient):
                 "messages_id_gt": messages_id_gt,
                 "messages_id_gte": messages_id_gte,
                 "messages_id_around": messages_id_around,
+                "include_soft_deleted_channel": include_soft_deleted_channel,
                 "user_id": user_id,
             }
         )
@@ -1104,8 +1106,10 @@ class ChatRestClient(AsyncBaseClient):
         uploads: Optional[bool] = None,
         url_enrichment: Optional[bool] = None,
         user_message_reminders: Optional[bool] = None,
+        voice_transcription: Optional[bool] = None,
         blocklists: Optional[List[BlockListOptions]] = None,
         commands: Optional[List[str]] = None,
+        mark_types: Optional[List[str]] = None,
         permissions: Optional[List[PolicyRequest]] = None,
         automod_thresholds: Optional[Thresholds] = None,
         chat_preferences: Optional[ChatPreferences] = None,
@@ -1142,8 +1146,10 @@ class ChatRestClient(AsyncBaseClient):
             uploads=uploads,
             url_enrichment=url_enrichment,
             user_message_reminders=user_message_reminders,
+            voice_transcription=voice_transcription,
             blocklists=blocklists,
             commands=commands,
+            mark_types=mark_types,
             permissions=permissions,
             automod_thresholds=automod_thresholds,
             chat_preferences=chat_preferences,
@@ -1208,9 +1214,11 @@ class ChatRestClient(AsyncBaseClient):
         uploads: Optional[bool] = None,
         url_enrichment: Optional[bool] = None,
         user_message_reminders: Optional[bool] = None,
+        voice_transcription: Optional[bool] = None,
         allowed_flag_reasons: Optional[List[str]] = None,
         blocklists: Optional[List[BlockListOptions]] = None,
         commands: Optional[List[str]] = None,
+        mark_types: Optional[List[str]] = None,
         permissions: Optional[List[PolicyRequest]] = None,
         automod_thresholds: Optional[Thresholds] = None,
         chat_preferences: Optional[ChatPreferences] = None,
@@ -1249,9 +1257,11 @@ class ChatRestClient(AsyncBaseClient):
             uploads=uploads,
             url_enrichment=url_enrichment,
             user_message_reminders=user_message_reminders,
+            voice_transcription=voice_transcription,
             allowed_flag_reasons=allowed_flag_reasons,
             blocklists=blocklists,
             commands=commands,
+            mark_types=mark_types,
             permissions=permissions,
             automod_thresholds=automod_thresholds,
             chat_preferences=chat_preferences,
@@ -1574,6 +1584,48 @@ class ChatRestClient(AsyncBaseClient):
         return await self.patch(
             "/api/v2/chat/messages/{id}/ephemeral",
             UpdateMessagePartialResponse,
+            path_params=path_params,
+            json=json,
+        )
+
+    @telemetry.operation_name("getstream.api.chat.create_message_mark")
+    async def create_message_mark(
+        self,
+        id: str,
+        type: str,
+        user_id: Optional[str] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[CreateMessageMarkResponse]:
+        path_params = {
+            "id": id,
+        }
+        json = CreateMessageMarkRequest(type=type, user_id=user_id, user=user).to_dict()
+        return await self.post(
+            "/api/v2/chat/messages/{id}/marks",
+            CreateMessageMarkResponse,
+            path_params=path_params,
+            json=json,
+        )
+
+    @telemetry.operation_name("getstream.api.chat.query_message_marks")
+    async def query_message_marks(
+        self,
+        id: str,
+        limit: Optional[int] = None,
+        next: Optional[str] = None,
+        user_id: Optional[str] = None,
+        filter: Optional[QueryMessageMarksFilter] = None,
+        user: Optional[UserRequest] = None,
+    ) -> StreamResponse[QueryMessageMarksResponse]:
+        path_params = {
+            "id": id,
+        }
+        json = QueryMessageMarksRequest(
+            limit=limit, next=next, user_id=user_id, filter=filter, user=user
+        ).to_dict()
+        return await self.post(
+            "/api/v2/chat/messages/{id}/marks/query",
+            QueryMessageMarksResponse,
             path_params=path_params,
             json=json,
         )

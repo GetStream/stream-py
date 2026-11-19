@@ -131,6 +131,8 @@ from .models import (
     FollowDeletedEvent,
     FollowUpdatedEvent,
     NotificationFeedUpdatedEvent,
+    ScheduledActivityFailedEvent,
+    ScheduledActivityPublishedEvent,
     StoriesFeedUpdatedEvent,
     FlagUpdatedEvent,
     AsyncImportErrorEvent,
@@ -328,6 +330,8 @@ EVENT_TYPE_FEEDS_FOLLOW_CREATED = "feeds.follow.created"
 EVENT_TYPE_FEEDS_FOLLOW_DELETED = "feeds.follow.deleted"
 EVENT_TYPE_FEEDS_FOLLOW_UPDATED = "feeds.follow.updated"
 EVENT_TYPE_FEEDS_NOTIFICATION_FEED_UPDATED = "feeds.notification_feed.updated"
+EVENT_TYPE_FEEDS_SCHEDULED_ACTIVITY_FAILED = "feeds.scheduled_activity.failed"
+EVENT_TYPE_FEEDS_SCHEDULED_ACTIVITY_PUBLISHED = "feeds.scheduled_activity.published"
 EVENT_TYPE_FEEDS_STORIES_FEED_UPDATED = "feeds.stories_feed.updated"
 EVENT_TYPE_FLAG_UPDATED = "flag.updated"
 EVENT_TYPE_IMPORT_ERROR = "import.error"
@@ -615,6 +619,8 @@ def _get_event_class(event_type: str):
         "feeds.follow.deleted": FollowDeletedEvent,
         "feeds.follow.updated": FollowUpdatedEvent,
         "feeds.notification_feed.updated": NotificationFeedUpdatedEvent,
+        "feeds.scheduled_activity.failed": ScheduledActivityFailedEvent,
+        "feeds.scheduled_activity.published": ScheduledActivityPublishedEvent,
         "feeds.stories_feed.updated": StoriesFeedUpdatedEvent,
         "flag.updated": FlagUpdatedEvent,
         "import.error": AsyncImportErrorEvent,
