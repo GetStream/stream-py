@@ -32,13 +32,26 @@ jobs:
     if: needs.detect.outputs.pending == 'false'
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # The org no longer lets GITHUB_TOKEN create pull requests, so release-please opens the
+    # Release PR as getstream-sdk-bot. Its key lives only in the sdk-bot environment, which
+    # deploys from the default branch only. On a hotfix branch the job runs without the key on
+    # a read-only GITHUB_TOKEN: a push with nothing to release stays green, one with changes
+    # fails until the sdk-bot environment allows that branch.
+    environment: ${{ github.ref_name == github.event.repository.default_branch && 'sdk-bot' || '' }}
     permissions:
-      contents: write
-      issues: write
-      pull-requests: write
+      contents: read
     steps:
+      - id: app
+        if: github.ref_name == github.event.repository.default_branch
+        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+        with:
+          client-id: Iv23lioh9qYGjBIp9nsK
+          private-key: ${{ secrets.SDK_BOT_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
       - uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4.4.1
         with:
+          token: ${{ steps.app.outputs.token || github.token }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
           target-branch: ${{ github.ref_name }}
