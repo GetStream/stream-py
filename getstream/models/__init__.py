@@ -11066,6 +11066,10 @@ class CreateBlockListRequest(DataClassJsonMixin):
     user_id: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="user_id")
     )
+    # For regex block lists, reject any rule that matches 50% or more of a built-in sample dataset as too broad
+    validate: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="validate")
+    )
     # User request object
     user: "Optional[UserRequest]" = dc_field(
         default=None, metadata=dc_config(field_name="user")
@@ -11525,6 +11529,19 @@ class CreateDeviceRequest(DataClassJsonMixin):
     user: "Optional[UserRequest]" = dc_field(
         default=None, metadata=dc_config(field_name="user")
     )
+
+
+@dataclass
+class CreateDraftRequest(DataClassJsonMixin):
+    # Message data for creating or updating a message
+    message: "MessageRequest" = dc_field(metadata=dc_config(field_name="message"))
+
+
+@dataclass
+class CreateDraftResponse(DataClassJsonMixin):
+    # Duration of the request in milliseconds
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    draft: "DraftResponse" = dc_field(metadata=dc_config(field_name="draft"))
 
 
 @dataclass
@@ -12986,6 +13003,19 @@ class DeleteUsersRequest(DataClassJsonMixin):
     # * pruning - marks user as deleted and nullifies user information
     # * hard - deletes user completely. Requires 'hard' option for messages, and 'hard' or 'keep' option for conversations
     user: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="user"))
+    # Channel CIDs (type:id) to keep intact. Applies to every user in user_ids.
+    # Channels listed here keep their rows, messages, memberships, thread participation and reactions, and are not deleted as conversations,
+    # whatever the messages and conversations modes say. Everything else is deleted as usual.
+    # * Maximum 1000 entries, duplicates included. Duplicates are then ignored.
+    # * Cannot be combined with user 'hard' (400).
+    # * Cannot be combined with files true (400).
+    # * A malformed CID is rejected with 400.
+    # * A well-formed CID that does not exist is accepted and excludes nothing.
+    # * Scheduled messages are not channel-scoped: with user 'pruning' the user's scheduled messages are still removed in every channel, excluded ones included.
+    # * The user.deleted event does not list the kept channels. A consumer that mirrors deletions must skip them itself.
+    exclude_channel_cids: Optional[List[str]] = dc_field(
+        default=None, metadata=dc_config(field_name="exclude_channel_cids")
+    )
 
 
 @dataclass
@@ -17274,6 +17304,13 @@ class GetHistoryWindowTeamsResponse(DataClassJsonMixin):
 
 
 @dataclass
+class GetHookEventsResponse(DataClassJsonMixin):
+    # Duration of the request in milliseconds
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    events: "List[HookEvents]" = dc_field(metadata=dc_config(field_name="events"))
+
+
+@dataclass
 class GetImportResponse(DataClassJsonMixin):
     # Duration of the request in milliseconds
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
@@ -18169,6 +18206,13 @@ class HistoryWindowTeam(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         )
     )
+
+
+@dataclass
+class HookEvents(DataClassJsonMixin):
+    description: str = dc_field(metadata=dc_config(field_name="description"))
+    name: str = dc_field(metadata=dc_config(field_name="name"))
+    products: List[str] = dc_field(metadata=dc_config(field_name="products"))
 
 
 @dataclass
@@ -19664,11 +19708,11 @@ class MarkTypeConfig(DataClassJsonMixin):
 
 @dataclass
 class MarkUnreadRequest(DataClassJsonMixin):
-    # ID of the message from where the channel is marked unread
+    # ID of the message from where the channel is marked unread. Omit message_id, message_timestamp and thread_id to mark the whole channel soft unread: a dot without a counter
     message_id: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="message_id")
     )
-    # Timestamp of the message from where the channel is marked unread
+    # Timestamp of the message from where the channel is marked unread. Omit message_id, message_timestamp and thread_id to mark the whole channel soft unread
     message_timestamp: Optional[datetime] = dc_field(
         default=None,
         metadata=dc_config(
@@ -19678,7 +19722,7 @@ class MarkUnreadRequest(DataClassJsonMixin):
             mm_field=fields.DateTime(format="iso"),
         ),
     )
-    # Mark a thread unread, specify one of the thread, message timestamp, or message id
+    # Mark a thread unread. Specify at most one of thread_id, message_timestamp, or message_id; omit all three to mark the channel soft unread
     thread_id: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="thread_id")
     )
@@ -22798,6 +22842,10 @@ class NotificationMarkUnreadEvent(DataClassJsonMixin):
             decoder=datetime_from_unix_ns,
             mm_field=fields.DateTime(format="iso"),
         ),
+    )
+    # True when the channel was marked unread without a message: an unread dot with no counter
+    soft_unread: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="soft_unread")
     )
     # The team ID
     team: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="team"))
@@ -28183,6 +28231,9 @@ class ReadStateResponse(DataClassJsonMixin):
     )
     last_read_message_id: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="last_read_message_id")
+    )
+    soft_unread: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="soft_unread")
     )
 
 
@@ -33591,7 +33642,7 @@ class UnreadCountsBatchResponse(DataClassJsonMixin):
 class UnreadCountsChannel(DataClassJsonMixin):
     # The channel CID (type:id).
     channel_id: str = dc_field(metadata=dc_config(field_name="channel_id"))
-    # Whether the channel has messages newer than the user's last read. Large channels have no unread_count and only report this.
+    # Whether the channel counts as unread for the user: it has messages newer than the user's last read, or the user marked it unread without a message (soft_unread). It is true for soft-unread channels even though unread_count is 0. Large channels have no unread_count and only report this.
     has_unread: bool = dc_field(metadata=dc_config(field_name="has_unread"))
     # The date which the current user last read the channel.
     last_read: datetime = dc_field(
@@ -33604,6 +33655,10 @@ class UnreadCountsChannel(DataClassJsonMixin):
     )
     # The number of unread messages inside the channel.
     unread_count: int = dc_field(metadata=dc_config(field_name="unread_count"))
+    # True when the user marked the channel unread without a message. unread_count stays 0, and the channel adds 1 to total_unread_count; clients should key off has_unread and this field rather than unread_count > 0.
+    soft_unread: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="soft_unread")
+    )
 
 
 @dataclass
@@ -34082,6 +34137,10 @@ class UpdateBlockListRequest(DataClassJsonMixin):
     team: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="team"))
     user_id: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="user_id")
+    )
+    # For regex block lists, reject any rule that matches 50% or more of a built-in sample dataset as too broad
+    validate: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="validate")
     )
     # List of words to block
     words: Optional[List[str]] = dc_field(

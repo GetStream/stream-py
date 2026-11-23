@@ -596,6 +596,22 @@ class ChatRestClient(AsyncBaseClient):
             path_params=path_params,
         )
 
+    @telemetry.operation_name("getstream.api.chat.create_draft")
+    async def create_draft(
+        self, type: str, id: str, message: MessageRequest
+    ) -> StreamResponse[CreateDraftResponse]:
+        path_params = {
+            "type": type,
+            "id": id,
+        }
+        json = CreateDraftRequest(message=message).to_dict()
+        return await self.post(
+            "/api/v2/chat/channels/{type}/{id}/draft",
+            CreateDraftResponse,
+            path_params=path_params,
+            json=json,
+        )
+
     @telemetry.operation_name("getstream.api.chat.send_event")
     async def send_event(
         self, type: str, id: str, event: EventRequest

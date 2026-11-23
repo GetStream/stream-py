@@ -192,6 +192,16 @@ class Channel:
         return response
 
     @attach_channel_cid_async
+    async def create_draft(
+        self, message: MessageRequest
+    ) -> StreamResponse[CreateDraftResponse]:
+        response = await self.client.create_draft(
+            type=self.channel_type, id=self.channel_id, message=message
+        )
+        self._sync_from_response(response.data)
+        return response
+
+    @attach_channel_cid_async
     async def send_event(self, event: EventRequest) -> StreamResponse[EventResponse]:
         response = await self.client.send_event(
             type=self.channel_type, id=self.channel_id, event=event
