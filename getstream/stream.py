@@ -9,6 +9,7 @@ from uuid import uuid4
 
 import httpx
 import jwt
+from pydantic import ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from getstream.base import (
@@ -57,6 +58,20 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="STREAM_",
     )
+
+
+def _load_settings() -> Settings:
+    try:
+        return Settings()
+    except ValidationError as e:
+        # The ValidationError carries every STREAM_* value as input, the API secret included.
+        fields = ", ".join(
+            f"STREAM_{str(err['loc'][0]).upper()}"
+            for err in e.errors(include_input=False)
+        )
+        raise ValueError(
+            f"invalid or missing environment variables: {fields}"
+        ) from None
 
 
 class _PoolSettings(BaseSettings):
@@ -138,7 +153,7 @@ class BaseStream:
             or base_url is None
             or (api_secret is None and token is None)
         ):
-            s = Settings()
+            s = _load_settings()
             api_key = api_key or s.api_key
             base_url = base_url or (s.base_url or BASE_URL)
             if token is None and api_secret is None:
@@ -330,6 +345,8 @@ class BaseStream:
         role: str = None,
         expiration: int = None,
     ):
+        if user_id is None or user_id == "":
+            raise ValueError("user_id is required")
         return self._create_token(
             user_id=user_id,
             call_cids=call_cids,
@@ -523,8 +540,8 @@ class AsyncStream(BaseStream, AsyncCommonClient):
     def parse_sqs(self, message_body):
         """Decode + parse a Stream-delivered SQS message body.
 
-        Convenience wrapper around getstream.webhook.parse_sqs. No signature is
-        required; SQS deliveries are authenticated via AWS IAM.
+        Convenience wrapper around getstream.webhook.parse_sqs. It verifies no
+        signature: only principals the queue's IAM policy allows can send to it.
         """
         from .webhook import parse_sqs as _parse_sqs
 
@@ -534,12 +551,25 @@ class AsyncStream(BaseStream, AsyncCommonClient):
         """Decode + parse a Stream-delivered SNS notification body.
 
         Accepts either the raw SNS HTTP envelope JSON or the pre-extracted Message
-        string. Convenience wrapper around getstream.webhook.parse_sns. No signature
-        is required; SNS deliveries are authenticated via AWS IAM.
+        string. Convenience wrapper around getstream.webhook.parse_sns. It verifies
+        no signature, so use it only for a body read from an IAM-protected SQS
+        queue. For an SNS HTTP(S) subscription, use verify_and_parse_sns.
         """
         from .webhook import parse_sns as _parse_sns
 
         return _parse_sns(notification_body)
+
+    def verify_and_parse_sns(self, notification_body):
+        """Verify and parse an SNS HTTP(S) notification envelope, using this
+        client's API secret.
+
+        Convenience wrapper around getstream.webhook.verify_and_parse_sns. Raises
+        getstream.webhook.InvalidWebhookError on signature mismatch or parse
+        failures.
+        """
+        from .webhook import verify_and_parse_sns as _verify_and_parse_sns
+
+        return _verify_and_parse_sns(notification_body, self.api_secret)
 
 
 class Stream(BaseStream, CommonClient):
@@ -560,7 +590,7 @@ class Stream(BaseStream, CommonClient):
         request timeout (``DEFAULT_REQUEST_TIMEOUT``, 30.0s) rather than the
         old hard-coded 6.0s.
         """
-        settings = Settings()
+        settings = _load_settings()
 
         return cls(
             api_key=settings.api_key,
@@ -722,8 +752,8 @@ class Stream(BaseStream, CommonClient):
     def parse_sqs(self, message_body):
         """Decode + parse a Stream-delivered SQS message body.
 
-        Convenience wrapper around getstream.webhook.parse_sqs. No signature is
-        required; SQS deliveries are authenticated via AWS IAM.
+        Convenience wrapper around getstream.webhook.parse_sqs. It verifies no
+        signature: only principals the queue's IAM policy allows can send to it.
         """
         from .webhook import parse_sqs as _parse_sqs
 
@@ -733,9 +763,22 @@ class Stream(BaseStream, CommonClient):
         """Decode + parse a Stream-delivered SNS notification body.
 
         Accepts either the raw SNS HTTP envelope JSON or the pre-extracted Message
-        string. Convenience wrapper around getstream.webhook.parse_sns. No signature
-        is required; SNS deliveries are authenticated via AWS IAM.
+        string. Convenience wrapper around getstream.webhook.parse_sns. It verifies
+        no signature, so use it only for a body read from an IAM-protected SQS
+        queue. For an SNS HTTP(S) subscription, use verify_and_parse_sns.
         """
         from .webhook import parse_sns as _parse_sns
 
         return _parse_sns(notification_body)
+
+    def verify_and_parse_sns(self, notification_body):
+        """Verify and parse an SNS HTTP(S) notification envelope, using this
+        client's API secret.
+
+        Convenience wrapper around getstream.webhook.verify_and_parse_sns. Raises
+        getstream.webhook.InvalidWebhookError on signature mismatch or parse
+        failures.
+        """
+        from .webhook import verify_and_parse_sns as _verify_and_parse_sns
+
+        return _verify_and_parse_sns(notification_body, self.api_secret)

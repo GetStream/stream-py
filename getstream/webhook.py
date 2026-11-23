@@ -131,6 +131,8 @@ from .models import (
     FollowDeletedEvent,
     FollowUpdatedEvent,
     NotificationFeedUpdatedEvent,
+    ScheduledActivityFailedEvent,
+    ScheduledActivityPublishedEvent,
     StoriesFeedUpdatedEvent,
     FlagUpdatedEvent,
     AsyncImportErrorEvent,
@@ -328,6 +330,8 @@ EVENT_TYPE_FEEDS_FOLLOW_CREATED = "feeds.follow.created"
 EVENT_TYPE_FEEDS_FOLLOW_DELETED = "feeds.follow.deleted"
 EVENT_TYPE_FEEDS_FOLLOW_UPDATED = "feeds.follow.updated"
 EVENT_TYPE_FEEDS_NOTIFICATION_FEED_UPDATED = "feeds.notification_feed.updated"
+EVENT_TYPE_FEEDS_SCHEDULED_ACTIVITY_FAILED = "feeds.scheduled_activity.failed"
+EVENT_TYPE_FEEDS_SCHEDULED_ACTIVITY_PUBLISHED = "feeds.scheduled_activity.published"
 EVENT_TYPE_FEEDS_STORIES_FEED_UPDATED = "feeds.stories_feed.updated"
 EVENT_TYPE_FLAG_UPDATED = "flag.updated"
 EVENT_TYPE_IMPORT_ERROR = "import.error"
@@ -615,6 +619,8 @@ def _get_event_class(event_type: str):
         "feeds.follow.deleted": FollowDeletedEvent,
         "feeds.follow.updated": FollowUpdatedEvent,
         "feeds.notification_feed.updated": NotificationFeedUpdatedEvent,
+        "feeds.scheduled_activity.failed": ScheduledActivityFailedEvent,
+        "feeds.scheduled_activity.published": ScheduledActivityPublishedEvent,
         "feeds.stories_feed.updated": StoriesFeedUpdatedEvent,
         "flag.updated": FlagUpdatedEvent,
         "import.error": AsyncImportErrorEvent,
@@ -694,8 +700,11 @@ def verify_webhook_signature(
         secret: Your webhook secret (found in the Stream Dashboard)
 
     Returns:
-        True if the signature is valid, False otherwise
+        True if the signature is valid, False otherwise (including an empty
+        secret, or a signature that is missing or not an ASCII string)
     """
+    if not secret or not isinstance(signature, str) or not signature.isascii():
+        return False
     if isinstance(body, str):
         body = body.encode("utf-8")
 
@@ -797,7 +806,7 @@ def _unwrap_sns_notification_body(body: str) -> str:
 
 
 def decode_sns_payload(notification_body: str) -> bytes:
-    """Decode an SNS notification body. Accepts either:
+    """Decode an SNS notification body without verifying it. Accepts either:
 
     - a full SNS HTTP notification envelope JSON
       ``{"Type":"Notification","Message":"<inner>",...}``, or
@@ -898,9 +907,10 @@ def verify_and_parse_webhook(body: bytes, signature: str, secret: str) -> Any:
 def parse_sqs(message_body: str) -> Any:
     """SQS composite: base64-decode -> gunzip (if gzip-prefixed) -> parse.
 
-    Backend does not emit an HMAC signature for SQS messages today; this helper
-    therefore performs no signature verification. If the backend ever adds one,
-    a signed variant will be added rather than retrofitting this signature.
+    Performs no signature verification: only principals the queue's IAM policy
+    allows can send to it. Each message also carries a 'signature' attribute, the
+    same HMAC as the X-Signature header, which verify_signature checks against the
+    decoded payload.
     """
     payload = decode_sqs_payload(message_body)
     return parse_event(payload)
@@ -909,7 +919,40 @@ def parse_sqs(message_body: str) -> Any:
 def parse_sns(notification_body: str) -> Any:
     """SNS composite: parse SNS envelope -> base64-decode -> gunzip -> parse.
 
-    Same no-signature posture as parse_sqs.
+    Performs no signature verification, so use it only for a body read from an
+    IAM-protected SQS queue. For an SNS HTTP(S) subscription, which anyone can
+    POST to, use verify_and_parse_sns.
     """
     payload = decode_sns_payload(notification_body)
+    return parse_event(payload)
+
+
+def verify_and_parse_sns(notification_body: str, secret: str) -> Any:
+    """SNS HTTP(S) composite: unwrap envelope -> decode -> verify signature -> parse.
+
+    notification_body is the SNS notification envelope JSON, with raw message
+    delivery off. The signature is read from its 'signature' message attribute:
+    HMAC-SHA256 of the uncompressed JSON, keyed by your API secret, the same
+    value HTTP webhooks send as X-Signature.
+
+    Raises:
+        InvalidWebhookError: for every failure mode, including a missing envelope
+            or signature attribute (SIGNATURE_MISMATCH).
+    """
+    try:
+        env = json.loads(notification_body)
+    except (TypeError, ValueError, RecursionError) as e:
+        raise InvalidWebhookError(
+            InvalidWebhookError.INVALID_JSON + ": invalid SNS envelope"
+        ) from e
+    if not isinstance(env, dict) or not isinstance(env.get("Message"), str):
+        raise InvalidWebhookError(
+            InvalidWebhookError.INVALID_JSON + ": invalid SNS envelope"
+        )
+    attrs = env.get("MessageAttributes")
+    attr = attrs.get("signature") if isinstance(attrs, dict) else None
+    signature = attr.get("Value") if isinstance(attr, dict) else ""
+    payload = decode_sqs_payload(env["Message"])
+    if not verify_signature(payload, signature, secret):
+        raise InvalidWebhookError(InvalidWebhookError.SIGNATURE_MISMATCH)
     return parse_event(payload)

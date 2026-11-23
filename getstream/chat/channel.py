@@ -51,6 +51,7 @@ class Channel:
         messages_id_gt: Optional[str] = None,
         messages_id_gte: Optional[str] = None,
         messages_id_around: Optional[str] = None,
+        include_soft_deleted_channel: Optional[bool] = None,
         user_id: Optional[str] = None,
     ) -> StreamResponse[ChannelStateResponse]:
         response = self.client.get_channel(
@@ -65,6 +66,7 @@ class Channel:
             messages_id_gt=messages_id_gt,
             messages_id_gte=messages_id_gte,
             messages_id_around=messages_id_around,
+            include_soft_deleted_channel=include_soft_deleted_channel,
             user_id=user_id,
         )
         self._sync_from_response(response.data)
@@ -185,6 +187,16 @@ class Channel:
             id=self.channel_id,
             parent_id=parent_id,
             user_id=user_id,
+        )
+        self._sync_from_response(response.data)
+        return response
+
+    @attach_channel_cid
+    def create_draft(
+        self, message: MessageRequest
+    ) -> StreamResponse[CreateDraftResponse]:
+        response = self.client.create_draft(
+            type=self.channel_type, id=self.channel_id, message=message
         )
         self._sync_from_response(response.data)
         return response

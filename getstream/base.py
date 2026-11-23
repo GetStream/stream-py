@@ -220,6 +220,8 @@ class TelemetryEndpointMixin(ABC):
     # Provided by BaseConfig in concrete clients
     base_url: Optional[str]
     api_key: Optional[str]
+    headers: Dict[str, str]
+    params: Dict[str, str]
 
     # Provided by concrete clients (e.g. BaseClient/AsyncBaseClient)
     def _endpoint_name(self, path: str) -> str:  # pragma: no cover - interface hint
@@ -249,6 +251,10 @@ class TelemetryEndpointMixin(ABC):
         endpoint = self._endpoint_name(path)
         client_request_id = str(uuid.uuid4())
         headers["x-client-request-id"] = client_request_id
+        if not getattr(self, "_owns_http_client", True):
+            # A caller-supplied client also sends the caller's own requests, so
+            # Stream credentials go on each Stream request, not on its defaults.
+            headers = {**self.headers, **headers}
         kwargs["headers"] = headers
         span_attrs = common_attributes(
             api_key=self.api_key,
@@ -265,6 +271,11 @@ class TelemetryEndpointMixin(ABC):
         if channel_cid:
             span_attrs["stream.channel_cid"] = channel_cid
         return url_path, url_full, endpoint, span_attrs
+
+    def _request_params(self, query_params):
+        if getattr(self, "_owns_http_client", True):
+            return query_params
+        return httpx.QueryParams(self.params).merge(query_params or {})
 
 
 class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
@@ -295,8 +306,6 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
                     f"http_client must be an httpx.Client instance, "
                     f"got {type(http_client).__name__}"
                 )
-            http_client.headers.update(self.headers)
-            http_client.params = http_client.params.merge(self.params)
             http_client.base_url = self.base_url or ""
             if self.timeout is not None:
                 http_client.timeout = httpx.Timeout(self.timeout)
@@ -384,7 +393,10 @@ class BaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, ABC):
             call_kwargs.pop("path_params", None)
             try:
                 response = getattr(self.client, method.lower())(
-                    url_path, params=query_params, *args, **call_kwargs
+                    url_path,
+                    params=self._request_params(query_params),
+                    *args,
+                    **call_kwargs,
                 )
             except httpx.RequestError as err:
                 # No failed-log here: the retry loop (_request_sync) owns
@@ -648,8 +660,6 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
                     f"http_client must be an httpx.AsyncClient instance, "
                     f"got {type(http_client).__name__}"
                 )
-            http_client.headers.update(self.headers)
-            http_client.params = http_client.params.merge(self.params)
             http_client.base_url = self.base_url or ""
             if self.timeout is not None:
                 http_client.timeout = httpx.Timeout(self.timeout)
@@ -784,7 +794,10 @@ class AsyncBaseClient(TelemetryEndpointMixin, BaseConfig, ResponseParserMixin, A
 
             try:
                 response = await getattr(self.client, method.lower())(
-                    url_path, params=query_params, *args, **call_kwargs
+                    url_path,
+                    params=self._request_params(query_params),
+                    *args,
+                    **call_kwargs,
                 )
             except httpx.RequestError as err:
                 # No failed-log here: the retry loop (_request_async) owns

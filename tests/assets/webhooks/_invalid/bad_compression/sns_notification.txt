@@ -1,1 +1,1 @@
-{"Message":"H4sIAAAAAAAAAFhYWFhYWA==","MessageId":"00000000-0000-0000-0000-000000000000","Timestamp":"2026-05-08T00:00:00.000Z","TopicArn":"arn:aws:sns:us-east-1:000000000000:fixture-topic","Type":"Notification"}
+{"Message":"H4sIAAAAAAAAAFhYWFhYWA==","MessageAttributes":{"signature":{"Type":"String","Value":"fdd94f434124de48ef9f6237234ce28fd965fcb0f20b3f739f47d42aa17eb7b2"}},"MessageId":"00000000-0000-0000-0000-000000000000","Timestamp":"2026-05-08T00:00:00.000Z","TopicArn":"arn:aws:sns:us-east-1:000000000000:fixture-topic","Type":"Notification"}

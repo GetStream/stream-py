@@ -1514,6 +1514,7 @@ class FeedsRestClient(BaseClient):
         next: Optional[str] = None,
         overwrite_interest_weights: Optional[bool] = None,
         prev: Optional[str] = None,
+        skip_feed_creation: Optional[bool] = None,
         user_id: Optional[str] = None,
         view: Optional[str] = None,
         watch: Optional[bool] = None,
@@ -1543,6 +1544,7 @@ class FeedsRestClient(BaseClient):
             next=next,
             overwrite_interest_weights=overwrite_interest_weights,
             prev=prev,
+            skip_feed_creation=skip_feed_creation,
             user_id=user_id,
             view=view,
             watch=watch,
@@ -2513,6 +2515,54 @@ class FeedsRestClient(BaseClient):
             json=json,
         )
 
+    @telemetry.operation_name("getstream.api.feeds.list_promoted_topics")
+    def list_promoted_topics(self) -> StreamResponse[ListPromotedTopicsResponse]:
+        return self.get("/api/v2/feeds/promoted_topics", ListPromotedTopicsResponse)
+
+    @telemetry.operation_name("getstream.api.feeds.promote_topics")
+    def promote_topics(
+        self, ttl: int, tags: List[str], weight: Optional[float] = None
+    ) -> StreamResponse[PromoteTopicsResponse]:
+        json = PromoteTopicsRequest(ttl=ttl, tags=tags, weight=weight).to_dict()
+        return self.post(
+            "/api/v2/feeds/promoted_topics", PromoteTopicsResponse, json=json
+        )
+
+    @telemetry.operation_name("getstream.api.feeds.unpromote_topics")
+    def unpromote_topics(self, id: str) -> StreamResponse[UnpromoteTopicsResponse]:
+        path_params = {
+            "id": id,
+        }
+        return self.delete(
+            "/api/v2/feeds/promoted_topics/{id}",
+            UnpromoteTopicsResponse,
+            path_params=path_params,
+        )
+
+    @telemetry.operation_name("getstream.api.feeds.query_feeds_reactions")
+    def query_feeds_reactions(
+        self,
+        object_type: str,
+        user_id: str,
+        limit: Optional[int] = None,
+        next: Optional[str] = None,
+        prev: Optional[str] = None,
+        sort: Optional[List[SortParamRequest]] = None,
+        filter: Optional[Dict[str, object]] = None,
+    ) -> StreamResponse[QueryFeedsReactionsResponse]:
+        json = QueryFeedsReactionsRequest(
+            object_type=object_type,
+            user_id=user_id,
+            limit=limit,
+            next=next,
+            prev=prev,
+            sort=sort,
+            filter=filter,
+        ).to_dict()
+        return self.post(
+            "/api/v2/feeds/reactions/query", QueryFeedsReactionsResponse, json=json
+        )
+
     @telemetry.operation_name("getstream.api.feeds.feeds_get_retention_policy")
     def feeds_get_retention_policy(
         self,
@@ -2586,6 +2636,145 @@ class FeedsRestClient(BaseClient):
         ).to_dict()
         return self.post(
             "/api/v2/feeds/revisions/query", QueryRevisionHistoryResponse, json=json
+        )
+
+    @telemetry.operation_name("getstream.api.feeds.schedule_activity")
+    def schedule_activity(
+        self,
+        type: str,
+        feeds: List[str],
+        copy_custom_to_notification: Optional[bool] = None,
+        create_notification_activity: Optional[bool] = None,
+        create_users: Optional[bool] = None,
+        expires_at: Optional[str] = None,
+        force_moderation: Optional[bool] = None,
+        id: Optional[str] = None,
+        parent_id: Optional[str] = None,
+        poll_id: Optional[str] = None,
+        restrict_replies: Optional[str] = None,
+        scheduled_at: Optional[datetime] = None,
+        skip_enrich_url: Optional[bool] = None,
+        skip_push: Optional[bool] = None,
+        text: Optional[str] = None,
+        user_id: Optional[str] = None,
+        visibility: Optional[str] = None,
+        visibility_tag: Optional[str] = None,
+        attachments: Optional[List[Attachment]] = None,
+        collection_refs: Optional[List[str]] = None,
+        collections: Optional[List[CollectionRequest]] = None,
+        filter_tags: Optional[List[str]] = None,
+        interest_tags: Optional[List[str]] = None,
+        mentioned_user_ids: Optional[List[str]] = None,
+        custom: Optional[Dict[str, object]] = None,
+        location: Optional[Location] = None,
+        search_data: Optional[Dict[str, object]] = None,
+    ) -> StreamResponse[ScheduleActivityResponse]:
+        json = ScheduleActivityRequest(
+            type=type,
+            feeds=feeds,
+            copy_custom_to_notification=copy_custom_to_notification,
+            create_notification_activity=create_notification_activity,
+            create_users=create_users,
+            expires_at=expires_at,
+            force_moderation=force_moderation,
+            id=id,
+            parent_id=parent_id,
+            poll_id=poll_id,
+            restrict_replies=restrict_replies,
+            scheduled_at=scheduled_at,
+            skip_enrich_url=skip_enrich_url,
+            skip_push=skip_push,
+            text=text,
+            user_id=user_id,
+            visibility=visibility,
+            visibility_tag=visibility_tag,
+            attachments=attachments,
+            collection_refs=collection_refs,
+            collections=collections,
+            filter_tags=filter_tags,
+            interest_tags=interest_tags,
+            mentioned_user_ids=mentioned_user_ids,
+            custom=custom,
+            location=location,
+            search_data=search_data,
+        ).to_dict()
+        return self.post(
+            "/api/v2/feeds/scheduled_activities", ScheduleActivityResponse, json=json
+        )
+
+    @telemetry.operation_name("getstream.api.feeds.query_scheduled_activities")
+    def query_scheduled_activities(
+        self,
+        limit: Optional[int] = None,
+        next: Optional[str] = None,
+        filter: Optional[QueryScheduledActivitiesFilter] = None,
+    ) -> StreamResponse[QueryScheduledActivitiesResponse]:
+        json = QueryScheduledActivitiesRequest(
+            limit=limit, next=next, filter=filter
+        ).to_dict()
+        return self.post(
+            "/api/v2/feeds/scheduled_activities/query",
+            QueryScheduledActivitiesResponse,
+            json=json,
+        )
+
+    @telemetry.operation_name("getstream.api.feeds.delete_scheduled_activity")
+    def delete_scheduled_activity(
+        self, id: str
+    ) -> StreamResponse[DeleteScheduledActivityResponse]:
+        path_params = {
+            "id": id,
+        }
+        return self.delete(
+            "/api/v2/feeds/scheduled_activities/{id}",
+            DeleteScheduledActivityResponse,
+            path_params=path_params,
+        )
+
+    @telemetry.operation_name("getstream.api.feeds.get_scheduled_activity")
+    def get_scheduled_activity(
+        self, id: str
+    ) -> StreamResponse[GetScheduledActivityResponse]:
+        path_params = {
+            "id": id,
+        }
+        return self.get(
+            "/api/v2/feeds/scheduled_activities/{id}",
+            GetScheduledActivityResponse,
+            path_params=path_params,
+        )
+
+    @telemetry.operation_name("getstream.api.feeds.update_scheduled_activity")
+    def update_scheduled_activity(
+        self,
+        id: str,
+        scheduled_at: Optional[datetime] = None,
+        activity: Optional[ActivityRequest] = None,
+    ) -> StreamResponse[UpdateScheduledActivityResponse]:
+        path_params = {
+            "id": id,
+        }
+        json = UpdateScheduledActivityRequest(
+            scheduled_at=scheduled_at, activity=activity
+        ).to_dict()
+        return self.patch(
+            "/api/v2/feeds/scheduled_activities/{id}",
+            UpdateScheduledActivityResponse,
+            path_params=path_params,
+            json=json,
+        )
+
+    @telemetry.operation_name("getstream.api.feeds.publish_scheduled_activity_now")
+    def publish_scheduled_activity_now(
+        self, id: str
+    ) -> StreamResponse[PublishScheduledActivityNowResponse]:
+        path_params = {
+            "id": id,
+        }
+        return self.post(
+            "/api/v2/feeds/scheduled_activities/{id}/publish_now",
+            PublishScheduledActivityNowResponse,
+            path_params=path_params,
         )
 
     @telemetry.operation_name("getstream.api.feeds.query_feeds_usage_stats")
@@ -2725,4 +2914,19 @@ class FeedsRestClient(BaseClient):
             UpsertUserInterestsResponse,
             path_params=path_params,
             json=json,
+        )
+
+    @telemetry.operation_name("getstream.api.feeds.get_trending_topics")
+    def get_trending_topics(
+        self, user_id: str, limit: Optional[int] = None
+    ) -> StreamResponse[GetTrendingTopicsResponse]:
+        query_params = build_query_param(**{"limit": limit})
+        path_params = {
+            "user_id": user_id,
+        }
+        return self.get(
+            "/api/v2/feeds/users/{user_id}/trending_topics",
+            GetTrendingTopicsResponse,
+            query_params=query_params,
+            path_params=path_params,
         )
