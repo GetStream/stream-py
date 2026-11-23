@@ -1449,6 +1449,10 @@ class TestWebhookConformanceNegative:
         ):
             verify_and_parse_sns(json.dumps(env), CANONICAL_TEST_SECRET)
 
+    def test_verify_and_parse_sns_rejects_deeply_nested_body(self):
+        with pytest.raises(InvalidWebhookError, match="invalid SNS envelope"):
+            verify_and_parse_sns("[" * 100_000, CANONICAL_TEST_SECRET)
+
     def test_verify_and_parse_sns_rejects_bare_message(self):
         msg = _read_str(self._neg("tampered_body") / "sqs_body.txt")
         with pytest.raises(InvalidWebhookError, match="invalid SNS envelope"):

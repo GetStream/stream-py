@@ -941,7 +941,7 @@ def verify_and_parse_sns(notification_body: str, secret: str) -> Any:
     """
     try:
         env = json.loads(notification_body)
-    except (TypeError, ValueError) as e:
+    except (TypeError, ValueError, RecursionError) as e:
         raise InvalidWebhookError(
             InvalidWebhookError.INVALID_JSON + ": invalid SNS envelope"
         ) from e
