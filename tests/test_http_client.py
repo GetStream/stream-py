@@ -420,6 +420,23 @@ class TestSyncHttpClientEscapeHatch:
         assert req.headers["x-custom"] == "val"
         assert "authorization" in req.headers
 
+    def test_credentials_stay_off_user_client_defaults(self):
+        transport, captured = _capture_transport()
+        custom = httpx.Client(transport=transport)
+        client = Stream(
+            api_key="k", api_secret="s", base_url="http://test", http_client=custom
+        )
+        client.get_app()
+        custom.get("http://other.example/")
+
+        stream_req, other_req = captured
+        assert "authorization" in stream_req.headers
+        assert stream_req.url.params["api_key"] == "k"
+        assert "authorization" not in custom.headers
+        assert "api_key" not in custom.params
+        assert "authorization" not in other_req.headers
+        assert "api_key" not in other_req.url.params
+
 
 @pytest.mark.asyncio
 class TestAsyncHttpClientEscapeHatch:
@@ -430,6 +447,19 @@ class TestAsyncHttpClientEscapeHatch:
             api_key="k", api_secret="s", base_url="http://test", http_client=custom
         )
         assert client.client is custom
+
+    async def test_credentials_stay_off_user_client_defaults(self):
+        transport, captured = _capture_transport()
+        custom = httpx.AsyncClient(transport=transport)
+        client = AsyncStream(
+            api_key="k", api_secret="s", base_url="http://test", http_client=custom
+        )
+        await client.get_app()
+
+        assert "authorization" in captured[0].headers
+        assert captured[0].url.params["api_key"] == "k"
+        assert "authorization" not in custom.headers
+        assert "api_key" not in custom.params
 
     async def test_aclose_does_not_close_user_provided_client(self):
         custom = httpx.AsyncClient(transport=_mock_transport())

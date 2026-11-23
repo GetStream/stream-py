@@ -97,6 +97,7 @@ class CommonRestClient(AsyncBaseClient):
         grants: Optional[Dict[str, List[str]]] = None,
         huawei_config: Optional[HuaweiConfig] = None,
         image_upload_config: Optional[FileUploadConfig] = None,
+        message_marks: Optional[MessageMarksConfig] = None,
         moderation_dashboard_preferences: Optional[
             ModerationDashboardPreferences
         ] = None,
@@ -163,6 +164,7 @@ class CommonRestClient(AsyncBaseClient):
             grants=grants,
             huawei_config=huawei_config,
             image_upload_config=image_upload_config,
+            message_marks=message_marks,
             moderation_dashboard_preferences=moderation_dashboard_preferences,
             push_config=push_config,
             xiaomi_config=xiaomi_config,
@@ -195,6 +197,7 @@ class CommonRestClient(AsyncBaseClient):
         team: Optional[str] = None,
         type: Optional[str] = None,
         user_id: Optional[str] = None,
+        validate: Optional[bool] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[CreateBlockListResponse]:
         json = CreateBlockListRequest(
@@ -207,6 +210,7 @@ class CommonRestClient(AsyncBaseClient):
             team=team,
             type=type,
             user_id=user_id,
+            validate=validate,
             user=user,
         ).to_dict()
         return await self.post("/api/v2/blocklists", CreateBlockListResponse, json=json)
@@ -266,6 +270,7 @@ class CommonRestClient(AsyncBaseClient):
         is_substring_matching_enabled: Optional[bool] = None,
         team: Optional[str] = None,
         user_id: Optional[str] = None,
+        validate: Optional[bool] = None,
         words: Optional[List[str]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[UpdateBlockListResponse]:
@@ -279,6 +284,7 @@ class CommonRestClient(AsyncBaseClient):
             is_substring_matching_enabled=is_substring_matching_enabled,
             team=team,
             user_id=user_id,
+            validate=validate,
             words=words,
             user=user,
         ).to_dict()
@@ -493,6 +499,15 @@ class CommonRestClient(AsyncBaseClient):
     ) -> StreamResponse[CreateGuestResponse]:
         json = CreateGuestRequest(user=user).to_dict()
         return await self.post("/api/v2/guest", CreateGuestResponse, json=json)
+
+    @telemetry.operation_name("getstream.api.common.get_hook_events")
+    async def get_hook_events(
+        self, product: Optional[List[str]] = None
+    ) -> StreamResponse[GetHookEventsResponse]:
+        query_params = build_query_param(**{"product": product})
+        return await self.get(
+            "/api/v2/hook/events", GetHookEventsResponse, query_params=query_params
+        )
 
     @telemetry.operation_name("getstream.api.common.create_import_url")
     async def create_import_url(
@@ -1403,6 +1418,7 @@ class CommonRestClient(AsyncBaseClient):
         new_call_owner_id: Optional[str] = None,
         new_channel_owner_id: Optional[str] = None,
         user: Optional[str] = None,
+        exclude_channel_cids: Optional[List[str]] = None,
     ) -> StreamResponse[DeleteUsersResponse]:
         json = DeleteUsersRequest(
             user_ids=user_ids,
@@ -1413,6 +1429,7 @@ class CommonRestClient(AsyncBaseClient):
             new_call_owner_id=new_call_owner_id,
             new_channel_owner_id=new_channel_owner_id,
             user=user,
+            exclude_channel_cids=exclude_channel_cids,
         ).to_dict()
         return await self.post("/api/v2/users/delete", DeleteUsersResponse, json=json)
 

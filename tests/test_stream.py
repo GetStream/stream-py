@@ -1,3 +1,5 @@
+import traceback
+
 import pytest
 
 from getstream import Stream
@@ -43,6 +45,21 @@ class TestStream:
         client = Stream(api_key="k", token=user_token)
         with pytest.raises(ValueError):
             client.create_call_token("bob", call_cids=["default:c1"])
+
+    @pytest.mark.parametrize("user_id", [None, ""])
+    def test_create_call_token_requires_user_id(self, user_id):
+        client = Stream(api_key="k", api_secret="s")
+        with pytest.raises(ValueError, match="user_id is required"):
+            client.create_call_token(user_id, call_cids=["default:c1"])
+
+    def test_missing_api_key_error_hides_secret(self, monkeypatch):
+        monkeypatch.delenv("STREAM_API_KEY", raising=False)
+        monkeypatch.setenv("STREAM_API_SECRET", "env-secret-must-not-leak")
+        with pytest.raises(ValueError, match="STREAM_API_KEY") as exc:
+            Stream()
+        assert "env-secret-must-not-leak" not in "".join(
+            traceback.format_exception(exc.value)
+        )
 
     def test_verify_signature_raises_without_secret(self, user_token):
         client = Stream(api_key="k", token=user_token)

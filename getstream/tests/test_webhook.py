@@ -3,6 +3,7 @@
 import gzip
 import hmac
 import hashlib
+import json
 
 import warnings
 
@@ -20,6 +21,7 @@ from getstream.webhook import (
     gunzip_payload,
     parse_sqs,
     parse_sns,
+    verify_and_parse_sns,
     UnknownEvent,
     InvalidWebhookError,
 )
@@ -65,6 +67,14 @@ class TestVerifyWebhookSignature:
             self.secret.encode("utf-8"), body_str.encode("utf-8"), hashlib.sha256
         ).hexdigest()
         assert verify_webhook_signature(body_str, sig, self.secret) is True
+
+    @pytest.mark.parametrize("signature", ["é" * 64, None, b"abc", ""])
+    def test_malformed_signature_returns_false(self, signature):
+        assert verify_webhook_signature(self.body, signature, self.secret) is False
+
+    def test_empty_secret_returns_false(self):
+        sig = hmac.new(b"", self.body, hashlib.sha256).hexdigest()
+        assert verify_webhook_signature(self.body, sig, "") is False
 
 
 class TestGetEventType:
@@ -860,6 +870,18 @@ class TestParseWebhookEvent:
             event = parse_webhook_event({"type": "feeds.notification_feed.updated"})
         assert type(event).__name__ == "NotificationFeedUpdatedEvent"
 
+    def test_parse_feeds_scheduled_activity_failed(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            event = parse_webhook_event({"type": "feeds.scheduled_activity.failed"})
+        assert type(event).__name__ == "ScheduledActivityFailedEvent"
+
+    def test_parse_feeds_scheduled_activity_published(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            event = parse_webhook_event({"type": "feeds.scheduled_activity.published"})
+        assert type(event).__name__ == "ScheduledActivityPublishedEvent"
+
     def test_parse_feeds_stories_feed_updated(self):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", RuntimeWarning)
@@ -1329,6 +1351,11 @@ class TestWebhookConformanceHappy:
         event = parse_sns(notif)
         assert event.type == fixture_dir.name
 
+    def test_verify_and_parse_sns(self, fixture_dir):
+        notif = _read_str(fixture_dir / "sns_notification.txt")
+        event = verify_and_parse_sns(notif, CANONICAL_TEST_SECRET)
+        assert event.type == fixture_dir.name
+
 
 class TestWebhookConformanceNegative:
     def _neg(self, name):
@@ -1406,3 +1433,23 @@ class TestWebhookConformanceNegative:
         notif = _read_str(self._neg("bad_sns_envelope") / "sns_notification.txt")
         with pytest.raises(InvalidWebhookError):
             parse_sns(notif)
+
+    def test_verify_and_parse_sns_tampered_body(self):
+        notif = _read_str(self._neg("tampered_body") / "sns_notification.txt")
+        with pytest.raises(
+            InvalidWebhookError, match=InvalidWebhookError.SIGNATURE_MISMATCH
+        ):
+            verify_and_parse_sns(notif, CANONICAL_TEST_SECRET)
+
+    def test_verify_and_parse_sns_unsigned_envelope(self):
+        env = json.loads(_read_str(self._neg("tampered_body") / "sns_notification.txt"))
+        del env["MessageAttributes"]
+        with pytest.raises(
+            InvalidWebhookError, match=InvalidWebhookError.SIGNATURE_MISMATCH
+        ):
+            verify_and_parse_sns(json.dumps(env), CANONICAL_TEST_SECRET)
+
+    def test_verify_and_parse_sns_rejects_bare_message(self):
+        msg = _read_str(self._neg("tampered_body") / "sqs_body.txt")
+        with pytest.raises(InvalidWebhookError, match="invalid SNS envelope"):
+            verify_and_parse_sns(msg, CANONICAL_TEST_SECRET)
