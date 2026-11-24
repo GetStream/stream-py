@@ -1,0 +1,125 @@
+name: OpenAPI
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+jobs:
+  # A regen PR must be a major, with a `!` in its title that squash-merges into the commit release-please reads, when its .spec-version moves to a protocol tag carrying approved breaking changes the base tag did not, moves back to an older tag, or names a generator other than the spec's own chat version. The sdk-not-breaking label passes added tickets once a human has judged them irrelevant to this SDK and named each one in the PR body.
+  breaking-changes:
+    name: Breaking changes check
+    runs-on: { group: github-public-amd64 }
+    timeout-minutes: 5
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          TITLE: ${{ github.event.pull_request.title }}
+          BODY: ${{ github.event.pull_request.body }}
+          NOT_BREAKING: ${{ contains(github.event.pull_request.labels.*.name, 'sdk-not-breaking') }}
+          # wire applies to every SDK. go tickets carry no Python lines, so each one waits for a human to judge it here rather than pass unseen.
+          LISTS: (.wire // []) + (.go // [])
+        run: |
+          set -euo pipefail
+          # A fork's head commit resolves through this repository too. A 404 leaves the file empty: the commit predates .spec-version.
+          read_version() {
+            if ! gh api "repos/$GITHUB_REPOSITORY/contents/.spec-version?ref=$1" -H 'Accept: application/vnd.github.raw' > "$RUNNER_TEMP/$2" 2> "$RUNNER_TEMP/err"; then
+              grep -q 'HTTP 404' "$RUNNER_TEMP/err" || { echo "::error::could not read .spec-version at $1: $(cat "$RUNNER_TEMP/err")"; exit 1; }
+              : > "$RUNNER_TEMP/$2"
+            fi
+          }
+          # The merge base, not the base tip: a branch cut before a regen merged still carries the older .spec-version, which is no downgrade.
+          base=$(gh api "repos/$GITHUB_REPOSITORY/compare/$BASE_SHA...$HEAD_SHA" --jq .merge_base_commit.sha)
+          read_version "$base" base-version
+          read_version "$HEAD_SHA" head-version
+          if [ ! -s "$RUNNER_TEMP/head-version" ]; then echo "the PR has no .spec-version"; exit 0; fi
+          if cmp -s "$RUNNER_TEMP/base-version" "$RUNNER_TEMP/head-version"; then echo ".spec-version unchanged"; exit 0; fi
+          old=$(sed -n 's/^spec: //p' "$RUNNER_TEMP/base-version")
+          new=$(sed -n 's/^spec: //p' "$RUNNER_TEMP/head-version")
+          generator=$(sed -n 's/^generator: //p' "$RUNNER_TEMP/head-version")
+          tag_re='^openapi-v[0-9.]+$'
+          if ! [[ $new =~ $tag_re ]]; then echo "::warning::.spec-version names no protocol tag ($new), so it cannot be compared"; exit 0; fi
+          [[ $old =~ $tag_re ]] || old=
+
+          # Sets kind to the YAML type of the tag's list. Only a missing list is tolerated; any other shape or a yq error fails the step.
+          expr=".info.\"x-stream-breaking-changes\" | $LISTS | unique | .[]"
+          list() {
+            curl -fsSL "https://raw.githubusercontent.com/GetStream/protocol/$1/openapi/v2/serverside-api.yaml" -o "$RUNNER_TEMP/spec.yaml" || { echo "::error::could not download the $1 spec"; exit 1; }
+            kind=$(yq '.info."x-stream-breaking-changes" | tag' "$RUNNER_TEMP/spec.yaml")
+            case $kind in
+              '!!null') ;;
+              '!!map') yq -r "$expr" "$RUNNER_TEMP/spec.yaml" | sort > "$RUNNER_TEMP/$2" ;;
+              *) echo "::error::the $1 breaking-change list is a $kind, not a map"; exit 1 ;;
+            esac
+          }
+
+          reasons=()
+          [ "$generator" = "chat ${new#openapi-}" ] || reasons+=("the generator (${generator:-not recorded}) is not chat ${new#openapi-}, so template changes it brings are missing from the $new list")
+          added=
+          if [ -z "$old" ]; then
+            echo "::warning::the base names no protocol tag, so the approved breaking changes $new brings cannot be listed"
+          elif [ "$(printf '%s\n' "$old" "$new" | sort -V | tail -1)" != "$new" ]; then
+            reasons+=("it moves the spec back from $old to $new, which removes whatever $old added")
+          elif [ "$old" != "$new" ]; then
+            list "$old" old
+            if [ "$kind" = '!!null' ]; then
+              echo "::warning::$old carries no breaking-change list, so the approved breaking changes $new brings cannot be listed"
+            else
+              list "$new" new
+              if [ "$kind" = '!!null' ]; then echo "::error::$new carries no breaking-change list although $old does, so the spec generation regressed"; exit 1; fi
+              added=$(comm -13 "$RUNNER_TEMP/old" "$RUNNER_TEMP/new")
+            fi
+          fi
+
+          if [ -n "$added" ]; then echo "$old to $new brings these approved breaking changes:"; echo "$added"; fi
+          for reason in "${reasons[@]}"; do echo "major needed: $reason"; done
+          if [ -z "$added" ] && [ ${#reasons[@]} -eq 0 ]; then echo "nothing here needs a major"; exit 0; fi
+          bang='^[a-z]+(\([^)]*\))?!:'
+          hold="If auto-merge is on, turn it off before adding '!', or the major merges as soon as this check passes."
+          if [[ $TITLE =~ $bang ]]; then
+            # The regen writes footers from wire lines only, so a `!` speaks for no other added ticket until a human names it here.
+            unlined=
+            [ -z "$added" ] || unlined=$(comm -23 <(printf '%s\n' "$added") <(yq -r '.info."x-stream-breaking-changes".wire // [] | .[]' "$RUNNER_TEMP/spec.yaml" | sort))
+            missing=$(while read -r ticket; do [ -z "$ticket" ] || [[ $BODY == *"$ticket"* ]] || echo "$ticket"; done <<< "$unlined")
+            if [ -z "$missing" ]; then echo "the title marks a major"; exit 0; fi
+            echo "::error::The title marks a major, but no footer covers ${missing//$'\n'/, }, which has no Python lines. Name each in the PR body once you have judged it, with a BREAKING CHANGE footer if it breaks this SDK."
+            exit 1
+          fi
+          if [ ${#reasons[@]} -gt 0 ]; then
+            for reason in "${reasons[@]}"; do echo "::error::Add '!' to the PR title: $reason. $hold"; done
+            exit 1
+          fi
+          if [ "$NOT_BREAKING" = true ]; then
+            missing=$(while read -r ticket; do [[ $BODY == *"$ticket"* ]] || echo "$ticket"; done <<< "$added")
+            if [ -z "$missing" ]; then echo "labelled sdk-not-breaking, and the PR body names every ticket"; exit 0; fi
+            echo "::error::The sdk-not-breaking label covers only tickets named in the PR body. Name ${missing//$'\n'/, } there once you have judged them, or add '!' to the PR title. $hold"
+            exit 1
+          fi
+          echo "::error::$new brings approved breaking changes (${added//$'\n'/, }). Add '!' to the PR title to release a major, or label the PR sdk-not-breaking and name each ticket in the PR body if none of them breaks this SDK. $hold"
+          exit 1
+      # release-please reads a BEGIN_COMMIT_OVERRIDE block in place of the title, so the block releases a major only through a BREAKING CHANGE footer, whatever the title says.
+      - name: Title and changelog agree on a major
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+          BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -euo pipefail
+          if [[ $BODY != *BEGIN_COMMIT_OVERRIDE* ]]; then exit 0; fi
+          block=${BODY#*BEGIN_COMMIT_OVERRIDE}
+          block=${block%%END_COMMIT_OVERRIDE*}
+          footer=false
+          if grep -Eq '^BREAKING[ -]CHANGE: ' <<< "$block"; then footer=true; fi
+          bang='^[a-z]+(\([^)]*\))?!:'
+          if [[ $TITLE =~ $bang ]] && [ $footer = false ]; then
+            echo "::error::The title marks a major, but the BEGIN_COMMIT_OVERRIDE block release-please reads has no BREAKING CHANGE footer. Before END_COMMIT_OVERRIDE, add a blank line and 'BREAKING CHANGE: <what breaks for customers>'."
+            exit 1
+          fi
+          if ! [[ $TITLE =~ $bang ]] && [ $footer = true ]; then
+            echo "::error::The BEGIN_COMMIT_OVERRIDE block has a BREAKING CHANGE footer, so release-please would cut a major. Add '!' to the PR title, or delete the BREAKING CHANGE lines if nothing there breaks this SDK."
+            exit 1
+          fi
+          echo "the title and the changelog agree"

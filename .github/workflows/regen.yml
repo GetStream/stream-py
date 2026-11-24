@@ -1,0 +1,351 @@
+name: Regenerate
+
+# Regenerates the client from a protocol openapi release with the generator attached to the chat release of the same version, then opens one PR that merges itself once its required checks and the integration tests pass. protocol dispatches on each release; the daily run catches a missed one.
+on:
+  repository_dispatch:
+    types: [openapi-release]
+  schedule:
+    - cron: '23 6 * * *'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Protocol release, e.g. openapi-v240.4.0. Empty takes the latest.
+        required: false
+  # Each finished integration attempt is handled right away: a pass merges the PR, a first red one is rerun even after the run that pushed has given up waiting, and a red rerun reaches a human.
+  workflow_run:
+    workflows: [Regen integration]
+    types: [completed]
+    branches: [regen/auto]
+
+permissions: {}
+
+concurrency:
+  group: regen
+  cancel-in-progress: false
+
+jobs:
+  regen:
+    name: Regenerate
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion != 'skipped'
+    runs-on: { group: github-public-amd64 }
+    # Setup, generate.sh and land()'s 45 minutes of polling stay under it, so a stuck run fails and posts a heads-up instead of being cancelled silently.
+    timeout-minutes: 60
+    # The getstream-sdk-bot key lives only in this environment, which deploys from the default branch. The App pushes and merges, because GITHUB_TOKEN events start neither the PR checks nor the release run.
+    environment: sdk-bot
+    # GITHUB_TOKEN reads the PR's checks and the integration run, which the App has no permission for, and reruns a red run once.
+    permissions:
+      actions: write
+      checks: read
+      contents: read
+      pull-requests: read
+      statuses: read
+    steps:
+      - id: app
+        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+        with:
+          client-id: Iv23lioh9qYGjBIp9nsK
+          private-key: ${{ secrets.SDK_BOT_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+      # Read-only, for the generator on the chat release and the protocol release list.
+      - id: read
+        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+        with:
+          client-id: Iv23lioh9qYGjBIp9nsK
+          private-key: ${{ secrets.SDK_BOT_PRIVATE_KEY }}
+          repositories: chat,protocol
+          permission-contents: read
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          # The branch tip, not the commit of the event: a run queued behind another one must see the regen that one merged.
+          ref: ${{ github.ref }}
+          token: ${{ steps.app.outputs.token }}
+      # generate.sh formats with the ruff of the dev dependencies. Generating needs no Rust extension.
+      - uses: ./.github/actions/python-uv-setup
+        with:
+          build-extension: "false"
+      - name: Regenerate and open the PR
+        id: regen
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          READ_TOKEN: ${{ steps.read.outputs.token }}
+          CHECKS_TOKEN: ${{ github.token }}
+          APP_SLUG: ${{ steps.app.outputs.app-slug }}
+          TAG: ${{ github.event.client_payload.tag || inputs.tag }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+        run: |
+          set -euo pipefail
+          # An attempt that was already rerun leaves the PR to the newer attempt, whose own completion starts a run.
+          if [ -n "$RUN_ID" ]; then
+            latest=$(GH_TOKEN=$CHECKS_TOKEN gh run view "$RUN_ID" --json attempt --jq .attempt)
+            if [ "$latest" -gt "$RUN_ATTEMPT" ]; then echo "Regen integration run $RUN_ID has attempt $latest, newer than $RUN_ATTEMPT"; exit 0; fi
+          fi
+          base=$GITHUB_REF_NAME
+          branch=regen/auto
+          bang='^[a-z]+(\([^)]*\))?!:'
+          newest() { printf '%s\n' "$@" | sort -V | tail -1; }
+          # Records why the PR needs a human, for the heads-up step.
+          human() {
+            echo "::notice::#$num $1"
+            echo "note=<$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/pull/$num|#$num> $1" >> "$GITHUB_OUTPUT"
+          }
+          # Leaves a major to a human, who merges it in a breaking-change window, and disarms any auto-merge so an approval alone cannot merge it.
+          hold() {
+            gh pr merge "$num" --disable-auto 2>/dev/null || true
+            if [ "${2:-}" = quiet ]; then echo "::notice::#$num $1, so a human merges it"; else human "$1, so a human merges it"; fi
+            exit 0
+          }
+          # Whether a human took the open `!` PR: a `!` the regen wrote moves on with each newer tag, and a human takes the PR by renaming it or editing its body. A read error stops the run rather than overwrite their edit.
+          took() {
+            [[ $(gh pr view "$num" --json title --jq .title) =~ $bang ]] || return 1
+            t=$(gh api graphql -F owner="${GITHUB_REPOSITORY%/*}" -F name="${GITHUB_REPOSITORY#*/}" -F n="$num" -f query='query($owner: String!, $name: String!, $n: Int!) { repository(owner: $owner, name: $name) { pullRequest(number: $n) { editor { __typename } timelineItems(itemTypes: [RENAMED_TITLE_EVENT], last: 100) { nodes { ... on RenamedTitleEvent { actor { __typename } } } } } } }' \
+              --jq '.data.repository.pullRequest | [(.editor.__typename // "Bot"), (.timelineItems.nodes[].actor.__typename)] | any(. != "Bot")') || { echo "::error::could not read who edited #$num"; exit 1; }
+            [ "$t" = true ]
+          }
+          # Merges the open regen PR at commit $1 as the App once its required checks and the Regen integration run on that commit pass. Auto-merge waits for a code owner review although the App may bypass it, and gh refuses a blocked PR without --admin, which skips only what the App may bypass. GitHub refuses the merge while a required check has not reported yet, so a refusal only means try again.
+          land() {
+            body=$(gh pr view "$num" --json body --jq .body)
+            # Posted when this run changed the PR's breaking changes ($prev is the body it replaced), not on every run that finds them unchanged.
+            if grep -q '^BREAKING CHANGE: ' <<< "$body"; then
+              if [ "$(grep '^BREAKING CHANGE: ' <<< "$body")" = "$(grep '^BREAKING CHANGE: ' <<< "${prev-$body}" || true)" ]; then hold "carries breaking changes" quiet; fi
+              hold "carries breaking changes"
+            fi
+            for _ in $(seq 45); do
+              sleep 60
+              checks=$(GH_TOKEN=$CHECKS_TOKEN gh pr checks "$num" --required --json bucket --jq '[.[].bucket] | unique | join(",")' 2>&1) || true
+              case $checks in
+                *"checks reported"*|*pending*) ;;
+                *fail*|*cancel*) human "has a failing required check, so a human takes it from here"; exit 0 ;;
+                pass|pass,skipping|skipping,pass)
+                  if [[ $(gh pr view "$num" --json title --jq .title) =~ $bang ]]; then hold "is marked as a major" quiet; fi
+                  run=$(GH_TOKEN=$CHECKS_TOKEN gh run list --workflow regen_integration.yml --commit "$1" --limit 1 --json databaseId,status,conclusion,attempt --jq '.[] | "\(.databaseId) \(.attempt) \(.status)/\(.conclusion // "")"' 2>&1) || true
+                  read -r id attempt state _ <<< "$run"
+                  conclusion=${state#completed/}
+                  case $state in
+                    completed/success) ;;
+                    # The shared app and the repo-wide run-integration concurrency group, which drops a queued run, make a first red or cancelled run often not the regen's fault. The workflow_run trigger merges once the rerun passes.
+                    completed/*)
+                      if [ "$attempt" = 1 ] && GH_TOKEN=$CHECKS_TOKEN gh run rerun "$id"; then echo "::notice::#$num reran its integration tests after a $conclusion, and a pass merges it"; exit 0; fi
+                      human "has integration tests that ended in $conclusion on attempt $attempt, so a human takes it from here"
+                      if [ "$GITHUB_EVENT_NAME" = workflow_run ]; then echo "ping=true" >> "$GITHUB_OUTPUT"; fi
+                      exit 0 ;;
+                    ''|queued/|in_progress/|waiting/|pending/|requested/) continue ;;
+                    *) echo "::warning::could not read the Regen integration run of #$num at $1: $run"; continue ;;
+                  esac
+                  gh pr merge "$num" --squash --admin --match-head-commit "$1" && exit 0 ;;
+                *) echo "::warning::could not read the required checks of #$num: $checks" ;;
+              esac
+            done
+            human "did not merge within 45 minutes"
+            exit 1
+          }
+
+          if [ -z "$TAG" ]; then
+            TAG=$(GH_TOKEN=$READ_TOKEN gh api 'repos/GetStream/protocol/releases?per_page=100' --jq '.[].tag_name' | grep -E '^openapi-v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1)
+          fi
+          [[ $TAG =~ ^openapi-v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::$TAG is not a protocol openapi release"; exit 1; }
+          current=$(sed -n 's/^spec: //p' .spec-version)
+          if [ "$(newest "$current" "$TAG")" = "$current" ]; then echo "$base is at $current, which is not older than $TAG"; exit 0; fi
+
+          # An open PR a human marked breaking or not breaking is not regenerated, so the judgement stays with the spec it was made on.
+          num=
+          pr=$(gh pr list --head "$branch" --base "$base" --state open --json number,title,labels,headRefOid,isCrossRepository --jq 'map(select(.isCrossRepository | not)) | .[0] // empty')
+          if [ -n "$pr" ]; then
+            num=$(jq -r .number <<< "$pr")
+            title=$(jq -r .title <<< "$pr")
+            if took; then hold "is marked as a major" quiet; fi
+            head=$(jq -r .headRefOid <<< "$pr")
+            behind=$(gh api "repos/$GITHUB_REPOSITORY/compare/$base...$branch" --jq .behind_by)
+            # Regenerating would drop the tickets a human named in the body, so a labelled PR that fell behind takes in the base with a merge, as the up-to-date rule requires.
+            if jq -e 'any(.labels[]; .name == "sdk-not-breaking")' <<< "$pr" > /dev/null; then
+              if [ "$behind" != 0 ]; then
+                gh pr update-branch "$num" || { human "does not take in $base cleanly, so a human takes it from here"; exit 0; }
+                moved=$head
+                for _ in $(seq 30); do sleep 5; moved=$(gh pr view "$num" --json headRefOid --jq .headRefOid); [ "$moved" != "$head" ] && break; done
+                [ "$moved" != "$head" ] || { echo "::error::#$num did not move after taking in $base"; exit 1; }
+                head=$moved
+                echo "ping=true" >> "$GITHUB_OUTPUT"
+              fi
+              land "$head"
+            fi
+            open=$(grep -o 'openapi-v[0-9.]*[0-9]' <<< "$title" || true)
+            if [ "$(newest "$open" "$TAG")" != "$TAG" ] || [ "$open" = "$TAG" ]; then
+              if [ "$behind" = 0 ]; then echo "#$num already carries $open on top of $base"; land "$head"; fi
+              if [ "$open" != "$TAG" ]; then echo "#$num carries the newer $open, which a run for that tag brings up to date"; exit 0; fi
+            fi
+          fi
+
+          bin=$RUNNER_TEMP/generator
+          mkdir -p "$bin"
+          GH_TOKEN=$READ_TOKEN gh release download "${TAG#openapi-}" --repo GetStream/chat --pattern 'openapi-linux-amd64*' --dir "$bin"
+          (cd "$bin" && sha256sum -c openapi-linux-amd64.sha256)
+          chmod +x "$bin/openapi-linux-amd64"
+          SPEC_TAG=$TAG GENERATOR_BIN=$bin/openapi-linux-amd64 ./generate.sh
+          if [ -z "$(git status --porcelain)" ]; then echo "$TAG changes nothing"; exit 0; fi
+
+          # The changelog lists added and removed operations and their parameters, webhook events and schema properties. release-please reads each entry of a BEGIN_COMMIT_OVERRIDE block as one commit, and an entry starts at a blank line followed by a type.
+          inventory() {
+            spec=$RUNNER_TEMP/$1.yaml
+            curl -fsSL "https://raw.githubusercontent.com/GetStream/protocol/$1/openapi/v2/serverside-api.yaml" -o "$spec"
+            # Python names methods, parameters and fields with chat's casing.SnakeCase (QueryChannels is query_channels, GetOG is get_og, content-available is content_available), prefixes a parameter or field that is a Python keyword with _, and keeps schema names.
+            snake='sub sn { my @c = split //, shift; my ($r, $p, $u) = ("", "", 0); for my $i (0 .. $#c) { my $ch = $c[$i]; if ($ch =~ /[A-Z]/) { if ($i > 0 && $p !~ /[A-Z]/ && !$u) { $r .= "_" } elsif ($i + 1 < @c && $c[$i + 1] =~ /[a-z]/ && !$u && $i > 0 && !($c[$i + 1] eq "s" && ($i + 2 == @c || $c[$i + 2] !~ /[a-z]/))) { $r .= "_" } $r .= lc $ch; $u = 0 } elsif ($ch =~ /[A-Za-z0-9]/) { $r .= lc $ch; $u = 0 } elsif (!$u && length $r) { $r .= "_"; $u = 1 } $p = $ch } $r =~ s/_+$//; $r } my %kw = map { $_ => 1 } qw(and as assert async await break class continue def del elif else except finally for from global if import in is lambda nonlocal not or pass raise return try while with yield); sub f { my $s = sn(shift); $kw{$s} ? "_$s" : $s }'
+            {
+              yq -r '.paths | to_entries | .[] | .value | to_entries | .[] | select(.value.operationId) | "op " + .value.operationId' "$spec" | perl -pe "$snake"' s/ (.+)/" " . sn($1)/e'
+              yq -r '.paths | to_entries | .[] | .value | to_entries | .[] | select(.value.operationId) | .value.operationId as $o | (.value.parameters // [])[] | "field " + $o + "." + .name' "$spec" | perl -pe "$snake"' s/ ([^.]+)\.(.+)/" " . sn($1) . "." . f($2)/e'
+              yq -r '.components.schemas | keys | .[] | "type " + .' "$spec"
+              yq -r '.components.schemas | to_entries | .[] | .key as $s | (.value.properties // {}) | keys | .[] | "field " + $s + "." + .' "$spec" | perl -pe "$snake"' s/\.(.+)/"." . f($1)/e'
+            } | sort -u
+          }
+          inventory "$current" > "$RUNNER_TEMP/old"
+          inventory "$TAG" > "$RUNNER_TEMP/new"
+          added() { comm -13 "$RUNNER_TEMP/old" "$RUNNER_TEMP/new" | sed -n "s/^$1 //p"; }
+          removed() { comm -23 "$RUNNER_TEMP/old" "$RUNNER_TEMP/new" | sed -n "s/^$1 //p"; }
+          # Keeps the fields of schemas and operations present in both specs; a new or removed one stands for its own fields.
+          kept() { while read -r f; do if grep -Eqx "(type|op) ${f%%.*}" "$RUNNER_TEMP/old" && grep -Eqx "(type|op) ${f%%.*}" "$RUNNER_TEMP/new"; then echo "$f"; fi; done; }
+          group() { awk -F. -v word="$1" '{ f[$1] = (f[$1] ? f[$1] ", " : "") $2 } END { for (t in f) print f[t] " " word " " t }' | sort; }
+          # The approved wire breaking changes the new spec brings, as chat allowlisted them, one "ticket TAB line" each. With lines on both sides it diffs the lines, since chat may append one under a header an earlier tag published; against a current spec from before the lines, it takes the lines of each new ticket. A new go ticket has no Python lines, so the Breaking changes check leaves it to a human, as it does a new spec without lines.
+          pairs() { yq -r '.info."x-stream-breaking-change-lines" // {} | to_entries | .[] | .key as $t | (.value.wire // [])[] | $t + "\t" + .' "$RUNNER_TEMP/$1.yaml"; }
+          tickets() { yq -r '.info."x-stream-breaking-changes" | (.wire // []) + (.go // []) | .[]' "$RUNNER_TEMP/$1.yaml"; }
+          : > "$RUNNER_TEMP/breaking"
+          if yq -e '.info."x-stream-breaking-change-lines"' "$RUNNER_TEMP/$current.yaml" > /dev/null 2>&1; then
+            pairs "$TAG" | awk -F'\t' 'FILENAME != "-" { old[$2]; next } !($2 in old)' <(pairs "$current") - > "$RUNNER_TEMP/breaking"
+          elif yq -e '.info."x-stream-breaking-changes"' "$RUNNER_TEMP/$current.yaml" > /dev/null 2>&1; then
+            pairs "$TAG" | awk -F'\t' 'FILENAME != "-" { old[$0]; next } !($1 in old)' <(tickets "$current") - > "$RUNNER_TEMP/breaking"
+          fi
+          # One entry per schema or endpoint: "Schema: change; change". The list stops well below GitHub's 65,536-character PR body. release-please keeps one BREAKING CHANGE footer per entry, and only its last line.
+          breaking() {
+            cut -f2 "$RUNNER_TEMP/breaking" | sort -u \
+              | awk '
+                  match($0, /^(GET|POST|PUT|PATCH|DELETE) [^ ]+ /) { t = substr($0, 1, RLENGTH - 1); g[t] = ((t in g) ? g[t] "; " : t ": ") substr($0, RLENGTH + 1); next }
+                  match($0, /'\''[A-Z][A-Za-z0-9_]*\//) { t = substr($0, RSTART + 1, RLENGTH - 2); g[t] = ((t in g) ? g[t] "; " : "") $0; next }
+                  { g[$0] = $0 }
+                  END { for (t in g) print t "\t" g[t] }' \
+              | sort | awk -F'\t' '{ e = sprintf("feat: change %s\n\nBREAKING CHANGE: %s\n", $1, $2); if (size + length(e) > 40000) { more++; next } size += length(e); printf "%s", e }
+                  END { if (more) printf "feat: change %d more APIs\n\nBREAKING CHANGE: %d more API changes are left out to fit the PR body\n", more, more }'
+          }
+          # Python callers pass arguments by position or by keyword, and a generator change alone moves neither in the spec. So the generated methods before and after are compared too: each removed method, and each method whose arguments were renamed, moved, lost a default or gained a required one, gets a footer. A default added to an argument, or a new argument with a default at the end, is compatible. Removals the spec diff already lists are left out. Models are dataclasses that callers build by keyword, as the README shows, so their field order is not compared.
+          surface() {
+            removed op > "$RUNNER_TEMP/spec-removed"
+            # One line per change, "gone or moved TAB method name TAB text".
+            python3 - <<'PY' | sort | while IFS=$'\t' read -r kind key text; do
+          import ast, subprocess
+
+          FILES = "chat/rest_client chat/async_rest_client chat/channel chat/async_channel video/rest_client video/async_rest_client video/call video/async_call feeds/rest_client feeds/feeds moderation/rest_client moderation/async_rest_client common/rest_client common/async_rest_client webhook".split()
+
+
+          def defs(src, mod):
+              out = {}
+              for node in ast.parse(src).body:
+                  if isinstance(node, ast.ClassDef):
+                      funcs = [(node.name, f) for f in node.body if isinstance(f, (ast.FunctionDef, ast.AsyncFunctionDef))]
+                  elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                      funcs = [(mod.removeprefix("getstream."), node)]
+                  else:
+                      continue
+                  for owner, f in funcs:
+                      if f.name.startswith("_") and f.name != "__init__":
+                          continue
+                      a = f.args
+                      pos = a.posonlyargs + a.args
+                      defaults = [None] * (len(pos) - len(a.defaults)) + a.defaults
+                      params = [(p.arg, d, False) for p, d in zip(pos, defaults)] + [(p.arg, d, True) for p, d in zip(a.kwonlyargs, a.kw_defaults)]
+                      if params and params[0][0] in ("self", "cls"):
+                          params = params[1:]
+                      # The sync and async modules share class names, so the async one is labelled.
+                      out[f"{mod}:{owner}.{f.name}"] = (f.name, params, f"{owner}.{f.name}".removesuffix(".__init__") + (" (async)" if "async_" in mod else ""))
+              return out
+
+
+          def text(params):
+              return ", ".join(("*, " if kw and not any(k for _, _, k in params[:i]) else "") + n + ("" if d is None else "=" + ast.unparse(d)) for i, (n, d, kw) in enumerate(params))
+
+
+          def compatible(old, new):
+              op, np_ = [p for p in old if not p[2]], [p for p in new if not p[2]]
+              if len(np_) < len(op) or any(o[0] != n[0] or (o[1] is not None and n[1] is None) for o, n in zip(op, np_)) or any(n[1] is None for n in np_[len(op):]):
+                  return False
+              ok, nk = {p[0]: p[1] for p in old if p[2]}, {p[0]: p[1] for p in new if p[2]}
+              return all(n in nk and (d is None or nk[n] is not None) for n, d in ok.items()) and all(d is not None for n, d in nk.items() if n not in ok)
+
+
+          old, new = {}, {}
+          for f in FILES:
+              path, mod = f"getstream/{f}.py", "getstream." + f.replace("/", ".")
+              head = subprocess.run(["git", "show", f"HEAD:{path}"], capture_output=True, text=True)
+              if head.returncode == 0:
+                  old.update(defs(head.stdout, mod))
+              try:
+                  new.update(defs(open(path).read(), mod))
+              except FileNotFoundError:
+                  pass
+          for name, (method, params, label) in old.items():
+              if name not in new:
+                  print(f"gone\t{method}\t{label}()")
+              elif not compatible(params, new[name][1]):
+                  print(f"moved\t{method}\t{label} takes ({text(new[name][1])}) instead of ({text(params)})")
+          PY
+              if [ "$kind" = gone ]; then grep -qxF "$key" "$RUNNER_TEMP/spec-removed" || printf 'feat: remove %s\n\nBREAKING CHANGE: removes %s\n' "$text" "$text"
+              else printf 'feat: change %s\n\nBREAKING CHANGE: %s\n' "${text%% takes *}" "$text"; fi
+            done
+          }
+          {
+            added op | sed 's/^/feat: add /'
+            added type | { grep 'Event$' || true; } | sed 's/^/feat: add webhook event /'
+            added field | kept | group to | sed 's/^/feat: add /'
+            { removed op; removed type; removed field | kept | group from; } | while read -r r; do printf 'feat: remove %s\n\nBREAKING CHANGE: removes %s\n' "$r" "$r"; done
+            breaking
+            surface
+          } | awk '
+              # GitHub caps a PR body at 65,536 characters, so entries past 60,000 fold into one, which keeps a footer when any of them had one.
+              function flush() { if (e == "") return; if (size + length(e) > 60000) { more++; if (e ~ /\nBREAKING CHANGE: /) brk = 1 } else { if (size) print ""; print e; size += length(e) + 1 } e = "" }
+              /^feat: / { flush(); e = $0; next }
+              { e = e "\n" $0 }
+              END { flush(); if (more && brk) printf "\nfeat: change %d more APIs\n\nBREAKING CHANGE: %d more changes, some of them breaking, are left out to fit the PR body\n", more, more; else if (more) printf "\nfeat: add %d more APIs left out to fit the PR body\n", more }' > "$RUNNER_TEMP/changelog"
+
+          type=chore
+          if [ -s "$RUNNER_TEMP/changelog" ]; then type=feat; fi
+          if grep -q '^BREAKING CHANGE: ' "$RUNNER_TEMP/changelog"; then type='feat!'; fi
+          title="$type: regenerate client from $TAG"
+          {
+            echo "Regenerated from protocol [\`$TAG\`](https://github.com/GetStream/protocol/releases/tag/$TAG) with the generator from chat \`${TAG#openapi-}\`."
+            if [ -s "$RUNNER_TEMP/changelog" ]; then
+              echo
+              echo BEGIN_COMMIT_OVERRIDE
+              cat "$RUNNER_TEMP/changelog"
+              echo END_COMMIT_OVERRIDE
+            fi
+          } > "$RUNNER_TEMP/body"
+          cat "$RUNNER_TEMP/body"
+
+          # Generating takes minutes, so a human may have taken the PR since the check above.
+          if [ -n "$num" ] && took; then hold "is marked as a major" quiet; fi
+          id=$(gh api "users/${APP_SLUG}[bot]" --jq .id)
+          git switch -q -C "$branch"
+          git add -A
+          git -c user.name="${APP_SLUG}[bot]" -c user.email="$id+${APP_SLUG}[bot]@users.noreply.github.com" commit -q -m "$title"
+          git push -q -f origin "$branch"
+          echo "ping=true" >> "$GITHUB_OUTPUT"
+          if [ -n "$num" ]; then
+            prev=$(gh pr view "$num" --json body --jq .body)
+            gh pr edit "$num" --title "$title" --body-file "$RUNNER_TEMP/body"
+          else
+            prev=
+            url=$(gh pr create --base "$base" --head "$branch" --title "$title" --body-file "$RUNNER_TEMP/body")
+            num=${url##*/}
+          fi
+          land "$(git rev-parse HEAD)"
+      # A regen that merges itself stays quiet; one that needs a human, or a failed run, posts one line. The group is mentioned once per head commit, by the run that pushed it or the run a red integration rerun started, so a red PR left open is not pinged again on every dispatch.
+      - name: Heads-up
+        # cancelled() covers the job timeout, which cancels the running step instead of failing it.
+        if: failure() || cancelled() || steps.regen.outputs.note != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          NOTE: ${{ steps.regen.outputs.note }}
+          PING: ${{ steps.regen.outputs.ping }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then echo "SLACK_WEBHOOK_URL is not set, so nothing is posted"; exit 0; fi
+          mention=
+          if [ "$PING" = true ] || [ -z "$NOTE" ]; then mention='<!subteam^S0CE4DYJ9SA> '; fi
+          jq -n --arg text "${mention}:warning: stream-py auto-regen ${NOTE:-failed}. <$RUN|Details>" '{text: $text}' | curl -fsS -X POST -H 'Content-Type: application/json' --data @- "$SLACK_WEBHOOK_URL"

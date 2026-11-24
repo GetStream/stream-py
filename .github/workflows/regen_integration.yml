@@ -1,0 +1,17 @@
+name: Regen integration
+
+# regen.yml merges a regen PR only once this run passes on its head commit. Start it by hand on regen/auto when the push did not start it.
+on:
+  push:
+    branches:
+      - regen/auto
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  integration:
+    if: ${{ !github.event.deleted }}
+    uses: ./.github/workflows/run_integration.yml
+    secrets: inherit
