@@ -85,7 +85,7 @@ make check
 ### Code generation
 
 ```
-make regen    # regenerate OpenAPI + WebRTC protobuf code
+make regen    # regenerate OpenAPI + WebRTC protobuf code (SPEC_TAG=openapi-vX picks the spec)
 ```
 
 ### Legacy: dev.py
@@ -104,11 +104,20 @@ released version.
 
 ## OpenAPI & Protobuf
 
-Most API endpoints use openAPI definitions.
-Part of the video endpoints use Protobuf.
-Use these commands to regenerate:
+Most API endpoints use OpenAPI definitions, and part of the video endpoints use Protobuf. `./generate_webrtc.sh` regenerates the Protobuf code by hand.
 
-```
-./generate.sh
-./generate_webrtc.sh
-```
+The OpenAPI client regenerates itself on every chat production release:
+
+1. chat attaches its `openapi` generator to the release and publishes the matching `openapi-vX` spec release in [protocol](https://github.com/GetStream/protocol).
+2. protocol notifies this repo, and the **Regenerate** workflow opens one PR from `regen/auto`, titled `feat: regenerate client from openapi-vX`. Its `BEGIN_COMMIT_OVERRIDE` block lists the changelog lines.
+3. Once the required checks pass and the **Regen integration** run passes on the PR's head commit, the PR merges itself, and release-please adds those lines to the Release PR. Merging the Release PR ships, as described in `README.md`.
+
+A regen PR waits for a human when its changelog carries a `BREAKING CHANGE:` footer, when the `Breaking changes check` finds an approved breaking change in the new spec, or when a required check fails. For each approved breaking change with wire lines, the regen writes `BREAKING CHANGE:` footers from the lines chat allowlisted and titles the PR `feat!:`, so the check passes and the PR only waits for a human to merge it. A ticket chat approved for getstream-go only has no Python lines, so the check fails until a human names it in the PR body, also on a `feat!:` PR. Because Python callers pass arguments by position or by keyword, the regen also compares the generated methods before and after, and writes a footer for each removed method and each method whose arguments were renamed or moved, even when the spec did not change them. Only `getstream-sdk-bot` can push to `regen/**`.
+
+### Manual cases
+
+- **Regenerate now:** run **Regenerate** from the Actions tab with an `openapi-vX` tag, or leave it empty for the latest. Locally, `SPEC_TAG=openapi-vX ./generate.sh` does the same with the generator built from a `../chat` checkout at that tag.
+- **A breaking change that breaks this SDK:** when the regen titled the PR `feat!:`, review its footers. It moves on to each newer spec until you rename the PR or edit its body, which keeps it on the spec you judged. Otherwise add `!` to the PR title, and before `END_COMMIT_OVERRIDE` add a blank line and `BREAKING CHANGE: <what breaks for customers>`. Then merge it yourself in a breaking-change window, with a `MIGRATION_vX_to_vY.md` guide.
+- **An approved breaking change that does not break this SDK:** label the PR `sdk-not-breaking` and name each ticket the check lists in the PR body. When the regen titled it `feat!:`, also drop the `!` and delete the entries that carry a `BREAKING CHANGE:` footer. The next Regenerate run merges it, daily at 06:23 UTC or when you start one.
+- **Failed integration tests:** the tests share their Stream app with other SDKs' CI, so the Regenerate run reruns a red or cancelled **Regen integration** run once by itself, and merges the PR when the rerun passes. If the rerun is red too, fix the cause or rerun it again; a pass merges the PR. If no run started for the PR's head commit, start **Regen integration** on `regen/auto` from the Actions tab.
+- **Rewrite a changelog line:** edit the `BEGIN_COMMIT_OVERRIDE` block in the merged PR's body, then run the **Release** workflow with no input to rebuild the Release PR. Keep ticket IDs out of PR titles, because a title becomes a changelog line.
