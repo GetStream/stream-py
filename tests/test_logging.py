@@ -143,6 +143,46 @@ def test_redaction_helpers():
     assert redact_json_body("not json") == "not json"
 
 
+def test_redact_json_body_recursive_and_nested_secrets():
+    payload = {
+        "access_token": "tok-123",
+        "keep": "visible",
+        "storage": {
+            "s3_secret": "aws-secret-value",
+            "firebase_credentials": '{"private_key": "pem"}',
+            "bucket": "my-bucket",
+        },
+        "items": [{"apn_auth_key": "p8-key", "name": "ios"}],
+    }
+    out = redact_json_body(payload)
+    assert out == {
+        "access_token": "<redacted>",
+        "keep": "visible",
+        "storage": {
+            "s3_secret": "<redacted>",
+            "firebase_credentials": "<redacted>",
+            "bucket": "my-bucket",
+        },
+        "items": [{"apn_auth_key": "<redacted>", "name": "ios"}],
+    }
+
+
+def test_safe_dump_redacts_even_when_json_serialization_fails():
+    from datetime import datetime, timezone
+
+    from getstream.common.telemetry import safe_dump
+
+    payload = {
+        "token": "super-secret-jwt",
+        "nested": {"api_secret": "my-api-secret"},
+        "created_at": datetime(2026, 1, 1, tzinfo=timezone.utc),
+    }
+    dumped = safe_dump(payload)
+    assert "super-secret-jwt" not in dumped
+    assert "my-api-secret" not in dumped
+    assert "***" in dumped
+
+
 @pytest.mark.asyncio
 async def test_async_sent_and_received_on_success(caplog):
     client = make_async_client(ok, caplog)
