@@ -11,7 +11,7 @@ jobs:
   # A regen PR must be a major, with a `!` in its title that squash-merges into the commit release-please reads, when its .spec-version moves to a protocol tag carrying approved breaking changes the base tag did not, moves back to an older tag, or names a generator other than the spec's own chat version. The sdk-not-breaking label passes added tickets once a human has judged them irrelevant to this SDK and named each one in the PR body.
   breaking-changes:
     name: Breaking changes check
-    runs-on: { group: github-public-ubuntu-static }
+    runs-on: { group: github-public-amd64 }
     timeout-minutes: 5
     steps:
       - env:

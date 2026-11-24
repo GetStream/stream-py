@@ -27,7 +27,7 @@ jobs:
   regen:
     name: Regenerate
     if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion != 'skipped'
-    runs-on: { group: github-public-ubuntu-static }
+    runs-on: { group: github-public-amd64 }
     # Setup, generate.sh and land()'s 45 minutes of polling stay under it, so a stuck run fails and posts a heads-up instead of being cancelled silently.
     timeout-minutes: 60
     # The getstream-sdk-bot key lives only in this environment, which deploys from the default branch. The App pushes and merges, because GITHUB_TOKEN events start neither the PR checks nor the release run.
