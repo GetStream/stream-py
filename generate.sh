@@ -15,9 +15,9 @@ cleanup() {
 trap cleanup EXIT
 
 # The spec comes from a protocol release, so the generated code always matches a tag anyone can regenerate from. SPEC_TAG=openapi-vX picks that release instead of the latest.
-SPEC_TAG=${SPEC_TAG:-$(curl -fsSL -H "Accept: application/vnd.github+json" https://api.github.com/repos/GetStream/protocol/releases \
-  | jq -r 'map(select(.tag_name | startswith("openapi-"))) | .[0].tag_name')}
-[ -n "$SPEC_TAG" ] && [ "$SPEC_TAG" != "null" ] || { echo "could not resolve the latest protocol openapi release"; exit 1; }
+SPEC_TAG=${SPEC_TAG:-$(curl -fsSL -H "Accept: application/vnd.github+json" 'https://api.github.com/repos/GetStream/protocol/releases?per_page=100' \
+  | jq -r '.[].tag_name | select(test("^openapi-v[0-9]+\\.[0-9]+\\.[0-9]+$"))' | sort -V | tail -1)}
+[ -n "$SPEC_TAG" ] || { echo "could not resolve the latest protocol openapi release"; exit 1; }
 SPEC_FILE=$WORK/serverside-api.yaml
 curl -fsSL -o "$SPEC_FILE" "https://raw.githubusercontent.com/GetStream/protocol/${SPEC_TAG}/openapi/v2/serverside-api.yaml"
 

@@ -337,7 +337,8 @@ jobs:
           land "$(git rev-parse HEAD)"
       # A regen that merges itself stays quiet; one that needs a human, or a failed run, posts one line. The group is mentioned once per head commit, by the run that pushed it or the run a red integration rerun started, so a red PR left open is not pinged again on every dispatch.
       - name: Heads-up
-        if: failure() || steps.regen.outputs.note != ''
+        # cancelled() covers the job timeout, which cancels the running step instead of failing it.
+        if: failure() || cancelled() || steps.regen.outputs.note != ''
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           NOTE: ${{ steps.regen.outputs.note }}
