@@ -30,7 +30,7 @@ jobs:
     # anything short of a definite "nothing pending" has to hold this job back, or it
     # proposes a second Release PR on top of one that may still be untagged.
     if: needs.detect.outputs.pending == 'false'
-    runs-on: { group: github-public-ubuntu-static }
+    runs-on: { group: github-public-amd64 }
     timeout-minutes: 5
     # The org no longer lets GITHUB_TOKEN create pull requests, so release-please opens the
     # Release PR as getstream-sdk-bot. Its key lives only in the sdk-bot environment, which
@@ -63,7 +63,7 @@ jobs:
     if: >-
       (github.event_name == 'push' || inputs.publish_tag == '') &&
       (github.ref_name == 'main' || endsWith(github.ref_name, '.x'))
-    runs-on: { group: github-public-ubuntu-static }
+    runs-on: { group: github-public-amd64 }
     timeout-minutes: 5
     permissions:
       contents: read
@@ -180,7 +180,7 @@ jobs:
     if: >-
       ${{ !cancelled() && needs.detect.result == 'success' && needs.detect.outputs.ready == 'true'
       && (needs.tests.result == 'success' || needs.tests.result == 'skipped') }}
-    runs-on: { group: github-public-ubuntu-static }
+    runs-on: { group: github-public-amd64 }
     timeout-minutes: 5
     permissions:
       contents: write
@@ -223,7 +223,7 @@ jobs:
             runner: ubuntu-24.04-arm
           - platform: macos-arm64
             runner: macos-latest
-    runs-on: ${{ matrix.runner }}
+    runs-on: ${{ (matrix.runner == 'ubuntu-24.04-arm' && fromJSON('{"group":"github-public-arm64"}')) || (matrix.runner == 'ubuntu-latest' && fromJSON('{"group":"github-public-amd64"}')) || matrix.runner }}
     timeout-minutes: 45
     environment: pypi
     permissions:
@@ -283,7 +283,7 @@ jobs:
       (needs.publish-rtc.result == 'success' || needs.publish-rtc.result == 'skipped') &&
       ((inputs.publish_tag != '' && !startsWith(inputs.publish_tag, 'getstream-rtc-v')) ||
       needs.release.outputs.release_created == 'true')
-    runs-on: { group: github-public-ubuntu-static }
+    runs-on: { group: github-public-amd64 }
     timeout-minutes: 15
     # PyPI Trusted Publishing is bound to this workflow file name and this environment.
     environment: pypi
