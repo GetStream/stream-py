@@ -17,6 +17,10 @@ inputs:
     description: Build getstream-rtc (the Rust extension) into the environment; "false" installs everything else
     required: false
     default: "true"
+  enable-cache:
+    description: Restore and save the uv download cache
+    required: false
+    default: "true"
 runs:
   using: composite
   steps:
@@ -39,7 +43,7 @@ runs:
       with:
         python-version: ${{ inputs.python-version }}
         version: "latest"
-        enable-cache: true
+        enable-cache: ${{ inputs.enable-cache }}
         prune-cache: false
         cache-suffix: ${{ inputs.python-version }}
         cache-dependency-glob: |

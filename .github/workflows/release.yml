@@ -311,6 +311,7 @@ jobs:
       - uses: ./.github/actions/python-uv-setup
         with:
           build-extension: "false"
+          enable-cache: "false"
 
       - name: Build distributions
         run: uv build
