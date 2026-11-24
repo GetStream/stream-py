@@ -23,7 +23,7 @@ jobs:
     # must report too. Default branch only: a manual dispatch on a feature branch must not
     # touch the default branch's issue.
     if: ${{ !cancelled() && needs.integration.result != 'success' && (github.event_name == 'schedule' || github.ref_name == github.event.repository.default_branch) }}
-    runs-on: { group: github-public-ubuntu-static }
+    runs-on: { group: github-public-amd64 }
     permissions:
       issues: write
     steps:
