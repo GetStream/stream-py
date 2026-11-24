@@ -352,7 +352,11 @@ class TestCallPublish:
                 and event.user_id == call_users[0].id
             ):
                 break
-        assert event.cause == models_pb2.TRACK_UNPUBLISH_REASON_USER_MUTED
+        if event.participant is None:
+            # The two users joined different SFUs, and the joiner's SFU rebuilds the relayed mute without a cause or participant (video-sfu muteStateToSignalEvent).
+            assert event.cause == models_pb2.TRACK_UNPUBLISH_REASON_UNSPECIFIED
+        else:
+            assert event.cause == models_pb2.TRACK_UNPUBLISH_REASON_USER_MUTED
 
     @pytest.mark.integration
     async def test_screen_share_is_published_and_unpublished(
