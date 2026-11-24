@@ -19,7 +19,7 @@ permissions:
 jobs:
   ruff:
     name: 🧪 Ruff
-    runs-on: ubuntu-latest
+    runs-on: { group: github-public-ubuntu-static }
     steps:
       - name: Checkout
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
@@ -34,7 +34,7 @@ jobs:
 
   typecheck:
     name: 🧪 Type Check (ty)
-    runs-on: ubuntu-latest
+    runs-on: { group: github-public-ubuntu-static }
     steps:
       - name: Checkout
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
@@ -50,7 +50,7 @@ jobs:
 
   rust:
     name: 🦀 Rust
-    runs-on: ubuntu-latest
+    runs-on: { group: github-public-ubuntu-static }
     timeout-minutes: 30
     env:
       # The same interpreter for clippy and the tests, so the PyO3 build is reused.
@@ -87,7 +87,7 @@ jobs:
   # Video paths and manual test paths are defined in the Makefile.
   test-non-video:
     name: 🧪 Non-video tests (${{ matrix.python-version }})
-    runs-on: ubuntu-latest
+    runs-on: { group: github-public-ubuntu-static }
     strategy:
       fail-fast: false
       matrix:
@@ -110,7 +110,7 @@ jobs:
   # Uses STREAM_* credentials which have video enabled.
   test-video:
     name: 🧪 Video tests (${{ matrix.python-version }})
-    runs-on: ubuntu-latest
+    runs-on: { group: github-public-ubuntu-static }
     strategy:
       fail-fast: false
       matrix:

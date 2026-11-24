@@ -21,7 +21,7 @@ jobs:
       ${{ github.event.pull_request.user.login == 'github-actions[bot]'
       && github.event.pull_request.head.repo.full_name == github.repository
       && startsWith(github.head_ref, 'release-please--') }}
-    runs-on: ubuntu-latest
+    runs-on: { group: github-public-ubuntu-static }
     timeout-minutes: 5
     permissions:
       contents: read
@@ -97,7 +97,7 @@ jobs:
     name: 🧪 Tests
     needs: [release-only, unit]
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
+    runs-on: { group: github-public-ubuntu-static }
     steps:
       - name: Check the unit lane
         env:
