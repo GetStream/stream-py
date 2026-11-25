@@ -256,17 +256,19 @@ jobs:
           TAG: ${{ steps.target.outputs.tag }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
-          case "$GITHUB_REF_NAME" in
-            "$DEFAULT_BRANCH"|*.x) ;;
-            *)
-              echo "::error::Publishing runs only from ${DEFAULT_BRANCH} or a *.x release branch, not ${GITHUB_REF_NAME}."
-              exit 1
-              ;;
-          esac
-          if ! commit="$(git rev-parse --verify --quiet "refs/tags/${TAG}^{commit}")"; then
+          # The environment's deployment branches are what enforce this; the check here only
+          # gives a clear error before they are configured.
+          if [ "$GITHUB_REF" != "refs/heads/${DEFAULT_BRANCH}" ] && [[ ! "$GITHUB_REF" =~ ^refs/heads/[0-9]+\.x$ ]]; then
+            echo "::error::Publishing runs only from ${DEFAULT_BRANCH} or an N.x release branch, not ${GITHUB_REF}."
+            exit 1
+          fi
+          # Exactly a tag. Revision syntax such as v1.2.3~1 would otherwise resolve to a commit
+          # that was never tagged.
+          if ! git show-ref --verify --quiet "refs/tags/${TAG}"; then
             echo "::error::${TAG} is not a tag of this repository."
             exit 1
           fi
+          commit="$(git rev-parse "refs/tags/${TAG}^{commit}")"
           if ! git merge-base --is-ancestor "$commit" "$GITHUB_SHA"; then
             echo "::error::Tag ${TAG} points at ${commit}, which is not on ${GITHUB_REF_NAME}. Dispatch the workflow from the branch that release was cut from."
             exit 1
@@ -347,17 +349,19 @@ jobs:
           TAG: ${{ steps.target.outputs.tag }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
-          case "$GITHUB_REF_NAME" in
-            "$DEFAULT_BRANCH"|*.x) ;;
-            *)
-              echo "::error::Publishing runs only from ${DEFAULT_BRANCH} or a *.x release branch, not ${GITHUB_REF_NAME}."
-              exit 1
-              ;;
-          esac
-          if ! commit="$(git rev-parse --verify --quiet "refs/tags/${TAG}^{commit}")"; then
+          # The environment's deployment branches are what enforce this; the check here only
+          # gives a clear error before they are configured.
+          if [ "$GITHUB_REF" != "refs/heads/${DEFAULT_BRANCH}" ] && [[ ! "$GITHUB_REF" =~ ^refs/heads/[0-9]+\.x$ ]]; then
+            echo "::error::Publishing runs only from ${DEFAULT_BRANCH} or an N.x release branch, not ${GITHUB_REF}."
+            exit 1
+          fi
+          # Exactly a tag. Revision syntax such as v1.2.3~1 would otherwise resolve to a commit
+          # that was never tagged.
+          if ! git show-ref --verify --quiet "refs/tags/${TAG}"; then
             echo "::error::${TAG} is not a tag of this repository."
             exit 1
           fi
+          commit="$(git rev-parse "refs/tags/${TAG}^{commit}")"
           if ! git merge-base --is-ancestor "$commit" "$GITHUB_SHA"; then
             echo "::error::Tag ${TAG} points at ${commit}, which is not on ${GITHUB_REF_NAME}. Dispatch the workflow from the branch that release was cut from."
             exit 1
