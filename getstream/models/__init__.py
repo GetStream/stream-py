@@ -3739,6 +3739,10 @@ class BanRequest(DataClassJsonMixin):
     channel_cid: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="channel_cid")
     )
+    # Ban the user from every channel of this type, including channels they join later. Cannot be combined with channel_cid, ip_ban, ban_from_future_channels, delete_messages or delete_reactions
+    channel_type: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="channel_type")
+    )
     # How a ban or user deletion treats the user's messages.
     delete_messages: "Optional[str]" = dc_field(
         default=None, metadata=dc_config(field_name="delete_messages")
