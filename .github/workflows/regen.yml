@@ -224,7 +224,7 @@ jobs:
               | sort | awk -F'\t' '{ e = sprintf("feat: change %s\n\nBREAKING CHANGE: %s\n", $1, $2); if (size + length(e) > 40000) { more++; next } size += length(e); printf "%s", e }
                   END { if (more) printf "feat: change %d more APIs\n\nBREAKING CHANGE: %d more API changes are left out to fit the PR body\n", more, more }'
           }
-          # Python callers pass arguments by position or by keyword, and a generator change alone moves neither in the spec. So the generated methods before and after are compared too: each removed method, and each method whose arguments were renamed, moved, lost a default or gained a required one, gets a footer. A default added to an argument, or a new argument with a default at the end, is compatible. The README asks callers to pass optional arguments by keyword, but code and guides written before it pass them by position, so an optional argument that moves still gets a footer until the generator makes optional arguments keyword-only. Removals the spec diff already lists are left out. Models are dataclasses that callers build by keyword, as the README shows, so their field order is not compared.
+          # Python callers pass arguments by position or by keyword, and a generator change alone moves neither in the spec. So the generated methods before and after are compared too: each removed method, and each method that dropped or renamed an argument, added a required one, took a default away, or moved a required or query argument, gets a footer. The README asks callers to pass optional arguments by keyword, so an optional body argument is compatible wherever it lands. Query arguments keep their place because published guides pass them by position. Removals the spec diff already lists are left out. Models are dataclasses that callers build by keyword, as the README shows, so their field order is not compared.
           surface() {
             removed op > "$RUNNER_TEMP/spec-removed"
             # One line per change, "gone or moved TAB method name TAB text".
@@ -252,21 +252,30 @@ jobs:
                       params = [(p.arg, d, False) for p, d in zip(pos, defaults)] + [(p.arg, d, True) for p, d in zip(a.kwonlyargs, a.kw_defaults)]
                       if params and params[0][0] in ("self", "cls"):
                           params = params[1:]
+                      query = {v.id for c in ast.walk(f) if isinstance(c, ast.Call) and getattr(c.func, "id", None) == "build_query_param" for v in ast.walk(c) if isinstance(v, ast.Name)}
+                      calls = [(c.func.attr, {k.arg: k.value.id for k in c.keywords if isinstance(k.value, ast.Name)}) for c in ast.walk(f) if isinstance(c, ast.Call) and isinstance(c.func, ast.Attribute) and ast.unparse(c.func.value) == "self.client"]
                       # The sync and async modules share class names, so the async one is labelled.
-                      out[f"{mod}:{owner}.{f.name}"] = (f.name, params, f"{owner}.{f.name}".removesuffix(".__init__") + (" (async)" if "async_" in mod else ""))
+                      out[f"{mod}:{owner}.{f.name}"] = (f.name, params, f"{owner}.{f.name}".removesuffix(".__init__") + (" (async)" if "async_" in mod else ""), query, calls)
               return out
+
+
+          # Channel, Call and Feed methods pass their arguments on to the client method they wrap, so they take its query arguments.
+          def wrap(methods):
+              query = {}
+              for method, _, _, q, _ in methods.values():
+                  query.setdefault(method, set()).update(q)
+              for _, _, _, q, calls in methods.values():
+                  q.update(v for target, kw in calls for a, v in kw.items() if a in query.get(target, ()))
 
 
           def text(params):
               return ", ".join(("*, " if kw and not any(k for _, _, k in params[:i]) else "") + n + ("" if d is None else "=" + ast.unparse(d)) for i, (n, d, kw) in enumerate(params))
 
 
-          def compatible(old, new):
-              op, np_ = [p for p in old if not p[2]], [p for p in new if not p[2]]
-              if len(np_) < len(op) or any(o[0] != n[0] or (o[1] is not None and n[1] is None) for o, n in zip(op, np_)) or any(n[1] is None for n in np_[len(op):]):
-                  return False
-              ok, nk = {p[0]: p[1] for p in old if p[2]}, {p[0]: p[1] for p in new if p[2]}
-              return all(n in nk and (d is None or nk[n] is not None) for n, d in ok.items()) and all(d is not None for n, d in nk.items() if n not in ok)
+          def compatible(old, new, query):
+              po, pn = [n for n, _, kw in old if not kw], [n for n, _, kw in new if not kw]
+              od, nd = {n: d for n, d, _ in old}, {n: d for n, d, _ in new}
+              return all(n in pn and pn.index(n) == i for i, n in enumerate(po) if od[n] is None or n in query) and all(n in nd and (d is None or nd[n] is not None) for n, d in od.items()) and all(d is not None for n, d in nd.items() if n not in od)
 
 
           old, new = {}, {}
@@ -279,10 +288,11 @@ jobs:
                   new.update(defs(open(path).read(), mod))
               except FileNotFoundError:
                   pass
-          for name, (method, params, label) in old.items():
+          wrap(old)
+          for name, (method, params, label, query, _) in old.items():
               if name not in new:
                   print(f"gone\t{method}\t{label}()")
-              elif not compatible(params, new[name][1]):
+              elif not compatible(params, new[name][1], query):
                   print(f"moved\t{method}\t{label} takes ({text(new[name][1])}) instead of ({text(params)})")
           PY
               if [ "$kind" = gone ]; then grep -qxF "$key" "$RUNNER_TEMP/spec-removed" || printf 'feat: remove %s\n\nBREAKING CHANGE: removes %s\n' "$text" "$text"
