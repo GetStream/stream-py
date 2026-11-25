@@ -90,6 +90,10 @@ call.get_or_create(
 )
 ```
 
+### Passing arguments
+
+Pass required arguments in order and optional ones by keyword, as the examples above do. A new optional argument can appear anywhere in a method's signature, so passing optional arguments by position may send a value to the wrong parameter after an upgrade.
+
 ### Getting Response Data
 
 Many calls return a `StreamResponse` object, with the specific dataclass for the method call nested inside. You can access this via:

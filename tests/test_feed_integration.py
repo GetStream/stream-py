@@ -823,7 +823,7 @@ class TestFeedIntegration:
         self._assert_response_success(pin_response, "pin activity for unpin test")
 
         # snippet-start: UnpinActivity
-        response = self.test_feed.unpin_activity(activity_id, self.test_user_id)
+        response = self.test_feed.unpin_activity(activity_id, user_id=self.test_user_id)
         # snippet-end: UnpinActivity
 
         self._assert_response_success(response, "unpin activity")
@@ -864,7 +864,7 @@ class TestFeedIntegration:
         bookmark_data = bookmark_response.data
         folder_id = bookmark_data.bookmark.folder.id
         response = self.client.feeds.delete_bookmark(
-            activity_id, folder_id, self.test_user_id
+            activity_id, folder_id=folder_id, user_id=self.test_user_id
         )
         # snippet-end: DeleteBookmark
 
@@ -898,7 +898,7 @@ class TestFeedIntegration:
 
         # snippet-start: DeleteActivityReaction
         response = self.client.feeds.delete_activity_reaction(
-            activity_id, "like", self.test_user_id
+            activity_id, "like", user_id=self.test_user_id
         )
         # snippet-end: DeleteActivityReaction
 
@@ -1169,7 +1169,7 @@ class TestFeedIntegration:
 
             # snippet-start: RemoveDevice
             remove_device_response = self.client.delete_device(
-                device_token, self.test_user_id
+                device_token, user_id=self.test_user_id
             )
             # snippet-end: RemoveDevice
 

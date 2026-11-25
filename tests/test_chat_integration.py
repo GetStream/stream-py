@@ -25,7 +25,7 @@ def test_upsert_users(client: Stream):
 
 @pytest.mark.integration
 def test_query_users(client: Stream):
-    response = client.query_users(QueryUsersPayload(filter_conditions={}))
+    response = client.query_users(payload=QueryUsersPayload(filter_conditions={}))
     assert response.data.users is not None
 
 
@@ -80,7 +80,9 @@ def test_delete_user(client: Stream):
     }
     client.update_users(users=users)
     client.delete_users(user_ids=[user_id])
-    response = client.query_users(QueryUsersPayload(filter_conditions={}, limit=10))
+    response = client.query_users(
+        payload=QueryUsersPayload(filter_conditions={}, limit=10)
+    )
     # check that user id is not in the response
     user_ids = [user.id for user in response.data.users]
     assert user_id not in user_ids

@@ -332,11 +332,15 @@ class ChatRestClient(AsyncBaseClient):
     async def mark_channels_read(
         self,
         user_id: Optional[str] = None,
+        filter_conditions: Optional[Dict[str, object]] = None,
         read_by_channel: Optional[Dict[str, str]] = None,
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[MarkReadResponse]:
         json = MarkChannelsReadRequest(
-            user_id=user_id, read_by_channel=read_by_channel, user=user
+            user_id=user_id,
+            filter_conditions=filter_conditions,
+            read_by_channel=read_by_channel,
+            user=user,
         ).to_dict()
         return await self.post(
             "/api/v2/chat/channels/read", MarkReadResponse, json=json
@@ -1727,6 +1731,19 @@ class ChatRestClient(AsyncBaseClient):
             QueryReactionsResponse,
             path_params=path_params,
             json=json,
+        )
+
+    @telemetry.operation_name("getstream.api.chat.transcribe_message")
+    async def transcribe_message(
+        self, id: str
+    ) -> StreamResponse[TranscribeMessageResponse]:
+        path_params = {
+            "id": id,
+        }
+        return await self.post(
+            "/api/v2/chat/messages/{id}/transcribe",
+            TranscribeMessageResponse,
+            path_params=path_params,
         )
 
     @telemetry.operation_name("getstream.api.chat.translate_message")
