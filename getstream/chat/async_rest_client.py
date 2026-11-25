@@ -1733,6 +1733,19 @@ class ChatRestClient(AsyncBaseClient):
             json=json,
         )
 
+    @telemetry.operation_name("getstream.api.chat.transcribe_message")
+    async def transcribe_message(
+        self, id: str
+    ) -> StreamResponse[TranscribeMessageResponse]:
+        path_params = {
+            "id": id,
+        }
+        return await self.post(
+            "/api/v2/chat/messages/{id}/transcribe",
+            TranscribeMessageResponse,
+            path_params=path_params,
+        )
+
     @telemetry.operation_name("getstream.api.chat.translate_message")
     async def translate_message(
         self, id: str, language: str
