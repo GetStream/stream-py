@@ -224,7 +224,7 @@ jobs:
               | sort | awk -F'\t' '{ e = sprintf("feat: change %s\n\nBREAKING CHANGE: %s\n", $1, $2); if (size + length(e) > 40000) { more++; next } size += length(e); printf "%s", e }
                   END { if (more) printf "feat: change %d more APIs\n\nBREAKING CHANGE: %d more API changes are left out to fit the PR body\n", more, more }'
           }
-          # Python callers pass arguments by position or by keyword, and a generator change alone moves neither in the spec. So the generated methods before and after are compared too: each removed method, and each method whose arguments were renamed, moved, lost a default or gained a required one, gets a footer. A default added to an argument, or a new argument with a default at the end, is compatible. The README asks callers to pass optional arguments by keyword, but code and guides written before it pass them by position, so an optional argument that moves still gets a footer until the generator makes optional arguments keyword-only. Removals the spec diff already lists are left out. Models are dataclasses that callers build by keyword, as the README shows, so their field order is not compared.
+          # Python callers pass arguments by position or by keyword, and a generator change alone moves neither in the spec. So the generated methods before and after are compared too: each removed method, and each method that dropped or renamed an argument, moved or added a required one, or took a default away, gets a footer. The README asks callers to pass optional arguments by keyword, so a new optional argument is compatible wherever it lands, and so is an optional argument that moves. Removals the spec diff already lists are left out. Models are dataclasses that callers build by keyword, as the README shows, so their field order is not compared.
           surface() {
             removed op > "$RUNNER_TEMP/spec-removed"
             # One line per change, "gone or moved TAB method name TAB text".
@@ -262,11 +262,9 @@ jobs:
 
 
           def compatible(old, new):
-              op, np_ = [p for p in old if not p[2]], [p for p in new if not p[2]]
-              if len(np_) < len(op) or any(o[0] != n[0] or (o[1] is not None and n[1] is None) for o, n in zip(op, np_)) or any(n[1] is None for n in np_[len(op):]):
-                  return False
-              ok, nk = {p[0]: p[1] for p in old if p[2]}, {p[0]: p[1] for p in new if p[2]}
-              return all(n in nk and (d is None or nk[n] is not None) for n, d in ok.items()) and all(d is not None for n, d in nk.items() if n not in ok)
+              required = lambda ps: [n for n, d, kw in ps if d is None and not kw]
+              od, nd = {n: d for n, d, _ in old}, {n: d for n, d, _ in new}
+              return required(old) == required(new) and all(n in nd and (d is None or nd[n] is not None) for n, d in od.items()) and all(d is not None for n, d in nd.items() if n not in od)
 
 
           old, new = {}, {}
