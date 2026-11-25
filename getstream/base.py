@@ -175,7 +175,14 @@ def build_path(path: str, path_params: Optional[Dict[str, Any]]) -> str:
         return path
     # Quote into a new dict: the caller's mapping is reused when a request is
     # retried, so mutating it would percent-encode the values twice.
-    quoted = {k: quote(str(v), safe="") for k, v in path_params.items()}
+    quoted: Dict[str, str] = {}
+    for k, v in path_params.items():
+        raw = "" if v is None else str(v)
+        if raw in ("", ".", ".."):
+            raise ValueError(
+                f"Invalid path parameter '{k}': must not be empty or a dot-segment"
+            )
+        quoted[k] = quote(raw, safe="")
     return path.format(**quoted)
 
 
