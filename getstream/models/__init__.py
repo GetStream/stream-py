@@ -8356,6 +8356,9 @@ class ChannelOwnCapability:
     SHARE_LOCATION: Final[ChannelOwnCapabilityType] = "share-location"
     SKIP_SLOW_MODE: Final[ChannelOwnCapabilityType] = "skip-slow-mode"
     SLOW_MODE: Final[ChannelOwnCapabilityType] = "slow-mode"
+    TRANSCRIBE_VOICE_MESSAGE: Final[ChannelOwnCapabilityType] = (
+        "transcribe-voice-message"
+    )
     TYPING_EVENTS: Final[ChannelOwnCapabilityType] = "typing-events"
     UPDATE_ANY_MESSAGE: Final[ChannelOwnCapabilityType] = "update-any-message"
     UPDATE_CHANNEL: Final[ChannelOwnCapabilityType] = "update-channel"
@@ -21808,6 +21811,9 @@ class ModerationDashboardPreferences(DataClassJsonMixin):
     disable_flagging_reviewed_entity: Optional[bool] = dc_field(
         default=None, metadata=dc_config(field_name="disable_flagging_reviewed_entity")
     )
+    disable_review_queue: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="disable_review_queue")
+    )
     enforce_shadow_server_side: Optional[bool] = dc_field(
         default=None, metadata=dc_config(field_name="enforce_shadow_server_side")
     )
@@ -33171,6 +33177,12 @@ class TrackActivityMetricsResponse(DataClassJsonMixin):
 class TrackStatsResponse(DataClassJsonMixin):
     duration_seconds: int = dc_field(metadata=dc_config(field_name="duration_seconds"))
     track_type: str = dc_field(metadata=dc_config(field_name="track_type"))
+
+
+@dataclass
+class TranscribeMessageResponse(DataClassJsonMixin):
+    # Duration of the request in milliseconds
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
 
 
 @dataclass
