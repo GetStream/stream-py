@@ -1,7 +1,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-import re
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -19,25 +18,16 @@ if TYPE_CHECKING:
 # Default lifetime of the token in an SRT address: 24 hours.
 DEFAULT_SRT_TOKEN_EXPIRATION_SECONDS = 24 * 60 * 60
 
-# SRT caps the stream id at 512 bytes; encoders refuse a longer one.
-MAX_SRT_STREAM_ID_BYTES = 512
-
 
 @dataclass
 class SRTCredentials:
     """SRT address for an encoder (OBS, ffmpeg, ...) to publish into a call.
 
-    ``address`` contains a user token, so it is left out of ``repr()`` and
-    ``str()``. Read the attribute directly when you need it.
+    ``address`` contains a user token, so keep it secret.
     """
 
     address: str
     expires_at: Optional[datetime] = None
-
-    def __repr__(self) -> str:
-        return f"SRTCredentials(address='[redacted]', expires_at={self.expires_at!r})"
-
-    __str__ = __repr__
 
 
 class BaseCall:
@@ -124,16 +114,6 @@ class BaseCall:
         address = self._data.ingress.srt.address.replace(
             "{passphrase}", passphrase
         ).replace("{token}", token)
-
-        stream_id = re.search(r"[?&]streamid=([^&]*)", address)
-        if stream_id is not None:
-            size = len(stream_id.group(1).encode("utf-8"))
-            if size > MAX_SRT_STREAM_ID_BYTES:
-                raise ValueError(
-                    f"the SRT stream id is {size} bytes, over the "
-                    f"{MAX_SRT_STREAM_ID_BYTES}-byte SRT limit; use a shorter "
-                    "user ID or call ID"
-                )
 
         exp = jwt.decode(token, options={"verify_signature": False})["exp"]
         return SRTCredentials(

@@ -82,21 +82,6 @@ class TestCreateSRTCredentials:
                 "john", expiration=expiration
             )
 
-    def test_rejects_stream_id_over_srt_limit(self, client):
-        call = initialized_call(client, call_id="c" * 200)
-
-        with pytest.raises(ValueError, match="512-byte SRT limit"):
-            call.create_srt_credentials("u" * 100)
-
-    def test_repr_and_str_hide_the_address(self, client):
-        credentials = initialized_call(client).create_srt_credentials("john")
-        token = token_from(credentials.address)
-
-        assert token not in repr(credentials)
-        assert token not in str(credentials)
-        assert "[redacted]" in repr(credentials)
-        assert token in credentials.address
-
     def test_address_only_constructor_still_works(self):
         assert SRTCredentials(address="srt://x").expires_at is None
 
