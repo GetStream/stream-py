@@ -84,20 +84,27 @@ def safe_dump(payload: Any, max_chars: int | None = None) -> str:
     if max_chars is None:
         max_chars = MAX_BODY_CHARS
 
+    def _is_redacted_key(key: Any) -> bool:
+        if not isinstance(key, str):
+            return False
+        lower = key.lower()
+        return lower in REDACT_KEYS or any(rk in lower for rk in REDACT_KEYS if rk)
+
     def _redact(obj: Any) -> Any:
         if isinstance(obj, dict):
             return {
-                k: ("***" if k.lower() in REDACT_KEYS else _redact(v))
+                k: ("***" if _is_redacted_key(k) else _redact(v))
                 for k, v in obj.items()
             }
         if isinstance(obj, list):
             return [_redact(v) for v in obj]
         return obj
 
+    redacted = _redact(payload)
     try:
-        s = json.dumps(_redact(payload), ensure_ascii=False)
+        s = json.dumps(redacted, ensure_ascii=False)
     except Exception:
-        s = str(payload)
+        s = str(redacted)
     return s[:max_chars]
 
 
