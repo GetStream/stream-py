@@ -8,7 +8,6 @@ on:
 
 permissions:
   contents: read
-  pull-requests: read
 
 jobs:
   # Skipped on a Release PR: it only bumps the version and rewrites the changelog. Not
