@@ -1331,9 +1331,14 @@ class CommonRestClient(BaseClient):
 
     @telemetry.operation_name("getstream.api.common.get_blocked_users")
     def get_blocked_users(
-        self, user_id: Optional[str] = None
+        self,
+        user_id: Optional[str] = None,
+        limit: Optional[int] = None,
+        next: Optional[str] = None,
     ) -> StreamResponse[GetBlockedUsersResponse]:
-        query_params = build_query_param(**{"user_id": user_id})
+        query_params = build_query_param(
+            **{"user_id": user_id, "limit": limit, "next": next}
+        )
         return self.get(
             "/api/v2/users/block", GetBlockedUsersResponse, query_params=query_params
         )

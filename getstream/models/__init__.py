@@ -125,6 +125,9 @@ class AIVideoConfigRequest(DataClassJsonMixin):
     rules: "Optional[List[AWSRekognitionRule]]" = dc_field(
         default=None, metadata=dc_config(field_name="rules")
     )
+    audio_config: "Optional[AIAudioConfigRequest]" = dc_field(
+        default=None, metadata=dc_config(field_name="audio_config")
+    )
 
 
 @dataclass
@@ -139,6 +142,9 @@ class AIVideoConfigResponse(DataClassJsonMixin):
     )
     ocr_severity_rules: "Optional[List[BodyguardRule]]" = dc_field(
         default=None, metadata=dc_config(field_name="ocr_severity_rules")
+    )
+    audio_config: "Optional[AIAudioConfigResponse]" = dc_field(
+        default=None, metadata=dc_config(field_name="audio_config")
     )
 
 
@@ -16727,10 +16733,12 @@ class GetBlockListResponse(DataClassJsonMixin):
 class GetBlockedUsersResponse(DataClassJsonMixin):
     # Duration of the request in milliseconds
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
-    # Array of blocked user object
+    # Blocked users on this page, oldest block first
     blocks: "List[BlockedUserResponse]" = dc_field(
         metadata=dc_config(field_name="blocks")
     )
+    # Cursor for the next page. Absent on the last page
+    next: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="next"))
 
 
 @dataclass
@@ -19564,6 +19572,10 @@ class MarkActivityRequest(DataClassJsonMixin):
 class MarkChannelsReadRequest(DataClassJsonMixin):
     user_id: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="user_id")
+    )
+    # Filter conditions to apply to the query
+    filter_conditions: Optional[Dict[str, object]] = dc_field(
+        default=None, metadata=dc_config(field_name="filter_conditions")
     )
     # Map of channel ID to last read message ID
     read_by_channel: "Optional[Dict[str, str]]" = dc_field(
@@ -26613,7 +26625,7 @@ class QueryLabelResultsRequest(DataClassJsonMixin):
     sort: "Optional[List[SortParamRequest]]" = dc_field(
         default=None, metadata=dc_config(field_name="sort")
     )
-    # Filter conditions
+    # Filter conditions. keyword searches the moderated content: "$q" matches whole words, while "$contains" is a case-insensitive substring match (text inside unspaced CJK sentences, word roots, emoji and symbols). "$contains" requires a date_range or created_at window within the last 7 days, at most 1 day long, or 7 days when the filter also narrows language to at most 3 non-empty values. The 7-day window is best effort: a language that covers most of an app's results can still time out.
     filter: Optional[Dict[str, object]] = dc_field(
         default=None, metadata=dc_config(field_name="filter")
     )
@@ -36875,7 +36887,7 @@ class UserIdenticalImageCountParameters(DataClassJsonMixin):
 
 @dataclass
 class UserInterestRequest(DataClassJsonMixin):
-    # The interest tag; trimmed and lower-cased like activity interest_tags
+    # The interest tag; trimmed and lower-cased like activity interest_tags. Avoid commas: removing interests takes a comma-separated list, so a tag that contains a comma cannot be removed
     tag: str = dc_field(metadata=dc_config(field_name="tag"))
     # Ranking weight between -1.0 (dislike) and 1.0 (like). Defaults to 1.0
     weight: Optional[float] = dc_field(
