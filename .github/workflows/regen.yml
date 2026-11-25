@@ -253,9 +253,19 @@ jobs:
                       if params and params[0][0] in ("self", "cls"):
                           params = params[1:]
                       query = {v.id for c in ast.walk(f) if isinstance(c, ast.Call) and getattr(c.func, "id", None) == "build_query_param" for v in ast.walk(c) if isinstance(v, ast.Name)}
+                      calls = [(c.func.attr, {k.arg: k.value.id for k in c.keywords if isinstance(k.value, ast.Name)}) for c in ast.walk(f) if isinstance(c, ast.Call) and isinstance(c.func, ast.Attribute) and ast.unparse(c.func.value) == "self.client"]
                       # The sync and async modules share class names, so the async one is labelled.
-                      out[f"{mod}:{owner}.{f.name}"] = (f.name, params, f"{owner}.{f.name}".removesuffix(".__init__") + (" (async)" if "async_" in mod else ""), query)
+                      out[f"{mod}:{owner}.{f.name}"] = (f.name, params, f"{owner}.{f.name}".removesuffix(".__init__") + (" (async)" if "async_" in mod else ""), query, calls)
               return out
+
+
+          # Channel, Call and Feed methods pass their arguments on to the client method they wrap, so they take its query arguments.
+          def wrap(methods):
+              query = {}
+              for method, _, _, q, _ in methods.values():
+                  query.setdefault(method, set()).update(q)
+              for _, _, _, q, calls in methods.values():
+                  q.update(v for target, kw in calls for a, v in kw.items() if a in query.get(target, ()))
 
 
           def text(params):
@@ -278,7 +288,8 @@ jobs:
                   new.update(defs(open(path).read(), mod))
               except FileNotFoundError:
                   pass
-          for name, (method, params, label, query) in old.items():
+          wrap(old)
+          for name, (method, params, label, query, _) in old.items():
               if name not in new:
                   print(f"gone\t{method}\t{label}()")
               elif not compatible(params, new[name][1], query):
