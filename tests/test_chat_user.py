@@ -88,7 +88,7 @@ def test_update_user_partial_with_team(client: Stream, random_user):
 def test_query_users(client: Stream, random_user):
     """Query users with filter conditions."""
     response = client.query_users(
-        QueryUsersPayload(filter_conditions={"id": {"$eq": random_user.id}})
+        payload=QueryUsersPayload(filter_conditions={"id": {"$eq": random_user.id}})
     )
     assert response.data.users is not None
     assert len(response.data.users) == 1
@@ -107,7 +107,7 @@ def test_query_users_with_filters(client: Stream):
     user_ids = list(users.keys())
 
     response = client.query_users(
-        QueryUsersPayload(
+        payload=QueryUsersPayload(
             filter_conditions={"id": {"$in": user_ids}},
             sort=[SortParamRequest(field="name", direction=1)],
         )
@@ -181,7 +181,9 @@ def test_restore_users(client: Stream):
 
     client.restore_users(user_ids=[user_id])
 
-    response = client.query_users(QueryUsersPayload(filter_conditions={"id": user_id}))
+    response = client.query_users(
+        payload=QueryUsersPayload(filter_conditions={"id": user_id})
+    )
     assert len(response.data.users) == 1
 
     try:
@@ -325,7 +327,7 @@ def test_query_users_with_offset_limit(client: Stream):
     client.update_users(users={uid: UserRequest(id=uid, name=uid) for uid in user_ids})
 
     response = client.query_users(
-        QueryUsersPayload(
+        payload=QueryUsersPayload(
             filter_conditions={"id": {"$in": user_ids}},
             offset=1,
             limit=2,
@@ -468,7 +470,7 @@ def test_user_custom_data(client: Stream):
 
     # Query back to verify persistence
     query_response = client.query_users(
-        QueryUsersPayload(filter_conditions={"id": user_id})
+        payload=QueryUsersPayload(filter_conditions={"id": user_id})
     )
     assert len(query_response.data.users) == 1
     assert query_response.data.users[0].custom["favorite_color"] == "blue"
@@ -503,7 +505,7 @@ def test_query_users_custom_field_filter(client: Stream):
 
     # query by custom field
     response = client.query_users(
-        QueryUsersPayload(
+        payload=QueryUsersPayload(
             filter_conditions={"id": {"$in": user_ids}},
             sort=[SortParamRequest(field="score", direction=-1)],
         )
@@ -536,7 +538,7 @@ def test_query_users_with_deactivated(client: Stream):
 
     # query without deactivated — should get 2
     response = client.query_users(
-        QueryUsersPayload(
+        payload=QueryUsersPayload(
             filter_conditions={"id": {"$in": user_ids}},
         )
     )
@@ -544,7 +546,7 @@ def test_query_users_with_deactivated(client: Stream):
 
     # query with deactivated — should get 3
     response = client.query_users(
-        QueryUsersPayload(
+        payload=QueryUsersPayload(
             filter_conditions={"id": {"$in": user_ids}},
             include_deactivated_users=True,
         )

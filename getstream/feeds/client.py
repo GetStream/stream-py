@@ -25,4 +25,4 @@ class FeedsClient(FeedsRestClient):
         :param custom_data: Optional custom data for the feed
         :return: Feed instance
         """
-        return Feed(self, feed_type, feed_id, custom_data)
+        return Feed(self, feed_type, feed_id, custom_data=custom_data)

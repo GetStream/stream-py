@@ -22,4 +22,4 @@ class VideoClient(VideoRestClient):
         self.stream = stream
 
     def call(self, call_type: str, id: str) -> Call:
-        return Call(self, call_type, id)
+        return Call(self, call_type, call_id=id)

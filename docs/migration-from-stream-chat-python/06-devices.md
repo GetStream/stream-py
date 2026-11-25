@@ -143,6 +143,6 @@ response = client.delete_device(id="device-123", user_id="user-1")
 
 | Use Case | stream-chat | getstream |
 |----------|------------|-----------|
-| Add device | `client.add_device(device_id, push_provider, user_id)` | `client.create_device(id, push_provider, user_id)` |
+| Add device | `client.add_device(device_id, push_provider, user_id)` | `client.create_device(id, push_provider, user_id=user_id)` |
 | List devices | `client.get_devices(user_id)` | `client.list_devices(user_id)` |
 | Delete device | `client.delete_device(device_id, user_id)` | `client.delete_device(id, user_id)` |
