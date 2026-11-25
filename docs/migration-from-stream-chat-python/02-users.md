@@ -117,7 +117,7 @@ from getstream.models import QueryUsersPayload, SortParamRequest
 
 client = Stream(api_key="your-api-key", api_secret="your-api-secret")
 response = client.query_users(
-    QueryUsersPayload(
+    payload=QueryUsersPayload(
         filter_conditions={"role": {"$eq": "admin"}},
         sort=[SortParamRequest(field="created_at", direction=-1)],
         limit=10,
