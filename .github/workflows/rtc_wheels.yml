@@ -29,7 +29,7 @@ jobs:
             runner: ubuntu-24.04-arm
           - platform: macos-arm64
             runner: macos-latest
-    runs-on: ${{ (matrix.runner == 'ubuntu-24.04-arm' && fromJSON('{"group":"github-public-arm64"}')) || (matrix.runner == 'ubuntu-latest' && fromJSON('{"group":"github-public-amd64"}')) || matrix.runner }}
+    runs-on: ${{ (matrix.runner == 'ubuntu-24.04-arm' && fromJSON('{"group":"github-public-arm64"}')) || (matrix.runner == 'ubuntu-latest' && fromJSON('{"group":"github-public-amd64"}')) || fromJSON('{"group":"scaleway-macos"}') }}
     timeout-minutes: 45
     steps:
       - name: Checkout
