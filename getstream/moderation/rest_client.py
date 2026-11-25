@@ -325,6 +325,7 @@ class ModerationRestClient(BaseClient):
         ban_from_future_channels: Optional[bool] = None,
         banned_by_id: Optional[str] = None,
         channel_cid: Optional[str] = None,
+        channel_type: Optional[str] = None,
         delete_messages: Optional[str] = None,
         delete_reactions: Optional[bool] = None,
         ip_ban: Optional[bool] = None,
@@ -338,6 +339,7 @@ class ModerationRestClient(BaseClient):
             ban_from_future_channels=ban_from_future_channels,
             banned_by_id=banned_by_id,
             channel_cid=channel_cid,
+            channel_type=channel_type,
             delete_messages=delete_messages,
             delete_reactions=delete_reactions,
             ip_ban=ip_ban,
@@ -1318,6 +1320,7 @@ class ModerationRestClient(BaseClient):
         channel_cid: Optional[str] = None,
         created_by: Optional[str] = None,
         remove_future_channels_ban: Optional[bool] = None,
+        channel_type: Optional[str] = None,
         unbanned_by_id: Optional[str] = None,
         unbanned_by: Optional[UserRequest] = None,
     ) -> StreamResponse[UnbanResponse]:
@@ -1327,6 +1330,7 @@ class ModerationRestClient(BaseClient):
                 "channel_cid": channel_cid,
                 "created_by": created_by,
                 "remove_future_channels_ban": remove_future_channels_ban,
+                "channel_type": channel_type,
             }
         )
         json = UnbanRequest(
