@@ -245,7 +245,7 @@ jobs:
         run: |
           # The environment's deployment branches are what enforce this; the check here only
           # gives a clear error before they are configured.
-          if [ "$GITHUB_REF" != "refs/heads/${DEFAULT_BRANCH}" ] && [[ ! "$GITHUB_REF" =~ ^refs/heads/[0-9]+\.x$ ]]; then
+          if [ "$GITHUB_REF" != "refs/heads/${DEFAULT_BRANCH}" ] && [[ ! "$GITHUB_REF" =~ ^refs/heads/[0-9]+(\.[0-9]+)*\.x$ ]]; then
             echo "::error::Publishing runs only from ${DEFAULT_BRANCH} or an N.x release branch, not ${GITHUB_REF}."
             exit 1
           fi
@@ -338,7 +338,7 @@ jobs:
         run: |
           # The environment's deployment branches are what enforce this; the check here only
           # gives a clear error before they are configured.
-          if [ "$GITHUB_REF" != "refs/heads/${DEFAULT_BRANCH}" ] && [[ ! "$GITHUB_REF" =~ ^refs/heads/[0-9]+\.x$ ]]; then
+          if [ "$GITHUB_REF" != "refs/heads/${DEFAULT_BRANCH}" ] && [[ ! "$GITHUB_REF" =~ ^refs/heads/[0-9]+(\.[0-9]+)*\.x$ ]]; then
             echo "::error::Publishing runs only from ${DEFAULT_BRANCH} or an N.x release branch, not ${GITHUB_REF}."
             exit 1
           fi
