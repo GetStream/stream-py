@@ -25476,6 +25476,10 @@ class QueryAggregateCallStatsResponse(DataClassJsonMixin):
 
 @dataclass
 class QueryAppealsRequest(DataClassJsonMixin):
+    # Whether to also return the number of appeals matching the filter (total and capped). Set limit to 0 to get only the count. Not returned for team-scoped moderators, or when the count fails.
+    include_count: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="include_count")
+    )
     limit: Optional[int] = dc_field(
         default=None, metadata=dc_config(field_name="limit")
     )
@@ -25503,8 +25507,16 @@ class QueryAppealsResponse(DataClassJsonMixin):
     duration: str = dc_field(metadata=dc_config(field_name="duration"))
     # List of Appeal Items
     items: "List[AppealItemResponse]" = dc_field(metadata=dc_config(field_name="items"))
+    # Whether more appeals match than are counted exactly (1,000), so total is a lower bound. Returned when include_count is set.
+    capped: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="capped")
+    )
     next: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="next"))
     prev: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="prev"))
+    # Number of appeals matching the filter, returned when include_count is set. When capped is true, at least this many appeals match.
+    total: Optional[int] = dc_field(
+        default=None, metadata=dc_config(field_name="total")
+    )
 
 
 @dataclass

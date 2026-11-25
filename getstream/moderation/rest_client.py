@@ -267,6 +267,7 @@ class ModerationRestClient(BaseClient):
     @telemetry.operation_name("getstream.api.moderation.query_appeals")
     def query_appeals(
         self,
+        include_count: Optional[bool] = None,
         limit: Optional[int] = None,
         next: Optional[str] = None,
         prev: Optional[str] = None,
@@ -276,6 +277,7 @@ class ModerationRestClient(BaseClient):
         user: Optional[UserRequest] = None,
     ) -> StreamResponse[QueryAppealsResponse]:
         json = QueryAppealsRequest(
+            include_count=include_count,
             limit=limit,
             next=next,
             prev=prev,
