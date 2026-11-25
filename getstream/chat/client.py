@@ -22,7 +22,7 @@ class ChatClient(ChatRestClient):
         self.stream = stream
 
     def channel(self, call_type: str, id: str) -> Channel:
-        return Channel(self, call_type, id)
+        return Channel(self, call_type, channel_id=id)
 
     # Keeps the `channel_type` name this method has always taken; the generated one takes `type`.
     def upload_channel_image(

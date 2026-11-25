@@ -85,7 +85,7 @@ def test_teams(client: Stream):
     assert response.data.call.team == "blue"
 
     response = client.query_users(
-        QueryUsersPayload(
+        payload=QueryUsersPayload(
             filter_conditions={"id": user_id, "teams": {"$in": ["red", "blue"]}}
         )
     )
@@ -93,7 +93,7 @@ def test_teams(client: Stream):
     assert user_id in [u.id for u in response.data.users]
 
     response = client.query_users(
-        QueryUsersPayload(
+        payload=QueryUsersPayload(
             filter_conditions={
                 "teams": None,
             }
