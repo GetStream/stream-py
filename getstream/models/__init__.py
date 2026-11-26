@@ -1511,6 +1511,9 @@ class AddActivityRequest(DataClassJsonMixin):
     create_notification_activity: Optional[bool] = dc_field(
         default=None, metadata=dc_config(field_name="create_notification_activity")
     )
+    create_system_feeds: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="create_system_feeds")
+    )
     create_users: Optional[bool] = dc_field(
         default=None, metadata=dc_config(field_name="create_users")
     )
@@ -9348,6 +9351,10 @@ class ChatMessageResponse(DataClassJsonMixin):
     )
     thread_participants: "Optional[List[UserResponse]]" = dc_field(
         default=None, metadata=dc_config(field_name="thread_participants")
+    )
+    # User response object
+    deleted_by: "Optional[UserResponse]" = dc_field(
+        default=None, metadata=dc_config(field_name="deleted_by")
     )
     draft: "Optional[ChatDraftResponse]" = dc_field(
         default=None, metadata=dc_config(field_name="draft")
@@ -21004,6 +21011,10 @@ class MessageResponse(DataClassJsonMixin):
     thread_participants: "Optional[List[UserResponse]]" = dc_field(
         default=None, metadata=dc_config(field_name="thread_participants")
     )
+    # User response object
+    deleted_by: "Optional[UserResponse]" = dc_field(
+        default=None, metadata=dc_config(field_name="deleted_by")
+    )
     draft: "Optional[DraftResponse]" = dc_field(
         default=None, metadata=dc_config(field_name="draft")
     )
@@ -21379,6 +21390,10 @@ class MessageWithChannelResponse(DataClassJsonMixin):
     # List of users who participate in thread
     thread_participants: "Optional[List[UserResponse]]" = dc_field(
         default=None, metadata=dc_config(field_name="thread_participants")
+    )
+    # User response object
+    deleted_by: "Optional[UserResponse]" = dc_field(
+        default=None, metadata=dc_config(field_name="deleted_by")
     )
     draft: "Optional[DraftResponse]" = dc_field(
         default=None, metadata=dc_config(field_name="draft")
@@ -31084,6 +31099,10 @@ class SearchResultMessage(DataClassJsonMixin):
     channel: "Optional[ChannelResponse]" = dc_field(
         default=None, metadata=dc_config(field_name="channel")
     )
+    # User response object
+    deleted_by: "Optional[UserResponse]" = dc_field(
+        default=None, metadata=dc_config(field_name="deleted_by")
+    )
     draft: "Optional[DraftResponse]" = dc_field(
         default=None, metadata=dc_config(field_name="draft")
     )
@@ -35926,6 +35945,10 @@ class UpsertActivitiesRequest(DataClassJsonMixin):
     # List of activities to create or update
     activities: "List[ActivityRequest]" = dc_field(
         metadata=dc_config(field_name="activities")
+    )
+    # Server-side only. If true, a missing feed whose id is not a user id (e.g. game:123) is created as a system feed with no user owner. Missing feeds named after an existing user are created either way. Built-in groups (such as user, timeline and notification) and notification groups still require a user. Default: false.
+    create_system_feeds: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="create_system_feeds")
     )
     # Server-side only. If true, auto-creates users referenced by activity user_id values that don't already exist. Default: false.
     create_users: Optional[bool] = dc_field(
