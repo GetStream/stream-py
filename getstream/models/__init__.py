@@ -3739,6 +3739,10 @@ class BanRequest(DataClassJsonMixin):
     channel_cid: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="channel_cid")
     )
+    # Ban the user from every channel of this type, including channels they join later. Cannot be combined with channel_cid, ip_ban, ban_from_future_channels, delete_messages or delete_reactions
+    channel_type: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="channel_type")
+    )
     # How a ban or user deletion treats the user's messages.
     delete_messages: "Optional[str]" = dc_field(
         default=None, metadata=dc_config(field_name="delete_messages")
@@ -8356,6 +8360,9 @@ class ChannelOwnCapability:
     SHARE_LOCATION: Final[ChannelOwnCapabilityType] = "share-location"
     SKIP_SLOW_MODE: Final[ChannelOwnCapabilityType] = "skip-slow-mode"
     SLOW_MODE: Final[ChannelOwnCapabilityType] = "slow-mode"
+    TRANSCRIBE_VOICE_MESSAGE: Final[ChannelOwnCapabilityType] = (
+        "transcribe-voice-message"
+    )
     TYPING_EVENTS: Final[ChannelOwnCapabilityType] = "typing-events"
     UPDATE_ANY_MESSAGE: Final[ChannelOwnCapabilityType] = "update-any-message"
     UPDATE_CHANNEL: Final[ChannelOwnCapabilityType] = "update-channel"
@@ -21808,6 +21815,9 @@ class ModerationDashboardPreferences(DataClassJsonMixin):
     disable_flagging_reviewed_entity: Optional[bool] = dc_field(
         default=None, metadata=dc_config(field_name="disable_flagging_reviewed_entity")
     )
+    disable_review_queue: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="disable_review_queue")
+    )
     enforce_shadow_server_side: Optional[bool] = dc_field(
         default=None, metadata=dc_config(field_name="enforce_shadow_server_side")
     )
@@ -33171,6 +33181,12 @@ class TrackActivityMetricsResponse(DataClassJsonMixin):
 class TrackStatsResponse(DataClassJsonMixin):
     duration_seconds: int = dc_field(metadata=dc_config(field_name="duration_seconds"))
     track_type: str = dc_field(metadata=dc_config(field_name="track_type"))
+
+
+@dataclass
+class TranscribeMessageResponse(DataClassJsonMixin):
+    # Duration of the request in milliseconds
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
 
 
 @dataclass
