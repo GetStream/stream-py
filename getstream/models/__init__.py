@@ -4483,6 +4483,58 @@ class BrowserDataResponse(DataClassJsonMixin):
 
 
 @dataclass
+class BudgetStatusResponse(DataClassJsonMixin):
+    # Whether exhausting the budget rejects requests with HTTP 429. False when the budget is only measured, or while enforcement is temporarily suspended
+    enforced: bool = dc_field(metadata=dc_config(field_name="enforced"))
+    # Database time in milliseconds the endpoint may use per sliding window
+    limit_ms: int = dc_field(metadata=dc_config(field_name="limit_ms"))
+    # Database time in milliseconds left in the current sliding window, never negative
+    remaining_ms: int = dc_field(metadata=dc_config(field_name="remaining_ms"))
+    # The Unix timestamp at which all usage currently in the window will have expired, if no new usage is added. The current time when no usage is recorded in the window. Can be in the future while used_ms is 0, when earlier usage was refunded
+    reset: int = dc_field(metadata=dc_config(field_name="reset"))
+    # Database time in milliseconds used in the current sliding window, including requests still in flight
+    used_ms: int = dc_field(metadata=dc_config(field_name="used_ms"))
+    # Length of the sliding window in seconds
+    window_seconds: int = dc_field(metadata=dc_config(field_name="window_seconds"))
+
+
+@dataclass
+class BudgetsResponse(DataClassJsonMixin):
+    # Map of endpoint budgets shared by all platforms. Set when budgets are not tracked per platform
+    all: "Optional[Dict[str, BudgetStatusResponse]]" = dc_field(
+        default=None, metadata=dc_config(field_name="all")
+    )
+    # Map of endpoint budgets for the Android platform
+    android: "Optional[Dict[str, BudgetStatusResponse]]" = dc_field(
+        default=None, metadata=dc_config(field_name="android")
+    )
+    # Map of endpoint budgets for the iOS platform
+    ios: "Optional[Dict[str, BudgetStatusResponse]]" = dc_field(
+        default=None, metadata=dc_config(field_name="ios")
+    )
+    # Map of endpoint budgets for the server-side platform
+    server_side: "Optional[Dict[str, BudgetStatusResponse]]" = dc_field(
+        default=None, metadata=dc_config(field_name="server_side")
+    )
+    # Map of endpoint budgets for the Unity platform
+    unity: "Optional[Dict[str, BudgetStatusResponse]]" = dc_field(
+        default=None, metadata=dc_config(field_name="unity")
+    )
+    # Map of endpoint budgets for the Unity console platform
+    unity_console: "Optional[Dict[str, BudgetStatusResponse]]" = dc_field(
+        default=None, metadata=dc_config(field_name="unity_console")
+    )
+    # Map of endpoint budgets for the Unity desktop platform
+    unity_desktop: "Optional[Dict[str, BudgetStatusResponse]]" = dc_field(
+        default=None, metadata=dc_config(field_name="unity_desktop")
+    )
+    # Map of endpoint budgets for the web platform
+    web: "Optional[Dict[str, BudgetStatusResponse]]" = dc_field(
+        default=None, metadata=dc_config(field_name="web")
+    )
+
+
+@dataclass
 class BulkActionAppealsRequest(DataClassJsonMixin):
     # Action to apply: unban, restore, unblock, mark_reviewed, or reject_appeal
     action_type: str = dc_field(metadata=dc_config(field_name="action_type"))
@@ -17824,6 +17876,9 @@ class GetRateLimitsResponse(DataClassJsonMixin):
     # Map of endpoint rate limits for the Android platform
     android: "Optional[Dict[str, LimitInfoResponse]]" = dc_field(
         default=None, metadata=dc_config(field_name="android")
+    )
+    budgets: "Optional[BudgetsResponse]" = dc_field(
+        default=None, metadata=dc_config(field_name="budgets")
     )
     # Map of endpoint rate limits for the iOS platform
     ios: "Optional[Dict[str, LimitInfoResponse]]" = dc_field(
