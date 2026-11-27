@@ -363,6 +363,7 @@ class BaseStream:
         role: str = None,
         expiration=None,
         iat: int = None,
+        scoped_call_cid: str = None,
     ):
         now = int(time.time())
 
@@ -379,6 +380,9 @@ class BaseStream:
 
         if role is not None:
             claims["role"] = role
+
+        if scoped_call_cid is not None:
+            claims["scoped_call_cid"] = scoped_call_cid
 
         if user_id is not None:
             claims["user_id"] = user_id
