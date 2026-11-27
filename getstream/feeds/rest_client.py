@@ -319,6 +319,7 @@ class FeedsRestClient(BaseClient):
         self,
         activity_id: str,
         hide: Optional[bool] = None,
+        request_id: Optional[str] = None,
         show_less: Optional[bool] = None,
         show_more: Optional[bool] = None,
         user_id: Optional[str] = None,
@@ -329,6 +330,7 @@ class FeedsRestClient(BaseClient):
         }
         json = ActivityFeedbackRequest(
             hide=hide,
+            request_id=request_id,
             show_less=show_less,
             show_more=show_more,
             user_id=user_id,
@@ -2582,12 +2584,14 @@ class FeedsRestClient(BaseClient):
         policy: str,
         enabled: Optional[bool] = None,
         feed_groups: Optional[List[str]] = None,
+        filter_conditions: Optional[Dict[str, object]] = None,
     ) -> StreamResponse[SetFeedsRetentionPolicyResponse]:
         json = SetFeedsRetentionPolicyRequest(
             max_age_hours=max_age_hours,
             policy=policy,
             enabled=enabled,
             feed_groups=feed_groups,
+            filter_conditions=filter_conditions,
         ).to_dict()
         return self.post(
             "/api/v2/feeds/retention_policy", SetFeedsRetentionPolicyResponse, json=json
@@ -2779,6 +2783,30 @@ class FeedsRestClient(BaseClient):
             "/api/v2/feeds/scheduled_activities/{id}/publish_now",
             PublishScheduledActivityNowResponse,
             path_params=path_params,
+        )
+
+    @telemetry.operation_name("getstream.api.feeds.query_feeds_engagement_stats")
+    def query_feeds_engagement_stats(
+        self,
+        group_id: str,
+        _from: Optional[str] = None,
+        experiment_id: Optional[str] = None,
+        limit: Optional[int] = None,
+        to: Optional[str] = None,
+        view_id: Optional[str] = None,
+    ) -> StreamResponse[QueryFeedsEngagementStatsResponse]:
+        json = QueryFeedsEngagementStatsRequest(
+            group_id=group_id,
+            _from=_from,
+            experiment_id=experiment_id,
+            limit=limit,
+            to=to,
+            view_id=view_id,
+        ).to_dict()
+        return self.post(
+            "/api/v2/feeds/stats/engagement",
+            QueryFeedsEngagementStatsResponse,
+            json=json,
         )
 
     @telemetry.operation_name("getstream.api.feeds.query_feeds_usage_stats")

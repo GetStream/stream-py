@@ -98,6 +98,7 @@ class CommonRestClient(BaseClient):
         huawei_config: Optional[HuaweiConfig] = None,
         image_upload_config: Optional[FileUploadConfig] = None,
         message_marks: Optional[MessageMarksConfig] = None,
+        message_schema: Optional[MessageSchemaSettings] = None,
         moderation_dashboard_preferences: Optional[
             ModerationDashboardPreferences
         ] = None,
@@ -165,6 +166,7 @@ class CommonRestClient(BaseClient):
             huawei_config=huawei_config,
             image_upload_config=image_upload_config,
             message_marks=message_marks,
+            message_schema=message_schema,
             moderation_dashboard_preferences=moderation_dashboard_preferences,
             push_config=push_config,
             xiaomi_config=xiaomi_config,
