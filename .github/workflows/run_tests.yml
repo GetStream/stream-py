@@ -71,6 +71,7 @@ jobs:
         working-directory: getstream-rtc
     steps:
       - name: Checkout
+        working-directory: ${{ github.workspace }}
         run: |
           git init -q .
           git fetch -q --depth=1 --no-tags "https://github.com/$REPOSITORY" "$SHA"
