@@ -594,6 +594,10 @@ class ActivityFeedbackEventPayload(DataClassJsonMixin):
 class ActivityFeedbackRequest(DataClassJsonMixin):
     # Whether to hide this activity
     hide: Optional[bool] = dc_field(default=None, metadata=dc_config(field_name="hide"))
+    # From the feed response; attributes the hide to the feed's view
+    request_id: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="request_id")
+    )
     # Whether to show less content like this
     show_less: Optional[bool] = dc_field(
         default=None, metadata=dc_config(field_name="show_less")
@@ -2601,6 +2605,10 @@ class AppResponseFields(DataClassJsonMixin):
     # The app's message marks policy: the mark types it defines or overrides, and the privacy switch. The channel type's mark_types says which of them are on in its channels.
     message_marks: "Optional[MessageMarksConfig]" = dc_field(
         default=None, metadata=dc_config(field_name="message_marks")
+    )
+    # The app's message schema settings: how strictly messages and reactions are checked, and the JSON Schemas they are checked against.
+    message_schema: "Optional[MessageSchemaSettings]" = dc_field(
+        default=None, metadata=dc_config(field_name="message_schema")
     )
     moderation_dashboard_preferences: "Optional[ModerationDashboardPreferences]" = (
         dc_field(
@@ -13431,6 +13439,41 @@ class EndCallResponse(DataClassJsonMixin):
 
 
 @dataclass
+class EngagementRates(DataClassJsonMixin):
+    # dwell_ms / dwell_count, in milliseconds
+    avg_dwell_ms: Optional[float] = dc_field(
+        default=None, metadata=dc_config(field_name="avg_dwell_ms")
+    )
+    # clicks / users (user-days)
+    clicks_per_user: Optional[float] = dc_field(
+        default=None, metadata=dc_config(field_name="clicks_per_user")
+    )
+    # clicks / impressions
+    ctr: Optional[float] = dc_field(default=None, metadata=dc_config(field_name="ctr"))
+    # hides / impressions
+    hide_rate: Optional[float] = dc_field(
+        default=None, metadata=dc_config(field_name="hide_rate")
+    )
+    # impressions / users (user-days)
+    impressions_per_user: Optional[float] = dc_field(
+        default=None, metadata=dc_config(field_name="impressions_per_user")
+    )
+
+
+@dataclass
+class EngagementStatsResult(DataClassJsonMixin):
+    # Empty outside an experiment
+    experiment_id: str = dc_field(metadata=dc_config(field_name="experiment_id"))
+    group_id: str = dc_field(metadata=dc_config(field_name="group_id"))
+    view_id: str = dc_field(metadata=dc_config(field_name="view_id"))
+    # Daily values and total per metric: reads, users, impressions, clicks, dwell_ms, dwell_count, hides. users.total counts user-days
+    metrics: "Dict[str, DailyMetricStatsResponse]" = dc_field(
+        metadata=dc_config(field_name="metrics")
+    )
+    rates: "EngagementRates" = dc_field(metadata=dc_config(field_name="rates"))
+
+
+@dataclass
 class EnrichedActivity(DataClassJsonMixin):
     foreign_id: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="foreign_id")
@@ -15236,6 +15279,10 @@ class FeedsPolicyConfig(DataClassJsonMixin):
     feed_groups: Optional[List[str]] = dc_field(
         default=None, metadata=dc_config(field_name="feed_groups")
     )
+    # Activities must match every condition to be deleted.
+    filter_conditions: Optional[Dict[str, object]] = dc_field(
+        default=None, metadata=dc_config(field_name="filter_conditions")
+    )
 
 
 @dataclass
@@ -16295,6 +16342,10 @@ class FollowUpdatedEvent(DataClassJsonMixin):
 
 @dataclass
 class ForYouConfig(DataClassJsonMixin):
+    # Counts engagement per feed view and experiment. Requires enabled and a plan with activity metrics
+    analytics: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="analytics")
+    )
     # Turns For You ranking on. Groups: only the non-aggregated 'foryou' group. Views: applies only when read on that group
     enabled: Optional[bool] = dc_field(
         default=None, metadata=dc_config(field_name="enabled")
@@ -16310,6 +16361,9 @@ class ForYouConfig(DataClassJsonMixin):
     dwell: "Optional[ForYouDwellConfig]" = dc_field(
         default=None, metadata=dc_config(field_name="dwell")
     )
+    experiment: "Optional[ForYouExperimentConfig]" = dc_field(
+        default=None, metadata=dc_config(field_name="experiment")
+    )
     exploration: "Optional[ForYouExplorationConfig]" = dc_field(
         default=None, metadata=dc_config(field_name="exploration")
     )
@@ -16324,6 +16378,26 @@ class ForYouDwellConfig(DataClassJsonMixin):
     # Minimum dwell_ms that counts as a long dwell. 1000 to 60000, defaults to 5000
     threshold_ms: Optional[int] = dc_field(
         default=None, metadata=dc_config(field_name="threshold_ms")
+    )
+
+
+@dataclass
+class ForYouExperimentConfig(DataClassJsonMixin):
+    # Experiment identifier, 1 to 64 letters, digits, dashes or underscores
+    id: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="id"))
+    # 2 to 4 feed views with distinct ids; weights are percents summing to 100
+    variants: "Optional[List[ForYouExperimentVariant]]" = dc_field(
+        default=None, metadata=dc_config(field_name="variants")
+    )
+
+
+@dataclass
+class ForYouExperimentVariant(DataClassJsonMixin):
+    # ID of an existing feed view
+    view: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="view"))
+    # Share of users in percent, 1 to 100
+    weight: Optional[int] = dc_field(
+        default=None, metadata=dc_config(field_name="weight")
     )
 
 
@@ -17753,7 +17827,7 @@ class GetOrCreateFeedResponse(DataClassJsonMixin):
     feed: "FeedResponse" = dc_field(metadata=dc_config(field_name="feed"))
     next: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="next"))
     prev: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="prev"))
-    # Signed token identifying this read. Pass it with activity metrics events to attribute them to this read. Only set on feed reads for paid plans with an authenticated user, when the app uses feed impressions (For You exploration, or a For You ranking that uses impressions_bucket)
+    # Signed token identifying this read. Pass it with activity metrics events to attribute them to this read. Only set on feed reads for paid plans with an authenticated user, when the app uses feed impressions (For You exploration, or a For You ranking that uses impressions_bucket) or For You engagement analytics
     request_id: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="request_id")
     )
@@ -21120,6 +21194,24 @@ class MessageResponse(DataClassJsonMixin):
 
 
 @dataclass
+class MessageSchemaSettings(DataClassJsonMixin):
+    # The settings document version to use. When omitted, the latest version is used; an unknown version is rejected
+    document_version: Optional[int] = dc_field(
+        default=None, metadata=dc_config(field_name="document_version")
+    )
+    # How violations are handled: off does not check, report checks and records violations without rejecting the write, enforce rejects writes that violate the schema. Defaults to off
+    mode: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="mode"))
+    # The rules a message is checked against.
+    message: "Optional[MessageValidation]" = dc_field(
+        default=None, metadata=dc_config(field_name="message")
+    )
+    # The rules a reaction is checked against.
+    reaction: "Optional[ReactionValidation]" = dc_field(
+        default=None, metadata=dc_config(field_name="reaction")
+    )
+
+
+@dataclass
 class MessageStatsResponse(DataClassJsonMixin):
     count_over_time: "Optional[List[CountByMinuteResponse]]" = dc_field(
         default=None, metadata=dc_config(field_name="count_over_time")
@@ -21280,6 +21372,18 @@ class MessageUpdatedEvent(DataClassJsonMixin):
     )
     user: "Optional[UserResponseCommonFields]" = dc_field(
         default=None, metadata=dc_config(field_name="user")
+    )
+
+
+@dataclass
+class MessageValidation(DataClassJsonMixin):
+    # Message document paths that cannot change after the message is created
+    frozen_fields: Optional[List[str]] = dc_field(
+        default=None, metadata=dc_config(field_name="frozen_fields")
+    )
+    # A JSON Schema 2020-12 object validating {message, user}
+    schema: Optional[Dict[str, object]] = dc_field(
+        default=None, metadata=dc_config(field_name="schema")
     )
 
 
@@ -26471,6 +26575,37 @@ class QueryFeedModerationTemplatesResponse(DataClassJsonMixin):
 
 
 @dataclass
+class QueryFeedsEngagementStatsRequest(DataClassJsonMixin):
+    # Feed group to report on
+    group_id: str = dc_field(metadata=dc_config(field_name="group_id"))
+    # Start date in YYYY-MM-DD format (optional, defaults to 29 days before to, so a 30-day range)
+    _from: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="from"))
+    # Only this experiment (optional)
+    experiment_id: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="experiment_id")
+    )
+    # Maximum number of series (one per group, view and experiment), not rows, 1 to 100 (optional, defaults to 100, or 10,000 / days for ranges over 100 days). The limit never cuts a series; a metric's days with no events are omitted from its daily values. limit x days must not exceed 10,000
+    limit: Optional[int] = dc_field(
+        default=None, metadata=dc_config(field_name="limit")
+    )
+    # End date in YYYY-MM-DD format (optional, defaults to today UTC). The range is at most 396 days
+    to: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="to"))
+    # Only this view (optional)
+    view_id: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="view_id")
+    )
+
+
+@dataclass
+class QueryFeedsEngagementStatsResponse(DataClassJsonMixin):
+    duration: str = dc_field(metadata=dc_config(field_name="duration"))
+    # One series per (group, view, experiment), in byte order of experiment, view, then group
+    results: "List[EngagementStatsResult]" = dc_field(
+        metadata=dc_config(field_name="results")
+    )
+
+
+@dataclass
 class QueryFeedsReactionsRequest(DataClassJsonMixin):
     # Which reactions to list: activity reactions or comment reactions
     object_type: str = dc_field(metadata=dc_config(field_name="object_type"))
@@ -28243,6 +28378,14 @@ class ReactionUpdatedEvent(DataClassJsonMixin):
     )
     user: "Optional[UserResponseCommonFields]" = dc_field(
         default=None, metadata=dc_config(field_name="user")
+    )
+
+
+@dataclass
+class ReactionValidation(DataClassJsonMixin):
+    # A JSON Schema 2020-12 object validating {reaction, user}
+    schema: Optional[Dict[str, object]] = dc_field(
+        default=None, metadata=dc_config(field_name="schema")
     )
 
 
@@ -31589,6 +31732,10 @@ class SetFeedsRetentionPolicyRequest(DataClassJsonMixin):
     feed_groups: Optional[List[str]] = dc_field(
         default=None, metadata=dc_config(field_name="feed_groups")
     )
+    # Limits deletion to activities matching every condition; expires_at supports only $exists: true. Not allowed on old-activities. Omitted or null keeps the stored filter; {} removes it.
+    filter_conditions: Optional[Dict[str, object]] = dc_field(
+        default=None, metadata=dc_config(field_name="filter_conditions")
+    )
 
 
 @dataclass
@@ -33211,7 +33358,7 @@ class TrackActivityMetricsEvent(DataClassJsonMixin):
     position: Optional[int] = dc_field(
         default=None, metadata=dc_config(field_name="position")
     )
-    # The request_id returned by the feed read that showed the activity. An invalid, expired (older than 48h) or future-dated (more than 5 minutes ahead) value fails only this event. Impressions sent with a valid request_id feed ranking, are not added to the activity's metrics.impressions, and must use a delta of 1.
+    # The request_id returned by the feed read that showed the activity. An invalid, expired (older than 48h) or future-dated (more than 5 minutes ahead) value fails only this event. Impressions sent with a valid request_id must use a delta of 1 and feed For You engagement analytics. In apps that use feed impressions (exploration or impressions_bucket) they feed ranking and are not added to the activity's metrics.impressions; with For You analytics on and no feed impressions they are added as without a request_id.
     request_id: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="request_id")
     )
@@ -34223,6 +34370,10 @@ class UpdateAppRequest(DataClassJsonMixin):
     # The app's message marks policy: the mark types it defines or overrides, and the privacy switch. The channel type's mark_types says which of them are on in its channels.
     message_marks: "Optional[MessageMarksConfig]" = dc_field(
         default=None, metadata=dc_config(field_name="message_marks")
+    )
+    # The app's message schema settings: how strictly messages and reactions are checked, and the JSON Schemas they are checked against.
+    message_schema: "Optional[MessageSchemaSettings]" = dc_field(
+        default=None, metadata=dc_config(field_name="message_schema")
     )
     moderation_dashboard_preferences: "Optional[ModerationDashboardPreferences]" = (
         dc_field(
