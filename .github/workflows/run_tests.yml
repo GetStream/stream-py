@@ -19,12 +19,18 @@ permissions:
 jobs:
   ruff:
     name: 🧪 Ruff
-    runs-on: { group: github-public-amd64 }
+    runs-on: ubuntu-latest
     steps:
+      # Anonymous checkout: the org IP allow list refuses only signed-in requests, and this job
+      # makes no other GitHub call, so it runs on a free standard runner.
       - name: Checkout
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          persist-credentials: false
+        run: |
+          git init -q .
+          git fetch -q --depth=1 --no-tags "https://github.com/$REPOSITORY" "$SHA"
+          git checkout -q FETCH_HEAD
+        env:
+          REPOSITORY: ${{ github.repository }}
+          SHA: ${{ github.sha }}
       - name: Install dependencies
         uses: ./.github/actions/python-uv-setup
         with:
@@ -34,12 +40,16 @@ jobs:
 
   typecheck:
     name: 🧪 Type Check (ty)
-    runs-on: { group: github-public-amd64 }
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          persist-credentials: false
+        run: |
+          git init -q .
+          git fetch -q --depth=1 --no-tags "https://github.com/$REPOSITORY" "$SHA"
+          git checkout -q FETCH_HEAD
+        env:
+          REPOSITORY: ${{ github.repository }}
+          SHA: ${{ github.sha }}
       - name: Install dependencies
         uses: ./.github/actions/python-uv-setup
         # ty reads getstream_rtc from getstream-rtc/ (see make typecheck), not the built extension.
@@ -50,7 +60,7 @@ jobs:
 
   rust:
     name: 🦀 Rust
-    runs-on: { group: github-public-amd64 }
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
       # The same interpreter for clippy and the tests, so the PyO3 build is reused.
@@ -61,9 +71,14 @@ jobs:
         working-directory: getstream-rtc
     steps:
       - name: Checkout
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          persist-credentials: false
+        working-directory: ${{ github.workspace }}
+        run: |
+          git init -q .
+          git fetch -q --depth=1 --no-tags "https://github.com/$REPOSITORY" "$SHA"
+          git checkout -q FETCH_HEAD
+        env:
+          REPOSITORY: ${{ github.repository }}
+          SHA: ${{ github.sha }}
       - name: Install the native build dependencies
         # The tests link libpython of the system Python.
         run: |
@@ -87,7 +102,7 @@ jobs:
   # Video paths and manual test paths are defined in the Makefile.
   test-non-video:
     name: 🧪 Non-video tests (${{ matrix.python-version }})
-    runs-on: { group: github-public-amd64 }
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -95,9 +110,13 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          persist-credentials: false
+        run: |
+          git init -q .
+          git fetch -q --depth=1 --no-tags "https://github.com/$REPOSITORY" "$SHA"
+          git checkout -q FETCH_HEAD
+        env:
+          REPOSITORY: ${{ github.repository }}
+          SHA: ${{ github.sha }}
       - name: Install dependencies
         uses: ./.github/actions/python-uv-setup
         with:
@@ -110,7 +129,7 @@ jobs:
   # Uses STREAM_* credentials which have video enabled.
   test-video:
     name: 🧪 Video tests (${{ matrix.python-version }})
-    runs-on: { group: github-public-amd64 }
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -118,9 +137,13 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          persist-credentials: false
+        run: |
+          git init -q .
+          git fetch -q --depth=1 --no-tags "https://github.com/$REPOSITORY" "$SHA"
+          git checkout -q FETCH_HEAD
+        env:
+          REPOSITORY: ${{ github.repository }}
+          SHA: ${{ github.sha }}
       - name: Install dependencies
         uses: ./.github/actions/python-uv-setup
         with:
