@@ -405,9 +405,18 @@ class CommonRestClient(AsyncBaseClient):
 
     @telemetry.operation_name("getstream.api.common.export_users")
     async def export_users(
-        self, user_ids: List[str]
+        self,
+        user_ids: List[str],
+        messages_from: Optional[datetime] = None,
+        messages_to: Optional[datetime] = None,
+        channel_cids: Optional[List[str]] = None,
     ) -> StreamResponse[ExportUsersResponse]:
-        json = ExportUsersRequest(user_ids=user_ids).to_dict()
+        json = ExportUsersRequest(
+            user_ids=user_ids,
+            messages_from=messages_from,
+            messages_to=messages_to,
+            channel_cids=channel_cids,
+        ).to_dict()
         return await self.post("/api/v2/export/users", ExportUsersResponse, json=json)
 
     @telemetry.operation_name("getstream.api.common.list_external_storage")

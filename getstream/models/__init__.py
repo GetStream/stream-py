@@ -14114,6 +14114,30 @@ class ExportUserResponse(DataClassJsonMixin):
 @dataclass
 class ExportUsersRequest(DataClassJsonMixin):
     user_ids: List[str] = dc_field(metadata=dc_config(field_name="user_ids"))
+    # Start of the message window, inclusive: messages with created_at >= messages_from are exported. Unlike export_channels' messages_since, which is exclusive. Reactions are selected by the time they were added, in the same window.
+    messages_from: Optional[datetime] = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="messages_from",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+    )
+    # End of the message window, exclusive: messages with created_at < messages_to are exported. Unlike export_channels' messages_until, which is inclusive. Must be after messages_from. When any of channel_cids, messages_from or messages_to is set, calls are omitted from the export.
+    messages_to: Optional[datetime] = dc_field(
+        default=None,
+        metadata=dc_config(
+            field_name="messages_to",
+            encoder=encode_datetime,
+            decoder=datetime_from_unix_ns,
+            mm_field=fields.DateTime(format="iso"),
+        ),
+    )
+    # Limit the export to these channels, in type:id form (at most 100, not empty). Without it every channel of the users is exported.
+    channel_cids: Optional[List[str]] = dc_field(
+        default=None, metadata=dc_config(field_name="channel_cids")
+    )
 
 
 @dataclass
