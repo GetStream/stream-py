@@ -122,9 +122,9 @@ jobs:
             fi
             for _ in $(seq 45); do
               sleep 60
-              # A PR merged into $base during the wait leaves this one behind, and the up-to-date rule refuses the merge until it takes that in.
+              # A PR merged into $base during the wait leaves this one behind, and the up-to-date rule refuses the merge until it takes that in. The new head's checks start over, so the run its Regen integration starts on completion merges it, with a full wait of its own.
               behind=$(gh api "repos/$GITHUB_REPOSITORY/compare/$base...$branch" --jq .behind_by) || behind=0
-              if [ "$behind" != 0 ]; then head=$1; catchup; set -- "$head"; continue; fi
+              if [ "$behind" != 0 ]; then head=$1; catchup; echo "::notice::#$num took in $base, and the run its Regen integration starts merges it"; exit 0; fi
               checks=$(GH_TOKEN=$CHECKS_TOKEN gh pr checks "$num" --required --json bucket --jq '[.[].bucket] | unique | join(",")' 2>&1) || true
               case $checks in
                 *"checks reported"*|*pending*) ;;
