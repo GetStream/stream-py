@@ -18,16 +18,20 @@ classifiers = [
 ]
 dependencies = [
     "httpx>=0.28.1",
-    "pyjwt>=2.8.0,<3",
+    "pyjwt>=2.15.0,<3",
     "dataclasses-json>=0.6.0,<0.7",
     "marshmallow>=3.21.0,<4",
     "python-dateutil>=2.8.2",
-    "pydantic-settings>=2.9.1",
+    "pydantic-settings>=2.14.2",
     "pydantic>=2.10.6",
     "pyee>=13.0.0",
     "ijson>=3.4.0",
-    "twirp",
     "protobuf>=6.31.1",
+    # Not imported directly: httpx pulls these in. The floors keep installs past
+    # GHSA-6q48-6c7w-9gw2 (certifi: compromised emSign CA) and
+    # GHSA-82r6-8w77-94w6 (anyio: TLS host name spoofing).
+    "certifi>=2026.10.18",
+    "anyio>=4.14.2",
 ]
 
 [project.optional-dependencies]
@@ -44,12 +48,12 @@ webrtc = [
     "protobuf>=4.25.1",
     "python-dateutil>=2.8.2",
     "numpy>=2.2.6",
-    "aiohttp>=3.13.2,<4",
+    "aiohttp>=3.14.4,<4",
     "protobuf>=6.31.1",
 ]
 telemetry = [
-    "opentelemetry-api>=1.26.0",
-    "opentelemetry-sdk>=1.26.0",
+    "opentelemetry-api>=1.45.2",
+    "opentelemetry-sdk>=1.45.2",
 ]
 
 [dependency-groups]
@@ -99,20 +103,16 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["getstream"]
 exclude = [
-  "examples/**",
-  "protocol/**",
-  "scripts/**",
-  "tests/**",
+  # Generated webhook tests live inside the package; keep them out of the wheel.
+  "getstream/tests",
 ]
 
+# Allowlist the sdist: only the package source plus the metadata files hatchling
+# always adds (pyproject.toml, README.md, LICENSE.md). Tests, CI config, codegen
+# scripts, docs and the lockfile stay in the repository.
 [tool.hatch.build.targets.sdist]
-exclude = [
-  "examples/**",
-  "getstream-rtc/**",
-  "protocol/**",
-  "scripts/**",
-  "tests/**",
-]
+only-include = ["getstream", "CHANGELOG.md"]
+exclude = ["getstream/tests"]
 
 [tool.ruff]
 exclude = [
