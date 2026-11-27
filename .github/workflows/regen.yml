@@ -103,6 +103,15 @@ jobs:
               --jq '.data.repository.pullRequest | [(.editor.__typename // "Bot"), (.timelineItems.nodes[].actor.__typename)] | any(. != "Bot")') || { echo "::error::could not read who edited #$num"; exit 1; }
             [ "$t" = true ]
           }
+          # Takes in $base with a merge, as the up-to-date rule requires, and moves $head to the new tip, whose checks start over.
+          catchup() {
+            gh pr update-branch "$num" || { human "does not take in $base cleanly, so a human takes it from here"; exit 0; }
+            moved=$head
+            for _ in $(seq 30); do sleep 5; moved=$(gh pr view "$num" --json headRefOid --jq .headRefOid); [ "$moved" != "$head" ] && break; done
+            [ "$moved" != "$head" ] || { echo "::error::#$num did not move after taking in $base"; exit 1; }
+            head=$moved
+            echo "ping=true" >> "$GITHUB_OUTPUT"
+          }
           # Merges the open regen PR at commit $1 as the App once its required checks and the Regen integration run on that commit pass. Auto-merge waits for a code owner review although the App may bypass it, and gh refuses a blocked PR without --admin, which skips only what the App may bypass. GitHub refuses the merge while a required check has not reported yet, so a refusal only means try again.
           land() {
             body=$(gh pr view "$num" --json body --jq .body)
@@ -113,6 +122,9 @@ jobs:
             fi
             for _ in $(seq 45); do
               sleep 60
+              # A PR merged into $base during the wait leaves this one behind, and the up-to-date rule refuses the merge until it takes that in.
+              behind=$(gh api "repos/$GITHUB_REPOSITORY/compare/$base...$branch" --jq .behind_by) || behind=0
+              if [ "$behind" != 0 ]; then head=$1; catchup; set -- "$head"; continue; fi
               checks=$(GH_TOKEN=$CHECKS_TOKEN gh pr checks "$num" --required --json bucket --jq '[.[].bucket] | unique | join(",")' 2>&1) || true
               case $checks in
                 *"checks reported"*|*pending*) ;;
@@ -159,14 +171,7 @@ jobs:
             behind=$(gh api "repos/$GITHUB_REPOSITORY/compare/$base...$branch" --jq .behind_by)
             # Regenerating would drop the tickets a human named in the body, so a labelled PR that fell behind takes in the base with a merge, as the up-to-date rule requires.
             if jq -e 'any(.labels[]; .name == "sdk-not-breaking")' <<< "$pr" > /dev/null; then
-              if [ "$behind" != 0 ]; then
-                gh pr update-branch "$num" || { human "does not take in $base cleanly, so a human takes it from here"; exit 0; }
-                moved=$head
-                for _ in $(seq 30); do sleep 5; moved=$(gh pr view "$num" --json headRefOid --jq .headRefOid); [ "$moved" != "$head" ] && break; done
-                [ "$moved" != "$head" ] || { echo "::error::#$num did not move after taking in $base"; exit 1; }
-                head=$moved
-                echo "ping=true" >> "$GITHUB_OUTPUT"
-              fi
+              if [ "$behind" != 0 ]; then catchup; fi
               land "$head"
             fi
             open=$(grep -o 'openapi-v[0-9.]*[0-9]' <<< "$title" || true)
