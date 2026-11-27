@@ -38,6 +38,7 @@ class FeedsRestClient(BaseClient):
         feeds: List[str],
         copy_custom_to_notification: Optional[bool] = None,
         create_notification_activity: Optional[bool] = None,
+        create_system_feeds: Optional[bool] = None,
         create_users: Optional[bool] = None,
         enrich_own_fields: Optional[bool] = None,
         expires_at: Optional[str] = None,
@@ -68,6 +69,7 @@ class FeedsRestClient(BaseClient):
             feeds=feeds,
             copy_custom_to_notification=copy_custom_to_notification,
             create_notification_activity=create_notification_activity,
+            create_system_feeds=create_system_feeds,
             create_users=create_users,
             enrich_own_fields=enrich_own_fields,
             expires_at=expires_at,
@@ -99,6 +101,7 @@ class FeedsRestClient(BaseClient):
     def upsert_activities(
         self,
         activities: List[ActivityRequest],
+        create_system_feeds: Optional[bool] = None,
         create_users: Optional[bool] = None,
         enrich_own_fields: Optional[bool] = None,
         force_moderation: Optional[bool] = None,
@@ -106,6 +109,7 @@ class FeedsRestClient(BaseClient):
     ) -> StreamResponse[UpsertActivitiesResponse]:
         json = UpsertActivitiesRequest(
             activities=activities,
+            create_system_feeds=create_system_feeds,
             create_users=create_users,
             enrich_own_fields=enrich_own_fields,
             force_moderation=force_moderation,

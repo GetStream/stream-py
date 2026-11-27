@@ -1511,6 +1511,9 @@ class AddActivityRequest(DataClassJsonMixin):
     create_notification_activity: Optional[bool] = dc_field(
         default=None, metadata=dc_config(field_name="create_notification_activity")
     )
+    create_system_feeds: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="create_system_feeds")
+    )
     create_users: Optional[bool] = dc_field(
         default=None, metadata=dc_config(field_name="create_users")
     )
@@ -4476,6 +4479,58 @@ class BrowserDataResponse(DataClassJsonMixin):
     name: Optional[str] = dc_field(default=None, metadata=dc_config(field_name="name"))
     version: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="version")
+    )
+
+
+@dataclass
+class BudgetStatusResponse(DataClassJsonMixin):
+    # Whether exhausting the budget rejects requests with HTTP 429. False when the budget is only measured, or while enforcement is temporarily suspended
+    enforced: bool = dc_field(metadata=dc_config(field_name="enforced"))
+    # Database time in milliseconds the endpoint may use per sliding window
+    limit_ms: int = dc_field(metadata=dc_config(field_name="limit_ms"))
+    # Database time in milliseconds left in the current sliding window, never negative
+    remaining_ms: int = dc_field(metadata=dc_config(field_name="remaining_ms"))
+    # The Unix timestamp at which all usage currently in the window will have expired, if no new usage is added. The current time when no usage is recorded in the window. Can be in the future while used_ms is 0, when earlier usage was refunded
+    reset: int = dc_field(metadata=dc_config(field_name="reset"))
+    # Database time in milliseconds used in the current sliding window, including requests still in flight
+    used_ms: int = dc_field(metadata=dc_config(field_name="used_ms"))
+    # Length of the sliding window in seconds
+    window_seconds: int = dc_field(metadata=dc_config(field_name="window_seconds"))
+
+
+@dataclass
+class BudgetsResponse(DataClassJsonMixin):
+    # Map of endpoint budgets shared by all platforms. Set when budgets are not tracked per platform
+    all: "Optional[Dict[str, BudgetStatusResponse]]" = dc_field(
+        default=None, metadata=dc_config(field_name="all")
+    )
+    # Map of endpoint budgets for the Android platform
+    android: "Optional[Dict[str, BudgetStatusResponse]]" = dc_field(
+        default=None, metadata=dc_config(field_name="android")
+    )
+    # Map of endpoint budgets for the iOS platform
+    ios: "Optional[Dict[str, BudgetStatusResponse]]" = dc_field(
+        default=None, metadata=dc_config(field_name="ios")
+    )
+    # Map of endpoint budgets for the server-side platform
+    server_side: "Optional[Dict[str, BudgetStatusResponse]]" = dc_field(
+        default=None, metadata=dc_config(field_name="server_side")
+    )
+    # Map of endpoint budgets for the Unity platform
+    unity: "Optional[Dict[str, BudgetStatusResponse]]" = dc_field(
+        default=None, metadata=dc_config(field_name="unity")
+    )
+    # Map of endpoint budgets for the Unity console platform
+    unity_console: "Optional[Dict[str, BudgetStatusResponse]]" = dc_field(
+        default=None, metadata=dc_config(field_name="unity_console")
+    )
+    # Map of endpoint budgets for the Unity desktop platform
+    unity_desktop: "Optional[Dict[str, BudgetStatusResponse]]" = dc_field(
+        default=None, metadata=dc_config(field_name="unity_desktop")
+    )
+    # Map of endpoint budgets for the web platform
+    web: "Optional[Dict[str, BudgetStatusResponse]]" = dc_field(
+        default=None, metadata=dc_config(field_name="web")
     )
 
 
@@ -9348,6 +9403,10 @@ class ChatMessageResponse(DataClassJsonMixin):
     )
     thread_participants: "Optional[List[UserResponse]]" = dc_field(
         default=None, metadata=dc_config(field_name="thread_participants")
+    )
+    # User response object
+    deleted_by: "Optional[UserResponse]" = dc_field(
+        default=None, metadata=dc_config(field_name="deleted_by")
     )
     draft: "Optional[ChatDraftResponse]" = dc_field(
         default=None, metadata=dc_config(field_name="draft")
@@ -17818,6 +17877,9 @@ class GetRateLimitsResponse(DataClassJsonMixin):
     android: "Optional[Dict[str, LimitInfoResponse]]" = dc_field(
         default=None, metadata=dc_config(field_name="android")
     )
+    budgets: "Optional[BudgetsResponse]" = dc_field(
+        default=None, metadata=dc_config(field_name="budgets")
+    )
     # Map of endpoint rate limits for the iOS platform
     ios: "Optional[Dict[str, LimitInfoResponse]]" = dc_field(
         default=None, metadata=dc_config(field_name="ios")
@@ -21004,6 +21066,10 @@ class MessageResponse(DataClassJsonMixin):
     thread_participants: "Optional[List[UserResponse]]" = dc_field(
         default=None, metadata=dc_config(field_name="thread_participants")
     )
+    # User response object
+    deleted_by: "Optional[UserResponse]" = dc_field(
+        default=None, metadata=dc_config(field_name="deleted_by")
+    )
     draft: "Optional[DraftResponse]" = dc_field(
         default=None, metadata=dc_config(field_name="draft")
     )
@@ -21379,6 +21445,10 @@ class MessageWithChannelResponse(DataClassJsonMixin):
     # List of users who participate in thread
     thread_participants: "Optional[List[UserResponse]]" = dc_field(
         default=None, metadata=dc_config(field_name="thread_participants")
+    )
+    # User response object
+    deleted_by: "Optional[UserResponse]" = dc_field(
+        default=None, metadata=dc_config(field_name="deleted_by")
     )
     draft: "Optional[DraftResponse]" = dc_field(
         default=None, metadata=dc_config(field_name="draft")
@@ -31084,6 +31154,10 @@ class SearchResultMessage(DataClassJsonMixin):
     channel: "Optional[ChannelResponse]" = dc_field(
         default=None, metadata=dc_config(field_name="channel")
     )
+    # User response object
+    deleted_by: "Optional[UserResponse]" = dc_field(
+        default=None, metadata=dc_config(field_name="deleted_by")
+    )
     draft: "Optional[DraftResponse]" = dc_field(
         default=None, metadata=dc_config(field_name="draft")
     )
@@ -32293,6 +32367,10 @@ class SubmitActionResponse(DataClassJsonMixin):
     # Present when the appeal was accepted but the entity could not be restored automatically. The moderator should restore it manually.
     auto_restore_warning: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="auto_restore_warning")
+    )
+    # ID of the review queue item the action was performed on
+    item_id: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="item_id")
     )
     appeal_item: "Optional[AppealItemResponse]" = dc_field(
         default=None, metadata=dc_config(field_name="appeal_item")
@@ -35926,6 +36004,10 @@ class UpsertActivitiesRequest(DataClassJsonMixin):
     # List of activities to create or update
     activities: "List[ActivityRequest]" = dc_field(
         metadata=dc_config(field_name="activities")
+    )
+    # Server-side only. If true, a missing feed whose id is not a user id (e.g. game:123) is created as a system feed with no user owner. Missing feeds named after an existing user are created either way. Built-in groups (such as user, timeline and notification) and notification groups still require a user. Default: false.
+    create_system_feeds: Optional[bool] = dc_field(
+        default=None, metadata=dc_config(field_name="create_system_feeds")
     )
     # Server-side only. If true, auto-creates users referenced by activity user_id values that don't already exist. Default: false.
     create_users: Optional[bool] = dc_field(
