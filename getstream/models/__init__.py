@@ -32368,6 +32368,10 @@ class SubmitActionResponse(DataClassJsonMixin):
     auto_restore_warning: Optional[str] = dc_field(
         default=None, metadata=dc_config(field_name="auto_restore_warning")
     )
+    # ID of the review queue item the action was performed on
+    item_id: Optional[str] = dc_field(
+        default=None, metadata=dc_config(field_name="item_id")
+    )
     appeal_item: "Optional[AppealItemResponse]" = dc_field(
         default=None, metadata=dc_config(field_name="appeal_item")
     )
